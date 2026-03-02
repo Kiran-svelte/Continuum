@@ -1,7 +1,7 @@
 // ─── XSS Sanitization ────────────────────────────────────────────────────────
 
 const DANGEROUS_HTML_REGEX = /<[^>]*>/g;
-const SCRIPT_PATTERN = /<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script\s*>/gi;
+const SCRIPT_PATTERN = /<script\b[^<]*(?:(?!<\/script\s*>)<[^<]*)*<\/script\s*>/gi;
 const EVENT_HANDLER_PATTERN = /\s*on\w+\s*=\s*["'][^"']*["']/gi;
 const JAVASCRIPT_URI_PATTERN = /javascript\s*:/gi;
 const DATA_URI_PATTERN = /data\s*:\s*text\/html/gi;
