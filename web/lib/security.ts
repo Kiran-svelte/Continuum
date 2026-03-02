@@ -18,19 +18,27 @@ const HTML_REGEX = /[&<>"'`/]/g;
 export function sanitizeInput(input: string): string {
   if (typeof input !== 'string') return '';
 
-  // Remove HTML tags
-  let sanitized = input.replace(/<[^>]*>/g, '');
+  let sanitized = input;
+  let previous: string;
 
-  // Encode remaining dangerous characters
-  sanitized = sanitized.replace(HTML_REGEX, (char) => HTML_ENTITY_MAP[char] || char);
+  // Loop until stable to handle nested/constructed patterns
+  do {
+    previous = sanitized;
 
-  // Remove null bytes
-  sanitized = sanitized.replace(/\0/g, '');
+    // Remove HTML tags
+    sanitized = sanitized.replace(/<[^>]*>/g, '');
 
-  // Remove common script patterns
-  sanitized = sanitized.replace(/javascript\s*:/gi, '');
-  sanitized = sanitized.replace(/on\w+\s*=/gi, '');
-  sanitized = sanitized.replace(/data\s*:\s*text\/html/gi, '');
+    // Encode remaining dangerous characters
+    sanitized = sanitized.replace(HTML_REGEX, (char) => HTML_ENTITY_MAP[char] || char);
+
+    // Remove null bytes
+    sanitized = sanitized.replace(/\0/g, '');
+
+    // Remove common script patterns
+    sanitized = sanitized.replace(/javascript\s*:/gi, '');
+    sanitized = sanitized.replace(/on\w+\s*=/gi, '');
+    sanitized = sanitized.replace(/data\s*:\s*text\/html/gi, '');
+  } while (sanitized !== previous);
 
   return sanitized.trim();
 }

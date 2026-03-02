@@ -1,7 +1,7 @@
 // ─── XSS Sanitization ────────────────────────────────────────────────────────
 
 const DANGEROUS_HTML_REGEX = /<[^>]*>/g;
-const SCRIPT_PATTERN = /(<script[^>]*>[\s\S]*?<\/script>)/gi;
+const SCRIPT_PATTERN = /<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script\s*>/gi;
 const EVENT_HANDLER_PATTERN = /\s*on\w+\s*=\s*["'][^"']*["']/gi;
 const JAVASCRIPT_URI_PATTERN = /javascript\s*:/gi;
 const DATA_URI_PATTERN = /data\s*:\s*text\/html/gi;
@@ -9,40 +9,41 @@ const EXPRESSION_PATTERN = /expression\s*\(/gi;
 const NULL_BYTE_PATTERN = /\0/g;
 
 /**
- * Removes XSS attack vectors from a string:
- * - Script tags
- * - Event handlers (onclick, onerror, etc.)
- * - JavaScript URIs
- * - Data URIs with HTML content
- * - CSS expressions
- * - Null bytes
- * - Remaining HTML tags
+ * Removes XSS attack vectors from a string.
+ * Applies sanitization in a loop until the output stabilizes
+ * to handle nested/constructed attack patterns.
  */
 export function sanitizeXSS(input: string): string {
   if (typeof input !== 'string') return '';
 
   let sanitized = input;
+  let previous: string;
 
-  // Remove script tags and content
-  sanitized = sanitized.replace(SCRIPT_PATTERN, '');
+  // Loop until stable to handle nested patterns like <scr<script>ipt>
+  do {
+    previous = sanitized;
 
-  // Remove event handlers
-  sanitized = sanitized.replace(EVENT_HANDLER_PATTERN, '');
+    // Remove script tags and content
+    sanitized = sanitized.replace(SCRIPT_PATTERN, '');
 
-  // Remove javascript: URIs
-  sanitized = sanitized.replace(JAVASCRIPT_URI_PATTERN, '');
+    // Remove event handlers
+    sanitized = sanitized.replace(EVENT_HANDLER_PATTERN, '');
 
-  // Remove data: URIs with HTML
-  sanitized = sanitized.replace(DATA_URI_PATTERN, '');
+    // Remove javascript: URIs
+    sanitized = sanitized.replace(JAVASCRIPT_URI_PATTERN, '');
 
-  // Remove CSS expressions
-  sanitized = sanitized.replace(EXPRESSION_PATTERN, '');
+    // Remove data: URIs with HTML
+    sanitized = sanitized.replace(DATA_URI_PATTERN, '');
 
-  // Remove null bytes
-  sanitized = sanitized.replace(NULL_BYTE_PATTERN, '');
+    // Remove CSS expressions
+    sanitized = sanitized.replace(EXPRESSION_PATTERN, '');
 
-  // Remove remaining HTML tags
-  sanitized = sanitized.replace(DANGEROUS_HTML_REGEX, '');
+    // Remove null bytes
+    sanitized = sanitized.replace(NULL_BYTE_PATTERN, '');
+
+    // Remove remaining HTML tags
+    sanitized = sanitized.replace(DANGEROUS_HTML_REGEX, '');
+  } while (sanitized !== previous);
 
   return sanitized.trim();
 }
