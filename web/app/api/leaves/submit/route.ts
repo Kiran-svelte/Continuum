@@ -177,7 +177,9 @@ export async function POST(request: NextRequest) {
         attachment_url: data.attachment_url ?? null,
         sla_deadline: requestStatus === 'pending' || requestStatus === 'escalated' ? slaDeadline : null,
         approved_at: requestStatus === 'approved' ? new Date() : undefined,
-        approver_comments: requestStatus === 'approved' ? 'Auto-approved by constraint engine' : undefined,
+        approver_comments: requestStatus === 'approved'
+          ? `Auto-approved by constraint engine (confidence: ${((constraintResult?.confidence_score as number ?? 0) * 100).toFixed(0)}%)`
+          : undefined,
         constraint_result: constraintResult
           ? (constraintResult as Prisma.InputJsonValue)
           : undefined,

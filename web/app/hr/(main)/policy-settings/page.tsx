@@ -75,10 +75,12 @@ function RuleConfigEditor({
   const [editing, setEditing] = useState(false);
   const [config, setConfig] = useState(rule.config);
   const [isActive, setIsActive] = useState(rule.is_active);
+  const [jsonError, setJsonError] = useState('');
 
   useEffect(() => {
     setConfig(rule.config);
     setIsActive(rule.is_active);
+    setJsonError('');
   }, [rule]);
 
   if (!editing) {
@@ -141,10 +143,16 @@ function RuleConfigEditor({
             onChange={(e) => {
               try {
                 setConfig({ ...config, blackout_dates: JSON.parse(e.target.value) });
-              } catch { /* ignore invalid JSON while typing */ }
+                setJsonError('');
+              } catch {
+                setJsonError('Invalid JSON — fix before saving');
+              }
             }}
-            className="mt-1 w-full border border-gray-300 rounded px-2 py-1 text-xs font-mono"
+            className={`mt-1 w-full border rounded px-2 py-1 text-xs font-mono ${jsonError ? 'border-red-400' : 'border-gray-300'}`}
           />
+          {jsonError && (
+            <p className="text-xs text-red-500 mt-1">{jsonError}</p>
+          )}
           <p className="text-xs text-gray-400 mt-1">
             Format: {`[{"name":"Q4 Freeze","start":"2025-10-01","end":"2025-10-07"}]`}
           </p>
@@ -169,13 +177,13 @@ function RuleConfigEditor({
             onSave(rule.rule_id, { ...config });
             setEditing(false);
           }}
-          disabled={saving}
+          disabled={saving || !!jsonError}
           className="text-xs bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 disabled:opacity-50"
         >
           {saving ? 'Saving…' : 'Save Rule'}
         </button>
         <button
-          onClick={() => { setConfig(rule.config); setEditing(false); }}
+          onClick={() => { setConfig(rule.config); setJsonError(''); setEditing(false); }}
           className="text-xs text-gray-500 hover:underline"
         >
           Cancel
