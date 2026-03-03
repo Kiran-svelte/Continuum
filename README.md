@@ -2021,6 +2021,195 @@ Every database model that contains company data has a `company_id` (or `org_id`)
 
 ---
 
+## 18. User Facilities Guide — Everything a User Needs
+
+> Think of the hotel analogy: everyone knows a hotel serves food, but guests also need A/C, chairs, tables, clean linen, hot water, WiFi, and a working elevator. This section documents every facility Continuum provides **beyond** the core leave-management feature — the things that make it truly usable.
+
+---
+
+### 18.1 Authentication Facilities
+
+| Facility | Location | What It Does |
+|----------|----------|--------------|
+| **Sign Up — Company Admin** | `/sign-up` → "Start a Company" | Creates company, admin employee, 16 leave types, 13 rules, auto-seeds balances in one atomic transaction |
+| **Sign Up — Employee** | `/sign-up` → "Join a Company" | Validates company join code, creates employee, seeds leave balances |
+| **Sign In** | `/sign-in` | Supabase authentication with role-based redirect (HR → `/hr/dashboard`, Manager → `/manager/dashboard`, Employee → `/employee/dashboard`) |
+| **Forgot Password** | `/forgot-password` | Sends Supabase password-reset email with time-limited link |
+| **Reset Password** | `/reset-password` | Validates reset session, enforces 8-char minimum, shows success and auto-redirects |
+| **Sign Out** | Sidebar footer (all portals) | Calls `supabase.auth.signOut()` and redirects to `/sign-in` — available on every page |
+
+---
+
+### 18.2 Navigation Facilities
+
+| Facility | Description |
+|----------|-------------|
+| **Active nav link highlighting** | Current page is highlighted with blue background + blue dot indicator in all sidebars |
+| **Sidebar logo link** | Clicking "Continuum" in sidebar takes user to their portal's dashboard |
+| **Notification bell** | Live 🔔 badge with unread count in every sidebar header |
+| **Custom 404 page** | Friendly not-found page at `/not-found.tsx` with "Go Home" and "My Dashboard" links |
+| **Role-based redirect** | After sign-in, API `/api/auth/me` returns role → redirect to correct portal |
+
+---
+
+### 18.3 Employee Self-Service Facilities
+
+| Facility | Location | Status |
+|----------|----------|--------|
+| **View leave balances** | Employee Dashboard | Live data from `/api/leaves/balances` with progress bars per leave type |
+| **Apply for leave** | `/employee/request-leave` | Wired to `POST /api/leaves/submit` — shows day count, validation, success toast + redirect |
+| **View leave history** | `/employee/leave-history` | Paginated, filterable by status (All / Pending / Approved / Rejected / Cancelled) |
+| **Cancel pending request** | `/employee/leave-history` | "✕ Cancel Request" button calls `POST /api/leaves/cancel/[requestId]` — restores balance |
+| **View attendance log** | `/employee/attendance` | Shows recent check-in/check-out + leave balance sidebar |
+| **View payslips & documents** | `/employee/documents` | Document listing with category badges and download links |
+| **View & edit profile** | `/employee/profile` | Shows real data from `/api/employees/me` — edit phone, department, designation inline |
+
+---
+
+### 18.4 Manager Facilities
+
+| Facility | Location | Status |
+|----------|----------|--------|
+| **Pending approvals** | `/manager/approvals` | Live list of team's pending requests — ✓ Approve / ✗ Reject with real API calls |
+| **Team attendance** | `/manager/team-attendance` | Today's team availability (Present / WFH / On Leave) with counts |
+| **Team directory** | `/manager/team` | Live team member list from `/api/employees` |
+| **Team reports** | `/manager/reports` | Leave analytics from `/api/reports/leave-summary` |
+| **Approval success toast** | `/manager/approvals` | Inline success message after approve/reject action |
+
+---
+
+### 18.5 HR Portal Facilities
+
+| Facility | Location | Status |
+|----------|----------|--------|
+| **Employee directory** | `/hr/employees` | Searchable, filterable by status/role, paginated, live from `/api/employees` |
+| **Leave requests** | `/hr/leave-requests` | All requests with status filters + inline approve/reject buttons |
+| **Leave analytics** | `/hr/reports` | Bar chart (monthly), status breakdown, leave type breakdown, top takers, SLA breach count |
+| **Policy settings** | `/hr/policy-settings` | Full leave type catalog (16 types) + all 13 constraint rules displayed |
+| **Payroll runs** | `/hr/payroll` | Payroll history with download buttons and next-run date |
+| **Organization chart** | `/hr/organization` | Department list with head names and team sizes |
+| **Company settings** | `/hr/settings` | Company info, join code display/copy, leave policy config, notification toggles |
+| **Attendance overview** | `/hr/attendance` | Company-wide attendance stats |
+
+---
+
+### 18.6 Notification Facilities
+
+Notifications are stored in the `Notification` DB model and served via three endpoints:
+
+```
+GET  /api/notifications              → List user's notifications (limit, unread filter)
+PATCH /api/notifications/:id/read   → Mark single notification as read
+PATCH /api/notifications/read-all   → Mark all as read
+```
+
+The **Notification Bell** component (in every sidebar header):
+- Auto-loads on mount, auto-refreshes every 60 seconds
+- Shows red badge with unread count (max "9+")
+- Dropdown list with blue dot for unread items, "Mark all read" button
+- Click to mark individual notifications read
+
+---
+
+### 18.7 Data Facilities
+
+| Facility | API Endpoint | Description |
+|----------|-------------|-------------|
+| **Leave balance check** | `GET /api/leaves/balances` | Auto-seeds defaults on first call (INV-15) |
+| **Role-scoped leave list** | `GET /api/leaves/list` | Employees → own only; Managers → team + self; HR/Admin → all company |
+| **Leave analytics** | `GET /api/reports/leave-summary` | Year-level aggregations with monthly trend |
+| **Employee lookup** | `GET /api/employees` | Paginated with search, status, department, role filters |
+| **Own profile** | `GET /api/employees/me` | Full profile with manager info |
+| **Profile update** | `PATCH /api/employees/me` | Phone, department, designation — with audit log |
+| **My session** | `GET /api/auth/me` | Returns role for client-side redirect |
+
+---
+
+### 18.8 Security Facilities
+
+| Facility | Implementation |
+|----------|---------------|
+| **Rate limiting** | Per-endpoint in-memory sliding window (30–200 req/min based on plan) |
+| **Session management** | Supabase cookie-based sessions, refreshed by middleware on every request |
+| **Role-based access control** | 40+ permission codes, 6 roles, multi-role support — see §2 |
+| **Company isolation** | Every DB query is scoped to `org_id` — cross-company access returns 403 |
+| **Audit trail** | SHA-256 chained audit logs for every write operation |
+| **Input sanitization** | All user input sanitized via `lib/security.ts` before DB writes |
+| **Password reset** | Supabase time-limited reset links (1 hour expiry) |
+| **OTP verification** | Available for sensitive actions via `lib/otp-service.ts` |
+| **Production error hiding** | Stack traces never exposed — generic message in production |
+
+---
+
+### 18.9 Onboarding Facilities
+
+| Step | Facility |
+|------|----------|
+| **Step 1 — Company** | Name, logo URL, timezone, industry, size |
+| **Step 2 — Leave Types** | Enable/configure from 16 catalog types |
+| **Step 3 — Holidays** | Add public + custom holidays for the year |
+| **Step 4 — Rules** | Set SLA hours, negative balance, probation period |
+| **Step 5 — Notifications** | Email on/off, manager alerts, daily digest, SLA alerts |
+| **Step 6 — Complete** | Shows company join code for sharing with employees |
+
+---
+
+### 18.10 Status & Observability Facilities
+
+| Facility | Location |
+|----------|----------|
+| **System status page** | `/status` — service uptime, latency, incident history |
+| **Health endpoint** | `GET /api/health` — JSON health check for load balancers |
+| **Prometheus metrics** | `GET /api/enterprise/metrics` — prom-client metrics for Grafana |
+| **Structured logging** | `lib/enterprise/logger.ts` — Winston with JSON format |
+| **Alerting** | `lib/enterprise/alerting.ts` — error threshold alerts |
+
+---
+
+### 18.11 Infrastructure Facilities
+
+| Facility | File | Description |
+|----------|------|-------------|
+| **Docker** | `Dockerfile` | Multi-stage production build |
+| **Docker Compose** | `docker-compose.yml` | Full stack: app + Postgres + constraint engine |
+| **Nginx** | `nginx.conf` (docker) | Reverse proxy with gzip, rate limit headers |
+| **Cron jobs** | `api/cron/sla-check` | SLA breach detection runs every 15 minutes |
+| **Environment validation** | `api/security/env-check` | Validates all required env vars are set |
+| **Multi-tenancy** | Middleware | Every request checked for company isolation |
+
+---
+
+### 18.12 Compliance Facilities
+
+| Facility | File | Description |
+|----------|------|-------------|
+| **GDPR data export** | `lib/compliance/data-export.ts` | Employee can request full data export |
+| **Consent management** | `lib/compliance/consent.ts` | Tracks and verifies user consent |
+| **Audit encryption** | `lib/enterprise/audit-encryption.ts` | AES-256 encrypted audit trail |
+| **India labor law** | `lib/india-tax.ts` | PF, ESI, TDS, Form 16 calculations |
+| **Leave policy compliance** | 13 constraint rules | Probation, notice period, max duration, gender-specific |
+
+---
+
+### 18.13 Quick Facility Reference — "Where is it?"
+
+```
+I want to...                          | Go to...
+--------------------------------------|------------------------------------------
+Log out                               | Sidebar bottom → "↩ Sign Out" button
+Reset my forgotten password           | /forgot-password
+Change my phone/designation           | /employee/profile → "✏️ Edit Profile"
+Cancel a pending leave                | /employee/leave-history → "✕ Cancel Request"
+See who's on leave today              | /manager/team-attendance
+Approve a team member's leave         | /manager/approvals
+See my leave balance                  | /employee/dashboard (top cards) or /employee/profile
+View all company leave requests       | /hr/leave-requests
+Export leave reports                  | /hr/reports → "📥 Export CSV"
+Share join code with new employees    | /hr/settings → "Company Join Code"
+Configure leave types & rules         | /hr/policy-settings
+Check system status                   | /status
+```
+
 ## License
 
 Proprietary — All rights reserved.

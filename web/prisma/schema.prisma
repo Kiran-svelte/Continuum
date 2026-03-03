@@ -821,6 +821,7 @@ model Notification {
   title       String
   message     String
   is_read     Boolean             @default(false)
+  read_at     DateTime?
   channel     NotificationChannel @default(in_app)
   created_at  DateTime            @default(now())
 

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -33,11 +33,12 @@ export default function LeaveHistoryPage() {
   const [requests, setRequests] = useState<LeaveRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [cancellingId, setCancellingId] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [statusFilter, setStatusFilter] = useState('');
 
-  async function loadRequests(p: number, status: string) {
+  const loadRequests = useCallback(async (p: number, status: string) => {
     setLoading(true);
     setError('');
     try {
@@ -54,11 +55,30 @@ export default function LeaveHistoryPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, []);
 
   useEffect(() => {
     loadRequests(page, statusFilter);
-  }, [page, statusFilter]);
+  }, [page, statusFilter, loadRequests]);
+
+  async function handleCancel(requestId: string) {
+    if (!confirm('Are you sure you want to cancel this leave request?')) return;
+    setCancellingId(requestId);
+    try {
+      const res = await fetch(`/api/leaves/cancel/${requestId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reason: 'Cancelled by employee' }),
+      });
+      if (res.ok) {
+        setRequests((prev) =>
+          prev.map((r) => (r.id === requestId ? { ...r, status: 'cancelled' } : r))
+        );
+      }
+    } finally {
+      setCancellingId(null);
+    }
+  }
 
   function formatDate(dateStr: string) {
     return new Date(dateStr).toLocaleDateString('en-IN', {
@@ -158,10 +178,19 @@ export default function LeaveHistoryPage() {
                         </p>
                       )}
                     </div>
-                    <div className="text-right shrink-0">
+                    <div className="flex flex-col items-end gap-2 shrink-0">
                       <p className="text-xs text-gray-400">
                         {formatDate(req.created_at)}
                       </p>
+                      {(req.status === 'pending' || req.status === 'escalated') && (
+                        <button
+                          onClick={() => handleCancel(req.id)}
+                          disabled={cancellingId === req.id}
+                          className="text-xs text-red-600 hover:text-red-700 font-medium hover:underline disabled:opacity-50"
+                        >
+                          {cancellingId === req.id ? 'Cancelling…' : '✕ Cancel Request'}
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>

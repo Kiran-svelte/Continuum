@@ -29,7 +29,22 @@ export default function SignInPage() {
         setError(signInError.message);
         return;
       }
-      router.push('/hr/dashboard');
+      // Fetch the user's role and redirect to the appropriate portal
+      const meRes = await fetch('/api/auth/me');
+      if (meRes.ok) {
+        const me = await meRes.json();
+        const role: string = me.primary_role ?? 'employee';
+        if (role === 'admin' || role === 'hr') {
+          router.push('/hr/dashboard');
+        } else if (role === 'manager' || role === 'team_lead' || role === 'director') {
+          router.push('/manager/dashboard');
+        } else {
+          router.push('/employee/dashboard');
+        }
+      } else {
+        // Fallback: redirect to employee dashboard
+        router.push('/employee/dashboard');
+      }
     } finally {
       setLoading(false);
     }
@@ -87,7 +102,7 @@ export default function SignInPage() {
                   <input type="checkbox" className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
                   Remember me
                 </label>
-                <a href="#" className="text-sm text-blue-600 hover:text-blue-700">
+                <a href="/forgot-password" className="text-sm text-blue-600 hover:text-blue-700">
                   Forgot password?
                 </a>
               </div>
