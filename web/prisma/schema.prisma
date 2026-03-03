@@ -190,6 +190,7 @@ model Company {
   industry             String?
   size                 String?
   country_code         String   @default("IN")
+  join_code            String?  @unique
   onboarding_completed Boolean  @default(false)
   negative_balance     Boolean  @default(false)
   timezone             String   @default("Asia/Kolkata")
@@ -820,6 +821,7 @@ model Notification {
   title       String
   message     String
   is_read     Boolean             @default(false)
+  read_at     DateTime?
   channel     NotificationChannel @default(in_app)
   created_at  DateTime            @default(now())
 

@@ -2,24 +2,98 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { createBrowserClient } from '@supabase/ssr';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+
+type Mode = 'admin' | 'employee';
 
 const ROLES = [
   { value: 'employee', label: 'Employee' },
   { value: 'manager', label: 'Manager' },
   { value: 'hr', label: 'HR Admin' },
+  { value: 'team_lead', label: 'Team Lead' },
 ];
 
 export default function SignUpPage() {
-  const [name, setName] = useState('');
+  const router = useRouter();
+  const [mode, setMode] = useState<Mode>('admin');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [role, setRole] = useState('');
+  // Admin-mode fields
+  const [companyName, setCompanyName] = useState('');
+  const [industry, setIndustry] = useState('');
+  const [companySize, setCompanySize] = useState('');
+  const [timezone, setTimezone] = useState('Asia/Kolkata');
+  // Employee-mode fields
   const [companyCode, setCompanyCode] = useState('');
+  const [role, setRole] = useState('employee');
 
-  function handleSubmit(e: React.FormEvent) {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  const supabase = createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  );
+
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    setError('');
+    setLoading(true);
+
+    try {
+      // 1. Create Supabase auth user — sets session cookie automatically
+      const { error: signUpError } = await supabase.auth.signUp({ email, password });
+      if (signUpError) {
+        setError(signUpError.message);
+        return;
+      }
+
+      // 2. Call appropriate API to create company/employee records
+      if (mode === 'admin') {
+        const res = await fetch('/api/auth/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            first_name: firstName,
+            last_name: lastName,
+            company_name: companyName,
+            industry: industry || undefined,
+            size: companySize || undefined,
+            timezone,
+          }),
+        });
+        const json = await res.json();
+        if (!res.ok) {
+          setError(json.error ?? 'Registration failed');
+          return;
+        }
+        router.push('/onboarding');
+      } else {
+        const res = await fetch('/api/auth/join', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            first_name: firstName,
+            last_name: lastName,
+            company_code: companyCode,
+            role,
+          }),
+        });
+        const json = await res.json();
+        if (!res.ok) {
+          setError(json.error ?? 'Join failed');
+          return;
+        }
+        router.push('/employee/dashboard');
+      }
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -30,22 +104,67 @@ export default function SignUpPage() {
           <p className="text-gray-500 mt-2">Create your account</p>
         </div>
 
+        {/* Mode Toggle */}
+        <div className="flex rounded-lg border border-gray-200 overflow-hidden mb-6">
+          <button
+            type="button"
+            onClick={() => setMode('admin')}
+            className={`flex-1 py-2.5 text-sm font-medium transition-colors ${
+              mode === 'admin' ? 'bg-blue-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'
+            }`}
+          >
+            Start a Company
+          </button>
+          <button
+            type="button"
+            onClick={() => setMode('employee')}
+            className={`flex-1 py-2.5 text-sm font-medium transition-colors ${
+              mode === 'employee' ? 'bg-blue-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'
+            }`}
+          >
+            Join a Company
+          </button>
+        </div>
+
         <Card>
           <CardContent className="pt-6">
+            {error && (
+              <div className="mb-4 rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
+                {error}
+              </div>
+            )}
+
             <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
-                  Full Name
-                </label>
-                <input
-                  id="name"
-                  type="text"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                  placeholder="Rahul Sharma"
-                  required
-                />
+              {/* Shared fields */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label htmlFor="firstName" className="block text-sm font-medium text-gray-700 mb-1">
+                    First Name
+                  </label>
+                  <input
+                    id="firstName"
+                    type="text"
+                    value={firstName}
+                    onChange={(e) => setFirstName(e.target.value)}
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                    placeholder="Rahul"
+                    required
+                  />
+                </div>
+                <div>
+                  <label htmlFor="lastName" className="block text-sm font-medium text-gray-700 mb-1">
+                    Last Name
+                  </label>
+                  <input
+                    id="lastName"
+                    type="text"
+                    value={lastName}
+                    onChange={(e) => setLastName(e.target.value)}
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                    placeholder="Sharma"
+                    required
+                  />
+                </div>
               </div>
 
               <div>
@@ -80,44 +199,126 @@ export default function SignUpPage() {
                 <p className="text-xs text-gray-400 mt-1">Must be at least 8 characters</p>
               </div>
 
-              <div>
-                <label htmlFor="role" className="block text-sm font-medium text-gray-700 mb-1">
-                  Role
-                </label>
-                <select
-                  id="role"
-                  value={role}
-                  onChange={(e) => setRole(e.target.value)}
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                  required
-                >
-                  <option value="">Select your role</option>
-                  {ROLES.map((r) => (
-                    <option key={r.value} value={r.value}>
-                      {r.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              {/* Admin-mode fields */}
+              {mode === 'admin' && (
+                <>
+                  <div>
+                    <label htmlFor="companyName" className="block text-sm font-medium text-gray-700 mb-1">
+                      Company Name
+                    </label>
+                    <input
+                      id="companyName"
+                      type="text"
+                      value={companyName}
+                      onChange={(e) => setCompanyName(e.target.value)}
+                      className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                      placeholder="Acme Corporation"
+                      required
+                    />
+                  </div>
 
-              <div>
-                <label htmlFor="companyCode" className="block text-sm font-medium text-gray-700 mb-1">
-                  Company Code
-                </label>
-                <input
-                  id="companyCode"
-                  type="text"
-                  value={companyCode}
-                  onChange={(e) => setCompanyCode(e.target.value)}
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                  placeholder="e.g., ACME-2024"
-                  required
-                />
-                <p className="text-xs text-gray-400 mt-1">Provided by your HR administrator</p>
-              </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label htmlFor="industry" className="block text-sm font-medium text-gray-700 mb-1">
+                        Industry
+                      </label>
+                      <select
+                        id="industry"
+                        value={industry}
+                        onChange={(e) => setIndustry(e.target.value)}
+                        className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                      >
+                        <option value="">Select</option>
+                        <option value="technology">Technology</option>
+                        <option value="finance">Finance</option>
+                        <option value="healthcare">Healthcare</option>
+                        <option value="manufacturing">Manufacturing</option>
+                        <option value="retail">Retail</option>
+                        <option value="other">Other</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label htmlFor="companySize" className="block text-sm font-medium text-gray-700 mb-1">
+                        Company Size
+                      </label>
+                      <select
+                        id="companySize"
+                        value={companySize}
+                        onChange={(e) => setCompanySize(e.target.value)}
+                        className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                      >
+                        <option value="">Select</option>
+                        <option value="1-50">1–50</option>
+                        <option value="51-200">51–200</option>
+                        <option value="201-1000">201–1,000</option>
+                        <option value="1001+">1,001+</option>
+                      </select>
+                    </div>
+                  </div>
 
-              <Button type="submit" className="w-full">
-                Create Account
+                  <div>
+                    <label htmlFor="timezone" className="block text-sm font-medium text-gray-700 mb-1">
+                      Timezone
+                    </label>
+                    <select
+                      id="timezone"
+                      value={timezone}
+                      onChange={(e) => setTimezone(e.target.value)}
+                      className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                    >
+                      <option value="Asia/Kolkata">Asia/Kolkata (IST)</option>
+                      <option value="America/New_York">America/New_York (EST)</option>
+                      <option value="Europe/London">Europe/London (GMT)</option>
+                    </select>
+                  </div>
+                </>
+              )}
+
+              {/* Employee-mode fields */}
+              {mode === 'employee' && (
+                <>
+                  <div>
+                    <label htmlFor="companyCode" className="block text-sm font-medium text-gray-700 mb-1">
+                      Company Code
+                    </label>
+                    <input
+                      id="companyCode"
+                      type="text"
+                      value={companyCode}
+                      onChange={(e) => setCompanyCode(e.target.value.toUpperCase())}
+                      className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 font-mono tracking-widest focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                      placeholder="e.g., A1B2C3D4"
+                      required
+                    />
+                    <p className="text-xs text-gray-400 mt-1">Provided by your HR administrator</p>
+                  </div>
+
+                  <div>
+                    <label htmlFor="role" className="block text-sm font-medium text-gray-700 mb-1">
+                      Role
+                    </label>
+                    <select
+                      id="role"
+                      value={role}
+                      onChange={(e) => setRole(e.target.value)}
+                      className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                    >
+                      {ROLES.map((r) => (
+                        <option key={r.value} value={r.value}>
+                          {r.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </>
+              )}
+
+              <Button type="submit" className="w-full" disabled={loading}>
+                {loading
+                  ? 'Please wait…'
+                  : mode === 'admin'
+                  ? 'Create Company & Account'
+                  : 'Join Company'}
               </Button>
             </form>
 
@@ -133,3 +334,4 @@ export default function SignUpPage() {
     </div>
   );
 }
+

@@ -1,27 +1,61 @@
+'use client';
+
+import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
 
-const LEAVE_BALANCES = [
-  { type: 'Casual Leave', short: 'CL', remaining: 7, total: 12, color: 'bg-blue-500' },
-  { type: 'Sick Leave', short: 'SL', remaining: 5, total: 7, color: 'bg-green-500' },
-  { type: 'Privilege Leave', short: 'PL', remaining: 12, total: 15, color: 'bg-purple-500' },
-  { type: 'Work From Home', short: 'WFH', remaining: 18, total: 24, color: 'bg-orange-500' },
-];
+interface LeaveBalance {
+  leave_type: string;
+  annual_entitlement: number;
+  remaining: number;
+}
 
+// Placeholder holiday list — replace with /api/holidays endpoint once implemented
 const UPCOMING_HOLIDAYS = [
-  { name: 'Republic Day', date: 'Jan 26, 2025', day: 'Sunday' },
   { name: 'Holi', date: 'Mar 14, 2025', day: 'Friday' },
   { name: 'Good Friday', date: 'Apr 18, 2025', day: 'Friday' },
   { name: 'May Day', date: 'May 1, 2025', day: 'Thursday' },
+  { name: 'Independence Day', date: 'Aug 15, 2025', day: 'Friday' },
 ];
 
+// Maps commonly used leave types to display colors
+const LEAVE_COLORS: Record<string, string> = {
+  CL: 'bg-blue-500',
+  SL: 'bg-green-500',
+  PL: 'bg-purple-500',
+  EL: 'bg-purple-500',
+  WFH: 'bg-orange-500',
+  LWP: 'bg-red-500',
+  ML: 'bg-pink-500',
+  PTL: 'bg-cyan-500',
+  BL: 'bg-gray-500',
+};
+
 export default function EmployeeDashboardPage() {
+  const [balances, setBalances] = useState<LeaveBalance[]>([]);
+  const [loadingBalances, setLoadingBalances] = useState(true);
+
+  useEffect(() => {
+    async function load() {
+      try {
+        const res = await fetch('/api/leaves/balances');
+        if (res.ok) {
+          const json = await res.json();
+          setBalances((json.balances ?? []).slice(0, 4));
+        }
+      } finally {
+        setLoadingBalances(false);
+      }
+    }
+    load();
+  }, []);
+
   return (
     <div className="space-y-8">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Welcome back, Rahul</h1>
+          <h1 className="text-2xl font-bold text-gray-900">Welcome back 👋</h1>
           <p className="text-gray-500 mt-1">Here&apos;s your leave overview for this year</p>
         </div>
         <div className="flex gap-3">
@@ -31,53 +65,80 @@ export default function EmployeeDashboardPage() {
           >
             📝 Apply Leave
           </Link>
-          <button className="inline-flex items-center gap-2 border border-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors">
-            🕐 Check In
-          </button>
         </div>
       </div>
 
       {/* Leave Balance Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {LEAVE_BALANCES.map((balance) => (
-          <Card key={balance.short}>
-            <CardContent className="pt-4">
-              <div className="flex items-center justify-between mb-3">
-                <p className="text-sm text-gray-500">{balance.type}</p>
-                <Badge variant="info">{balance.short}</Badge>
-              </div>
-              <p className="text-3xl font-bold text-gray-900">{balance.remaining}</p>
-              <p className="text-xs text-gray-400 mt-1">of {balance.total} days remaining</p>
-              <div className="mt-3 w-full bg-gray-100 rounded-full h-2">
-                <div
-                  className={`${balance.color} h-2 rounded-full transition-all`}
-                  style={{ width: `${(balance.remaining / balance.total) * 100}%` }}
-                />
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+      {loadingBalances ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {[1, 2, 3, 4].map((i) => (
+            <Card key={i}>
+              <CardContent className="pt-4">
+                <div className="h-20 animate-pulse bg-gray-100 rounded-lg" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {balances.map((balance) => (
+            <Card key={balance.leave_type}>
+              <CardContent className="pt-4">
+                <div className="flex items-center justify-between mb-3">
+                  <p className="text-sm text-gray-500">{balance.leave_type}</p>
+                  <Badge variant="info">{balance.leave_type}</Badge>
+                </div>
+                <p className="text-3xl font-bold text-gray-900">{balance.remaining}</p>
+                <p className="text-xs text-gray-400 mt-1">of {balance.annual_entitlement} days remaining</p>
+                <div className="mt-3 w-full bg-gray-100 rounded-full h-2">
+                  <div
+                    className={`${LEAVE_COLORS[balance.leave_type] ?? 'bg-blue-500'} h-2 rounded-full transition-all`}
+                    style={{
+                      width: `${balance.annual_entitlement > 0 ? Math.min(100, (balance.remaining / balance.annual_entitlement) * 100) : 0}%`,
+                    }}
+                  />
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+          {balances.length === 0 && (
+            <div className="col-span-4 text-center py-6 text-sm text-gray-400">
+              No leave balances found. Contact your HR team.
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Team Calendar Placeholder */}
-        <Card className="lg:col-span-2">
+        {/* Quick Actions */}
+        <Card>
           <CardHeader>
-            <CardTitle>Team Calendar</CardTitle>
+            <CardTitle>Quick Actions</CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="h-64 bg-gray-50 rounded-lg flex items-center justify-center border-2 border-dashed border-gray-200">
-              <div className="text-center">
-                <span className="text-4xl">📅</span>
-                <p className="text-sm text-gray-500 mt-2">Team calendar view</p>
-                <p className="text-xs text-gray-400 mt-1">Shows team members&apos; leave schedules</p>
-              </div>
-            </div>
+          <CardContent className="space-y-2">
+            {[
+              { href: '/employee/request-leave', icon: '📝', label: 'Apply for Leave', sub: 'Submit a new request' },
+              { href: '/employee/leave-history', icon: '📅', label: 'View Leave History', sub: 'Check past requests' },
+              { href: '/employee/attendance', icon: '🕐', label: 'My Attendance', sub: 'View attendance log' },
+              { href: '/employee/documents', icon: '📁', label: 'Documents', sub: 'Payslips & letters' },
+            ].map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                className="flex items-center gap-3 p-3 rounded-lg border border-gray-100 hover:bg-blue-50 hover:border-blue-200 transition-colors"
+              >
+                <span className="text-xl">{item.icon}</span>
+                <div>
+                  <p className="text-sm font-medium text-gray-900">{item.label}</p>
+                  <p className="text-xs text-gray-400">{item.sub}</p>
+                </div>
+              </Link>
+            ))}
           </CardContent>
         </Card>
 
         {/* Upcoming Holidays */}
-        <Card>
+        <Card className="lg:col-span-2">
           <CardHeader>
             <CardTitle>Upcoming Holidays</CardTitle>
           </CardHeader>
