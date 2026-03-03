@@ -1,28 +1,77 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 const LEAVE_TYPES = [
-  { value: 'casual', label: 'Casual Leave (CL)' },
-  { value: 'sick', label: 'Sick Leave (SL)' },
-  { value: 'privilege', label: 'Privilege Leave (PL)' },
-  { value: 'wfh', label: 'Work From Home (WFH)' },
-  { value: 'comp-off', label: 'Compensatory Off' },
-  { value: 'maternity', label: 'Maternity Leave' },
-  { value: 'paternity', label: 'Paternity Leave' },
+  { value: 'CL', label: 'Casual Leave (CL)' },
+  { value: 'SL', label: 'Sick Leave (SL)' },
+  { value: 'PL', label: 'Privilege Leave (PL)' },
+  { value: 'EL', label: 'Earned Leave (EL)' },
+  { value: 'WFH', label: 'Work From Home (WFH)' },
+  { value: 'ML', label: 'Maternity Leave (ML)' },
+  { value: 'PTL', label: 'Paternity Leave (PTL)' },
+  { value: 'BL', label: 'Bereavement Leave (BL)' },
+  { value: 'LWP', label: 'Leave Without Pay (LWP)' },
 ];
 
 export default function RequestLeavePage() {
+  const router = useRouter();
   const [leaveType, setLeaveType] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [halfDay, setHalfDay] = useState(false);
   const [reason, setReason] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
 
-  function handleSubmit(e: React.FormEvent) {
+  // Calculate number of days for display
+  const totalDays =
+    startDate && endDate
+      ? halfDay
+        ? 0.5
+        : Math.max(
+            1,
+            Math.ceil((new Date(endDate).getTime() - new Date(startDate).getTime()) / 86_400_000) + 1
+          )
+      : 0;
+
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    setError('');
+    setSuccess('');
+    setLoading(true);
+    try {
+      const res = await fetch('/api/leaves/submit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          leave_type: leaveType,
+          start_date: startDate,
+          end_date: endDate,
+          is_half_day: halfDay,
+          reason,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        setError(json.error ?? 'Failed to submit leave request');
+        return;
+      }
+      setSuccess('Leave request submitted successfully! Your manager will review it shortly.');
+      // Reset form
+      setLeaveType('');
+      setStartDate('');
+      setEndDate('');
+      setHalfDay(false);
+      setReason('');
+      setTimeout(() => router.push('/employee/leave-history'), 1500);
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -37,6 +86,17 @@ export default function RequestLeavePage() {
           <CardTitle>Leave Details</CardTitle>
         </CardHeader>
         <CardContent>
+          {error && (
+            <div className="mb-4 rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
+              {error}
+            </div>
+          )}
+          {success && (
+            <div className="mb-4 rounded-lg bg-green-50 border border-green-200 px-4 py-3 text-sm text-green-700">
+              {success}
+            </div>
+          )}
+
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Leave Type */}
             <div>
@@ -69,6 +129,7 @@ export default function RequestLeavePage() {
                   id="startDate"
                   type="date"
                   value={startDate}
+                  min={new Date().toISOString().split('T')[0]}
                   onChange={(e) => setStartDate(e.target.value)}
                   className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none"
                   required
@@ -82,12 +143,20 @@ export default function RequestLeavePage() {
                   id="endDate"
                   type="date"
                   value={endDate}
+                  min={startDate || new Date().toISOString().split('T')[0]}
                   onChange={(e) => setEndDate(e.target.value)}
                   className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none"
                   required
                 />
               </div>
             </div>
+
+            {/* Days count */}
+            {totalDays > 0 && (
+              <div className="rounded-lg bg-blue-50 border border-blue-100 px-4 py-2 text-sm text-blue-700">
+                Total: <span className="font-semibold">{totalDays} day{totalDays !== 1 ? 's' : ''}</span>
+              </div>
+            )}
 
             {/* Half Day Toggle */}
             <div className="flex items-center gap-3">
@@ -106,7 +175,7 @@ export default function RequestLeavePage() {
             {/* Reason */}
             <div>
               <label htmlFor="reason" className="block text-sm font-medium text-gray-700 mb-1">
-                Reason
+                Reason <span className="text-gray-400 font-normal">(required)</span>
               </label>
               <textarea
                 id="reason"
@@ -116,30 +185,24 @@ export default function RequestLeavePage() {
                 className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none resize-none"
                 placeholder="Provide a reason for your leave request..."
                 required
+                minLength={3}
+                maxLength={1000}
               />
-            </div>
-
-            {/* File Upload */}
-            <div>
-              <label htmlFor="attachment" className="block text-sm font-medium text-gray-700 mb-1">
-                Attachment (optional)
-              </label>
-              <input
-                id="attachment"
-                type="file"
-                className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-                accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
-              />
-              <p className="text-xs text-gray-400 mt-1">PDF, JPG, PNG, DOC up to 5MB</p>
+              <p className="text-xs text-gray-400 mt-1">{reason.length}/1000</p>
             </div>
 
             {/* Actions */}
             <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
-              <Button type="button" variant="outline">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => router.push('/employee/dashboard')}
+                disabled={loading}
+              >
                 Cancel
               </Button>
-              <Button type="submit">
-                Submit Request
+              <Button type="submit" disabled={loading}>
+                {loading ? 'Submitting…' : 'Submit Request'}
               </Button>
             </div>
           </form>
