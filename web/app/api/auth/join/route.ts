@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import prisma from '@/lib/prisma';
-import { createSupabaseServerClient } from '@/lib/auth-guard';
+import { getAuthUserFromRequest } from '@/lib/auth-guard';
 import { checkApiRateLimit, getRateLimitHeaders } from '@/lib/api-rate-limit';
 import { createAuditLog, AUDIT_ACTIONS } from '@/lib/audit';
 import { sanitizeInput } from '@/lib/security';
@@ -22,7 +22,7 @@ const joinSchema = z.object({
  * POST /api/auth/join
  *
  * Employee join flow via company code:
- * 1. Authenticates via Supabase session (client must call supabase.auth.signUp first)
+ * 1. Authenticates via Firebase token (client must call Firebase signUp first)
  * 2. Validates the company_code against Company.join_code
  * 3. Creates an Employee record linked to the company
  * 4. Seeds leave balances based on the company's active leave types
@@ -40,19 +40,15 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    // Resolve the authenticated Supabase user
-    const supabase = await createSupabaseServerClient();
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
+    // Resolve the authenticated Firebase user from Bearer token or session cookie
+    const { user, error: authError } = await getAuthUserFromRequest(request);
 
     if (authError || !user) {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     }
 
     // Ensure this auth_id is not already registered
-    const existing = await prisma.employee.findUnique({ where: { auth_id: user.id } });
+    const existing = await prisma.employee.findUnique({ where: { auth_id: user.uid } });
     if (existing) {
       return NextResponse.json({ error: 'Account already registered' }, { status: 409 });
     }
@@ -88,7 +84,7 @@ export async function POST(request: NextRequest) {
     const result = await prisma.$transaction(async (tx) => {
       const employee = await tx.employee.create({
         data: {
-          auth_id: user.id,
+          auth_id: user.uid,
           email: user.email!,
           first_name: firstName,
           last_name: lastName,

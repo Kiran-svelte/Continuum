@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { createBrowserClient } from '@supabase/ssr';
+import { firebaseSendPasswordResetEmail } from '@/lib/firebase';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 
@@ -12,24 +12,16 @@ export default function ForgotPasswordPage() {
   const [sent, setSent] = useState(false);
   const [error, setError] = useState('');
 
-  const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
-
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError('');
     setLoading(true);
     try {
-      const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/reset-password`,
-      });
-      if (resetError) {
-        setError(resetError.message);
-        return;
-      }
+      await firebaseSendPasswordResetEmail(email);
       setSent(true);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to send reset email';
+      setError(message);
     } finally {
       setLoading(false);
     }

@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { createBrowserClient } from '@supabase/ssr';
+import { firebaseSignOut } from '@/lib/firebase';
 
 interface SignOutButtonProps {
   variant?: 'sidebar' | 'compact';
@@ -10,13 +10,13 @@ interface SignOutButtonProps {
 export function SignOutButton({ variant = 'sidebar' }: SignOutButtonProps) {
   const router = useRouter();
 
-  const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
-
   async function handleSignOut() {
-    await supabase.auth.signOut();
+    // Sign out from Firebase
+    await firebaseSignOut();
+    
+    // Clear the session cookie
+    await fetch('/api/auth/session', { method: 'DELETE' });
+    
     router.push('/sign-in');
   }
 

@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { randomBytes } from 'crypto';
 import type { Prisma } from '@prisma/client';
 import prisma from '@/lib/prisma';
-import { createSupabaseServerClient } from '@/lib/auth-guard';
+import { getAuthUserFromRequest } from '@/lib/auth-guard';
 import { checkApiRateLimit, getRateLimitHeaders } from '@/lib/api-rate-limit';
 import { createAuditLog, AUDIT_ACTIONS } from '@/lib/audit';
 import { sanitizeInput } from '@/lib/security';
@@ -30,7 +30,7 @@ function generateJoinCode(): string {
  * POST /api/auth/register
  *
  * Company admin registration flow:
- * 1. Authenticates via Supabase session (client must call supabase.auth.signUp first)
+ * 1. Authenticates via Firebase token (client must call Firebase signUp first)
  * 2. Creates a Company record with a unique join_code for employees
  * 3. Creates an Employee record with `admin` role
  * 4. Seeds default leave types for the company
@@ -39,6 +39,8 @@ function generateJoinCode(): string {
  * 7. Creates an audit log entry
  */
 export async function POST(request: NextRequest) {
+  console.log('[REGISTER] Started');
+  
   // Rate limit by IP
   const ip = request.headers.get('x-forwarded-for') ?? 'unknown';
   const rateLimit = checkApiRateLimit(ip, 'auth');
@@ -50,19 +52,20 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    // Resolve the authenticated Supabase user from session cookie
-    const supabase = await createSupabaseServerClient();
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
+    console.log('[REGISTER] Verifying auth...');
+    // Resolve the authenticated Firebase user from Bearer token or session cookie
+    const { user, error: authError } = await getAuthUserFromRequest(request);
+    console.log('[REGISTER] Auth result:', user?.uid, authError?.message);
 
     if (authError || !user) {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     }
 
+    console.log('[REGISTER] Checking existing employee...');
     // Ensure this auth_id is not already linked to an employee
-    const existing = await prisma.employee.findUnique({ where: { auth_id: user.id } });
+    const existing = await prisma.employee.findUnique({ where: { auth_id: user.uid } });
+    console.log('[REGISTER] Existing employee:', existing?.id);
+    
     if (existing) {
       return NextResponse.json({ error: 'Account already registered' }, { status: 409 });
     }
@@ -96,8 +99,10 @@ export async function POST(request: NextRequest) {
 
     const year = new Date().getFullYear();
 
+    console.log('[REGISTER] Starting transaction...');
     // Transactionally create company, admin employee, leave types, leave balances, constraint rules
     const result = await prisma.$transaction(async (tx) => {
+      console.log('[REGISTER] Creating company...');
       // 1. Create company
       const company = await tx.company.create({
         data: {
@@ -112,7 +117,7 @@ export async function POST(request: NextRequest) {
       // 2. Create admin employee
       const employee = await tx.employee.create({
         data: {
-          auth_id: user.id,
+          auth_id: user.uid,
           email: user.email!,
           first_name: firstName,
           last_name: lastName,

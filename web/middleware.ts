@@ -1,5 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
-import { createServerClient } from '@supabase/ssr';
+
+// Firebase token cookie name
+const AUTH_COOKIE_NAME = 'firebase-auth-token';
 
 // ─── Configuration ──────────────────────────────────────────────────────────
 
@@ -8,6 +10,8 @@ const PUBLIC_ROUTES = [
   '/',
   '/sign-in',
   '/sign-up',
+  '/forgot-password',
+  '/reset-password',
   '/hr/sign-in',
   '/hr/sign-up',
   '/employee/sign-in',
@@ -22,6 +26,9 @@ const PUBLIC_API_PATTERNS = [
   '/api/health',
   '/api/enterprise/metrics',
   '/api/security/env-check',
+  '/api/auth/session',
+  '/api/auth/register',
+  '/api/auth/join',
 ];
 
 // Cron routes that use CRON_SECRET instead of user auth
@@ -115,7 +122,7 @@ function addSecurityHeaders(response: NextResponse): void {
   );
   response.headers.set(
     'Content-Security-Policy',
-    "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https://*.supabase.co wss://*.pusher.com https://*.pusher.com;"
+    "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com wss://*.pusher.com https://*.pusher.com;"
   );
   response.headers.set('X-DNS-Prefetch-Control', 'on');
   response.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
@@ -210,32 +217,15 @@ export async function middleware(request: NextRequest) {
     return response;
   }
 
-  // 6. Supabase session refresh
+  // 6. Firebase auth check - verify auth cookie is present
+  // Note: Actual token verification happens in API routes via firebase-admin
+  // Middleware only checks for cookie presence as a quick gate
   try {
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL || '',
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '',
-      {
-        cookies: {
-          getAll() {
-            return request.cookies.getAll();
-          },
-          setAll(cookiesToSet: { name: string; value: string; options: Record<string, unknown> }[]) {
-            for (const { name, value } of cookiesToSet) {
-              request.cookies.set(name, value);
-            }
-            for (const { name, value, options } of cookiesToSet) {
-              response.cookies.set(name, value, options);
-            }
-          },
-        },
-      }
-    );
-
-    const { data: { user } } = await supabase.auth.getUser();
+    const authCookie = request.cookies.get(AUTH_COOKIE_NAME);
+    const hasAuth = !!authCookie?.value;
 
     // 7. Auth check
-    if (!user) {
+    if (!hasAuth) {
       if (isApiRoute(pathname)) {
         return NextResponse.json(
           { error: 'Authentication required' },
@@ -252,14 +242,14 @@ export async function middleware(request: NextRequest) {
     if (isSensitiveRoute(pathname)) {
       const clientIP = getClientIP(request);
       console.log(
-        `[SECURITY] Sensitive route access: ${request.method} ${pathname} by ${user.email} from ${clientIP} at ${new Date().toISOString()}`
+        `[SECURITY] Sensitive route access: ${request.method} ${pathname} from ${clientIP} at ${new Date().toISOString()}`
       );
     }
 
   } catch (error) {
-    // If Supabase is not configured, allow in development
+    // If Firebase is not configured, allow in development
     if (process.env.NODE_ENV === 'development') {
-      console.warn('[MIDDLEWARE] Supabase not configured, allowing in development');
+      console.warn('[MIDDLEWARE] Firebase not configured, allowing in development');
       return response;
     }
     

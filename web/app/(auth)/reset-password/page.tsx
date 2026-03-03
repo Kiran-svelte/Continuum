@@ -1,33 +1,41 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { createBrowserClient } from '@supabase/ssr';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { firebaseVerifyPasswordResetCode, firebaseConfirmPasswordReset } from '@/lib/firebase';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 
 export default function ResetPasswordPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
-  const [validSession, setValidSession] = useState<boolean | null>(null);
-
-  const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
+  const [validCode, setValidCode] = useState<boolean | null>(null);
+  const [oobCode, setOobCode] = useState<string | null>(null);
 
   useEffect(() => {
-    // Supabase sets the session from the URL hash automatically when the page loads
-    async function checkSession() {
-      const { data: { session } } = await supabase.auth.getSession();
-      setValidSession(!!session);
+    // Firebase sends the oobCode as a query parameter
+    async function verifyCode() {
+      const code = searchParams.get('oobCode');
+      if (!code) {
+        setValidCode(false);
+        return;
+      }
+      
+      try {
+        await firebaseVerifyPasswordResetCode(code);
+        setOobCode(code);
+        setValidCode(true);
+      } catch {
+        setValidCode(false);
+      }
     }
-    checkSession();
-  }, [supabase]);
+    verifyCode();
+  }, [searchParams]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -41,22 +49,25 @@ export default function ResetPasswordPage() {
       setError('Password must be at least 8 characters');
       return;
     }
+    if (!oobCode) {
+      setError('Invalid reset code');
+      return;
+    }
 
     setLoading(true);
     try {
-      const { error: updateError } = await supabase.auth.updateUser({ password });
-      if (updateError) {
-        setError(updateError.message);
-        return;
-      }
+      await firebaseConfirmPasswordReset(oobCode, password);
       setSuccess(true);
       setTimeout(() => router.push('/sign-in'), 2500);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to reset password';
+      setError(message);
     } finally {
       setLoading(false);
     }
   }
 
-  if (validSession === null) {
+  if (validCode === null) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <p className="text-sm text-gray-400">Verifying reset link…</p>
@@ -64,7 +75,7 @@ export default function ResetPasswordPage() {
     );
   }
 
-  if (validSession === false) {
+  if (validCode === false) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
         <div className="text-center">

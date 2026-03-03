@@ -1,6 +1,6 @@
-import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import prisma from '@/lib/prisma';
+import { verifyIdToken, type DecodedIdToken } from '@/lib/firebase-admin';
 import {
   getUserPermissions,
   hasPermission,
@@ -37,53 +37,82 @@ export class AuthError extends Error {
   }
 }
 
-// ─── Supabase Server Client ─────────────────────────────────────────────────
+// ─── Firebase Token Constants ───────────────────────────────────────────────
 
-export async function createSupabaseServerClient() {
+const AUTH_COOKIE_NAME = 'firebase-auth-token';
+
+// ─── Firebase Auth Helpers ──────────────────────────────────────────────────
+
+/**
+ * Gets the Firebase ID token from the session cookie
+ */
+export async function getTokenFromCookies(): Promise<string | null> {
   const cookieStore = await cookies();
+  return cookieStore.get(AUTH_COOKIE_NAME)?.value ?? null;
+}
 
-  return createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return cookieStore.getAll();
-        },
-        setAll(cookiesToSet: Array<{ name: string; value: string; options?: Record<string, unknown> }>) {
-          try {
-            cookiesToSet.forEach(({ name, value, options }) =>
-              cookieStore.set(name, value, options)
-            );
-          } catch {
-            // Ignore cookie set errors in Server Components
-          }
-        },
-      },
+/**
+ * Gets the authenticated user from either Bearer token (Authorization header) or session cookies.
+ * Prefers Bearer token if present.
+ */
+export async function getAuthUserFromRequest(request: Request): Promise<{ user: DecodedIdToken | null; error: Error | null }> {
+  const authHeader = request.headers.get('Authorization');
+  
+  if (authHeader?.startsWith('Bearer ')) {
+    const token = authHeader.slice(7);
+    try {
+      const decodedToken = await verifyIdToken(token);
+      return { user: decodedToken, error: null };
+    } catch (err) {
+      return { user: null, error: err instanceof Error ? err : new Error('Invalid token') };
     }
-  );
+  }
+  
+  // Fall back to cookie-based auth
+  const cookieHeader = request.headers.get('cookie');
+  if (cookieHeader) {
+    const cookies = Object.fromEntries(
+      cookieHeader.split('; ').map(c => {
+        const [key, ...val] = c.split('=');
+        return [key, val.join('=')];
+      })
+    );
+    const token = cookies[AUTH_COOKIE_NAME];
+    if (token) {
+      try {
+        const decodedToken = await verifyIdToken(token);
+        return { user: decodedToken, error: null };
+      } catch (err) {
+        return { user: null, error: err instanceof Error ? err : new Error('Invalid token') };
+      }
+    }
+  }
+  
+  return { user: null, error: new Error('No authentication token found') };
 }
 
 // ─── Auth Guards ─────────────────────────────────────────────────────────────
 
 /**
- * Extracts auth from Supabase, looks up Employee via Prisma.
+ * Extracts auth from Firebase, looks up Employee via Prisma.
  * Returns the authenticated employee with role, company, and permissions.
  */
 export async function getAuthEmployee(): Promise<AuthEmployee> {
-  const supabase = await createSupabaseServerClient();
-
-  const {
-    data: { user },
-    error,
-  } = await supabase.auth.getUser();
-
-  if (error || !user) {
+  const token = await getTokenFromCookies();
+  
+  if (!token) {
     throw new AuthError('Authentication required', 401);
   }
 
+  let decodedToken: DecodedIdToken;
+  try {
+    decodedToken = await verifyIdToken(token);
+  } catch {
+    throw new AuthError('Invalid or expired token', 401);
+  }
+
   const employee = await prisma.employee.findUnique({
-    where: { auth_id: user.id },
+    where: { auth_id: decodedToken.uid },
     select: {
       id: true,
       auth_id: true,

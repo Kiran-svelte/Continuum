@@ -30,11 +30,12 @@ logger = logging.getLogger("constraint-engine")
 # ── Prometheus metrics (best-effort) ─────────────────────────────────────────
 
 try:
-    from prometheus_flask_instrumentator import Instrumentator
+    from prometheus_flask_exporter import PrometheusMetrics
 
-    Instrumentator().instrument(app).expose(app, endpoint="/metrics")
+    metrics = PrometheusMetrics(app)
+    logger.info("Prometheus metrics enabled at /metrics")
 except ImportError:
-    logger.warning("prometheus-flask-instrumentator not installed – /metrics disabled")
+    logger.warning("prometheus-flask-exporter not installed – /metrics disabled")
 
 
 # ── Database Connection ──────────────────────────────────────────────────────

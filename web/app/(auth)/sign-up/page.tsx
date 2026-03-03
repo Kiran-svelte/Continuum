@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { createBrowserClient } from '@supabase/ssr';
+import { firebaseSignUp, firebaseSignIn, getIdToken } from '@/lib/firebase';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 
@@ -35,29 +35,59 @@ export default function SignUpPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
-
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError('');
     setLoading(true);
 
     try {
-      // 1. Create Supabase auth user — sets session cookie automatically
-      const { error: signUpError } = await supabase.auth.signUp({ email, password });
-      if (signUpError) {
-        setError(signUpError.message);
+      // 1. Create Firebase auth user (or sign in if already exists)
+      try {
+        await firebaseSignUp(email, password);
+      } catch (signUpErr: unknown) {
+        const firebaseError = signUpErr as { code?: string };
+        // If user already exists, try to sign in instead
+        if (firebaseError.code === 'auth/email-already-in-use') {
+          await firebaseSignIn(email, password);
+        } else {
+          throw signUpErr;
+        }
+      }
+      
+      // Get the ID token
+      const idToken = await getIdToken();
+      if (!idToken) {
+        setError('Failed to get authentication token');
+        setLoading(false);
         return;
       }
 
+      // Set the session cookie via API
+      const sessionRes = await fetch('/api/auth/session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ idToken }),
+      });
+      
+      if (!sessionRes.ok) {
+        setError('Failed to create session');
+        setLoading(false);
+        return;
+      }
+
+      const authHeaders = {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${idToken}`,
+      };
+
       // 2. Call appropriate API to create company/employee records
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+      
       if (mode === 'admin') {
         const res = await fetch('/api/auth/register', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: authHeaders,
           body: JSON.stringify({
             first_name: firstName,
             last_name: lastName,
@@ -66,31 +96,63 @@ export default function SignUpPage() {
             size: companySize || undefined,
             timezone,
           }),
+          signal: controller.signal,
         });
+        clearTimeout(timeoutId);
         const json = await res.json();
         if (!res.ok) {
+          // If account already registered, redirect to dashboard
+          if (res.status === 409) {
+            router.push('/employee/dashboard');
+            return;
+          }
           setError(json.error ?? 'Registration failed');
+          setLoading(false);
           return;
         }
         router.push('/onboarding');
       } else {
+        const controller2 = new AbortController();
+        const timeoutId2 = setTimeout(() => controller2.abort(), 30000);
         const res = await fetch('/api/auth/join', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: authHeaders,
           body: JSON.stringify({
             first_name: firstName,
             last_name: lastName,
             company_code: companyCode,
             role,
           }),
+          signal: controller2.signal,
         });
+        clearTimeout(timeoutId2);
         const json = await res.json();
         if (!res.ok) {
+          // If account already registered, redirect to dashboard
+          if (res.status === 409) {
+            router.push('/employee/dashboard');
+            return;
+          }
           setError(json.error ?? 'Join failed');
+          setLoading(false);
           return;
         }
         router.push('/employee/dashboard');
       }
+    } catch (err) {
+      const firebaseErr = err as { code?: string; message?: string; name?: string };
+      // Provide better error messages
+      let message = firebaseErr.message || 'Registration failed';
+      if (firebaseErr.name === 'AbortError') {
+        message = 'Request timed out. Please check your connection and try again.';
+      } else if (firebaseErr.code === 'auth/wrong-password') {
+        message = 'This email is already registered. Please use the correct password or sign in.';
+      } else if (firebaseErr.code === 'auth/weak-password') {
+        message = 'Password must be at least 6 characters.';
+      } else if (firebaseErr.code === 'auth/invalid-email') {
+        message = 'Invalid email address.';
+      }
+      setError(message);
     } finally {
       setLoading(false);
     }

@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { createBrowserClient } from '@supabase/ssr';
+import { firebaseSignIn, getIdToken } from '@/lib/firebase';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 
@@ -14,21 +14,33 @@ export default function SignInPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
-
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError('');
     setLoading(true);
     try {
-      const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
-      if (signInError) {
-        setError(signInError.message);
+      // Sign in with Firebase
+      await firebaseSignIn(email, password);
+      
+      // Get the ID token
+      const idToken = await getIdToken();
+      if (!idToken) {
+        setError('Failed to get authentication token');
         return;
       }
+
+      // Set the session cookie via API
+      const sessionRes = await fetch('/api/auth/session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ idToken }),
+      });
+      
+      if (!sessionRes.ok) {
+        setError('Failed to create session');
+        return;
+      }
+
       // Fetch the user's role and redirect to the appropriate portal
       const meRes = await fetch('/api/auth/me');
       if (meRes.ok) {
@@ -45,6 +57,9 @@ export default function SignInPage() {
         // Fallback: redirect to employee dashboard
         router.push('/employee/dashboard');
       }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Sign in failed';
+      setError(message);
     } finally {
       setLoading(false);
     }
