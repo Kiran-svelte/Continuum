@@ -42,10 +42,20 @@ except ImportError:
 
 
 def get_db_connection():
-    """Get PostgreSQL connection using DATABASE_URL."""
-    database_url = os.environ.get("DATABASE_URL", "")
+    """Get PostgreSQL connection using DATABASE_URL or DIRECT_URL."""
+    # Use DIRECT_URL if available (recommended for direct connections)
+    # DATABASE_URL may have pgbouncer params that psycopg2 doesn't support
+    database_url = os.environ.get("DIRECT_URL", "") or os.environ.get("DATABASE_URL", "")
     if not database_url:
         return None
+    
+    # Strip pgbouncer and connection_limit params that psycopg2 doesn't understand
+    if "?" in database_url:
+        base_url, params = database_url.split("?", 1)
+        param_list = params.split("&")
+        filtered_params = [p for p in param_list if not p.startswith(("pgbouncer", "connection_limit"))]
+        database_url = base_url + ("?" + "&".join(filtered_params) if filtered_params else "")
+    
     try:
         conn = psycopg2.connect(database_url, cursor_factory=RealDictCursor)
         return conn
@@ -234,9 +244,17 @@ DEFAULT_RULES: list[dict[str, Any]] = [
 ]
 
 
-def _get_rule_config(rule_id: str, company_rules: list[dict] | None = None) -> dict:
-    """Return merged config for *rule_id* (company overrides + defaults)."""
+def _get_rule_config(rule_id: str, company_rules: list[dict] | None = None, leave_request: dict | None = None) -> dict:
+    """Return merged config for *rule_id* (company overrides + defaults).
+    
+    Company rules can be passed directly or extracted from leave_request["_company_rules"].
+    """
     defaults = next((r for r in DEFAULT_RULES if r["rule_id"] == rule_id), {})
+    
+    # Try to get company_rules from leave_request if not passed directly
+    if not company_rules and leave_request:
+        company_rules = leave_request.get("_company_rules", [])
+    
     if not company_rules:
         return defaults
     override = next((r for r in company_rules if r.get("rule_id") == rule_id), None)
@@ -492,7 +510,7 @@ def evaluate_rule_001(
     """RULE001 – Max Leave Duration."""
     t0 = time.monotonic()
     rule_id = "RULE001"
-    rule = _get_rule_config(rule_id)
+    rule = _get_rule_config(rule_id, leave_request=leave_request)
     name = rule["name"]
     is_blocking = rule["is_blocking"]
     category = rule["category"]
@@ -535,7 +553,7 @@ def evaluate_rule_002(
     """RULE002 – Leave Balance Check."""
     t0 = time.monotonic()
     rule_id = "RULE002"
-    rule = _get_rule_config(rule_id)
+    rule = _get_rule_config(rule_id, leave_request=leave_request)
     name = rule["name"]
     is_blocking = rule["is_blocking"]
     category = rule["category"]
@@ -615,7 +633,7 @@ def evaluate_rule_003(
     """RULE003 – Min Team Coverage (60%)."""
     t0 = time.monotonic()
     rule_id = "RULE003"
-    rule = _get_rule_config(rule_id)
+    rule = _get_rule_config(rule_id, leave_request=leave_request)
     name = rule["name"]
     is_blocking = rule["is_blocking"]
     category = rule["category"]
@@ -683,7 +701,7 @@ def evaluate_rule_004(
     """RULE004 – Max Concurrent Leave."""
     t0 = time.monotonic()
     rule_id = "RULE004"
-    rule = _get_rule_config(rule_id)
+    rule = _get_rule_config(rule_id, leave_request=leave_request)
     name = rule["name"]
     is_blocking = rule["is_blocking"]
     category = rule["category"]
@@ -740,7 +758,7 @@ def evaluate_rule_005(
     """RULE005 – Blackout Period."""
     t0 = time.monotonic()
     rule_id = "RULE005"
-    rule = _get_rule_config(rule_id)
+    rule = _get_rule_config(rule_id, leave_request=leave_request)
     name = rule["name"]
     is_blocking = rule["is_blocking"]
     category = rule["category"]
@@ -828,7 +846,7 @@ def evaluate_rule_006(
     """RULE006 – Advance Notice (warning only)."""
     t0 = time.monotonic()
     rule_id = "RULE006"
-    rule = _get_rule_config(rule_id)
+    rule = _get_rule_config(rule_id, leave_request=leave_request)
     name = rule["name"]
     is_blocking = rule["is_blocking"]  # False
     category = rule["category"]
@@ -881,7 +899,7 @@ def evaluate_rule_007(
     """RULE007 – Consecutive Leave Limit (across multiple requests)."""
     t0 = time.monotonic()
     rule_id = "RULE007"
-    rule = _get_rule_config(rule_id)
+    rule = _get_rule_config(rule_id, leave_request=leave_request)
     name = rule["name"]
     is_blocking = rule["is_blocking"]  # False (warning)
     category = rule["category"]
@@ -947,7 +965,7 @@ def evaluate_rule_008(
     """RULE008 – Sandwich Rule."""
     t0 = time.monotonic()
     rule_id = "RULE008"
-    rule = _get_rule_config(rule_id)
+    rule = _get_rule_config(rule_id, leave_request=leave_request)
     name = rule["name"]
     is_blocking = rule["is_blocking"]
     category = rule["category"]
@@ -1047,7 +1065,7 @@ def evaluate_rule_009(
     """RULE009 – Min Gap Between Leaves (warning only)."""
     t0 = time.monotonic()
     rule_id = "RULE009"
-    rule = _get_rule_config(rule_id)
+    rule = _get_rule_config(rule_id, leave_request=leave_request)
     name = rule["name"]
     is_blocking = rule["is_blocking"]  # False
     category = rule["category"]
@@ -1118,7 +1136,7 @@ def evaluate_rule_010(
     """RULE010 – Probation Restriction."""
     t0 = time.monotonic()
     rule_id = "RULE010"
-    rule = _get_rule_config(rule_id)
+    rule = _get_rule_config(rule_id, leave_request=leave_request)
     name = rule["name"]
     is_blocking = rule["is_blocking"]
     category = rule["category"]
@@ -1186,7 +1204,7 @@ def evaluate_rule_011(
     """RULE011 – Critical Project Freeze."""
     t0 = time.monotonic()
     rule_id = "RULE011"
-    rule = _get_rule_config(rule_id)
+    rule = _get_rule_config(rule_id, leave_request=leave_request)
     name = rule["name"]
     is_blocking = rule["is_blocking"]
     category = rule["category"]
@@ -1273,7 +1291,7 @@ def evaluate_rule_012(
     """RULE012 – Document Requirement (warning only)."""
     t0 = time.monotonic()
     rule_id = "RULE012"
-    rule = _get_rule_config(rule_id)
+    rule = _get_rule_config(rule_id, leave_request=leave_request)
     name = rule["name"]
     is_blocking = rule["is_blocking"]  # False
     category = rule["category"]
@@ -1333,7 +1351,7 @@ def evaluate_rule_013(
     """RULE013 – Monthly Quota."""
     t0 = time.monotonic()
     rule_id = "RULE013"
-    rule = _get_rule_config(rule_id)
+    rule = _get_rule_config(rule_id, leave_request=leave_request)
     name = rule["name"]
     is_blocking = rule["is_blocking"]
     category = rule["category"]
@@ -1443,6 +1461,10 @@ def evaluate_all(leave_request: dict, conn=None) -> dict:
     if conn and company_id:
         company_config = _fetch_company(conn, company_id)
         company_rules = _fetch_company_rules(conn, company_id)
+    
+    # Inject company_rules into leave_request so evaluators can access them
+    leave_request["_company_rules"] = company_rules
+    logger.info("Loaded %d company-specific rules for company %s", len(company_rules), company_id)
 
     violations: list[dict] = []
     warnings: list[dict] = []
