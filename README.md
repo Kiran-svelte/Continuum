@@ -26,6 +26,7 @@
 14. [Testing Strategy](#14-testing-strategy)
 15. [Deployment](#15-deployment)
 16. [Tech Stack](#16-tech-stack)
+17. [Developer Guide — How Everything Works](#17-developer-guide--how-everything-works)
 
 ---
 
@@ -1621,6 +1622,402 @@ tetradeck_saas/
 ├── docs/                        # Documentation
 └── package.json                 # Root package
 ```
+
+---
+
+## 17. Developer Guide — How Everything Works
+
+This section provides deep technical explanations of every major subsystem for new developers.
+
+---
+
+### 17.1 Authentication & Registration Flow
+
+#### Company Admin Registration
+
+When a new company signs up, the following happens in strict order:
+
+1. **Client-side** (`/sign-up`, "Start a Company" mode): The user fills in their name, email, password, company name, industry, size, and timezone. On submit, the page calls `supabase.auth.signUp({ email, password })` using the Supabase browser client. This creates an auth user in Supabase and sets a session cookie automatically.
+
+2. **API call** (`POST /api/auth/register`): With the Supabase session cookie already set, the client calls this endpoint with the company details. The server:
+   - Reads the authenticated Supabase user via `createSupabaseServerClient().auth.getUser()`
+   - Validates that no `Employee` record exists for this `auth_id` yet (prevents double-registration)
+   - Runs a **single database transaction** that atomically:
+     - Creates a `Company` record with a randomly generated 8-character `join_code` (e.g., `A1B2C3D4`)
+     - Creates an `Employee` record with `primary_role: 'admin'` linked to the new company
+     - Seeds all 16 leave types from `LEAVE_TYPE_CATALOG` as `LeaveType` records
+     - Seeds `LeaveBalance` records for the admin employee (one per leave type for the current year)
+     - Seeds 13 default `LeaveRule` records from `DEFAULT_CONSTRAINT_RULES`
+   - Creates an audit log entry with SHA-256 hash chain integrity
+   - Returns `{ company_id, employee_id, join_code }`
+
+3. **Client redirects** to `/onboarding` for the wizard.
+
+**Why a transaction?** All-or-nothing semantics: if any step fails, the entire registration rolls back. No partial company records or orphaned employees.
+
+**Why generate `join_code` at registration?** Employees need a code immediately. The admin can share it before finishing onboarding.
+
+#### Employee Join Flow
+
+Employees join an existing company using the code their HR admin shares:
+
+1. **Client-side** (`/sign-up`, "Join a Company" mode): Employee enters name, email, password, company code, and their role. On submit:
+   - `supabase.auth.signUp()` creates the auth user and sets session cookie
+   - Client calls `POST /api/auth/join` with the company code and profile data
+
+2. **API call** (`POST /api/auth/join`): The server:
+   - Authenticates via Supabase session cookie
+   - Looks up `Company` by `join_code` (case-insensitive after toUpperCase normalization)
+   - Runs a **transaction** that:
+     - Creates the `Employee` record with `status: 'onboarding'`
+     - Seeds `LeaveBalance` rows using the company's active `LeaveType` records (falls back to `LEAVE_TYPE_CATALOG` if no custom types are configured yet)
+   - Creates an audit log entry
+   - Returns `{ employee_id, company_id, company_name }`
+
+3. **Client redirects** to `/employee/dashboard`.
+
+**Why `status: 'onboarding'`?** Employees start in onboarding status — the HR team can update this to `active` after verification.
+
+**Why fall back to the catalog?** If the admin hasn't completed onboarding yet, the company may not have custom leave types. The fallback ensures employees always get initial balances.
+
+---
+
+### 17.2 Onboarding Wizard — Step-by-Step
+
+The wizard at `/onboarding` is only visited by company admins post-registration. It has 6 steps:
+
+| Step | UI Label | What it configures | What saves to DB |
+|------|----------|--------------------|-----------------|
+| 1 | Company Setup | Name, industry, size, timezone | `Company` fields updated |
+| 2 | Leave Types | Enable/disable leave types, quotas | New `LeaveType` rows (skips already-seeded codes) |
+| 3 | Constraint Rules | View/acknowledge defaults | Already seeded at registration — no DB write here |
+| 4 | Holidays | Select public holidays | `PublicHoliday` rows (custom, per company) |
+| 5 | Notifications | Email alerts, manager alerts, SLA alerts | `CompanySettings.email_notifications` upserted |
+| 6 | Complete | Display join code | `Company.onboarding_completed = true` |
+
+**Save trigger**: All data is collected in React state across steps. A **single API call** (`POST /api/onboarding/complete`) saves everything when the user clicks "Finish Setup" on step 5. The transaction inside the route ensures partial saves don't occur.
+
+**Join Code display**: After `POST /api/onboarding/complete` succeeds, the route returns the company's existing `join_code`. The Complete step displays it prominently so the admin can share it with employees.
+
+**Why not save each step individually?** To keep the wizard recoverable. If the admin closes the browser mid-wizard, they can re-open it and all state is re-enterable. Only the final "Finish Setup" writes to the database.
+
+---
+
+### 17.3 Auto-Seeding of Leave Balances
+
+Leave balances are created automatically in two places:
+
+**During company admin registration** (`POST /api/auth/register`):
+```
+LEAVE_TYPE_CATALOG (16 types) → LeaveBalance rows for admin employee
+annual_entitlement = defaultQuota from catalog
+remaining = defaultQuota (starts fresh)
+year = current calendar year
+```
+
+**During employee join** (`POST /api/auth/join`):
+```
+company.leave_types (active) OR LEAVE_TYPE_CATALOG (fallback)
+  → LeaveBalance rows for new employee
+annual_entitlement = leave_type.default_quota
+remaining = default_quota
+year = current calendar year
+```
+
+**Why seed at creation?** The leave engine (`/api/leaves/submit`) checks balances before approving. If no balance exists, the system cannot evaluate the request. Pre-seeding eliminates a "chicken-and-egg" problem.
+
+**How carry-forward works**: At year-end, the cron job (`/api/cron/sla-check` and balance cron) calculates `remaining × carry_forward_percentage` and creates new `LeaveBalance` rows for the next year, carrying the appropriate balance forward.
+
+---
+
+### 17.4 Leave Policy Engine Logic
+
+The leave engine applies policies in this order when an employee submits a leave request:
+
+```
+1. Auth guard → getAuthEmployee() → verifies JWT, loads employee + permissions
+2. Permission check → requires 'leave.apply_own'
+3. Schema validation (Zod) → dates, leave type, reason
+4. Input sanitization → strip XSS from reason field
+5. Balance check → LeaveBalance.remaining >= requested days (unless negative_balance enabled)
+6. Date validation → start_date <= end_date, no past dates
+7. Constraint engine call → POST http://localhost:8001/evaluate
+   - Returns: { allowed: bool, violations: [], confidence: float }
+8. If allowed: create LeaveRequest (status: 'pending')
+9. Deduct pending_days from LeaveBalance
+10. Create AuditLog entry (SHA-256 chained)
+11. Trigger notifications → manager + HR
+12. Return success
+```
+
+**Constraint Engine** (`web/backend/constraint_engine.py`, Python Flask on port 8001):
+- Receives company_id, employee_id, leave_type, dates, and the company's `LeaveRule` configs
+- Evaluates 13+ rules: max duration, min team coverage, advance notice, blackout periods, concurrent leave limits, etc.
+- Returns a confidence score (0–1) and a list of violations
+- Violations from `is_blocking: true` rules prevent the request; `is_blocking: false` rules generate warnings
+
+**Company-specific personalization**: Every `LeaveRule` is scoped to a `company_id`. The engine loads only rules for the requesting employee's company. This means two companies can have completely different constraint sets.
+
+---
+
+### 17.5 RBAC — Role-Based Access Control
+
+Six roles exist: `admin`, `hr`, `director`, `manager`, `team_lead`, `employee`. Each maps to a set of permission codes (40+ permissions defined in `lib/rbac.ts`).
+
+**How permissions are checked in API routes**:
+```typescript
+// Pattern used in every protected route
+const employee = await getAuthEmployee();     // Loads from Supabase + Prisma
+requireRole(employee, 'hr', 'admin');         // Throws 403 if not matching
+requirePermissionGuard(employee, 'leave.approve'); // Throws 403 if missing perm
+requireCompanyAccess(employee, targetCompanyId);   // Throws 403 if cross-company
+```
+
+**`getAuthEmployee()` flow**:
+1. Read Supabase session from cookie (`createServerClient`)
+2. Call `supabase.auth.getUser()` — validates JWT with Supabase
+3. Query `Employee` by `auth_id` — loads role, company, status
+4. Check `status !== 'terminated'` — blocks deactivated accounts
+5. Load permissions via `getUserPermissions(employee.id, org_id)` — queries `RolePermission` table for company-specific overrides, falls back to `DEFAULT_ROLE_PERMISSIONS`
+6. Return `AuthEmployee` object with `permissions[]` and `accessScope`
+
+---
+
+### 17.6 Email & Notification Systems
+
+**Email Service** (`lib/email-service.ts`, 1416 lines):
+- Uses Nodemailer with Gmail OAuth2 or SMTP
+- Templates cover: leave submitted, leave approved/rejected, SLA breach, welcome email, OTP verification, payroll slip, onboarding invite
+- Triggered from API routes after DB operations, not before — ensuring the DB write succeeded first
+
+**In-App Notifications** (`lib/notification-service.ts`):
+- Creates `Notification` records in the database (per employee, per company)
+- Real-time delivery via Pusher WebSocket channels
+- Types: `leave_request`, `leave_approved`, `leave_rejected`, `sla_breach`, `system`
+- Each notification has `is_read: false` by default; marked read when the employee views it
+
+**Notification preferences**: Per employee via `NotificationPreference` table. Company-wide defaults via `CompanySettings.email_notifications`.
+
+---
+
+### 17.7 AI Leave Service
+
+The AI/intelligence layer operates at two levels:
+
+**Smart Defaults** (`lib/zero-decision/smart-defaults.ts`):
+- Auto-fills form fields based on historical patterns (e.g., predicted leave duration)
+- Triggered when the employee opens the leave request form
+
+**Constraint Engine with Confidence Scoring** (`backend/constraint_engine.py`):
+- After evaluating rules, returns `confidence: float` (0–1)
+- A high confidence (> 0.8) + `allowed: true` = auto-approve eligible
+- The `ai_recommendation` JSON column on `LeaveRequest` stores the full engine response
+- HR/managers can see why a request was auto-approved or flagged
+
+**Burnout & Pattern Detection** (`lib/enterprise/`):
+- Cron jobs flag employees who haven't taken leave in 90+ days (`burnout_risk: true`)
+- Unusual leave frequency patterns trigger abuse detection alerts for HR
+- Decision explainability (`lib/enterprise/explainability.ts`) generates human-readable reasoning
+
+---
+
+### 17.8 Audit Trail
+
+Every state-changing action creates an immutable `AuditLog` entry via `createAuditLog()` in `lib/audit.ts`.
+
+**SHA-256 hash chaining**:
+```
+hash_N = SHA256(action | entity_id | JSON(new_state) | hash_{N-1})
+```
+This creates a tamper-evident chain. If any log entry is modified, all subsequent hashes become invalid. The `/api/security/env-check` endpoint can verify chain integrity.
+
+**What's tracked**:
+- `COMPANY_REGISTER` — company creation with admin
+- `EMPLOYEE_JOIN` — employee joining via code
+- `COMPANY_ONBOARDING_COMPLETE` — onboarding wizard completed
+- `LEAVE_SUBMIT / APPROVE / REJECT / CANCEL` — all leave state changes
+- `EMPLOYEE_CREATE / UPDATE / STATUS_CHANGE` — HR actions on employees
+- `PAYROLL_GENERATE / APPROVE` — payroll operations
+- `LOGIN / LOGOUT` — authentication events
+- `PERMISSION_CHANGE / API_KEY_CREATE` — security events
+
+**Retention**: Audit logs are never deleted (soft-delete only on related records). The `AuditLog` model has no `deleted_at` field by design.
+
+---
+
+### 17.9 UI Components & Navigation
+
+#### Sign-up Page (`/sign-up`)
+
+Two modes toggled by a tab switcher:
+
+| Mode | "Start a Company" | "Join a Company" |
+|------|-------------------|-----------------|
+| Fields | First/last name, email, password, company name, industry, size, timezone | First/last name, email, password, company code, role |
+| On submit | `supabase.auth.signUp()` → `POST /api/auth/register` | `supabase.auth.signUp()` → `POST /api/auth/join` |
+| Redirect | `/onboarding` | `/employee/dashboard` |
+
+The company code input auto-uppercases as the user types (for UX consistency, since codes are always uppercase).
+
+#### Onboarding Wizard (`/onboarding`)
+
+- All form state is held in React `useState` at the top-level `OnboardingPage` component
+- Child step components receive `data` + `onChange` props — they are fully controlled
+- The "Finish Setup" button (on step 5, Notifications) triggers the single API save
+- The "Complete" step (step 6) renders the company join_code in a prominent box
+
+**Error handling**: Errors from the API are displayed in a red alert box above the wizard. The user stays on the current step and can retry.
+
+#### Button Navigation Reference
+
+| Button | Location | Action |
+|--------|----------|--------|
+| "Start a Company" tab | `/sign-up` | Switches mode to admin registration |
+| "Join a Company" tab | `/sign-up` | Switches mode to employee join |
+| "Create Company & Account" | `/sign-up` (admin mode) | Registers admin + creates company |
+| "Join Company" | `/sign-up` (employee mode) | Joins existing company by code |
+| "Next →" | Onboarding steps 1–4 | Advances to next step (no API call) |
+| "Finish Setup" | Onboarding step 5 | Saves all wizard data to DB |
+| "Go to HR Dashboard →" | Onboarding step 6 | Navigates to `/hr/dashboard` |
+| "Sign In" | `/sign-in` | Authenticates via Supabase, redirects to `/hr/dashboard` |
+
+---
+
+### 17.10 API Endpoint Reference
+
+#### New Endpoints (Registration & Onboarding)
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| `POST` | `/api/auth/register` | Supabase session (new user) | Company admin registration — creates company, admin employee, seeds leave types, balances, constraint rules |
+| `POST` | `/api/auth/join` | Supabase session (new user) | Employee join via company code — creates employee, seeds leave balances |
+| `POST` | `/api/onboarding/complete` | `admin` role | Saves onboarding wizard config — leave types, holidays, notifications, marks company complete |
+
+#### Leave Management
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| `POST` | `/api/leaves/submit` | `employee` + `leave.apply_own` | Submit leave request with constraint engine evaluation |
+| `POST` | `/api/leaves/approve/[requestId]` | `manager`/`hr` + `leave.approve` | Approve a pending leave request |
+| `POST` | `/api/leaves/reject/[requestId]` | `manager`/`hr` + `leave.reject` | Reject a pending leave request |
+| `GET` | `/api/leaves/balances` | Any authenticated | Get leave balances for current employee |
+
+#### HR Operations
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| `POST` | `/api/hr/adjust-balance` | `hr`/`admin` + `leave.adjust_balance` | Manually adjust an employee's leave balance |
+
+#### System
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| `GET` | `/api/health` | None | Health check — DB, constraint engine, email |
+| `GET` | `/api/security/env-check` | `admin` | Validate environment config + audit chain integrity |
+| `POST` | `/api/security/otp` | Any authenticated | Generate/verify OTP for sensitive operations |
+
+---
+
+### 17.11 Complete User Journey — Technical Walkthrough
+
+```
+Step 1: Company Admin Signs Up
+  → /sign-up (admin mode)
+  → supabase.auth.signUp() → JWT cookie set
+  → POST /api/auth/register
+      → Company created (join_code = "A1B2C3D4")
+      → Employee created (role = admin, status = active)
+      → 16 LeaveTypes seeded
+      → 16 LeaveBalances seeded for admin
+      → 13 LeaveRules seeded
+      → AuditLog: COMPANY_REGISTER
+  → redirect /onboarding
+
+Step 2: Onboarding Wizard
+  → Admin configures company, leave types, holidays, notifications
+  → Click "Finish Setup"
+  → POST /api/onboarding/complete
+      → Company name/timezone updated
+      → Custom leave types created
+      → Public holidays created
+      → CompanySettings upserted
+      → Company.onboarding_completed = true
+      → AuditLog: COMPANY_ONBOARDING_COMPLETE
+  → Complete step shows join_code prominently
+
+Step 3: Employee Joins
+  → Admin shares join_code "A1B2C3D4" with employees
+  → Employee visits /sign-up (employee mode)
+  → supabase.auth.signUp() → JWT cookie set
+  → POST /api/auth/join { company_code: "A1B2C3D4", role: "employee" }
+      → Company found by join_code
+      → Employee created (status = onboarding)
+      → LeaveBalances seeded from company's active LeaveTypes
+      → AuditLog: EMPLOYEE_JOIN
+  → redirect /employee/dashboard
+
+Step 4: Employee Submits Leave
+  → POST /api/leaves/submit
+  → Auth guard → getAuthEmployee()
+  → Permission check: leave.apply_own
+  → Balance check: LeaveBalance.remaining >= requested days
+  → Constraint engine: POST http://constraint-engine:8001/evaluate
+  → LeaveRequest created (status = pending)
+  → LeaveBalance.pending_days += total_days
+  → Notifications sent to manager + HR
+  → AuditLog: LEAVE_SUBMIT
+
+Step 5: Manager Approves
+  → POST /api/leaves/approve/[requestId]
+  → Auth guard + permission: leave.approve
+  → LeaveRequest.status → approved
+  → LeaveBalance: used_days += total_days, pending_days -= total_days
+  → Notification sent to employee
+  → AuditLog: LEAVE_APPROVE
+
+Step 6: AI Recommendations
+  → Constraint engine returns confidence score with each evaluation
+  → ai_recommendation stored on LeaveRequest
+  → Smart defaults auto-fill duration based on historical patterns
+  → Burnout detection cron flags 90-day no-leave employees
+```
+
+---
+
+### 17.12 Background Jobs (Cron)
+
+| Cron Route | Schedule | Purpose |
+|-----------|----------|---------|
+| `/api/cron/sla-check` | Every hour | Check pending leave requests past SLA deadline; escalate/notify HR |
+
+Cron endpoints are protected by `CRON_SECRET` header validation. All cron jobs are idempotent.
+
+---
+
+### 17.13 Multi-Tenancy & Data Isolation
+
+Every database model that contains company data has a `company_id` (or `org_id`) column. All queries are scoped to `employee.org_id`:
+
+- **Prisma queries**: Every API route filters by `company_id` before returning data
+- **`requireCompanyAccess()`**: Explicitly checks that the target entity belongs to the requesting employee's company
+- **No shared data**: Leave types, rules, employees, policies — all scoped per company
+- **`join_code`**: Unique across all companies (`@unique` constraint) — prevents code collisions
+
+---
+
+### 17.14 Security Architecture Summary
+
+| Layer | Implementation |
+|-------|---------------|
+| Authentication | Supabase JWT (RS256) + HttpOnly cookies |
+| Authorization | RBAC with 40+ permission codes, company-scoped |
+| Input validation | Zod schemas on all API inputs |
+| Input sanitization | `sanitizeInput()` — strips HTML tags, encodes XSS chars, removes null bytes |
+| Rate limiting | In-memory token bucket per endpoint per user |
+| Audit trail | SHA-256 hash-chained immutable log |
+| Cross-tenant isolation | `company_id` filter on all queries + `requireCompanyAccess()` |
+| Security headers | CSP, HSTS, X-Frame-Options, X-Content-Type-Options (middleware) |
+| OTP | Time-based OTP for sensitive operations (2FA escalation) |
 
 ---
 
