@@ -76,8 +76,18 @@ export async function POST(request: NextRequest) {
 
     const company = await prisma.company.findUnique({
       where: { id: employee.org_id },
-      select: { negative_balance: true, sla_hours: true },
+      select: {
+        negative_balance: true,
+        sla_hours: true,
+        settings: { select: { hr_alerts: true } },
+      },
     });
+
+    const hrAlerts = company?.settings?.hr_alerts as Record<string, unknown> | null;
+    const autoApproveEnabled = hrAlerts?.auto_approve === true;
+    const autoApproveThreshold = typeof hrAlerts?.auto_approve_threshold === 'number'
+      ? hrAlerts.auto_approve_threshold
+      : 0.9;
 
     if (balance) {
       const remaining =
@@ -133,7 +143,21 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const requestStatus = constraintStatus === 'warnings' ? 'escalated' : 'pending';
+    // Determine request status:
+    // - auto-approve if engine recommends APPROVE and company has it enabled
+    // - escalate if there are non-blocking warnings
+    // - otherwise pending
+    let requestStatus: 'pending' | 'approved' | 'escalated' = 'pending';
+    if (constraintStatus === 'warnings') {
+      requestStatus = 'escalated';
+    } else if (
+      autoApproveEnabled &&
+      constraintResult?.recommendation === 'APPROVE' &&
+      typeof constraintResult?.confidence_score === 'number' &&
+      constraintResult.confidence_score >= autoApproveThreshold
+    ) {
+      requestStatus = 'approved';
+    }
 
     const slaDeadline = company?.sla_hours
       ? new Date(Date.now() + company.sla_hours * 60 * 60 * 1000)
@@ -151,19 +175,28 @@ export async function POST(request: NextRequest) {
         reason,
         status: requestStatus,
         attachment_url: data.attachment_url ?? null,
-        sla_deadline: slaDeadline,
+        sla_deadline: requestStatus === 'pending' || requestStatus === 'escalated' ? slaDeadline : null,
+        approved_at: requestStatus === 'approved' ? new Date() : undefined,
+        approver_comments: requestStatus === 'approved' ? 'Auto-approved by constraint engine' : undefined,
         constraint_result: constraintResult
           ? (constraintResult as Prisma.InputJsonValue)
           : undefined,
       },
     });
 
-    // Update pending_days on balance
+    // Update leave balance: auto-approved = used immediately; pending = pending_days
     if (balance) {
-      await prisma.leaveBalance.update({
-        where: { id: balance.id },
-        data: { pending_days: { increment: totalDays } },
-      });
+      if (requestStatus === 'approved') {
+        await prisma.leaveBalance.update({
+          where: { id: balance.id },
+          data: { used_days: { increment: totalDays } },
+        });
+      } else {
+        await prisma.leaveBalance.update({
+          where: { id: balance.id },
+          data: { pending_days: { increment: totalDays } },
+        });
+      }
     }
 
     await createAuditLog({
