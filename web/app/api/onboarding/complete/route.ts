@@ -5,6 +5,9 @@ import { getAuthEmployee, requireRole, AuthError } from '@/lib/auth-guard';
 import { checkApiRateLimit, getRateLimitHeaders } from '@/lib/api-rate-limit';
 import { createAuditLog, AUDIT_ACTIONS } from '@/lib/audit';
 import { sanitizeInput } from '@/lib/security';
+import type { Prisma } from '@prisma/client';
+import { generateConstraintRules } from '@/lib/constraint-rules-config';
+import type { LeaveTypeConfig } from '@/lib/leave-types-config';
 
 export const dynamic = 'force-dynamic';
 
@@ -13,11 +16,21 @@ const leaveTypeSchema = z.object({
   name: z.string().min(1).max(100),
   days: z.number().int().min(0).max(365),
   carry_forward: z.boolean().optional().default(false),
+  max_carry_forward: z.number().int().min(0).max(365).optional().default(0),
+  encashment_enabled: z.boolean().optional().default(false),
+  encashment_max_days: z.number().int().min(0).max(365).optional().default(0),
+  paid: z.boolean().optional().default(true),
 });
 
 const holidaySchema = z.object({
   name: z.string().min(1).max(200),
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+});
+
+const blackoutDateSchema = z.object({
+  name: z.string().min(1).max(200),
+  start: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  end: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
 });
 
 const onboardingSchema = z.object({
@@ -26,6 +39,10 @@ const onboardingSchema = z.object({
     industry: z.string().max(100).optional(),
     size: z.string().max(50).optional(),
     timezone: z.string().max(60).optional(),
+    sla_hours: z.number().int().min(1).max(336).optional(),
+    negative_balance: z.boolean().optional(),
+    probation_period_days: z.number().int().min(0).max(730).optional(),
+    work_days: z.array(z.number().int().min(0).max(6)).optional(),
   }).optional(),
   leave_types: z.array(leaveTypeSchema).optional(),
   holidays: z.array(holidaySchema).optional(),
@@ -34,6 +51,13 @@ const onboardingSchema = z.object({
     manager_alerts: z.boolean().optional(),
     daily_digest: z.boolean().optional(),
     sla_alerts: z.boolean().optional(),
+  }).optional(),
+  constraint_config: z.object({
+    min_coverage_percent: z.number().min(0).max(100).optional(),
+    max_concurrent: z.number().int().min(1).max(50).optional(),
+    blackout_dates: z.array(blackoutDateSchema).optional(),
+    auto_approve: z.boolean().optional(),
+    auto_approve_threshold: z.number().min(0).max(1).optional(),
   }).optional(),
 });
 
@@ -83,6 +107,10 @@ export async function POST(request: NextRequest) {
         if (data.company.industry) companyUpdate.industry = sanitizeInput(data.company.industry);
         if (data.company.size) companyUpdate.size = sanitizeInput(data.company.size);
         if (data.company.timezone) companyUpdate.timezone = sanitizeInput(data.company.timezone);
+        if (data.company.sla_hours !== undefined) companyUpdate.sla_hours = data.company.sla_hours;
+        if (data.company.negative_balance !== undefined) companyUpdate.negative_balance = data.company.negative_balance;
+        if (data.company.probation_period_days !== undefined) companyUpdate.probation_period_days = data.company.probation_period_days;
+        if (data.company.work_days !== undefined) companyUpdate.work_days = data.company.work_days;
 
         if (Object.keys(companyUpdate).length > 0) {
           await tx.company.update({
@@ -110,6 +138,10 @@ export async function POST(request: NextRequest) {
               category: 'common' as const,
               default_quota: lt.days,
               carry_forward: lt.carry_forward,
+              max_carry_forward: lt.max_carry_forward ?? 0,
+              encashment_enabled: lt.encashment_enabled ?? false,
+              encashment_max_days: lt.encashment_max_days ?? 0,
+              paid: lt.paid ?? true,
             })),
           });
         }
@@ -133,27 +165,139 @@ export async function POST(request: NextRequest) {
       }
 
       // 4. Upsert notification / company settings
-      if (data.notifications) {
-        const emailNotifications = {
-          email_enabled: data.notifications.email_notifications ?? true,
-          manager_alerts: data.notifications.manager_alerts ?? true,
-          daily_digest: data.notifications.daily_digest ?? true,
-          sla_alerts: data.notifications.sla_alerts ?? true,
-        };
+      const emailNotificationsJson = data.notifications ? {
+        email_enabled: data.notifications.email_notifications ?? true,
+        manager_alerts: data.notifications.manager_alerts ?? true,
+        daily_digest: data.notifications.daily_digest ?? true,
+        sla_alerts: data.notifications.sla_alerts ?? true,
+      } as Prisma.InputJsonValue : undefined;
 
+      const hrAlertsJson = data.constraint_config ? {
+        auto_approve: data.constraint_config.auto_approve ?? false,
+        auto_approve_threshold: data.constraint_config.auto_approve_threshold ?? 0.9,
+      } as Prisma.InputJsonValue : undefined;
+
+      if (emailNotificationsJson !== undefined || hrAlertsJson !== undefined) {
+        const settingsCreate: Record<string, unknown> = { company_id: companyId };
+        const settingsUpdate: Record<string, unknown> = {};
+        if (emailNotificationsJson !== undefined) {
+          settingsCreate.email_notifications = emailNotificationsJson;
+          settingsUpdate.email_notifications = emailNotificationsJson;
+        }
+        if (hrAlertsJson !== undefined) {
+          settingsCreate.hr_alerts = hrAlertsJson;
+          settingsUpdate.hr_alerts = hrAlertsJson;
+        }
         await tx.companySettings.upsert({
           where: { company_id: companyId },
-          create: {
+          create: settingsCreate as Parameters<typeof tx.companySettings.upsert>[0]['create'],
+          update: settingsUpdate as Parameters<typeof tx.companySettings.upsert>[0]['update'],
+        });
+      }
+
+      // 5. Generate and save constraint rules based on selected leave types + config
+      const allActiveLeaveTypes = await tx.leaveType.findMany({
+        where: { company_id: companyId, is_active: true, deleted_at: null },
+        select: {
+          code: true, name: true, category: true,
+          default_quota: true, carry_forward: true,
+          max_carry_forward: true, encashment_enabled: true,
+          encashment_max_days: true, paid: true,
+        },
+      });
+
+      if (allActiveLeaveTypes.length > 0) {
+        const fetchedCompany = await tx.company.findUnique({
+          where: { id: companyId },
+          select: { probation_period_days: true, sla_hours: true, negative_balance: true },
+        });
+
+        const leaveTypeConfigs: LeaveTypeConfig[] = allActiveLeaveTypes.map((lt) => ({
+          code: lt.code,
+          name: lt.name,
+          defaultQuota: lt.default_quota,
+          carryForward: lt.carry_forward,
+          maxCarryForward: lt.max_carry_forward,
+          encashmentEnabled: lt.encashment_enabled,
+          encashmentMaxDays: lt.encashment_max_days,
+          paid: lt.paid,
+          genderSpecific: 'all' as const,
+          category: lt.category as LeaveTypeConfig['category'],
+          description: '',
+        }));
+
+        const constraintRules = generateConstraintRules(leaveTypeConfigs, {
+          probation_period_days: fetchedCompany?.probation_period_days ?? 180,
+          sla_hours: fetchedCompany?.sla_hours ?? 48,
+          negative_balance: fetchedCompany?.negative_balance ?? false,
+          work_days: (data.company?.work_days ?? [1, 2, 3, 4, 5]) as number[],
+        });
+
+        for (const rule of constraintRules) {
+          let ruleConfig = { ...rule.config } as Record<string, unknown>;
+
+          // Override with user-provided constraint config
+          if (data.constraint_config) {
+            if (rule.rule_id === 'RULE003' && data.constraint_config.min_coverage_percent !== undefined) {
+              ruleConfig = { ...ruleConfig, min_coverage_percent: data.constraint_config.min_coverage_percent };
+            }
+            if (rule.rule_id === 'RULE004' && data.constraint_config.max_concurrent !== undefined) {
+              ruleConfig = { ...ruleConfig, max_concurrent: data.constraint_config.max_concurrent };
+            }
+            if (rule.rule_id === 'RULE005' && data.constraint_config.blackout_dates !== undefined) {
+              const formatted = data.constraint_config.blackout_dates.map((bd) => ({
+                name: sanitizeInput(bd.name),
+                start: bd.start,
+                end: bd.end,
+              }));
+              ruleConfig = { ...ruleConfig, blackout_dates: formatted };
+            }
+          }
+
+          await tx.leaveRule.upsert({
+            where: { company_id_rule_id: { company_id: companyId, rule_id: rule.rule_id } },
+            create: {
+              company_id: companyId,
+              rule_id: rule.rule_id,
+              rule_type: rule.category,
+              name: rule.name,
+              description: rule.description,
+              category: rule.category as 'validation' | 'business' | 'compliance',
+              is_blocking: rule.is_blocking,
+              is_active: true,
+              priority: rule.priority,
+              config: ruleConfig as Prisma.InputJsonValue,
+            },
+            update: {
+              config: ruleConfig as Prisma.InputJsonValue,
+              is_active: true,
+              is_blocking: rule.is_blocking,
+              priority: rule.priority,
+            },
+          });
+        }
+
+        // Create initial ConstraintPolicy snapshot
+        await tx.constraintPolicy.updateMany({
+          where: { company_id: companyId, is_active: true },
+          data: { is_active: false },
+        });
+
+        const savedRules = await tx.leaveRule.findMany({
+          where: { company_id: companyId, is_active: true, deleted_at: null },
+        });
+
+        await tx.constraintPolicy.create({
+          data: {
             company_id: companyId,
-            email_notifications: emailNotifications,
-          },
-          update: {
-            email_notifications: emailNotifications,
+            version: 1,
+            is_active: true,
+            rules: savedRules as unknown as import('@prisma/client').Prisma.InputJsonValue,
           },
         });
       }
 
-      // 5. Mark onboarding as complete
+      // 6. Mark onboarding as complete
       await tx.company.update({
         where: { id: companyId },
         data: { onboarding_completed: true },
