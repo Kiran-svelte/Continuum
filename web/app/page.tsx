@@ -23,6 +23,7 @@ export default function HomePage() {
           <span className="text-xl font-bold text-white">Continuum</span>
           <div className="flex items-center gap-6">
             <Link href="/status" className="text-sm text-slate-300 hover:text-white transition-colors">Status</Link>
+            <Link href="/support" className="text-sm text-slate-300 hover:text-white transition-colors">Support</Link>
             <Link href="/sign-in" className="text-sm text-slate-300 hover:text-white transition-colors">Sign In</Link>
             <Link href="/sign-up" className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors">
               Get Started
@@ -59,20 +60,20 @@ export default function HomePage() {
       </section>
 
       {/* Features Section */}
-      <section className="bg-white py-24">
+      <section className="bg-background py-24">
         <div className="max-w-7xl mx-auto px-6">
           <div className="text-center mb-16">
-            <h2 className="text-3xl font-bold text-gray-900">Built for Indian Enterprises</h2>
-            <p className="text-gray-500 mt-3 max-w-xl mx-auto">
+            <h2 className="text-3xl font-bold text-foreground">Built for Indian Enterprises</h2>
+            <p className="text-muted-foreground mt-3 max-w-xl mx-auto">
               Everything you need to manage employee leave at scale, with compliance built in.
             </p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
             {FEATURES.map((feature) => (
-              <div key={feature.title} className="text-center p-6 rounded-xl border border-gray-100 hover:border-blue-200 hover:shadow-md transition-all">
+              <div key={feature.title} className="text-center p-6 rounded-xl border border-border hover:border-primary/30 hover:shadow-md transition-all bg-card">
                 <span className="text-4xl">{feature.icon}</span>
-                <h3 className="text-lg font-semibold text-gray-900 mt-4">{feature.title}</h3>
-                <p className="text-sm text-gray-500 mt-2">{feature.description}</p>
+                <h3 className="text-lg font-semibold text-foreground mt-4">{feature.title}</h3>
+                <p className="text-sm text-muted-foreground mt-2">{feature.description}</p>
               </div>
             ))}
           </div>
@@ -80,11 +81,11 @@ export default function HomePage() {
       </section>
 
       {/* Pricing Section */}
-      <section className="bg-gray-50 py-24">
+      <section className="bg-muted/30 py-24">
         <div className="max-w-7xl mx-auto px-6">
           <div className="text-center mb-16">
-            <h2 className="text-3xl font-bold text-gray-900">Simple, Transparent Pricing</h2>
-            <p className="text-gray-500 mt-3">Start free. Scale as you grow.</p>
+            <h2 className="text-3xl font-bold text-foreground">Simple, Transparent Pricing</h2>
+            <p className="text-muted-foreground mt-3">Start free. Scale as you grow.</p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
             {PRICING_PLANS.map((plan) => (
@@ -92,27 +93,27 @@ export default function HomePage() {
                 key={plan.name}
                 className={`rounded-xl p-6 ${
                   plan.highlighted
-                    ? 'bg-blue-600 text-white ring-2 ring-blue-600 ring-offset-2'
-                    : 'bg-white border border-gray-200'
+                    ? 'bg-blue-600 text-white ring-2 ring-blue-600 ring-offset-2 ring-offset-background'
+                    : 'bg-card border border-border'
                 }`}
               >
-                <h3 className={`text-lg font-semibold ${plan.highlighted ? 'text-white' : 'text-gray-900'}`}>
+                <h3 className={`text-lg font-semibold ${plan.highlighted ? 'text-white' : 'text-foreground'}`}>
                   {plan.name}
                 </h3>
                 <div className="mt-3">
-                  <span className={`text-3xl font-bold ${plan.highlighted ? 'text-white' : 'text-gray-900'}`}>
+                  <span className={`text-3xl font-bold ${plan.highlighted ? 'text-white' : 'text-foreground'}`}>
                     {plan.price}
                   </span>
-                  <span className={`text-sm ${plan.highlighted ? 'text-blue-200' : 'text-gray-500'}`}>
+                  <span className={`text-sm ${plan.highlighted ? 'text-blue-200' : 'text-muted-foreground'}`}>
                     {plan.period}
                   </span>
                 </div>
-                <p className={`text-sm mt-2 ${plan.highlighted ? 'text-blue-100' : 'text-gray-500'}`}>
+                <p className={`text-sm mt-2 ${plan.highlighted ? 'text-blue-100' : 'text-muted-foreground'}`}>
                   {plan.description}
                 </p>
                 <ul className="mt-6 space-y-2">
                   {plan.features.map((feature) => (
-                    <li key={feature} className={`text-sm flex items-center gap-2 ${plan.highlighted ? 'text-blue-100' : 'text-gray-600'}`}>
+                    <li key={feature} className={`text-sm flex items-center gap-2 ${plan.highlighted ? 'text-blue-100' : 'text-muted-foreground'}`}>
                       <span className={plan.highlighted ? 'text-blue-200' : 'text-green-500'}>✓</span>
                       {feature}
                     </li>
@@ -122,7 +123,7 @@ export default function HomePage() {
                   className={`w-full mt-6 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                     plan.highlighted
                       ? 'bg-white text-blue-600 hover:bg-blue-50'
-                      : 'bg-blue-600 text-white hover:bg-blue-700'
+                      : 'bg-primary text-primary-foreground hover:bg-primary/90'
                   }`}
                 >
                   {plan.cta}
@@ -158,7 +159,7 @@ export default function HomePage() {
               <ul className="space-y-2 text-sm">
                 <li><Link href="/status" className="hover:text-white transition-colors">Status</Link></li>
                 <li><a href="#" className="hover:text-white transition-colors">Changelog</a></li>
-                <li><a href="#" className="hover:text-white transition-colors">Documentation</a></li>
+                <li><Link href="/help" className="hover:text-white transition-colors">Documentation</Link></li>
               </ul>
             </div>
             <div>
@@ -172,22 +173,22 @@ export default function HomePage() {
             <div>
               <h4 className="text-white font-semibold mb-4">Legal</h4>
               <ul className="space-y-2 text-sm">
-                <li><a href="#" className="hover:text-white transition-colors">Privacy Policy</a></li>
-                <li><a href="#" className="hover:text-white transition-colors">Terms of Service</a></li>
-                <li><a href="#" className="hover:text-white transition-colors">Cookie Policy</a></li>
+                <li><Link href="/privacy" className="hover:text-white transition-colors">Privacy Policy</Link></li>
+                <li><Link href="/terms" className="hover:text-white transition-colors">Terms of Service</Link></li>
+                <li><Link href="/cookies" className="hover:text-white transition-colors">Cookie Policy</Link></li>
               </ul>
             </div>
             <div>
               <h4 className="text-white font-semibold mb-4">Support</h4>
               <ul className="space-y-2 text-sm">
-                <li><a href="#" className="hover:text-white transition-colors">Help Center</a></li>
-                <li><a href="#" className="hover:text-white transition-colors">Contact Us</a></li>
+                <li><Link href="/help" className="hover:text-white transition-colors">Help Center</Link></li>
+                <li><Link href="/support" className="hover:text-white transition-colors">Contact Us</Link></li>
                 <li><Link href="/status" className="hover:text-white transition-colors">System Status</Link></li>
               </ul>
             </div>
           </div>
           <div className="border-t border-slate-800 mt-12 pt-8 text-center text-sm">
-            <p>© 2025 Continuum. All rights reserved.</p>
+            <p>© {new Date().getFullYear()} Continuum. All rights reserved.</p>
           </div>
         </div>
       </footer>
