@@ -63,11 +63,15 @@ export default function SignUpPage() {
       }
 
       // Set the session cookie via API
+      const sessionController = new AbortController();
+      const sessionTimeoutId = setTimeout(() => sessionController.abort(), 30000); // 30 second timeout
       const sessionRes = await fetch('/api/auth/session', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ idToken }),
+        signal: sessionController.signal,
       });
+      clearTimeout(sessionTimeoutId);
       
       if (!sessionRes.ok) {
         const sessionData = await sessionRes.json().catch(() => ({}));
@@ -82,10 +86,9 @@ export default function SignUpPage() {
       };
 
       // 2. Call appropriate API to create company/employee records
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 second timeout
-      
       if (mode === 'admin') {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 second timeout
         const res = await fetch('/api/auth/register', {
           method: 'POST',
           headers: authHeaders,
@@ -113,8 +116,8 @@ export default function SignUpPage() {
         }
         router.push('/onboarding');
       } else {
-        const controller2 = new AbortController();
-        const timeoutId2 = setTimeout(() => controller2.abort(), 60000);
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 60000);
         const res = await fetch('/api/auth/join', {
           method: 'POST',
           headers: authHeaders,
@@ -124,9 +127,9 @@ export default function SignUpPage() {
             company_code: companyCode,
             role,
           }),
-          signal: controller2.signal,
+          signal: controller.signal,
         });
-        clearTimeout(timeoutId2);
+        clearTimeout(timeoutId);
         const json = await res.json();
         if (!res.ok) {
           // If account already registered, redirect to dashboard
@@ -146,12 +149,16 @@ export default function SignUpPage() {
       let message = firebaseErr.message || 'Registration failed';
       if (firebaseErr.name === 'AbortError') {
         message = 'Request timed out. Please check your connection and try again.';
-      } else if (firebaseErr.code === 'auth/wrong-password') {
+      } else if (firebaseErr.code === 'auth/wrong-password' || firebaseErr.code === 'auth/invalid-credential') {
         message = 'This email is already registered. Please use the correct password or sign in.';
       } else if (firebaseErr.code === 'auth/weak-password') {
         message = 'Password must be at least 6 characters.';
       } else if (firebaseErr.code === 'auth/invalid-email') {
         message = 'Invalid email address.';
+      } else if (firebaseErr.code === 'auth/network-request-failed') {
+        message = 'Network error. Please check your internet connection and try again.';
+      } else if (firebaseErr.code === 'auth/too-many-requests') {
+        message = 'Too many attempts. Please try again later.';
       }
       setError(message);
     } finally {

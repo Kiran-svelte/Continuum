@@ -126,7 +126,7 @@ function addSecurityHeaders(response: NextResponse): void {
   );
   response.headers.set(
     'Content-Security-Policy',
-    "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com wss://*.pusher.com https://*.pusher.com;"
+    "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com https://*.firebaseapp.com wss://*.pusher.com https://*.pusher.com;"
   );
   response.headers.set('X-DNS-Prefetch-Control', 'on');
   response.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');

@@ -9,16 +9,21 @@ let adminAuth: Auth;
 function getAdminApp(): App {
   if (!adminApp) {
     if (getApps().length === 0) {
-      // Initialize with service account credentials
-      const serviceAccount = {
-        projectId: process.env.FIREBASE_PROJECT_ID,
-        privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
-        clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-      };
+      const projectId = process.env.FIREBASE_PROJECT_ID;
+      const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n');
+      const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
 
+      if (!projectId || !privateKey || !clientEmail) {
+        throw new Error(
+          'Firebase Admin SDK credentials are not configured. ' +
+          'Set FIREBASE_PROJECT_ID, FIREBASE_PRIVATE_KEY, and FIREBASE_CLIENT_EMAIL environment variables.'
+        );
+      }
+
+      // Initialize with service account credentials
       adminApp = initializeApp({
-        credential: cert(serviceAccount),
-        projectId: process.env.FIREBASE_PROJECT_ID,
+        credential: cert({ projectId, privateKey, clientEmail }),
+        projectId,
       });
     } else {
       adminApp = getApps()[0];
