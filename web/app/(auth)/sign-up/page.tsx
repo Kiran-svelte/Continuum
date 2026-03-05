@@ -70,7 +70,8 @@ export default function SignUpPage() {
       });
       
       if (!sessionRes.ok) {
-        setError('Failed to create session');
+        const sessionData = await sessionRes.json().catch(() => ({}));
+        setError(sessionData.details || sessionData.error || 'Failed to create session');
         setLoading(false);
         return;
       }
@@ -82,7 +83,7 @@ export default function SignUpPage() {
 
       // 2. Call appropriate API to create company/employee records
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+      const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 second timeout
       
       if (mode === 'admin') {
         const res = await fetch('/api/auth/register', {
@@ -113,7 +114,7 @@ export default function SignUpPage() {
         router.push('/onboarding');
       } else {
         const controller2 = new AbortController();
-        const timeoutId2 = setTimeout(() => controller2.abort(), 30000);
+        const timeoutId2 = setTimeout(() => controller2.abort(), 60000);
         const res = await fetch('/api/auth/join', {
           method: 'POST',
           headers: authHeaders,

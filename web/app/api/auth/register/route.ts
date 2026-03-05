@@ -12,7 +12,7 @@ import { DEFAULT_CONSTRAINT_RULES } from '@/lib/constraint-rules-config';
 import { sendWelcomeEmail } from '@/lib/email-service';
 
 export const dynamic = 'force-dynamic';
-export const maxDuration = 30;
+export const maxDuration = 60;
 
 const registerSchema = z.object({
   first_name: z.string().min(1).max(100),

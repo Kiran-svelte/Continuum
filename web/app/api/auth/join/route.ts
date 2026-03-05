@@ -9,6 +9,7 @@ import { LEAVE_TYPE_CATALOG } from '@/lib/leave-types-config';
 import { sendWelcomeEmail } from '@/lib/email-service';
 
 export const dynamic = 'force-dynamic';
+export const maxDuration = 60;
 
 const joinSchema = z.object({
   first_name: z.string().min(1).max(100),
