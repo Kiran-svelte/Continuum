@@ -30,19 +30,33 @@ export default function SignInPage() {
       }
 
       // Set the session cookie via API
+      const sessionController = new AbortController();
+      const sessionTimeoutId = setTimeout(() => sessionController.abort(), 30000); // 30 second timeout
       const sessionRes = await fetch('/api/auth/session', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ idToken }),
+        signal: sessionController.signal,
       });
+      clearTimeout(sessionTimeoutId);
       
       if (!sessionRes.ok) {
-        setError('Failed to create session');
+        const sessionData = await sessionRes.json().catch((parseErr: unknown) => {
+          console.error('Failed to parse session response:', parseErr);
+          return {};
+        });
+        setError(sessionData.details || sessionData.error || 'Failed to create session');
         return;
       }
 
       // Fetch the user's role and redirect to the appropriate portal
-      const meRes = await fetch('/api/auth/me');
+      const meController = new AbortController();
+      const meTimeoutId = setTimeout(() => meController.abort(), 15000); // 15 second timeout
+      const meRes = await fetch('/api/auth/me', {
+        signal: meController.signal,
+      });
+      clearTimeout(meTimeoutId);
+
       if (meRes.ok) {
         const me = await meRes.json();
         const role: string = me.primary_role ?? 'employee';
@@ -58,7 +72,19 @@ export default function SignInPage() {
         router.push('/employee/dashboard');
       }
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Sign in failed';
+      const firebaseErr = err as { code?: string; message?: string; name?: string };
+      let message = firebaseErr.message || 'Sign in failed';
+      if (firebaseErr.name === 'AbortError') {
+        message = 'Request timed out. Please check your connection and try again.';
+      } else if (firebaseErr.code === 'auth/wrong-password' || firebaseErr.code === 'auth/invalid-credential') {
+        message = 'Invalid email or password.';
+      } else if (firebaseErr.code === 'auth/user-not-found') {
+        message = 'No account found with this email. Please sign up first.';
+      } else if (firebaseErr.code === 'auth/too-many-requests') {
+        message = 'Too many failed attempts. Please try again later.';
+      } else if (firebaseErr.code === 'auth/invalid-email') {
+        message = 'Invalid email address.';
+      }
       setError(message);
     } finally {
       setLoading(false);
