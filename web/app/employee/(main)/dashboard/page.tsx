@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
 import Link from 'next/link';
 
 interface LeaveBalance {
@@ -52,16 +53,16 @@ export default function EmployeeDashboardPage() {
   }, []);
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 animate-fade-in">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Welcome back 👋</h1>
-          <p className="text-gray-500 mt-1">Here&apos;s your leave overview for this year</p>
+          <h1 className="text-2xl font-bold text-foreground">Welcome back 👋</h1>
+          <p className="text-muted-foreground mt-1">Here&apos;s your leave overview for this year</p>
         </div>
-        <div className="flex gap-3">
+        <div className="flex gap-3" data-tutorial="apply-leave-btn">
           <Link
             href="/employee/request-leave"
-            className="inline-flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
+            className="inline-flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors"
           >
             📝 Apply Leave
           </Link>
@@ -69,49 +70,59 @@ export default function EmployeeDashboardPage() {
       </div>
 
       {/* Leave Balance Cards */}
-      {loadingBalances ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {[1, 2, 3, 4].map((i) => (
-            <Card key={i}>
-              <CardContent className="pt-4">
-                <div className="h-20 animate-pulse bg-gray-100 rounded-lg" />
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {balances.map((balance) => (
-            <Card key={balance.leave_type}>
-              <CardContent className="pt-4">
-                <div className="flex items-center justify-between mb-3">
-                  <p className="text-sm text-gray-500">{balance.leave_type}</p>
-                  <Badge variant="info">{balance.leave_type}</Badge>
-                </div>
-                <p className="text-3xl font-bold text-gray-900">{balance.remaining}</p>
-                <p className="text-xs text-gray-400 mt-1">of {balance.annual_entitlement} days remaining</p>
-                <div className="mt-3 w-full bg-gray-100 rounded-full h-2">
-                  <div
-                    className={`${LEAVE_COLORS[balance.leave_type] ?? 'bg-blue-500'} h-2 rounded-full transition-all`}
-                    style={{
-                      width: `${balance.annual_entitlement > 0 ? Math.min(100, (balance.remaining / balance.annual_entitlement) * 100) : 0}%`,
-                    }}
-                  />
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-          {balances.length === 0 && (
-            <div className="col-span-4 text-center py-6 text-sm text-gray-400">
-              No leave balances found. Contact your HR team.
-            </div>
-          )}
-        </div>
-      )}
+      <div data-tutorial="leave-balances">
+        {loadingBalances ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {[1, 2, 3, 4].map((i) => (
+              <Card key={i}>
+                <CardContent className="pt-4">
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <Skeleton className="h-4 w-16" />
+                      <Skeleton className="h-5 w-12 rounded-full" />
+                    </div>
+                    <Skeleton className="h-8 w-12" />
+                    <Skeleton className="h-3 w-24" />
+                    <Skeleton className="h-2 w-full rounded-full" />
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {balances.map((balance) => (
+              <Card key={balance.leave_type} className="hover:shadow-md transition-shadow">
+                <CardContent className="pt-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <p className="text-sm text-muted-foreground">{balance.leave_type}</p>
+                    <Badge variant="info">{balance.leave_type}</Badge>
+                  </div>
+                  <p className="text-3xl font-bold text-foreground">{balance.remaining}</p>
+                  <p className="text-xs text-muted-foreground mt-1">of {balance.annual_entitlement} days remaining</p>
+                  <div className="mt-3 w-full bg-secondary rounded-full h-2 overflow-hidden">
+                    <div
+                      className={`${LEAVE_COLORS[balance.leave_type] ?? 'bg-primary'} h-2 rounded-full transition-all duration-500`}
+                      style={{
+                        width: `${balance.annual_entitlement > 0 ? Math.min(100, (balance.remaining / balance.annual_entitlement) * 100) : 0}%`,
+                      }}
+                    />
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+            {balances.length === 0 && (
+              <div className="col-span-4 text-center py-6 text-sm text-muted-foreground">
+                No leave balances found. Contact your HR team.
+              </div>
+            )}
+          </div>
+        )}
+      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Quick Actions */}
-        <Card>
+        <Card data-tutorial="quick-actions">
           <CardHeader>
             <CardTitle>Quick Actions</CardTitle>
           </CardHeader>
@@ -125,12 +136,12 @@ export default function EmployeeDashboardPage() {
               <Link
                 key={item.href}
                 href={item.href}
-                className="flex items-center gap-3 p-3 rounded-lg border border-gray-100 hover:bg-blue-50 hover:border-blue-200 transition-colors"
+                className="flex items-center gap-3 p-3 rounded-lg border border-border hover:bg-primary/5 hover:border-primary/30 transition-all"
               >
                 <span className="text-xl">{item.icon}</span>
                 <div>
-                  <p className="text-sm font-medium text-gray-900">{item.label}</p>
-                  <p className="text-xs text-gray-400">{item.sub}</p>
+                  <p className="text-sm font-medium text-foreground">{item.label}</p>
+                  <p className="text-xs text-muted-foreground">{item.sub}</p>
                 </div>
               </Link>
             ))}
@@ -144,10 +155,10 @@ export default function EmployeeDashboardPage() {
           </CardHeader>
           <CardContent className="space-y-3">
             {UPCOMING_HOLIDAYS.map((holiday) => (
-              <div key={holiday.name} className="flex items-center justify-between py-2 border-b border-gray-50 last:border-0">
+              <div key={holiday.name} className="flex items-center justify-between py-2 border-b border-border last:border-0">
                 <div>
-                  <p className="text-sm font-medium text-gray-900">{holiday.name}</p>
-                  <p className="text-xs text-gray-500">{holiday.date}</p>
+                  <p className="text-sm font-medium text-foreground">{holiday.name}</p>
+                  <p className="text-xs text-muted-foreground">{holiday.date}</p>
                 </div>
                 <Badge variant="default">{holiday.day}</Badge>
               </div>
