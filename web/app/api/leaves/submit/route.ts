@@ -6,6 +6,7 @@ import { getAuthEmployee, requirePermissionGuard, AuthError } from '@/lib/auth-g
 import { checkApiRateLimit, getRateLimitHeaders } from '@/lib/api-rate-limit';
 import { createAuditLog, AUDIT_ACTIONS } from '@/lib/audit';
 import { sanitizeInput } from '@/lib/security';
+import { sendLeaveSubmissionEmail, sendLeaveAutoApprovedEmail } from '@/lib/email-service';
 
 export const dynamic = 'force-dynamic';
 
@@ -126,9 +127,13 @@ export async function POST(request: NextRequest) {
         });
         constraintResult = (await constraintResp.json()) as Record<string, unknown>;
 
-        if (constraintResult.status === 'fail') {
+        // Engine returns: { passed: bool, violations: [], warnings: [], recommendation: string, confidence_score: float }
+        const violations = constraintResult.violations as unknown[] | undefined;
+        const warnings = constraintResult.warnings as unknown[] | undefined;
+        
+        if (violations && violations.length > 0) {
           constraintStatus = 'fail';
-        } else if (constraintResult.status === 'warnings') {
+        } else if (warnings && warnings.length > 0) {
           constraintStatus = 'warnings';
         }
       } catch {
@@ -215,6 +220,50 @@ export async function POST(request: NextRequest) {
         status: requestStatus,
       },
     });
+
+    // Send email notifications (non-blocking)
+    try {
+      const employeeName = `${employee.first_name} ${employee.last_name}`;
+      if (requestStatus === 'approved') {
+        // Auto-approved - notify employee
+        await sendLeaveAutoApprovedEmail(
+          employee.email,
+          employeeName,
+          leaveType,
+          data.start_date,
+          data.end_date,
+          (constraintResult?.confidence_score as number) || 0.9
+        );
+      } else {
+        // Pending/escalated - notify manager if exists
+        const employeeWithManager = await prisma.employee.findUnique({
+          where: { id: employee.id },
+          select: { manager_id: true },
+        });
+        if (employeeWithManager?.manager_id) {
+          const manager = await prisma.employee.findUnique({
+            where: { id: employeeWithManager.manager_id },
+            select: { email: true, first_name: true, last_name: true },
+          });
+          if (manager?.email) {
+            const managerName = `${manager.first_name} ${manager.last_name}`;
+            await sendLeaveSubmissionEmail(
+              manager.email,
+              managerName,
+              employeeName,
+              leaveType,
+              data.start_date,
+              data.end_date,
+              totalDays,
+              reason
+            );
+          }
+        }
+      }
+    } catch (emailError) {
+      console.error('[LeaveSubmit] Email notification failed:', emailError);
+      // Don't fail the request if email fails
+    }
 
     return NextResponse.json(leaveRequest, { status: 201 });
   } catch (error) {

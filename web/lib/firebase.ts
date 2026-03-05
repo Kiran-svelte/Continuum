@@ -14,13 +14,14 @@ import {
 } from 'firebase/auth';
 
 // Firebase client configuration (public keys - safe to expose)
+// Note: .trim() removes \r\n added by PowerShell when setting env vars
 const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || 'AIzaSyAsgL5EEnGjj6RDQJUEUkgTPKTv-XpOWD8',
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || 'continuum-239d3.firebaseapp.com',
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || 'continuum-239d3',
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || 'continuum-239d3.firebasestorage.app',
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || '373552301041',
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID || '1:373552301041:web:233df73d50dd66a2473a50',
+  apiKey: (process.env.NEXT_PUBLIC_FIREBASE_API_KEY || 'AIzaSyAsgL5EEnGjj6RDQJUEUkgTPKTv-XpOWD8').trim(),
+  authDomain: (process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || 'continuum-239d3.firebaseapp.com').trim(),
+  projectId: (process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || 'continuum-239d3').trim(),
+  storageBucket: (process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || 'continuum-239d3.firebasestorage.app').trim(),
+  messagingSenderId: (process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || '373552301041').trim(),
+  appId: (process.env.NEXT_PUBLIC_FIREBASE_APP_ID || '1:373552301041:web:233df73d50dd66a2473a50').trim(),
 };
 
 // Debug: Log config on initialization (remove in production)

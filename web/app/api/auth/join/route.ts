@@ -6,6 +6,7 @@ import { checkApiRateLimit, getRateLimitHeaders } from '@/lib/api-rate-limit';
 import { createAuditLog, AUDIT_ACTIONS } from '@/lib/audit';
 import { sanitizeInput } from '@/lib/security';
 import { LEAVE_TYPE_CATALOG } from '@/lib/leave-types-config';
+import { sendWelcomeEmail } from '@/lib/email-service';
 
 export const dynamic = 'force-dynamic';
 
@@ -132,6 +133,17 @@ export async function POST(request: NextRequest) {
       entityId: result.id,
       newState: { company_id: company.id, role: data.role },
     });
+
+    // Send welcome email (non-blocking)
+    try {
+      await sendWelcomeEmail(
+        user.email!,
+        `${firstName} ${lastName}`,
+        company.name
+      );
+    } catch (emailError) {
+      console.error('[Join] Welcome email failed:', emailError);
+    }
 
     return NextResponse.json({
       success: true,

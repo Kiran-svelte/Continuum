@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { getAuthEmployee, requireRole, AuthError } from '@/lib/auth-guard';
 import { createAuditLog, AUDIT_ACTIONS } from '@/lib/audit';
+import { sendLeaveRejectionEmail } from '@/lib/email-service';
 
 export const dynamic = 'force-dynamic';
 
@@ -19,7 +20,7 @@ export async function POST(
 
     const leaveRequest = await prisma.leaveRequest.findUnique({
       where: { id: requestId },
-      include: { employee: { select: { id: true, manager_id: true, org_id: true } } },
+      include: { employee: { select: { id: true, email: true, first_name: true, last_name: true, manager_id: true, org_id: true } } },
     });
 
     if (!leaveRequest) {
@@ -89,6 +90,27 @@ export async function POST(
         comments,
       },
     });
+
+    // Send rejection email to employee (non-blocking)
+    try {
+      if (leaveRequest.employee.email) {
+        const startDate = leaveRequest.start_date.toISOString().split('T')[0];
+        const endDate = leaveRequest.end_date.toISOString().split('T')[0];
+        const employeeName = `${leaveRequest.employee.first_name} ${leaveRequest.employee.last_name}`;
+        const rejectorName = `${employee.first_name} ${employee.last_name}`;
+        await sendLeaveRejectionEmail(
+          leaveRequest.employee.email,
+          employeeName,
+          leaveRequest.leave_type,
+          startDate,
+          endDate,
+          rejectorName,
+          comments || 'No reason provided'
+        );
+      }
+    } catch (emailError) {
+      console.error('[LeaveReject] Email notification failed:', emailError);
+    }
 
     return NextResponse.json(updatedRequest);
   } catch (error) {

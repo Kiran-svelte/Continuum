@@ -46,22 +46,22 @@ function createTransport(): nodemailer.Transporter {
       service: 'gmail',
       auth: {
         type: 'OAuth2',
-        user: process.env.GMAIL_USER!,
-        clientId: process.env.GMAIL_CLIENT_ID!,
-        clientSecret: process.env.GMAIL_CLIENT_SECRET!,
-        refreshToken: process.env.GMAIL_REFRESH_TOKEN!,
+        user: process.env.GMAIL_USER?.trim()!,
+        clientId: process.env.GMAIL_CLIENT_ID?.trim()!,
+        clientSecret: process.env.GMAIL_CLIENT_SECRET?.trim()!,
+        refreshToken: process.env.GMAIL_REFRESH_TOKEN?.trim()!,
       },
     });
   }
 
   // SMTP fallback
   return nodemailer.createTransport({
-    host: process.env.SMTP_HOST || 'smtp.gmail.com',
+    host: process.env.SMTP_HOST?.trim() || 'smtp.gmail.com',
     port: parseInt(process.env.SMTP_PORT || '587', 10),
     secure: false,
     auth: {
-      user: process.env.GMAIL_USER || '',
-      pass: process.env.GMAIL_APP_PASSWORD || '',
+      user: process.env.GMAIL_USER?.trim() || '',
+      pass: process.env.GMAIL_APP_PASSWORD?.trim() || '',
     },
   });
 }
@@ -242,4 +242,64 @@ export async function sendWelcomeEmail(
   `);
 
   return sendEmail(to, `Welcome to ${companyName} on Continuum`, html);
+}
+
+/**
+ * Send notification to manager/approver when a leave request is submitted
+ */
+export async function sendLeaveSubmissionEmail(
+  to: string,
+  approverName: string,
+  employeeName: string,
+  leaveType: string,
+  startDate: string,
+  endDate: string,
+  totalDays: number,
+  reason: string
+): Promise<EmailResult> {
+  const html = wrapTemplate(`
+    <h2 style="color: #2563eb;">New Leave Request 📋</h2>
+    <p>Hi <strong>${approverName}</strong>,</p>
+    <p><strong>${employeeName}</strong> has submitted a leave request requiring your approval:</p>
+    <table style="width: 100%; border-collapse: collapse; margin: 16px 0;">
+      <tr><td style="padding: 8px; border-bottom: 1px solid #eee; color: #666;">Type</td><td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>${leaveType}</strong></td></tr>
+      <tr><td style="padding: 8px; border-bottom: 1px solid #eee; color: #666;">Period</td><td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>${startDate} — ${endDate}</strong></td></tr>
+      <tr><td style="padding: 8px; border-bottom: 1px solid #eee; color: #666;">Days</td><td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>${totalDays}</strong></td></tr>
+      <tr><td style="padding: 8px; border-bottom: 1px solid #eee; color: #666;">Reason</td><td style="padding: 8px; border-bottom: 1px solid #eee;">${reason}</td></tr>
+    </table>
+    <div style="text-align: center; margin: 24px 0;">
+      <a href="${process.env.NEXT_PUBLIC_APP_URL || 'https://continuum.hr'}/manager/leave-requests"
+         style="background: #2563eb; color: white; padding: 12px 32px; border-radius: 6px; text-decoration: none; font-weight: 600; display: inline-block;">
+        Review Request →
+      </a>
+    </div>
+  `);
+
+  return sendEmail(to, `Leave Request: ${employeeName} - ${leaveType} (${startDate} - ${endDate})`, html);
+}
+
+/**
+ * Send notification when leave is auto-approved by the constraint engine
+ */
+export async function sendLeaveAutoApprovedEmail(
+  to: string,
+  employeeName: string,
+  leaveType: string,
+  startDate: string,
+  endDate: string,
+  confidenceScore: number
+): Promise<EmailResult> {
+  const html = wrapTemplate(`
+    <h2 style="color: #16a34a;">Leave Auto-Approved ✓</h2>
+    <p>Hi <strong>${employeeName}</strong>,</p>
+    <p>Your leave request has been automatically approved by our intelligent system:</p>
+    <table style="width: 100%; border-collapse: collapse; margin: 16px 0;">
+      <tr><td style="padding: 8px; border-bottom: 1px solid #eee; color: #666;">Type</td><td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>${leaveType}</strong></td></tr>
+      <tr><td style="padding: 8px; border-bottom: 1px solid #eee; color: #666;">Period</td><td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>${startDate} — ${endDate}</strong></td></tr>
+      <tr><td style="padding: 8px; border-bottom: 1px solid #eee; color: #666;">Confidence</td><td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>${(confidenceScore * 100).toFixed(0)}%</strong></td></tr>
+    </table>
+    <p style="color: #666; font-size: 14px;">No further action is needed. Enjoy your time off!</p>
+  `);
+
+  return sendEmail(to, `Leave Auto-Approved: ${leaveType} (${startDate} - ${endDate})`, html);
 }

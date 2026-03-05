@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { getAuthEmployee, AuthError } from '@/lib/auth-guard';
 import { generateOTP, verifyOTP, isOTPRequired, type OTPAction } from '@/lib/otp-service';
 import { checkApiRateLimit, getRateLimitHeaders } from '@/lib/api-rate-limit';
+import { sendOTPEmail } from '@/lib/email-service';
 
 export const dynamic = 'force-dynamic';
 
@@ -48,9 +49,22 @@ export async function POST(request: NextRequest) {
 
     const otp = await generateOTP(employee.id, employee.org_id, action as OTPAction);
 
-    // In production, send OTP via email/SMS; here we confirm generation
+    // Send OTP via email
+    try {
+      const employeeName = `${employee.first_name} ${employee.last_name}`;
+      await sendOTPEmail(
+        employee.email,
+        employeeName,
+        otp,
+        action
+      );
+    } catch (emailError) {
+      console.error('[OTP] Email send failed:', emailError);
+      // Continue even if email fails - OTP is still valid
+    }
+
     return NextResponse.json({
-      message: 'OTP generated and sent',
+      message: 'OTP generated and sent to your email',
       action,
       // Only expose OTP in development for testing
       ...(process.env.NODE_ENV === 'development' ? { otp } : {}),

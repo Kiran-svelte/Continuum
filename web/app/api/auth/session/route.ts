@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { verifyIdToken } from '@/lib/firebase-admin';
 
 export const dynamic = 'force-dynamic';
+export const maxDuration = 30;
 
 const AUTH_COOKIE_NAME = 'firebase-auth-token';
 const COOKIE_MAX_AGE = 60 * 60 * 24 * 7; // 7 days
@@ -42,8 +43,9 @@ export async function POST(request: NextRequest) {
     return response;
   } catch (error) {
     console.error('[AUTH SESSION] Error setting session:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     return NextResponse.json(
-      { error: 'Failed to create session' },
+      { error: 'Failed to create session', details: errorMessage },
       { status: 401 }
     );
   }

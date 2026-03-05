@@ -9,8 +9,10 @@ import { createAuditLog, AUDIT_ACTIONS } from '@/lib/audit';
 import { sanitizeInput } from '@/lib/security';
 import { LEAVE_TYPE_CATALOG } from '@/lib/leave-types-config';
 import { DEFAULT_CONSTRAINT_RULES } from '@/lib/constraint-rules-config';
+import { sendWelcomeEmail } from '@/lib/email-service';
 
 export const dynamic = 'force-dynamic';
+export const maxDuration = 30;
 
 const registerSchema = z.object({
   first_name: z.string().min(1).max(100),
@@ -183,6 +185,17 @@ export async function POST(request: NextRequest) {
       entityId: result.company.id,
       newState: { company_name: companyName, admin_id: result.employee.id },
     });
+
+    // 7. Send welcome email (non-blocking)
+    try {
+      await sendWelcomeEmail(
+        user.email!,
+        `${firstName} ${lastName}`,
+        companyName
+      );
+    } catch (emailError) {
+      console.error('[Register] Welcome email failed:', emailError);
+    }
 
     return NextResponse.json({
       success: true,

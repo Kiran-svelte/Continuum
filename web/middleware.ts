@@ -29,6 +29,10 @@ const PUBLIC_API_PATTERNS = [
   '/api/auth/session',
   '/api/auth/register',
   '/api/auth/join',
+  '/api/auth/test-firebase',
+  '/api/auth/firebase-check',
+  '/api/auth/test-signup-flow',
+  '/api/email/test',
 ];
 
 // Cron routes that use CRON_SECRET instead of user auth

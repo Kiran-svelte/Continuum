@@ -165,9 +165,12 @@ async function checkRedis(): Promise<ComponentCheck> {
 async function checkEmailService(): Promise<ComponentCheck> {
   const hasSmtp =
     !!process.env.SMTP_HOST || !!process.env.EMAIL_SERVER_HOST || !!process.env.RESEND_API_KEY;
+  const hasGmail = !!(process.env.GMAIL_USER && process.env.GMAIL_APP_PASSWORD);
+  const hasGmailOAuth = !!(process.env.GMAIL_USER && process.env.GMAIL_CLIENT_ID && process.env.GMAIL_CLIENT_SECRET && process.env.GMAIL_REFRESH_TOKEN);
+  const isConfigured = hasSmtp || hasGmail || hasGmailOAuth;
   return {
-    status: hasSmtp ? 'healthy' : 'degraded',
-    message: hasSmtp ? 'Email service configured' : 'No email service configured',
+    status: isConfigured ? 'healthy' : 'degraded',
+    message: isConfigured ? 'Email service configured' : 'No email service configured',
     latency: 0,
   };
 }
