@@ -6,19 +6,49 @@ import { getAuth, Auth, DecodedIdToken } from 'firebase-admin/auth';
 let adminApp: App;
 let adminAuth: Auth;
 
+/**
+ * Normalize private key to ensure proper newline formatting.
+ * Handles both escaped \n (from .env files) and actual newlines (from Vercel).
+ */
+function normalizePrivateKey(key: string | undefined): string | undefined {
+  if (!key) return undefined;
+  
+  // If the key already has actual newlines (from Vercel env vars), use as-is
+  if (key.includes('\n') && !key.includes('\\n')) {
+    return key;
+  }
+  
+  // Otherwise, replace escaped \n with actual newlines
+  return key.replace(/\\n/g, '\n');
+}
+
 function getAdminApp(): App {
   if (!adminApp) {
     if (getApps().length === 0) {
       // Initialize with service account credentials
+      const privateKey = normalizePrivateKey(process.env.FIREBASE_PRIVATE_KEY);
+      const projectId = process.env.FIREBASE_PROJECT_ID?.trim();
+      const clientEmail = process.env.FIREBASE_CLIENT_EMAIL?.trim();
+      
+      if (!privateKey || !projectId || !clientEmail) {
+        console.error('[FIREBASE ADMIN] Missing credentials:', {
+          hasProjectId: !!projectId,
+          hasClientEmail: !!clientEmail,
+          hasPrivateKey: !!privateKey,
+          privateKeyPreview: privateKey ? privateKey.substring(0, 50) + '...' : 'MISSING',
+        });
+        throw new Error('Firebase Admin SDK credentials not configured');
+      }
+      
       const serviceAccount = {
-        projectId: process.env.FIREBASE_PROJECT_ID,
-        privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
-        clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+        projectId: projectId,
+        privateKey: privateKey,
+        clientEmail: clientEmail,
       };
 
       adminApp = initializeApp({
         credential: cert(serviceAccount),
-        projectId: process.env.FIREBASE_PROJECT_ID,
+        projectId: projectId,
       });
     } else {
       adminApp = getApps()[0];

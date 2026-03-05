@@ -360,8 +360,8 @@ def _fetch_employee(conn, employee_id: str) -> dict | None:
             cur.execute(
                 """
                 SELECT id, email, first_name, last_name, department,
-                       designation, status, joined_at, probation_end_date,
-                       manager_id, company_id, gender
+                       designation, status, date_of_joining, probation_end_date,
+                       manager_id, org_id as company_id, gender
                 FROM "Employee"
                 WHERE id = %s
                 """,
@@ -1154,7 +1154,7 @@ def evaluate_rule_010(
             employee = leave_request.get("employee", {})
 
         status = (employee.get("status") or "").lower() if employee else ""
-        joined = _parse_date(employee.get("joined_at")) if employee else None
+        joined = _parse_date(employee.get("date_of_joining")) if employee else None
         probation_end = _parse_date(employee.get("probation_end_date")) if employee else None
 
         is_probation = False

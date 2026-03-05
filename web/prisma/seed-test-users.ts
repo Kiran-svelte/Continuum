@@ -200,9 +200,8 @@ async function main() {
     for (const lt of leaveTypesForBalance) {
       await prisma.leaveBalance.upsert({
         where: {
-          emp_id_company_id_leave_type_year: {
+          emp_id_leave_type_year: {
             emp_id: employee.id,
-            company_id: company.id,
             leave_type: lt.code,
             year,
           },

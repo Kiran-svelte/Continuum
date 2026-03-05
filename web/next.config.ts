@@ -1,6 +1,12 @@
 import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
+  serverExternalPackages: [
+    'winston',
+    'winston-loki',
+    'snappy',
+    '@napi-rs/snappy-win32-x64-msvc',
+  ],
   experimental: {
     serverActions: {
       bodySizeLimit: '2mb',

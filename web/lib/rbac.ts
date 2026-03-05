@@ -1,5 +1,5 @@
 import prisma from '@/lib/prisma';
-import type { PrismaClient } from '@prisma/client';
+import type { PrismaClient, Role } from '@prisma/client';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -217,7 +217,7 @@ export async function getUserPermissions(
     const companyOverrides = await prisma.rolePermission.findMany({
       where: {
         company_id: companyId,
-        role: { in: roles as string[] },
+        role: { in: roles as Role[] },
       },
       include: { permission: true },
     });

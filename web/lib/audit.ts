@@ -1,5 +1,6 @@
 import { createHash } from 'crypto';
 import prisma from '@/lib/prisma';
+import type { Prisma } from '@prisma/client';
 
 // ─── Audit Action Constants ─────────────────────────────────────────────────
 
@@ -128,8 +129,8 @@ export async function createAuditLog(params: CreateAuditLogParams): Promise<stri
       action,
       entity_type: entityType,
       entity_id: entityId,
-      previous_state: previousState ?? undefined,
-      new_state: newState ?? undefined,
+      previous_state: previousState as Prisma.InputJsonValue ?? undefined,
+      new_state: newState as Prisma.InputJsonValue ?? undefined,
       ip_address: ipAddress,
       user_agent: userAgent,
       integrity_hash: integrityHash,

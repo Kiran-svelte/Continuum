@@ -101,89 +101,86 @@ export async function POST(request: NextRequest) {
 
     const year = new Date().getFullYear();
 
-    console.log('[REGISTER] Starting transaction...');
-    // Transactionally create company, admin employee, leave types, leave balances, constraint rules
-    const result = await prisma.$transaction(async (tx) => {
-      console.log('[REGISTER] Creating company...');
-      // 1. Create company
-      const company = await tx.company.create({
-        data: {
-          name: companyName,
-          industry,
-          size,
-          timezone,
-          join_code: joinCode,
-        },
-      });
-
-      // 2. Create admin employee
-      const employee = await tx.employee.create({
-        data: {
-          auth_id: user.uid,
-          email: user.email!,
-          first_name: firstName,
-          last_name: lastName,
-          org_id: company.id,
-          primary_role: 'admin',
-          date_of_joining: new Date(),
-          gender: 'other',
-          status: 'active',
-        },
-      });
-
-      // 3. Seed default leave types for the company
-      const leaveTypeInserts = LEAVE_TYPE_CATALOG.map((lt) => ({
-        company_id: company.id,
-        code: lt.code,
-        name: lt.name,
-        category: lt.category as 'common' | 'statutory' | 'special' | 'unpaid',
-        default_quota: lt.defaultQuota,
-        carry_forward: lt.carryForward,
-        max_carry_forward: lt.maxCarryForward,
-        encashment_enabled: lt.encashmentEnabled,
-        encashment_max_days: lt.encashmentMaxDays,
-        paid: lt.paid,
-        gender_specific: lt.genderSpecific as 'male' | 'female' | 'all' | undefined,
-      }));
-      await tx.leaveType.createMany({ data: leaveTypeInserts });
-
-      // 4. Seed leave balances for the admin employee
-      const balanceInserts = LEAVE_TYPE_CATALOG.map((lt) => ({
-        emp_id: employee.id,
-        company_id: company.id,
-        leave_type: lt.code,
-        year,
-        annual_entitlement: lt.defaultQuota,
-        remaining: lt.defaultQuota,
-      }));
-      await tx.leaveBalance.createMany({ data: balanceInserts });
-
-      // 5. Seed default constraint rules
-      const ruleInserts = DEFAULT_CONSTRAINT_RULES.map((rule) => ({
-        company_id: company.id,
-        rule_id: rule.rule_id,
-        rule_type: rule.category,
-        name: rule.name,
-        description: rule.description,
-        category: rule.category as 'validation' | 'business' | 'compliance',
-        is_blocking: rule.is_blocking,
-        priority: rule.priority,
-        config: rule.config as Prisma.InputJsonValue,
-        applies_to_all: true,
-      }));
-      await tx.leaveRule.createMany({ data: ruleInserts });
-
-      return { company, employee };
+    // NOTE: Avoid interactive transactions in serverless + PgBouncer setups.
+    // Use sequential writes; these operations are small and should complete well
+    // within the function timeout.
+    console.log('[REGISTER] Creating company...');
+    const company = await prisma.company.create({
+      data: {
+        name: companyName,
+        industry,
+        size,
+        timezone,
+        join_code: joinCode,
+      },
     });
 
+    console.log('[REGISTER] Creating employee...');
+    const employee = await prisma.employee.create({
+      data: {
+        auth_id: user.uid,
+        email: user.email!,
+        first_name: firstName,
+        last_name: lastName,
+        org_id: company.id,
+        primary_role: 'admin',
+        date_of_joining: new Date(),
+        gender: 'other',
+        status: 'active',
+      },
+    });
+
+    console.log('[REGISTER] Seeding leave types...');
+    const leaveTypeInserts = LEAVE_TYPE_CATALOG.map((lt) => ({
+      company_id: company.id,
+      code: lt.code,
+      name: lt.name,
+      category: lt.category as 'common' | 'statutory' | 'special' | 'unpaid',
+      default_quota: lt.defaultQuota,
+      carry_forward: lt.carryForward,
+      max_carry_forward: lt.maxCarryForward,
+      encashment_enabled: lt.encashmentEnabled,
+      encashment_max_days: lt.encashmentMaxDays,
+      paid: lt.paid,
+      gender_specific: lt.genderSpecific as 'male' | 'female' | 'all' | undefined,
+    }));
+    await prisma.leaveType.createMany({ data: leaveTypeInserts });
+
+    console.log('[REGISTER] Seeding leave balances...');
+    const balanceInserts = LEAVE_TYPE_CATALOG.map((lt) => ({
+      emp_id: employee.id,
+      company_id: company.id,
+      leave_type: lt.code,
+      year,
+      annual_entitlement: lt.defaultQuota,
+      remaining: lt.defaultQuota,
+    }));
+    await prisma.leaveBalance.createMany({ data: balanceInserts });
+
+    console.log('[REGISTER] Seeding constraint rules...');
+    const ruleInserts = DEFAULT_CONSTRAINT_RULES.map((rule) => ({
+      company_id: company.id,
+      rule_id: rule.rule_id,
+      rule_type: rule.category,
+      name: rule.name,
+      description: rule.description,
+      category: rule.category as 'validation' | 'business' | 'compliance',
+      is_blocking: rule.is_blocking,
+      priority: rule.priority,
+      config: rule.config as Prisma.InputJsonValue,
+      applies_to_all: true,
+    }));
+    await prisma.leaveRule.createMany({ data: ruleInserts });
+
     // 6. Audit log
+    console.log('[REGISTER] Writing audit log...');
     await createAuditLog({
-      companyId: result.company.id,
-      actorId: result.employee.id,
+      companyId: company.id,
+      actorId: employee.id,
       action: AUDIT_ACTIONS.COMPANY_REGISTER,
       entityType: 'Company',
-      entityId: result.company.id,
-      newState: { company_name: companyName, admin_id: result.employee.id },
+      entityId: company.id,
+      newState: { company_name: companyName, admin_id: employee.id },
     });
 
     // 7. Send welcome email (non-blocking)
@@ -193,10 +190,11 @@ export async function POST(request: NextRequest) {
       }
     );
 
+    console.log('[REGISTER] Completed');
     return NextResponse.json({
       success: true,
-      company_id: result.company.id,
-      employee_id: result.employee.id,
+      company_id: company.id,
+      employee_id: employee.id,
       join_code: joinCode,
     });
   } catch (error) {
