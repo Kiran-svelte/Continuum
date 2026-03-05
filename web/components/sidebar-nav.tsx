@@ -18,7 +18,7 @@ export function SidebarNav({ items }: SidebarNavProps) {
   const pathname = usePathname();
 
   return (
-    <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
+    <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto" data-tutorial="sidebar">
       {items.map((item) => {
         const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
         return (
@@ -26,16 +26,16 @@ export function SidebarNav({ items }: SidebarNavProps) {
             key={item.href}
             href={item.href}
             className={cn(
-              'flex items-center gap-3 px-3 py-2 text-sm rounded-lg transition-colors',
+              'flex items-center gap-3 px-3 py-2 text-sm rounded-lg transition-all duration-200',
               isActive
-                ? 'bg-blue-50 text-blue-700 font-medium'
-                : 'text-gray-700 hover:bg-blue-50 hover:text-blue-700'
+                ? 'bg-primary/10 text-primary font-medium'
+                : 'text-muted-foreground hover:bg-secondary hover:text-foreground'
             )}
           >
             <span>{item.icon}</span>
             <span>{item.label}</span>
             {isActive && (
-              <span className="ml-auto w-1.5 h-1.5 rounded-full bg-blue-600 shrink-0" />
+              <span className="ml-auto w-1.5 h-1.5 rounded-full bg-primary shrink-0" />
             )}
           </Link>
         );
