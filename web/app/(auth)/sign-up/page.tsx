@@ -150,7 +150,7 @@ export default function SignUpPage() {
       if (firebaseErr.name === 'AbortError') {
         message = 'Request timed out. Please check your connection and try again.';
       } else if (firebaseErr.code === 'auth/wrong-password' || firebaseErr.code === 'auth/invalid-credential') {
-        message = 'This email is already registered. Please use the correct password or sign in.';
+        message = 'This email is already registered. Please sign in instead.';
       } else if (firebaseErr.code === 'auth/weak-password') {
         message = 'Password must be at least 6 characters.';
       } else if (firebaseErr.code === 'auth/invalid-email') {

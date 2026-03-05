@@ -41,7 +41,10 @@ export default function SignInPage() {
       clearTimeout(sessionTimeoutId);
       
       if (!sessionRes.ok) {
-        const sessionData = await sessionRes.json().catch(() => ({}));
+        const sessionData = await sessionRes.json().catch((parseErr: unknown) => {
+          console.error('Failed to parse session response:', parseErr);
+          return {};
+        });
         setError(sessionData.details || sessionData.error || 'Failed to create session');
         return;
       }

@@ -84,8 +84,8 @@ describe('Content-Security-Policy Configuration', () => {
     assert.ok(middlewareMatch, 'middleware.ts should have a connect-src directive');
     
     // Normalize and compare the domains
-    const configDomains = new Set(configMatch![1].trim().split(/\s+/).sort());
-    const middlewareDomains = new Set(middlewareMatch![1].trim().split(/\s+/).sort());
+    const configDomains = Array.from(new Set(configMatch![1].trim().split(/\s+/))).sort();
+    const middlewareDomains = Array.from(new Set(middlewareMatch![1].trim().split(/\s+/))).sort();
     
     assert.deepStrictEqual(
       configDomains,
