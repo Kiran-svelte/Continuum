@@ -204,6 +204,10 @@ function Spotlight({ selector }: { selector: string }) {
 
   if (!rect) return null;
 
+  // Large value to create a "cutout" effect - the box-shadow extends beyond viewport
+  // to dim everything except the highlighted element
+  const SPOTLIGHT_OVERLAY_SIZE = 'max(100vw, 100vh, 9999px)';
+
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -214,7 +218,7 @@ function Spotlight({ selector }: { selector: string }) {
         left: rect.left - 8,
         width: rect.width + 16,
         height: rect.height + 16,
-        boxShadow: '0 0 0 9999px rgba(0, 0, 0, 0.5)',
+        boxShadow: `0 0 0 ${SPOTLIGHT_OVERLAY_SIZE} rgba(0, 0, 0, 0.5)`,
       }}
     />
   );

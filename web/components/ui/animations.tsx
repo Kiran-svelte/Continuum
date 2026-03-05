@@ -144,39 +144,16 @@ interface AnimatedNumberProps {
 
 export function AnimatedNumber({
   value,
-  duration = 1,
   className,
   prefix = '',
   suffix = '',
 }: AnimatedNumberProps) {
   return (
-    <motion.span
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      className={className}
-    >
-      <motion.span
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: duration / 2 }}
-      >
-        {prefix}
-      </motion.span>
-      <motion.span
-        initial={{ value: 0 }}
-        animate={{ value }}
-        transition={{ duration, ease: 'easeOut' }}
-      >
-        {value}
-      </motion.span>
-      <motion.span
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: duration / 2, delay: duration / 2 }}
-      >
-        {suffix}
-      </motion.span>
-    </motion.span>
+    <span className={className}>
+      {prefix}
+      {value}
+      {suffix}
+    </span>
   );
 }
 

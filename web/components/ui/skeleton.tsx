@@ -31,7 +31,6 @@ export function Skeleton({
               index === lines - 1 ? 'w-3/4' : 'w-full',
               'h-4'
             )}
-            style={index === lines - 1 ? { width: '75%' } : undefined}
           />
         ))}
       </div>
