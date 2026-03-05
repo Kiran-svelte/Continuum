@@ -1,5 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert';
+import { fileURLToPath } from 'node:url';
 
 // ─── CSP Configuration Tests ─────────────────────────────────────────────────
 
@@ -8,7 +9,7 @@ describe('Content-Security-Policy Configuration', () => {
   
   it('next.config.ts CSP includes Firebase googleapis domain', async () => {
     const fs = await import('node:fs');
-    const configPath = new URL('../next.config.ts', import.meta.url).pathname;
+    const configPath = fileURLToPath(new URL('../next.config.ts', import.meta.url));
     const content = fs.readFileSync(configPath, 'utf-8');
     
     assert.ok(
@@ -19,7 +20,7 @@ describe('Content-Security-Policy Configuration', () => {
 
   it('next.config.ts CSP includes Firebase firebaseio domain', async () => {
     const fs = await import('node:fs');
-    const configPath = new URL('../next.config.ts', import.meta.url).pathname;
+    const configPath = fileURLToPath(new URL('../next.config.ts', import.meta.url));
     const content = fs.readFileSync(configPath, 'utf-8');
     
     assert.ok(
@@ -30,7 +31,7 @@ describe('Content-Security-Policy Configuration', () => {
 
   it('next.config.ts CSP includes Firebase firebaseapp domain', async () => {
     const fs = await import('node:fs');
-    const configPath = new URL('../next.config.ts', import.meta.url).pathname;
+    const configPath = fileURLToPath(new URL('../next.config.ts', import.meta.url));
     const content = fs.readFileSync(configPath, 'utf-8');
     
     assert.ok(
@@ -41,7 +42,7 @@ describe('Content-Security-Policy Configuration', () => {
 
   it('next.config.ts CSP should not reference supabase', async () => {
     const fs = await import('node:fs');
-    const configPath = new URL('../next.config.ts', import.meta.url).pathname;
+    const configPath = fileURLToPath(new URL('../next.config.ts', import.meta.url));
     const content = fs.readFileSync(configPath, 'utf-8');
     
     assert.ok(
@@ -52,7 +53,7 @@ describe('Content-Security-Policy Configuration', () => {
 
   it('middleware.ts CSP includes Firebase domains', async () => {
     const fs = await import('node:fs');
-    const middlewarePath = new URL('../middleware.ts', import.meta.url).pathname;
+    const middlewarePath = fileURLToPath(new URL('../middleware.ts', import.meta.url));
     const content = fs.readFileSync(middlewarePath, 'utf-8');
     
     assert.ok(
@@ -71,8 +72,8 @@ describe('Content-Security-Policy Configuration', () => {
 
   it('CSP connect-src is consistent between next.config.ts and middleware.ts', async () => {
     const fs = await import('node:fs');
-    const configPath = new URL('../next.config.ts', import.meta.url).pathname;
-    const middlewarePath = new URL('../middleware.ts', import.meta.url).pathname;
+    const configPath = fileURLToPath(new URL('../next.config.ts', import.meta.url));
+    const middlewarePath = fileURLToPath(new URL('../middleware.ts', import.meta.url));
     const configContent = fs.readFileSync(configPath, 'utf-8');
     const middlewareContent = fs.readFileSync(middlewarePath, 'utf-8');
     
@@ -100,7 +101,7 @@ describe('Content-Security-Policy Configuration', () => {
 describe('Firebase Admin SDK Credential Validation', () => {
   it('firebase-admin.ts should validate credentials before initialization', async () => {
     const fs = await import('node:fs');
-    const adminPath = new URL('../lib/firebase-admin.ts', import.meta.url).pathname;
+    const adminPath = fileURLToPath(new URL('../lib/firebase-admin.ts', import.meta.url));
     const content = fs.readFileSync(adminPath, 'utf-8');
     
     // Verify that the file checks for missing credentials
@@ -122,7 +123,7 @@ describe('Firebase Admin SDK Credential Validation', () => {
 describe('Sign-up Page Timeout Handling', () => {
   it('sign-up page should have timeout on session fetch', async () => {
     const fs = await import('node:fs');
-    const signUpPath = new URL('../app/(auth)/sign-up/page.tsx', import.meta.url).pathname;
+    const signUpPath = fileURLToPath(new URL('../app/(auth)/sign-up/page.tsx', import.meta.url));
     const content = fs.readFileSync(signUpPath, 'utf-8');
     
     // Check that session fetch uses AbortController
@@ -138,7 +139,7 @@ describe('Sign-up Page Timeout Handling', () => {
 
   it('sign-up page should handle network errors', async () => {
     const fs = await import('node:fs');
-    const signUpPath = new URL('../app/(auth)/sign-up/page.tsx', import.meta.url).pathname;
+    const signUpPath = fileURLToPath(new URL('../app/(auth)/sign-up/page.tsx', import.meta.url));
     const content = fs.readFileSync(signUpPath, 'utf-8');
     
     assert.ok(
@@ -157,7 +158,7 @@ describe('Sign-up Page Timeout Handling', () => {
 describe('Sign-in Page Timeout Handling', () => {
   it('sign-in page should have timeout on session fetch', async () => {
     const fs = await import('node:fs');
-    const signInPath = new URL('../app/(auth)/sign-in/page.tsx', import.meta.url).pathname;
+    const signInPath = fileURLToPath(new URL('../app/(auth)/sign-in/page.tsx', import.meta.url));
     const content = fs.readFileSync(signInPath, 'utf-8');
     
     // Check that session fetch uses AbortController
@@ -173,7 +174,7 @@ describe('Sign-in Page Timeout Handling', () => {
 
   it('sign-in page should have timeout on auth/me fetch', async () => {
     const fs = await import('node:fs');
-    const signInPath = new URL('../app/(auth)/sign-in/page.tsx', import.meta.url).pathname;
+    const signInPath = fileURLToPath(new URL('../app/(auth)/sign-in/page.tsx', import.meta.url));
     const content = fs.readFileSync(signInPath, 'utf-8');
     
     assert.ok(
@@ -188,7 +189,7 @@ describe('Sign-in Page Timeout Handling', () => {
 
   it('sign-in page should handle common Firebase auth errors', async () => {
     const fs = await import('node:fs');
-    const signInPath = new URL('../app/(auth)/sign-in/page.tsx', import.meta.url).pathname;
+    const signInPath = fileURLToPath(new URL('../app/(auth)/sign-in/page.tsx', import.meta.url));
     const content = fs.readFileSync(signInPath, 'utf-8');
     
     assert.ok(
