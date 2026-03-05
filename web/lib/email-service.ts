@@ -41,6 +41,14 @@ function checkEmailRateLimit(): boolean {
 function createTransport(): nodemailer.Transporter {
   const hasOAuth = process.env.GMAIL_CLIENT_ID && process.env.GMAIL_CLIENT_SECRET && process.env.GMAIL_REFRESH_TOKEN;
 
+  // Ensure email never blocks critical API flows (serverless functions)
+  // Timeouts are in milliseconds.
+  const timeouts = {
+    connectionTimeout: 5_000,
+    greetingTimeout: 5_000,
+    socketTimeout: 10_000,
+  };
+
   if (hasOAuth) {
     return nodemailer.createTransport({
       service: 'gmail',
@@ -51,6 +59,7 @@ function createTransport(): nodemailer.Transporter {
         clientSecret: process.env.GMAIL_CLIENT_SECRET?.trim()!,
         refreshToken: process.env.GMAIL_REFRESH_TOKEN?.trim()!,
       },
+      ...timeouts,
     });
   }
 
@@ -63,6 +72,7 @@ function createTransport(): nodemailer.Transporter {
       user: process.env.GMAIL_USER?.trim() || '',
       pass: process.env.GMAIL_APP_PASSWORD?.trim() || '',
     },
+    ...timeouts,
   });
 }
 
