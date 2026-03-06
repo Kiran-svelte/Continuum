@@ -15,13 +15,25 @@ const FALLBACK_LEAVE_TYPES = [
 ];
 
 // Type definitions for constraint violations
+// NOTE: The Python constraint engine returns `name` (not `rule_name`), so we
+// accept both to stay forward-compatible.
 interface ConstraintViolation {
   rule_id: string;
+  /** Engine returns `name`; older callers may use `rule_name` */
+  name?: string;
   rule_name?: string;
   message: string;
-  severity: 'blocking' | 'warning';
+  /**
+   * `is_blocking` (boolean, from engine) and `severity` (string, from older callers)
+   * both represent whether the violation prevents submission.
+   * Blocking violations live in `constraintResult.violations`;
+   * non-blocking ones live in `constraintResult.warnings`.
+   */
+  severity?: 'blocking' | 'warning';
+  is_blocking?: boolean;
   details?: Record<string, unknown>;
   suggestion?: string;
+  category?: string;
 }
 
 interface ConstraintResult {
@@ -30,6 +42,58 @@ interface ConstraintResult {
   warnings: ConstraintViolation[];
   recommendation?: string;
   confidence_score?: number;
+}
+
+/** Build a human-readable suggestion from violation details when the engine
+ *  does not supply one explicitly. */
+function buildSuggestion(v: ConstraintViolation): string | null {
+  if (v.suggestion) return v.suggestion;
+  const d = v.details ?? {};
+  const ruleId = v.rule_id?.toUpperCase() ?? '';
+
+  // RULE002: Leave Balance Check
+  if (ruleId === 'RULE002') {
+    const remaining = d.remaining_days ?? d.remaining;
+    if (remaining !== undefined) {
+      return `You have ${remaining} day(s) remaining. Consider reducing the duration or using Leave Without Pay (LWP) for the extra days.`;
+    }
+    return 'You do not have enough leave balance. Try a shorter duration or switch to Leave Without Pay (LWP).';
+  }
+  // RULE001: Max Duration
+  if (ruleId === 'RULE001') {
+    const max = d.max_days;
+    if (max !== undefined) {
+      return `Maximum allowed is ${max} day(s) per request. Split your request into multiple shorter requests.`;
+    }
+    return 'Reduce the number of days or split into multiple shorter requests.';
+  }
+  // RULE005: Blackout Period
+  if (ruleId === 'RULE005') {
+    return 'These dates fall in a restricted period. Please choose dates outside the blackout window.';
+  }
+  // RULE003: Min Team Coverage
+  if (ruleId === 'RULE003') {
+    return 'Team coverage would be too low. Try different dates or coordinate with your colleagues to stagger leave.';
+  }
+  // RULE004: Max Concurrent Leave
+  if (ruleId === 'RULE004') {
+    return 'Too many team members are already on leave during this period. Try different dates or discuss with your manager.';
+  }
+  // RULE006: Advance Notice
+  if (ruleId === 'RULE006') {
+    const minDays = d.required;
+    if (minDays !== undefined) {
+      return `A minimum notice of ${minDays} day(s) is required. Please request leave earlier in advance.`;
+    }
+  }
+  // RULE007: Consecutive Leave Limit
+  if (ruleId === 'RULE007') {
+    const max = d.max_consecutive;
+    if (max !== undefined) {
+      return `Consecutive leave limit is ${max} day(s). Space out your requests or use a different leave type for part of the period.`;
+    }
+  }
+  return null;
 }
 
 export default function RequestLeavePage() {
@@ -98,9 +162,18 @@ export default function RequestLeavePage() {
       const json = await res.json();
       if (!res.ok) {
         // Check if this is a constraint violation response
-        if (json.violations && typeof json.violations === 'object') {
-          setConstraintResult(json.violations);
-          setError('Your leave request has constraint violations');
+        if (json.violations && typeof json.violations === 'object' && !Array.isArray(json.violations)) {
+          setConstraintResult(json.violations as ConstraintResult);
+          setError('');
+        } else if (json.error === 'Insufficient leave balance') {
+          const remaining = typeof json.remaining === 'number' ? json.remaining : null;
+          const requested = typeof json.requested === 'number' ? json.requested : null;
+          setError(
+            `Insufficient leave balance.` +
+            (remaining !== null ? ` You have ${remaining} day(s) remaining` : '') +
+            (requested !== null ? ` but requested ${requested} day(s).` : '.') +
+            ' Consider using Leave Without Pay (LWP) or adjusting the dates.'
+          );
         } else {
           setError(json.error ?? 'Failed to submit leave request');
         }
@@ -147,24 +220,32 @@ export default function RequestLeavePage() {
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                     </svg>
-                    Constraint Violations
+                    Constraint Violations — your request cannot be submitted
                   </h4>
-                  <ul className="space-y-2">
-                    {constraintResult.violations.map((v, i) => (
-                      <li key={i} className="text-sm text-red-700">
-                        <div className="font-medium">{v.rule_name || v.rule_id}: {v.message}</div>
-                        {v.suggestion && (
-                          <div className="mt-1 text-red-600 italic">Suggestion: {v.suggestion}</div>
-                        )}
-                        {v.details && Object.keys(v.details).length > 0 && (
-                          <div className="mt-1 text-xs text-red-500">
-                            {Object.entries(v.details).map(([key, val]) => (
-                              <span key={key} className="mr-3">{key}: {String(val)}</span>
-                            ))}
-                          </div>
-                        )}
-                      </li>
-                    ))}
+                  <ul className="space-y-3">
+                    {constraintResult.violations.map((v, i) => {
+                      const label = v.name || v.rule_name || v.rule_id;
+                      const suggestion = buildSuggestion(v);
+                      return (
+                        <li key={i} className="text-sm text-red-700 border-t border-red-100 pt-2 first:border-0 first:pt-0">
+                          <div className="font-semibold">{label}</div>
+                          <div className="mt-0.5">{v.message}</div>
+                          {suggestion && (
+                            <div className="mt-1.5 flex items-start gap-1.5 rounded bg-red-100 px-2 py-1.5 text-red-800">
+                              <span className="mt-0.5 shrink-0">💡</span>
+                              <span className="italic">{suggestion}</span>
+                            </div>
+                          )}
+                          {v.details && Object.keys(v.details).length > 0 && (
+                            <div className="mt-1 flex flex-wrap gap-x-3 text-xs text-red-500">
+                              {Object.entries(v.details).map(([key, val]) => (
+                                <span key={key}>{key.replace(/_/g, ' ')}: <strong>{String(val)}</strong></span>
+                              ))}
+                            </div>
+                          )}
+                        </li>
+                      );
+                    })}
                   </ul>
                 </div>
               )}
@@ -178,15 +259,23 @@ export default function RequestLeavePage() {
                     </svg>
                     Warnings
                   </h4>
-                  <ul className="space-y-2">
-                    {constraintResult.warnings.map((w, i) => (
-                      <li key={i} className="text-sm text-yellow-700">
-                        <div className="font-medium">{w.rule_name || w.rule_id}: {w.message}</div>
-                        {w.suggestion && (
-                          <div className="mt-1 text-yellow-600 italic">Suggestion: {w.suggestion}</div>
-                        )}
-                      </li>
-                    ))}
+                  <ul className="space-y-3">
+                    {constraintResult.warnings.map((w, i) => {
+                      const label = w.name || w.rule_name || w.rule_id;
+                      const suggestion = buildSuggestion(w);
+                      return (
+                        <li key={i} className="text-sm text-yellow-700 border-t border-yellow-100 pt-2 first:border-0 first:pt-0">
+                          <div className="font-semibold">{label}</div>
+                          <div className="mt-0.5">{w.message}</div>
+                          {suggestion && (
+                            <div className="mt-1.5 flex items-start gap-1.5 rounded bg-yellow-100 px-2 py-1.5 text-yellow-800">
+                              <span className="mt-0.5 shrink-0">💡</span>
+                              <span className="italic">{suggestion}</span>
+                            </div>
+                          )}
+                        </li>
+                      );
+                    })}
                   </ul>
                 </div>
               )}

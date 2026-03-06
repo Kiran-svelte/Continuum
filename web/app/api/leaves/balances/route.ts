@@ -18,10 +18,24 @@ export async function GET() {
       orderBy: { leave_type: 'asc' },
     });
 
-    // INV-15: Auto-seed balances if none exist
+    // INV-15: Auto-seed balances if none exist.
+    // Prefer company-configured leave types; fall back to the global catalog.
     if (balances.length === 0) {
-      const defaults = getDefaultLeaveTypes();
-      const seedData = defaults.map((lt) => ({
+      const companyLeaveTypes = await prisma.leaveType.findMany({
+        where: {
+          company_id: employee.org_id,
+          is_active: true,
+          deleted_at: null,
+        },
+        select: { code: true, default_quota: true },
+      });
+
+      const typesToSeed =
+        companyLeaveTypes.length > 0
+          ? companyLeaveTypes.map((lt) => ({ code: lt.code, defaultQuota: lt.default_quota }))
+          : getDefaultLeaveTypes().map((lt) => ({ code: lt.code, defaultQuota: lt.defaultQuota }));
+
+      const seedData = typesToSeed.map((lt) => ({
         emp_id: employee.id,
         company_id: employee.org_id,
         leave_type: lt.code,
@@ -34,7 +48,7 @@ export async function GET() {
         remaining: lt.defaultQuota,
       }));
 
-      await prisma.leaveBalance.createMany({ data: seedData });
+      await prisma.leaveBalance.createMany({ data: seedData, skipDuplicates: true });
 
       balances = await prisma.leaveBalance.findMany({
         where: { emp_id: employee.id, year: currentYear },
