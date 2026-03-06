@@ -388,7 +388,7 @@ def _fetch_department_leaves(
                        lr.status, lr.leave_type
                 FROM "LeaveRequest" lr
                 JOIN "Employee" e ON e.id = lr.emp_id
-                WHERE e.company_id = %s
+                WHERE e.org_id = %s
                   AND e.department = %s
                   AND lr.status IN ('approved', 'pending')
                   AND lr.start_date <= %s
@@ -415,7 +415,7 @@ def _fetch_department_size(conn, company_id: str, department: str) -> int:
                 """
                 SELECT COUNT(*) AS cnt
                 FROM "Employee"
-                WHERE company_id = %s AND department = %s AND status = 'active'
+                WHERE org_id = %s AND department = %s AND status = 'active'
                 """,
                 (company_id, department),
             )

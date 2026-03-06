@@ -1,0 +1,505 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { firebaseSignUp, firebaseSignIn, getFirebaseAuth } from '@/lib/firebase';
+import { onAuthStateChanged } from 'firebase/auth';
+
+type Mode = 'admin' | 'employee';
+
+const ROLES = [
+  { value: 'employee', label: 'Employee' },
+  { value: 'manager', label: 'Manager' },
+  { value: 'hr', label: 'HR Admin' },
+  { value: 'team_lead', label: 'Team Lead' },
+];
+
+export default function SignUpPage() {
+  const router = useRouter();
+  const [mode, setMode] = useState<Mode>('admin');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [companyName, setCompanyName] = useState('');
+  const [industry, setIndustry] = useState('');
+  const [companySize, setCompanySize] = useState('');
+  const [timezone, setTimezone] = useState('Asia/Kolkata');
+  const [companyCode, setCompanyCode] = useState('');
+  const [role, setRole] = useState('employee');
+  const [loading, setLoading] = useState(false);
+  const [checkingAuth, setCheckingAuth] = useState(true);
+  const [error, setError] = useState('');
+
+  // Check if user is already logged in
+  useEffect(() => {
+    const auth = getFirebaseAuth();
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        // User is already logged in - check role and redirect appropriately
+        try {
+          const token = await user.getIdToken();
+          const meRes = await fetch('/api/auth/me', {
+            headers: { 'Authorization': `Bearer ${token}` },
+          });
+          
+          if (meRes.ok) {
+            const me = await meRes.json();
+            const role = me.primary_role ?? 'employee';
+            const onboardingCompleted = me.company?.onboarding_completed ?? false;
+            
+            // Admin must complete onboarding
+            if ((role === 'admin' || role === 'hr') && !onboardingCompleted) {
+              router.replace('/onboarding');
+              return;
+            }
+            
+            // Route based on role
+            if (role === 'admin' || role === 'hr') {
+              router.replace('/hr/dashboard');
+            } else if (role === 'manager' || role === 'team_lead' || role === 'director') {
+              router.replace('/manager/dashboard');
+            } else {
+              router.replace('/employee/dashboard');
+            }
+            return;
+          }
+        } catch {
+          // Continue to sign-up form if API fails
+        }
+      }
+      setCheckingAuth(false);
+    });
+    return () => unsubscribe();
+  }, [router]);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setError('');
+
+    // Validate passwords match
+    if (password !== confirmPassword) {
+      setError('Passwords do not match.');
+      return;
+    }
+
+    // Validate password strength
+    if (password.length < 6) {
+      setError('Password must be at least 6 characters.');
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      let userCredential;
+      
+      try {
+        // Try to create a new account
+        userCredential = await firebaseSignUp(email, password);
+      } catch (signUpErr) {
+        const err = signUpErr as { code?: string };
+        // If user already exists, try to sign in instead
+        if (err.code === 'auth/email-already-in-use') {
+          try {
+            userCredential = await firebaseSignIn(email, password);
+          } catch (signInErr) {
+            const signInError = signInErr as { code?: string };
+            if (signInError.code === 'auth/wrong-password' || signInError.code === 'auth/invalid-credential') {
+              setError('This email is already registered with a different password. Please sign in instead.');
+              setLoading(false);
+              return;
+            }
+            throw signInErr;
+          }
+        } else {
+          throw signUpErr;
+        }
+      }
+      
+      const token = await userCredential.user.getIdToken();
+
+      // Set the session cookie for server-side auth
+      const sessionRes = await fetch('/api/auth/session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ idToken: token }),
+      });
+
+      if (!sessionRes.ok) {
+        console.error('[SignUp] Failed to set session cookie');
+      }
+
+      const authHeaders = {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      };
+
+      if (mode === 'admin') {
+        // Register as company admin
+        const res = await fetch('/api/auth/register', {
+          method: 'POST',
+          headers: authHeaders,
+          body: JSON.stringify({
+            first_name: firstName,
+            last_name: lastName,
+            company_name: companyName,
+            industry: industry || undefined,
+            size: companySize || undefined,
+            timezone,
+          }),
+        });
+        const json = await res.json();
+        if (!res.ok) {
+          if (res.status === 409) {
+            router.push('/employee/dashboard');
+            return;
+          }
+          setError(json.error ?? 'Registration failed');
+          setLoading(false);
+          return;
+        }
+        router.push('/onboarding');
+      } else {
+        // Join existing company
+        const res = await fetch('/api/auth/join', {
+          method: 'POST',
+          headers: authHeaders,
+          body: JSON.stringify({
+            first_name: firstName,
+            last_name: lastName,
+            company_code: companyCode,
+            role,
+          }),
+        });
+        const json = await res.json();
+        if (!res.ok) {
+          if (res.status === 409) {
+            router.push('/employee/dashboard');
+            return;
+          }
+          setError(json.error ?? 'Join failed');
+          setLoading(false);
+          return;
+        }
+        router.push('/employee/dashboard');
+      }
+    } catch (err) {
+      const authErr = err as { code?: string; message?: string };
+      let message = 'Registration failed. Please try again.';
+      
+      if (authErr.code === 'auth/email-already-in-use') {
+        message = 'This email is already registered. Please sign in instead.';
+      } else if (authErr.code === 'auth/invalid-email') {
+        message = 'Invalid email address.';
+      } else if (authErr.code === 'auth/weak-password') {
+        message = 'Password is too weak. Use at least 6 characters.';
+      } else if (authErr.code === 'auth/network-request-failed') {
+        message = 'Network error. Please check your connection.';
+      } else if (authErr.code === 'auth/too-many-requests') {
+        message = 'Too many attempts. Please try again later.';
+      }
+      
+      setError(message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  if (checkingAuth) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 dark:from-slate-900 dark:via-slate-900 dark:to-slate-800 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto" />
+          <p className="mt-4 text-muted-foreground">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 dark:from-slate-900 dark:via-slate-900 dark:to-slate-800 flex items-center justify-center p-4">
+      <div className="w-full max-w-md animate-fade-in">
+        {/* Logo & Title */}
+        <div className="text-center mb-8">
+          <div className="inline-flex items-center justify-center w-14 h-14 bg-primary rounded-2xl mb-4 shadow-lg shadow-primary/25 animate-float">
+            <svg className="w-8 h-8 text-primary-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+            </svg>
+          </div>
+          <h1 className="text-2xl font-bold text-foreground">Create your account</h1>
+          <p className="text-muted-foreground mt-1">Get started with Continuum today</p>
+        </div>
+
+        {/* Mode Toggle */}
+        <div className="flex bg-muted p-1 rounded-xl mb-6">
+          <button
+            type="button"
+            onClick={() => setMode('admin')}
+            className={`flex-1 py-2.5 text-sm font-medium rounded-lg transition-all ${
+              mode === 'admin' 
+                ? 'bg-card text-foreground shadow-sm' 
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            Start a Company
+          </button>
+          <button
+            type="button"
+            onClick={() => setMode('employee')}
+            className={`flex-1 py-2.5 text-sm font-medium rounded-lg transition-all ${
+              mode === 'employee' 
+                ? 'bg-card text-foreground shadow-sm' 
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            Join a Company
+          </button>
+        </div>
+
+        {/* Card */}
+        <div className="bg-card rounded-2xl shadow-xl border border-border p-6 card-lift">
+          {error && (
+            <div className="mb-5 flex items-start gap-3 p-4 bg-destructive/10 border border-destructive/20 rounded-xl animate-slide-up">
+              <svg className="w-5 h-5 text-destructive flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <p className="text-sm text-destructive">{error}</p>
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {/* Name Row */}
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label htmlFor="firstName" className="block text-sm font-medium text-foreground mb-1.5">
+                  First Name
+                </label>
+                <input
+                  id="firstName"
+                  type="text"
+                  value={firstName}
+                  onChange={(e) => setFirstName(e.target.value)}
+                  className="w-full h-11 px-4 bg-background text-foreground border border-input rounded-lg text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
+                  placeholder="Rahul"
+                  required
+                />
+              </div>
+              <div>
+                <label htmlFor="lastName" className="block text-sm font-medium text-foreground mb-1.5">
+                  Last Name
+                </label>
+                <input
+                  id="lastName"
+                  type="text"
+                  value={lastName}
+                  onChange={(e) => setLastName(e.target.value)}
+                  className="w-full h-11 px-4 bg-background text-foreground border border-input rounded-lg text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
+                  placeholder="Sharma"
+                  required
+                />
+              </div>
+            </div>
+
+            {/* Email */}
+            <div>
+              <label htmlFor="email" className="block text-sm font-medium text-foreground mb-1.5">
+                Email address
+              </label>
+              <input
+                id="email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full h-11 px-4 bg-background text-foreground border border-input rounded-lg text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
+                placeholder="you@company.com"
+                required
+                autoComplete="email"
+              />
+            </div>
+
+            {/* Password */}
+            <div>
+              <label htmlFor="password" className="block text-sm font-medium text-foreground mb-1.5">
+                Password
+              </label>
+              <input
+                id="password"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full h-11 px-4 bg-background text-foreground border border-input rounded-lg text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
+                placeholder="••••••••"
+                required
+                autoComplete="new-password"
+                minLength={6}
+              />
+            </div>
+
+            {/* Confirm Password */}
+            <div>
+              <label htmlFor="confirmPassword" className="block text-sm font-medium text-foreground mb-1.5">
+                Confirm Password
+              </label>
+              <input
+                id="confirmPassword"
+                type="password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                className="w-full h-11 px-4 bg-background text-foreground border border-input rounded-lg text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
+                placeholder="••••••••"
+                required
+                autoComplete="new-password"
+              />
+            </div>
+
+            {/* Admin Mode Fields */}
+            {mode === 'admin' && (
+              <>
+                <div>
+                  <label htmlFor="companyName" className="block text-sm font-medium text-foreground mb-1.5">
+                    Company Name
+                  </label>
+                  <input
+                    id="companyName"
+                    type="text"
+                    value={companyName}
+                    onChange={(e) => setCompanyName(e.target.value)}
+                    className="w-full h-11 px-4 bg-background text-foreground border border-input rounded-lg text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
+                    placeholder="Acme Corp"
+                    required
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label htmlFor="industry" className="block text-sm font-medium text-foreground mb-1.5">
+                      Industry
+                    </label>
+                    <select
+                      id="industry"
+                      value={industry}
+                      onChange={(e) => setIndustry(e.target.value)}
+                      className="w-full h-11 px-4 bg-background text-foreground border border-input rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
+                    >
+                      <option value="">Select...</option>
+                      <option value="technology">Technology</option>
+                      <option value="finance">Finance</option>
+                      <option value="healthcare">Healthcare</option>
+                      <option value="manufacturing">Manufacturing</option>
+                      <option value="retail">Retail</option>
+                      <option value="education">Education</option>
+                      <option value="consulting">Consulting</option>
+                      <option value="other">Other</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label htmlFor="companySize" className="block text-sm font-medium text-foreground mb-1.5">
+                      Company Size
+                    </label>
+                    <select
+                      id="companySize"
+                      value={companySize}
+                      onChange={(e) => setCompanySize(e.target.value)}
+                      className="w-full h-11 px-4 bg-background text-foreground border border-input rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
+                    >
+                      <option value="">Select...</option>
+                      <option value="1-10">1-10 employees</option>
+                      <option value="11-50">11-50 employees</option>
+                      <option value="51-200">51-200 employees</option>
+                      <option value="201-500">201-500 employees</option>
+                      <option value="500+">500+ employees</option>
+                    </select>
+                  </div>
+                </div>
+              </>
+            )}
+
+            {/* Employee Mode Fields */}
+            {mode === 'employee' && (
+              <>
+                <div>
+                  <label htmlFor="companyCode" className="block text-sm font-medium text-foreground mb-1.5">
+                    Company Join Code
+                  </label>
+                  <input
+                    id="companyCode"
+                    type="text"
+                    value={companyCode}
+                    onChange={(e) => setCompanyCode(e.target.value.toUpperCase())}
+                    className="w-full h-11 px-4 bg-background text-foreground border border-input rounded-lg text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all font-mono uppercase"
+                    placeholder="ABC123"
+                    required
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">Ask your HR team for this code</p>
+                </div>
+
+                <div>
+                  <label htmlFor="role" className="block text-sm font-medium text-foreground mb-1.5">
+                    Your Role
+                  </label>
+                  <select
+                    id="role"
+                    value={role}
+                    onChange={(e) => setRole(e.target.value)}
+                    className="w-full h-11 px-4 bg-background text-foreground border border-input rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
+                  >
+                    {ROLES.map((r) => (
+                      <option key={r.value} value={r.value}>{r.label}</option>
+                    ))}
+                  </select>
+                </div>
+              </>
+            )}
+
+            {/* Submit Button */}
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full h-12 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg shadow-primary/25 btn-press mt-6"
+            >
+              {loading ? (
+                <>
+                  <div className="w-5 h-5 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin" />
+                  <span>Creating account...</span>
+                </>
+              ) : mode === 'admin' ? (
+                'Create Company Account'
+              ) : (
+                'Join Company'
+              )}
+            </button>
+          </form>
+
+          {/* Divider */}
+          <div className="relative my-6">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-border"></div>
+            </div>
+            <div className="relative flex justify-center text-sm">
+              <span className="bg-card px-4 text-muted-foreground">or</span>
+            </div>
+          </div>
+
+          {/* Sign in link */}
+          <p className="text-center text-sm text-muted-foreground">
+            Already have an account?{' '}
+            <Link href="/sign-in" className="text-primary hover:text-primary/80 font-medium transition-colors">
+              Sign in
+            </Link>
+          </p>
+        </div>
+
+        {/* Terms */}
+        <p className="text-center text-xs text-muted-foreground mt-6">
+          By creating an account, you agree to our{' '}
+          <Link href="/terms" className="text-primary hover:underline">Terms of Service</Link>
+          {' '}and{' '}
+          <Link href="/privacy" className="text-primary hover:underline">Privacy Policy</Link>
+        </p>
+      </div>
+    </div>
+  );
+}

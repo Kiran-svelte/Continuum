@@ -62,9 +62,9 @@ export default function SignUpPage() {
       return;
     }
 
-    // Validate password strength
-    if (password.length < 6) {
-      setError('Password must be at least 6 characters.');
+    // Validate password strength (Supabase requires min 6, but dev API requires 8)
+    if (password.length < 8) {
+      setError('Password must be at least 8 characters.');
       return;
     }
 
@@ -134,6 +134,47 @@ export default function SignUpPage() {
           return;
         }
         
+        // Check if email sending failed - fallback to dev API
+        if (
+          signUpError.message.includes('sending confirmation email') ||
+          signUpError.message.includes('email not confirmed')
+        ) {
+          // Try dev-create-user API (auto-confirms user)
+          try {
+            const devRes = await fetch('/api/auth/dev-create-user', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ email, password }),
+            });
+
+            if (devRes.ok) {
+              // User created with auto-confirm, now sign them in
+              const { error: signInErr } = await supabase.auth.signInWithPassword({
+                email,
+                password,
+              });
+              if (!signInErr) {
+                router.push(`/onboarding?intent=${intent}&firstName=${encodeURIComponent(firstName)}&lastName=${encodeURIComponent(lastName)}${mode === 'employee' ? `&companyCode=${encodeURIComponent(companyCode)}` : ''}`);
+                return;
+              }
+            }
+
+            const devData = await devRes.json().catch(() => ({}));
+            if (devRes.status === 404) {
+              // Endpoint disabled in production - show email config message
+              setError('Email confirmation is required but email service is not configured. Please contact your administrator.');
+            } else if (devData.error) {
+              setError(devData.error);
+            } else {
+              setError('Failed to create account. Please try again.');
+            }
+          } catch {
+            setError('Failed to create account. Please try again.');
+          }
+          setLoading(false);
+          return;
+        }
+
         setError(signUpError.message);
         setLoading(false);
         return;

@@ -85,7 +85,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    requireRole(employee, 'admin');
+    // Allow admin or hr to complete onboarding (HR users are typically the ones setting up companies)
+    requireRole(employee, 'admin', 'hr');
 
     const body = await request.json();
     const parsed = onboardingSchema.safeParse(body);

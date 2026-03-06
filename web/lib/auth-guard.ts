@@ -2,6 +2,7 @@ import { cookies } from 'next/headers';
 import { createClient } from '@supabase/supabase-js';
 import prisma from '@/lib/prisma';
 import { verifyIdToken } from '@/lib/firebase-admin';
+import { getSupabaseServerClient } from '@/lib/supabase-server';
 import {
   getUserPermissions,
   hasPermission,
@@ -178,7 +179,7 @@ function getSupabaseProjectId(): string {
 
 /**
  * Extracts auth from Firebase or Supabase, looks up Employee via Prisma.
- * Tries Firebase session cookie first, then falls back to Supabase cookie.
+ * Tries Firebase session cookie first, then falls back to Supabase server client.
  * Returns the authenticated employee with role, company, and permissions.
  */
 export async function getAuthEmployee(): Promise<AuthEmployee> {
@@ -197,26 +198,22 @@ export async function getAuthEmployee(): Promise<AuthEmployee> {
     }
   }
 
-  // Fall back to Supabase cookie if Firebase didn't succeed
+  // Fall back to Supabase server client (handles cookies automatically)
   if (!decodedUser) {
-    // Dynamically construct cookie name based on Supabase project ID
-    const projectId = getSupabaseProjectId();
-    const cookieName = `sb-${projectId}-auth-token`;
-    const authCookie = cookieStore.get(cookieName);
-
-    if (!authCookie?.value) {
-      throw new AuthError('Authentication required', 401);
-    }
-
     try {
-      // Parse the Supabase cookie JSON
-      const tokenData = JSON.parse(decodeURIComponent(authCookie.value));
-      const accessToken = tokenData.access_token || tokenData;
-      if (typeof accessToken !== 'string') {
-        throw new Error('Invalid token format');
+      const supabase = await getSupabaseServerClient();
+      const { data: { user }, error } = await supabase.auth.getUser();
+      
+      if (error || !user) {
+        throw new AuthError('Authentication required', 401);
       }
-      decodedUser = await verifySupabaseToken(accessToken);
-    } catch {
+      
+      decodedUser = {
+        uid: user.id,
+        email: user.email,
+      };
+    } catch (err) {
+      if (err instanceof AuthError) throw err;
       throw new AuthError('Invalid or expired token', 401);
     }
   }

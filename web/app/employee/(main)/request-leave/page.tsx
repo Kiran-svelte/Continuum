@@ -1,21 +1,36 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
-const LEAVE_TYPES = [
+// Fallback leave types if API fails
+const FALLBACK_LEAVE_TYPES = [
   { value: 'CL', label: 'Casual Leave (CL)' },
   { value: 'SL', label: 'Sick Leave (SL)' },
   { value: 'PL', label: 'Privilege Leave (PL)' },
   { value: 'EL', label: 'Earned Leave (EL)' },
-  { value: 'WFH', label: 'Work From Home (WFH)' },
-  { value: 'ML', label: 'Maternity Leave (ML)' },
-  { value: 'PTL', label: 'Paternity Leave (PTL)' },
-  { value: 'BL', label: 'Bereavement Leave (BL)' },
   { value: 'LWP', label: 'Leave Without Pay (LWP)' },
 ];
+
+// Type definitions for constraint violations
+interface ConstraintViolation {
+  rule_id: string;
+  rule_name?: string;
+  message: string;
+  severity: 'blocking' | 'warning';
+  details?: Record<string, unknown>;
+  suggestion?: string;
+}
+
+interface ConstraintResult {
+  passed: boolean;
+  violations: ConstraintViolation[];
+  warnings: ConstraintViolation[];
+  recommendation?: string;
+  confidence_score?: number;
+}
 
 export default function RequestLeavePage() {
   const router = useRouter();
@@ -27,6 +42,29 @@ export default function RequestLeavePage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [leaveTypes, setLeaveTypes] = useState(FALLBACK_LEAVE_TYPES);
+  const [constraintResult, setConstraintResult] = useState<ConstraintResult | null>(null);
+
+  // Fetch company-specific leave types on mount
+  useEffect(() => {
+    async function fetchLeaveTypes() {
+      try {
+        const res = await fetch('/api/company/leave-types');
+        if (res.ok) {
+          const data = await res.json();
+          if (data.leaveTypes && data.leaveTypes.length > 0) {
+            setLeaveTypes(data.leaveTypes.map((lt: { code: string; name: string }) => ({
+              value: lt.code,
+              label: `${lt.name} (${lt.code})`,
+            })));
+          }
+        }
+      } catch {
+        // Use fallback types
+      }
+    }
+    fetchLeaveTypes();
+  }, []);
 
   // Calculate number of days for display
   const totalDays =
@@ -43,6 +81,7 @@ export default function RequestLeavePage() {
     e.preventDefault();
     setError('');
     setSuccess('');
+    setConstraintResult(null);
     setLoading(true);
     try {
       const res = await fetch('/api/leaves/submit', {
@@ -58,7 +97,13 @@ export default function RequestLeavePage() {
       });
       const json = await res.json();
       if (!res.ok) {
-        setError(json.error ?? 'Failed to submit leave request');
+        // Check if this is a constraint violation response
+        if (json.violations && typeof json.violations === 'object') {
+          setConstraintResult(json.violations);
+          setError('Your leave request has constraint violations');
+        } else {
+          setError(json.error ?? 'Failed to submit leave request');
+        }
         return;
       }
       setSuccess('Leave request submitted successfully! Your manager will review it shortly.');
@@ -86,11 +131,86 @@ export default function RequestLeavePage() {
           <CardTitle>Leave Details</CardTitle>
         </CardHeader>
         <CardContent>
-          {error && (
+          {error && !constraintResult && (
             <div className="mb-4 rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
               {error}
             </div>
           )}
+          
+          {/* Detailed Constraint Violations Display */}
+          {constraintResult && (
+            <div className="mb-4 space-y-3">
+              {/* Blocking Violations */}
+              {constraintResult.violations && constraintResult.violations.length > 0 && (
+                <div className="rounded-lg bg-red-50 border border-red-200 px-4 py-3">
+                  <h4 className="font-semibold text-red-800 mb-2 flex items-center gap-2">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                    Constraint Violations
+                  </h4>
+                  <ul className="space-y-2">
+                    {constraintResult.violations.map((v, i) => (
+                      <li key={i} className="text-sm text-red-700">
+                        <div className="font-medium">{v.rule_name || v.rule_id}: {v.message}</div>
+                        {v.suggestion && (
+                          <div className="mt-1 text-red-600 italic">Suggestion: {v.suggestion}</div>
+                        )}
+                        {v.details && Object.keys(v.details).length > 0 && (
+                          <div className="mt-1 text-xs text-red-500">
+                            {Object.entries(v.details).map(([key, val]) => (
+                              <span key={key} className="mr-3">{key}: {String(val)}</span>
+                            ))}
+                          </div>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {/* Warnings */}
+              {constraintResult.warnings && constraintResult.warnings.length > 0 && (
+                <div className="rounded-lg bg-yellow-50 border border-yellow-200 px-4 py-3">
+                  <h4 className="font-semibold text-yellow-800 mb-2 flex items-center gap-2">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    Warnings
+                  </h4>
+                  <ul className="space-y-2">
+                    {constraintResult.warnings.map((w, i) => (
+                      <li key={i} className="text-sm text-yellow-700">
+                        <div className="font-medium">{w.rule_name || w.rule_id}: {w.message}</div>
+                        {w.suggestion && (
+                          <div className="mt-1 text-yellow-600 italic">Suggestion: {w.suggestion}</div>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {/* AI Recommendation */}
+              {constraintResult.recommendation && (
+                <div className="rounded-lg bg-blue-50 border border-blue-200 px-4 py-3">
+                  <h4 className="font-semibold text-blue-800 mb-1 flex items-center gap-2">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                    </svg>
+                    Recommendation
+                  </h4>
+                  <p className="text-sm text-blue-700">{constraintResult.recommendation}</p>
+                  {constraintResult.confidence_score !== undefined && (
+                    <p className="text-xs text-blue-500 mt-1">
+                      Confidence: {Math.round(constraintResult.confidence_score * 100)}%
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+          
           {success && (
             <div className="mb-4 rounded-lg bg-green-50 border border-green-200 px-4 py-3 text-sm text-green-700">
               {success}
@@ -111,7 +231,7 @@ export default function RequestLeavePage() {
                 required
               >
                 <option value="">Select leave type</option>
-                {LEAVE_TYPES.map((type) => (
+                {leaveTypes.map((type) => (
                   <option key={type.value} value={type.value}>
                     {type.label}
                   </option>
