@@ -50,14 +50,23 @@ function createTransport(): nodemailer.Transporter {
   };
 
   if (hasOAuth) {
+    const oauthUser = process.env.GMAIL_USER?.trim();
+    const clientId = process.env.GMAIL_CLIENT_ID?.trim();
+    const clientSecret = process.env.GMAIL_CLIENT_SECRET?.trim();
+    const refreshToken = process.env.GMAIL_REFRESH_TOKEN?.trim();
+
+    if (!oauthUser || !clientId || !clientSecret || !refreshToken) {
+      throw new Error('Gmail OAuth2 credentials are not fully configured');
+    }
+
     return nodemailer.createTransport({
       service: 'gmail',
       auth: {
         type: 'OAuth2',
-        user: process.env.GMAIL_USER?.trim()!,
-        clientId: process.env.GMAIL_CLIENT_ID?.trim()!,
-        clientSecret: process.env.GMAIL_CLIENT_SECRET?.trim()!,
-        refreshToken: process.env.GMAIL_REFRESH_TOKEN?.trim()!,
+        user: oauthUser,
+        clientId,
+        clientSecret,
+        refreshToken,
       },
       ...timeouts,
     });
@@ -252,6 +261,54 @@ export async function sendWelcomeEmail(
   `);
 
   return sendEmail(to, `Welcome to ${companyName} on Continuum`, html);
+}
+
+/**
+ * Send notification when HR approves an employee registration
+ */
+export async function sendRegistrationApprovedEmail(
+  to: string,
+  employeeName: string,
+  companyName: string
+): Promise<EmailResult> {
+  const html = wrapTemplate(`
+    <h2 style="color: #16a34a;">Registration Approved! ✅</h2>
+    <p>Hi <strong>${employeeName}</strong>,</p>
+    <p>Great news! Your registration to join <strong>${companyName}</strong> has been approved.</p>
+    <p>You can now log in and access the employee portal:</p>
+    <ul style="color: #444; line-height: 1.8;">
+      <li>View your leave balance and apply for leave</li>
+      <li>Check in/out for attendance tracking</li>
+      <li>Access your team calendar and documents</li>
+    </ul>
+    <div style="text-align: center; margin: 24px 0;">
+      <a href="${process.env.NEXT_PUBLIC_APP_URL || 'https://continuum.hr'}/sign-in"
+         style="background: #16a34a; color: white; padding: 12px 32px; border-radius: 6px; text-decoration: none; font-weight: 600; display: inline-block;">
+        Sign In Now →
+      </a>
+    </div>
+  `);
+
+  return sendEmail(to, `Your registration to ${companyName} has been approved`, html);
+}
+
+/**
+ * Send notification when HR rejects an employee registration
+ */
+export async function sendRegistrationRejectedEmail(
+  to: string,
+  employeeName: string,
+  reason: string
+): Promise<EmailResult> {
+  const html = wrapTemplate(`
+    <h2 style="color: #dc2626;">Registration Not Approved</h2>
+    <p>Hi <strong>${employeeName}</strong>,</p>
+    <p>Unfortunately, your registration request was not approved at this time.</p>
+    <p><strong>Reason:</strong> ${reason}</p>
+    <p>If you believe this is an error, please contact your company's HR department directly.</p>
+  `);
+
+  return sendEmail(to, `Regarding your registration request`, html);
 }
 
 /**

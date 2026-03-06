@@ -1,6 +1,7 @@
 'use client';
 
-import React, { createContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect, useRef, ReactNode } from 'react';
+import { useRouter, usePathname } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { X, ChevronLeft, ChevronRight, Check } from 'lucide-react';
@@ -38,24 +39,32 @@ interface TutorialContextType {
   goToStep: (step: number) => void;
   skipTutorial: () => void;
   completedTutorials: string[];
+  suppressedTutorials: string[];
   markAsCompleted: (tutorialId: string) => void;
+  suppressTutorial: (tutorialId: string) => void;
 }
 
 const TutorialContext = createContext<TutorialContextType | undefined>(undefined);
 
 const STORAGE_KEY = 'continuum-completed-tutorials';
+const SUPPRESS_KEY = 'continuum-suppress-tutorials';
 
 export function TutorialProvider({ children }: { children: ReactNode }) {
   const [currentTutorial, setCurrentTutorial] = useState<TutorialConfig | null>(null);
   const [currentStep, setCurrentStep] = useState(0);
   const [isActive, setIsActive] = useState(false);
   const [completedTutorials, setCompletedTutorials] = useState<string[]>([]);
+  const [suppressedTutorials, setSuppressedTutorials] = useState<string[]>([]);
 
-  // Load completed tutorials from localStorage
+  // Load completed tutorials and suppressed list from localStorage
   useEffect(() => {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored) {
       setCompletedTutorials(JSON.parse(stored));
+    }
+    const suppressed = localStorage.getItem(SUPPRESS_KEY);
+    if (suppressed) {
+      setSuppressedTutorials(JSON.parse(suppressed));
     }
   }, []);
 
@@ -103,6 +112,15 @@ export function TutorialProvider({ children }: { children: ReactNode }) {
     }
   }, [currentTutorial]);
 
+  const suppressTutorial = useCallback((tutorialId: string) => {
+    setSuppressedTutorials((prev) => {
+      if (prev.includes(tutorialId)) return prev;
+      const updated = [...prev, tutorialId];
+      localStorage.setItem(SUPPRESS_KEY, JSON.stringify(updated));
+      return updated;
+    });
+  }, []);
+
   const skipTutorial = useCallback(() => {
     setCurrentTutorial(null);
     setCurrentStep(0);
@@ -122,7 +140,9 @@ export function TutorialProvider({ children }: { children: ReactNode }) {
         goToStep,
         skipTutorial,
         completedTutorials,
+        suppressedTutorials,
         markAsCompleted,
+        suppressTutorial,
       }}
     >
       {children}
@@ -149,13 +169,47 @@ function TutorialOverlay() {
     prevStep,
     skipTutorial,
     endTutorial,
+    suppressTutorial,
   } = useTutorial();
+  const router = useRouter();
+  const pathname = usePathname();
+  const [dontShowAgain, setDontShowAgain] = useState(false);
+  const isNavigatingRef = useRef(false);
+
+  // Navigate to the step's route when the current step changes
+  useEffect(() => {
+    if (!isActive || !currentTutorial) return;
+    const step = currentTutorial.steps[currentStep];
+    if (step.route && pathname !== step.route) {
+      isNavigatingRef.current = true;
+      router.push(step.route);
+      // Allow time for navigation to complete before showing the step
+      const timer = setTimeout(() => {
+        isNavigatingRef.current = false;
+      }, 600);
+      return () => clearTimeout(timer);
+    }
+  }, [currentStep, isActive, currentTutorial, router, pathname]);
 
   if (!isActive || !currentTutorial) return null;
 
   const step = currentTutorial.steps[currentStep];
   const isLastStep = currentStep === currentTutorial.steps.length - 1;
   const progress = ((currentStep + 1) / currentTutorial.steps.length) * 100;
+
+  const handleSkip = () => {
+    if (dontShowAgain && currentTutorial) {
+      suppressTutorial(currentTutorial.id);
+    }
+    skipTutorial();
+  };
+
+  const handleComplete = () => {
+    if (dontShowAgain && currentTutorial) {
+      suppressTutorial(currentTutorial.id);
+    }
+    endTutorial();
+  };
 
   return (
     <AnimatePresence>
@@ -179,10 +233,12 @@ function TutorialOverlay() {
           progress={progress}
           onNext={nextStep}
           onPrev={prevStep}
-          onSkip={skipTutorial}
-          onComplete={endTutorial}
+          onSkip={handleSkip}
+          onComplete={handleComplete}
           isLastStep={isLastStep}
           isFirstStep={currentStep === 0}
+          dontShowAgain={dontShowAgain}
+          onDontShowAgainChange={setDontShowAgain}
         />
       </div>
     </AnimatePresence>
@@ -236,6 +292,8 @@ interface TutorialCardProps {
   onComplete: () => void;
   isLastStep: boolean;
   isFirstStep: boolean;
+  dontShowAgain: boolean;
+  onDontShowAgainChange: (value: boolean) => void;
 }
 
 function TutorialCard({
@@ -249,6 +307,8 @@ function TutorialCard({
   onComplete,
   isLastStep,
   isFirstStep,
+  dontShowAgain,
+  onDontShowAgainChange,
 }: TutorialCardProps) {
   const positionStyles = {
     center: 'top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2',
@@ -265,12 +325,12 @@ function TutorialCard({
       exit={{ opacity: 0, scale: 0.9, y: 20 }}
       transition={{ duration: 0.3, ease: 'easeOut' }}
       className={cn(
-        'absolute z-10 w-full max-w-md rounded-2xl bg-card border border-border shadow-2xl overflow-hidden',
+        'absolute z-10 w-full max-w-md rounded-2xl bg-card text-card-foreground border border-border shadow-2xl overflow-hidden',
         positionStyles[step.position || 'center']
       )}
     >
       {/* Progress bar */}
-      <div className="h-1 bg-secondary">
+      <div className="h-1 bg-muted">
         <motion.div
           className="h-full bg-primary"
           initial={{ width: 0 }}
@@ -291,7 +351,7 @@ function TutorialCard({
         </div>
         <button
           onClick={onSkip}
-          className="p-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+          className="p-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
           aria-label="Skip tutorial"
         >
           <X className="w-5 h-5" />
@@ -307,6 +367,11 @@ function TutorialCard({
         )}
         <h3 className="text-xl font-semibold text-foreground mb-2">{step.title}</h3>
         <p className="text-muted-foreground">{step.description}</p>
+        {step.route && (
+          <div className="mt-3 flex items-center gap-2 text-xs text-muted-foreground">
+            <span className="inline-block px-2 py-0.5 rounded bg-muted font-mono">{step.route}</span>
+          </div>
+        )}
         {step.actionLabel && (
           <div className="mt-4 flex items-center gap-2 text-sm text-primary">
             <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
@@ -316,36 +381,49 @@ function TutorialCard({
       </div>
 
       {/* Footer */}
-      <div className="flex items-center justify-between px-6 py-4 border-t border-border bg-muted/30">
-        <button
-          onClick={onPrev}
-          disabled={isFirstStep}
-          className={cn(
-            'flex items-center gap-1 px-4 py-2 rounded-lg text-sm font-medium transition-colors',
-            isFirstStep
-              ? 'text-muted-foreground cursor-not-allowed'
-              : 'text-foreground hover:bg-secondary'
-          )}
-        >
-          <ChevronLeft className="w-4 h-4" />
-          Back
-        </button>
-        <button
-          onClick={isLastStep ? onComplete : onNext}
-          className="flex items-center gap-1 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
-        >
-          {isLastStep ? (
-            <>
-              Complete
-              <Check className="w-4 h-4" />
-            </>
-          ) : (
-            <>
-              Next
-              <ChevronRight className="w-4 h-4" />
-            </>
-          )}
-        </button>
+      <div className="flex flex-col gap-3 px-6 py-4 border-t border-border bg-muted/30">
+        {/* Don't show again checkbox */}
+        <label className="flex items-center gap-2 cursor-pointer select-none">
+          <input
+            type="checkbox"
+            checked={dontShowAgain}
+            onChange={(e) => onDontShowAgainChange(e.target.checked)}
+            className="w-4 h-4 rounded border-border text-primary focus:ring-primary accent-current"
+          />
+          <span className="text-xs text-muted-foreground">Don&apos;t show this tutorial again</span>
+        </label>
+
+        <div className="flex items-center justify-between">
+          <button
+            onClick={onPrev}
+            disabled={isFirstStep}
+            className={cn(
+              'flex items-center gap-1 px-4 py-2 rounded-lg text-sm font-medium transition-colors',
+              isFirstStep
+                ? 'text-muted-foreground/50 cursor-not-allowed'
+                : 'text-foreground hover:bg-muted'
+            )}
+          >
+            <ChevronLeft className="w-4 h-4" />
+            Back
+          </button>
+          <button
+            onClick={isLastStep ? onComplete : onNext}
+            className="flex items-center gap-1 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
+          >
+            {isLastStep ? (
+              <>
+                Complete
+                <Check className="w-4 h-4" />
+              </>
+            ) : (
+              <>
+                Next
+                <ChevronRight className="w-4 h-4" />
+              </>
+            )}
+          </button>
+        </div>
       </div>
     </motion.div>
   );
@@ -368,8 +446,8 @@ export function StartTutorialButton({
 
   const variantStyles = {
     default: 'bg-primary text-primary-foreground hover:bg-primary/90',
-    outline: 'border border-border text-foreground hover:bg-secondary',
-    ghost: 'text-foreground hover:bg-secondary',
+    outline: 'border border-border text-foreground hover:bg-muted',
+    ghost: 'text-foreground hover:bg-muted',
   };
 
   return (

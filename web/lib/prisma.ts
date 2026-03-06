@@ -14,7 +14,6 @@ export const prisma = globalForPrisma.prisma || new PrismaClient({
 });
 
 // Set connection timeout
-// @ts-ignore - This is valid Prisma config
 prisma.$connect().catch((err) => {
   console.error('Prisma connection error:', err);
 });

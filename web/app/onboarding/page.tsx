@@ -1,8 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { Suspense, useState, useEffect } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { getSupabaseBrowserClient } from '@/lib/supabase';
+import { syncUser, createCompanyAndEmployee, joinCompanyAsEmployee } from '@/app/actions/auth';
 
 const STEPS = [
   { id: 1, label: 'Company Setup', icon: '🏢' },
@@ -72,23 +75,23 @@ function CompanySetupStep({
   return (
     <div className="space-y-4">
       <div>
-        <label htmlFor="companyName" className="block text-sm font-medium text-gray-700 mb-1">Company Name</label>
+        <label htmlFor="companyName" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Company Name</label>
         <input
           id="companyName"
           type="text"
           value={data.companyName}
           onChange={(e) => onChange({ ...data, companyName: e.target.value })}
-          className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+          className="w-full rounded-lg border border-gray-300 dark:border-gray-600 px-3 py-2 text-sm text-gray-900 dark:text-white dark:bg-slate-800 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none"
           placeholder="Acme Corporation"
         />
       </div>
       <div>
-        <label htmlFor="industry" className="block text-sm font-medium text-gray-700 mb-1">Industry</label>
+        <label htmlFor="industry" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Industry</label>
         <select
           id="industry"
           value={data.industry}
           onChange={(e) => onChange({ ...data, industry: e.target.value })}
-          className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+          className="w-full rounded-lg border border-gray-300 dark:border-gray-600 px-3 py-2 text-sm text-gray-900 dark:text-white dark:bg-slate-800 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none"
         >
           <option value="">Select industry</option>
           <option value="technology">Technology</option>
@@ -100,12 +103,12 @@ function CompanySetupStep({
         </select>
       </div>
       <div>
-        <label htmlFor="employeeCount" className="block text-sm font-medium text-gray-700 mb-1">Employee Count</label>
+        <label htmlFor="employeeCount" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Employee Count</label>
         <select
           id="employeeCount"
           value={data.employeeCount}
           onChange={(e) => onChange({ ...data, employeeCount: e.target.value })}
-          className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+          className="w-full rounded-lg border border-gray-300 dark:border-gray-600 px-3 py-2 text-sm text-gray-900 dark:text-white dark:bg-slate-800 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none"
         >
           <option value="">Select range</option>
           <option value="1-50">1–50</option>
@@ -115,12 +118,12 @@ function CompanySetupStep({
         </select>
       </div>
       <div>
-        <label htmlFor="timezone" className="block text-sm font-medium text-gray-700 mb-1">Timezone</label>
+        <label htmlFor="timezone" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Timezone</label>
         <select
           id="timezone"
           value={data.timezone}
           onChange={(e) => onChange({ ...data, timezone: e.target.value })}
-          className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+          className="w-full rounded-lg border border-gray-300 dark:border-gray-600 px-3 py-2 text-sm text-gray-900 dark:text-white dark:bg-slate-800 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none"
         >
           <option value="Asia/Kolkata">Asia/Kolkata (IST)</option>
           <option value="America/New_York">America/New_York (EST)</option>
@@ -129,7 +132,7 @@ function CompanySetupStep({
       </div>
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <label htmlFor="slaHours" className="block text-sm font-medium text-gray-700 mb-1">
+          <label htmlFor="slaHours" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
             SLA for Approvals (hours)
           </label>
           <input
@@ -139,11 +142,11 @@ function CompanySetupStep({
             max={336}
             value={data.slaHours}
             onChange={(e) => onChange({ ...data, slaHours: parseInt(e.target.value) || 48 })}
-            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+            className="w-full rounded-lg border border-gray-300 dark:border-gray-600 px-3 py-2 text-sm text-gray-900 dark:text-white dark:bg-slate-800 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none"
           />
         </div>
         <div>
-          <label htmlFor="probationDays" className="block text-sm font-medium text-gray-700 mb-1">
+          <label htmlFor="probationDays" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
             Probation Period (days)
           </label>
           <input
@@ -153,20 +156,21 @@ function CompanySetupStep({
             max={730}
             value={data.probationDays}
             onChange={(e) => onChange({ ...data, probationDays: parseInt(e.target.value) || 180 })}
-            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+            className="w-full rounded-lg border border-gray-300 dark:border-gray-600 px-3 py-2 text-sm text-gray-900 dark:text-white dark:bg-slate-800 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none"
           />
         </div>
       </div>
-      <div className="flex items-center justify-between p-3 rounded-lg border border-gray-200">
+      <div className="flex items-center justify-between p-3 rounded-lg border border-gray-200 dark:border-gray-700">
         <div>
-          <p className="text-sm font-medium text-gray-900">Allow Negative Balance</p>
-          <p className="text-xs text-gray-500">Employees can take leave even when balance is zero</p>
+          <p className="text-sm font-medium text-gray-900 dark:text-white">Allow Negative Balance</p>
+          <p className="text-xs text-gray-500 dark:text-gray-400">Employees can take leave even when balance is zero</p>
         </div>
         <input
           type="checkbox"
           checked={data.negativeBal}
           onChange={(e) => onChange({ ...data, negativeBal: e.target.checked })}
           className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+          aria-label="Allow negative balance"
         />
       </div>
     </div>
@@ -182,13 +186,13 @@ function LeaveTypesStep({
 }) {
   return (
     <div className="space-y-4">
-      <p className="text-sm text-gray-500">Configure the leave types for your organization. You can customize these later.</p>
+      <p className="text-sm text-gray-500 dark:text-gray-400">Configure the leave types for your organization. You can customize these later.</p>
       <div className="space-y-3">
         {data.map((type, idx) => (
-          <div key={type.code} className="flex items-center justify-between p-3 rounded-lg border border-gray-200">
+          <div key={type.code} className="flex items-center justify-between p-3 rounded-lg border border-gray-200 dark:border-gray-700">
             <div>
-              <p className="text-sm font-medium text-gray-900">{type.name}</p>
-              <p className="text-xs text-gray-500">{type.days} days/year · {type.carryForward ? 'Carry forward enabled' : 'No carry forward'}</p>
+              <p className="text-sm font-medium text-gray-900 dark:text-white">{type.name}</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">{type.days} days/year · {type.carryForward ? 'Carry forward enabled' : 'No carry forward'}</p>
             </div>
             <input
               type="checkbox"
@@ -199,6 +203,7 @@ function LeaveTypesStep({
                 onChange(updated);
               }}
               className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+              aria-label={`Enable ${type.name}`}
             />
           </div>
         ))}
@@ -233,17 +238,16 @@ function ConstraintRulesStep({
 
   return (
     <div className="space-y-5">
-      <p className="text-sm text-gray-500">
-        Configure how the constraint engine evaluates leave requests. These rules are saved to the
-        database and applied dynamically — change them any time from Policy Settings.
+      <p className="text-sm text-gray-500 dark:text-gray-400">
+        Configure how the constraint engine evaluates leave requests.
       </p>
 
       {/* Team Coverage */}
-      <div className="p-4 rounded-lg border border-gray-200 space-y-2">
+      <div className="p-4 rounded-lg border border-gray-200 dark:border-gray-700 space-y-2">
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-sm font-medium text-gray-900">Minimum Team Coverage</p>
-            <p className="text-xs text-gray-500">Minimum % of team that must be present (blocks overlapping leaves)</p>
+            <p className="text-sm font-medium text-gray-900 dark:text-white">Minimum Team Coverage</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400">Minimum % of team that must be present</p>
           </div>
           <div className="flex items-center gap-2">
             <input
@@ -254,8 +258,9 @@ function ConstraintRulesStep({
               value={data.minCoveragePercent}
               onChange={(e) => onChange({ ...data, minCoveragePercent: parseInt(e.target.value) })}
               className="w-28"
+              aria-label="Minimum team coverage percentage"
             />
-            <span className="text-sm font-semibold text-gray-900 w-10 text-right">
+            <span className="text-sm font-semibold text-gray-900 dark:text-white w-10 text-right">
               {data.minCoveragePercent}%
             </span>
           </div>
@@ -263,11 +268,11 @@ function ConstraintRulesStep({
       </div>
 
       {/* Max Concurrent */}
-      <div className="p-4 rounded-lg border border-gray-200 space-y-2">
+      <div className="p-4 rounded-lg border border-gray-200 dark:border-gray-700 space-y-2">
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-sm font-medium text-gray-900">Max Concurrent Leaves</p>
-            <p className="text-xs text-gray-500">Maximum employees on leave at the same time per department</p>
+            <p className="text-sm font-medium text-gray-900 dark:text-white">Max Concurrent Leaves</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400">Maximum employees on leave at same time</p>
           </div>
           <input
             type="number"
@@ -275,23 +280,24 @@ function ConstraintRulesStep({
             max={50}
             value={data.maxConcurrent}
             onChange={(e) => onChange({ ...data, maxConcurrent: parseInt(e.target.value) || 2 })}
-            className="w-16 rounded-lg border border-gray-300 px-2 py-1 text-sm text-gray-900 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none text-center"
+            className="w-16 rounded-lg border border-gray-300 dark:border-gray-600 px-2 py-1 text-sm text-gray-900 dark:text-white dark:bg-slate-800 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none text-center"
+            aria-label="Maximum concurrent leaves"
           />
         </div>
       </div>
 
       {/* Blackout Dates */}
-      <div className="p-4 rounded-lg border border-gray-200 space-y-3">
+      <div className="p-4 rounded-lg border border-gray-200 dark:border-gray-700 space-y-3">
         <div>
-          <p className="text-sm font-medium text-gray-900">Blackout Periods</p>
-          <p className="text-xs text-gray-500">Dates when leave is not allowed (except emergency leave)</p>
+          <p className="text-sm font-medium text-gray-900 dark:text-white">Blackout Periods</p>
+          <p className="text-xs text-gray-500 dark:text-gray-400">Dates when leave is not allowed (except emergency)</p>
         </div>
         {data.blackoutDates.length > 0 && (
           <div className="space-y-2">
             {data.blackoutDates.map((bd, idx) => (
-              <div key={idx} className="flex items-center justify-between bg-gray-50 px-3 py-2 rounded text-xs">
-                <span className="font-medium text-gray-900">{bd.name}</span>
-                <span className="text-gray-500">{bd.start} → {bd.end}</span>
+              <div key={idx} className="flex items-center justify-between bg-gray-50 dark:bg-slate-800 px-3 py-2 rounded text-xs">
+                <span className="font-medium text-gray-900 dark:text-white">{bd.name}</span>
+                <span className="text-gray-500 dark:text-gray-400">{bd.start} → {bd.end}</span>
                 <button
                   type="button"
                   onClick={() => removeBlackout(idx)}
@@ -309,37 +315,39 @@ function ConstraintRulesStep({
             placeholder="Name (e.g. Q4 Freeze)"
             value={blackoutInput.name}
             onChange={(e) => setBlackoutInput({ ...blackoutInput, name: e.target.value })}
-            className="col-span-3 sm:col-span-1 rounded border border-gray-300 px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
+            className="col-span-3 sm:col-span-1 rounded border border-gray-300 dark:border-gray-600 px-2 py-1 text-xs dark:bg-slate-800 focus:outline-none focus:ring-1 focus:ring-blue-500"
           />
           <input
             type="date"
             value={blackoutInput.start}
             onChange={(e) => setBlackoutInput({ ...blackoutInput, start: e.target.value })}
-            className="rounded border border-gray-300 px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
+            className="rounded border border-gray-300 dark:border-gray-600 px-2 py-1 text-xs dark:bg-slate-800 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            aria-label="Blackout start date"
           />
           <input
             type="date"
             value={blackoutInput.end}
             onChange={(e) => setBlackoutInput({ ...blackoutInput, end: e.target.value })}
-            className="rounded border border-gray-300 px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
+            className="rounded border border-gray-300 dark:border-gray-600 px-2 py-1 text-xs dark:bg-slate-800 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            aria-label="Blackout end date"
           />
         </div>
         <button
           type="button"
           onClick={addBlackout}
-          className="text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1.5 rounded transition-colors"
+          className="text-xs bg-gray-100 dark:bg-slate-700 hover:bg-gray-200 dark:hover:bg-slate-600 text-gray-700 dark:text-gray-300 px-3 py-1.5 rounded transition-colors"
         >
           + Add Blackout Period
         </button>
       </div>
 
       {/* Auto-Approve */}
-      <div className="p-4 rounded-lg border border-gray-200 space-y-3">
+      <div className="p-4 rounded-lg border border-gray-200 dark:border-gray-700 space-y-3">
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-sm font-medium text-gray-900">Auto-Approve</p>
-            <p className="text-xs text-gray-500">
-              Auto-approve leave when the constraint engine confidence score meets the threshold
+            <p className="text-sm font-medium text-gray-900 dark:text-white">Auto-Approve</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400">
+              Auto-approve when constraint engine confidence meets threshold
             </p>
           </div>
           <input
@@ -347,11 +355,12 @@ function ConstraintRulesStep({
             checked={data.autoApprove}
             onChange={(e) => onChange({ ...data, autoApprove: e.target.checked })}
             className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+            aria-label="Enable auto-approve"
           />
         </div>
         {data.autoApprove && (
           <div className="flex items-center gap-3 mt-2">
-            <label className="text-xs text-gray-600 w-36">Confidence Threshold</label>
+            <label className="text-xs text-gray-600 dark:text-gray-400 w-36">Confidence Threshold</label>
             <input
               type="range"
               min={0.5}
@@ -360,8 +369,9 @@ function ConstraintRulesStep({
               value={data.autoApproveThreshold}
               onChange={(e) => onChange({ ...data, autoApproveThreshold: parseFloat(e.target.value) })}
               className="w-28"
+              aria-label="Auto-approve confidence threshold"
             />
-            <span className="text-sm font-semibold text-gray-900 w-12">
+            <span className="text-sm font-semibold text-gray-900 dark:text-white w-12">
               {(data.autoApproveThreshold * 100).toFixed(0)}%
             </span>
           </div>
@@ -380,10 +390,10 @@ function HolidaysStep({
 }) {
   return (
     <div className="space-y-4">
-      <p className="text-sm text-gray-500">Select the holidays to include in your company calendar.</p>
+      <p className="text-sm text-gray-500 dark:text-gray-400">Select the holidays to include in your company calendar.</p>
       <div className="space-y-2 mt-4">
         {data.map((holiday, idx) => (
-          <div key={holiday.name} className="flex items-center justify-between py-2 px-3 rounded-lg border border-gray-100">
+          <div key={holiday.name} className="flex items-center justify-between py-2 px-3 rounded-lg border border-gray-100 dark:border-gray-700">
             <div className="flex items-center gap-3">
               <input
                 type="checkbox"
@@ -394,10 +404,11 @@ function HolidaysStep({
                   onChange(updated);
                 }}
                 className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                aria-label={`Enable ${holiday.name}`}
               />
-              <span className="text-sm text-gray-900">{holiday.name}</span>
+              <span className="text-sm text-gray-900 dark:text-white">{holiday.name}</span>
             </div>
-            <span className="text-xs text-gray-500">{holiday.date}</span>
+            <span className="text-xs text-gray-500 dark:text-gray-400">{holiday.date}</span>
           </div>
         ))}
       </div>
@@ -421,16 +432,17 @@ function NotificationsStep({
 
   return (
     <div className="space-y-4">
-      <p className="text-sm text-gray-500">Configure notification preferences.</p>
+      <p className="text-sm text-gray-500 dark:text-gray-400">Configure notification preferences.</p>
       <div className="space-y-3">
         {items.map(({ key, label }) => (
-          <div key={key} className="flex items-center justify-between p-3 rounded-lg border border-gray-200">
-            <span className="text-sm text-gray-900">{label}</span>
+          <div key={key} className="flex items-center justify-between p-3 rounded-lg border border-gray-200 dark:border-gray-700">
+            <span className="text-sm text-gray-900 dark:text-white">{label}</span>
             <input
               type="checkbox"
               checked={data[key]}
               onChange={(e) => onChange({ ...data, [key]: e.target.checked })}
               className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+              aria-label={label}
             />
           </div>
         ))}
@@ -443,15 +455,15 @@ function CompleteStep({ joinCode }: { joinCode: string }) {
   return (
     <div className="text-center py-8">
       <span className="text-6xl">🎉</span>
-      <h2 className="text-2xl font-bold text-gray-900 mt-4">Setup Complete!</h2>
-      <p className="text-gray-500 mt-2 max-w-md mx-auto">
+      <h2 className="text-2xl font-bold text-gray-900 dark:text-white mt-4">Setup Complete!</h2>
+      <p className="text-gray-500 dark:text-gray-400 mt-2 max-w-md mx-auto">
         Your organization is now configured and ready to use.
       </p>
       {joinCode && (
-        <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg text-left max-w-sm mx-auto">
-          <p className="text-sm font-medium text-blue-900 mb-1">Company Join Code</p>
-          <p className="text-2xl font-mono font-bold text-blue-700 tracking-widest">{joinCode}</p>
-          <p className="text-xs text-blue-600 mt-1">Share this with your employees so they can sign up.</p>
+        <div className="mt-6 p-4 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-lg text-left max-w-sm mx-auto">
+          <p className="text-sm font-medium text-blue-900 dark:text-blue-200 mb-1">Company Join Code</p>
+          <p className="text-2xl font-mono font-bold text-blue-700 dark:text-blue-300 tracking-widest">{joinCode}</p>
+          <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">Share this with your employees so they can sign up.</p>
         </div>
       )}
       <div className="mt-8">
@@ -487,11 +499,15 @@ const DEFAULT_HOLIDAYS: HolidayEntry[] = [
 
 // ─── Main page ───────────────────────────────────────────────────────────────
 
-export default function OnboardingPage() {
+function OnboardingPageInner() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [currentStep, setCurrentStep] = useState(0);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [joinCode, setJoinCode] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [companyId, setCompanyId] = useState<string | null>(null);
 
   // Per-step state
   const [companyData, setCompanyData] = useState<CompanyData>({
@@ -519,26 +535,150 @@ export default function OnboardingPage() {
     slaAlerts: true,
   });
 
+  // Check authentication and sync user on mount
+  useEffect(() => {
+    async function checkAuth() {
+      const supabase = getSupabaseBrowserClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        // Not authenticated - redirect to sign-up
+        router.replace('/sign-up');
+        return;
+      }
+
+      const intent = (searchParams.get('intent') || 'employee').toLowerCase();
+      const companyCode = searchParams.get('companyCode') || '';
+      const firstName = searchParams.get('firstName') || '';
+      const lastName = searchParams.get('lastName') || '';
+
+      // Pre-fill company name from URL params (passed from sign-up)
+      const fullName = `${firstName} ${lastName}`.trim();
+      if (fullName) {
+        setCompanyData((prev) => ({
+          ...prev,
+          companyName: prev.companyName || `${fullName}'s Company`,
+        }));
+      }
+
+      // Sync user to check if they have a Company/Employee record
+      const syncResult = await syncUser();
+      
+      if (!syncResult.success) {
+        setError(syncResult.error || 'Failed to load profile');
+        setLoading(false);
+        return;
+      }
+
+      if (syncResult.needsSetup) {
+        // Employee intent: auto-join company by code and redirect
+        if (intent === 'employee') {
+          if (!companyCode) {
+            setError('Company code is required to join as an employee.');
+            setLoading(false);
+            return;
+          }
+
+          const joinResult = await joinCompanyAsEmployee(companyCode);
+          if (!joinResult.success) {
+            setError(joinResult.error || 'Failed to join company');
+            setLoading(false);
+            return;
+          }
+
+          router.replace('/employee/dashboard');
+          return;
+        }
+
+        // Admin/HR intent: show Company Setup wizard
+        // Pre-fill name if available from sync
+        if ('userName' in syncResult && syncResult.userName) {
+          setCompanyData(prev => ({ 
+            ...prev, 
+            companyName: prev.companyName || `${syncResult.userName}'s Company` 
+          }));
+        }
+        setLoading(false);
+        return;
+      }
+
+      // User already has Company/Employee record
+      if (syncResult.company) {
+        setCompanyId(syncResult.company.id);
+        if (syncResult.company.joinCode) {
+          setJoinCode(syncResult.company.joinCode);
+        }
+        
+        // If onboarding already completed, redirect to dashboard
+        if (syncResult.company.onboardingCompleted) {
+          const role = syncResult.employee?.primaryRole ?? 'employee';
+          if (role === 'admin' || role === 'hr') {
+            router.replace('/hr/dashboard');
+          } else if (role === 'manager' || role === 'team_lead' || role === 'director') {
+            router.replace('/manager/dashboard');
+          } else {
+            router.replace('/employee/dashboard');
+          }
+          return;
+        }
+        
+        // User has a company but onboarding not complete - skip to step 1 (Leave Types)
+        setCurrentStep(1);
+      }
+
+      setLoading(false);
+    }
+    
+    checkAuth();
+  }, [router, searchParams]);
+
   const isLastContentStep = currentStep === STEPS.length - 2; // step before "Complete"
   const isCompletionStep = currentStep === STEPS.length - 1;
   const isFirstStep = currentStep === 0;
 
   async function handleNext() {
-    if (isLastContentStep) {
-      // Save all onboarding data to DB before showing Complete step
-      setSaving(true);
-      setError('');
-      try {
+    setError('');
+    setSaving(true);
+    
+    try {
+      // Step 0: Company Setup - Create Company + Employee via server action
+      if (currentStep === 0 && !companyId) {
+        if (!companyData.companyName.trim()) {
+          setError('Please enter a company name');
+          setSaving(false);
+          return;
+        }
+        
+        const result = await createCompanyAndEmployee({
+          companyName: companyData.companyName,
+          industry: companyData.industry || undefined,
+          size: companyData.employeeCount || undefined,
+          timezone: companyData.timezone,
+          slaHours: companyData.slaHours,
+          negativeBalance: companyData.negativeBal,
+          probationDays: companyData.probationDays,
+          primaryRole: (searchParams.get('intent') || '').toLowerCase() === 'hr' ? 'hr' : 'admin',
+        });
+        
+        if (!result.success) {
+          setError(result.error || 'Failed to create company');
+          setSaving(false);
+          return;
+        }
+        
+        if (result.company) {
+          setCompanyId(result.company.id);
+          setJoinCode(result.company.joinCode || '');
+        }
+        
+        setCurrentStep(1);
+        setSaving(false);
+        return;
+      }
+
+      // Last step before Complete: Save all remaining settings
+      if (isLastContentStep) {
         const payload = {
-          company: {
-            name: companyData.companyName || undefined,
-            industry: companyData.industry || undefined,
-            size: companyData.employeeCount || undefined,
-            timezone: companyData.timezone,
-            sla_hours: companyData.slaHours,
-            negative_balance: companyData.negativeBal,
-            probation_period_days: companyData.probationDays,
-          },
           leave_types: leaveTypes
             .filter((lt) => lt.enabled)
             .map((lt) => ({ code: lt.code, name: lt.name, days: lt.days, carry_forward: lt.carryForward })),
@@ -569,19 +709,24 @@ export default function OnboardingPage() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),
         });
+        
         const json = await res.json();
         if (!res.ok) {
           setError(json.error ?? 'Failed to save onboarding data');
+          setSaving(false);
           return;
         }
-        // Fetch the company's join code to display on the Complete step
+        
         if (json.join_code) setJoinCode(json.join_code);
         setCurrentStep((s) => s + 1);
-      } finally {
         setSaving(false);
+        return;
       }
-    } else {
+
+      // Normal next step
       setCurrentStep((s) => s + 1);
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -604,12 +749,24 @@ export default function OnboardingPage() {
     }
   }
 
+  // Show loading state while checking auth
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-slate-900 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto" />
+          <p className="mt-4 text-gray-500 dark:text-gray-400">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
+    <div className="min-h-screen bg-gray-50 dark:bg-slate-900 flex items-center justify-center px-4">
       <div className="w-full max-w-2xl">
         <div className="text-center mb-8">
           <h1 className="text-2xl font-bold text-blue-600">Continuum</h1>
-          <p className="text-gray-500 mt-2">Organization Setup</p>
+          <p className="text-gray-500 dark:text-gray-400 mt-2">Organization Setup</p>
         </div>
 
         {/* Step Indicators */}
@@ -621,29 +778,29 @@ export default function OnboardingPage() {
                   index === currentStep
                     ? 'bg-blue-600 text-white'
                     : index < currentStep
-                      ? 'bg-blue-100 text-blue-700'
-                      : 'bg-gray-100 text-gray-500'
+                      ? 'bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300'
+                      : 'bg-gray-100 dark:bg-slate-700 text-gray-500 dark:text-gray-400'
                 }`}
               >
                 <span>{step.icon}</span>
                 <span className="hidden sm:inline">{step.label}</span>
               </div>
               {index < STEPS.length - 1 && (
-                <div className={`w-6 h-0.5 mx-1 ${index < currentStep ? 'bg-blue-400' : 'bg-gray-200'}`} />
+                <div className={`w-6 h-0.5 mx-1 ${index < currentStep ? 'bg-blue-400' : 'bg-gray-200 dark:bg-gray-600'}`} />
               )}
             </div>
           ))}
         </div>
 
         {/* Step Content */}
-        <Card>
+        <Card className="dark:bg-slate-800 dark:border-slate-700">
           <CardContent className="pt-6">
             {!isCompletionStep && (
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">{STEPS[currentStep].label}</h2>
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">{STEPS[currentStep].label}</h2>
             )}
 
             {error && (
-              <div className="mb-4 rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
+              <div className="mb-4 rounded-lg bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 px-4 py-3 text-sm text-red-700 dark:text-red-300">
                 {error}
               </div>
             )}
@@ -651,7 +808,7 @@ export default function OnboardingPage() {
             {renderStepContent()}
 
             {!isCompletionStep && (
-              <div className="flex justify-between mt-8 pt-4 border-t border-gray-100">
+              <div className="flex justify-between mt-8 pt-4 border-t border-gray-100 dark:border-gray-700">
                 <Button
                   variant="outline"
                   onClick={() => setCurrentStep((s) => s - 1)}
@@ -668,5 +825,13 @@ export default function OnboardingPage() {
         </Card>
       </div>
     </div>
+  );
+}
+
+export default function OnboardingPage() {
+  return (
+    <Suspense fallback={null}>
+      <OnboardingPageInner />
+    </Suspense>
   );
 }

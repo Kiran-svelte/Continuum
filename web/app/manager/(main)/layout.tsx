@@ -10,6 +10,7 @@ const MANAGER_NAV_ITEMS = [
   { label: 'Team Attendance', href: '/manager/team-attendance', icon: '🕐' },
   { label: 'Team', href: '/manager/team', icon: '👥' },
   { label: 'Reports', href: '/manager/reports', icon: '📈' },
+  { label: 'Settings', href: '/manager/settings', icon: '⚙️' },
 ];
 
 export default function ManagerLayout({ children }: { children: React.ReactNode }) {
@@ -31,7 +32,7 @@ export default function ManagerLayout({ children }: { children: React.ReactNode 
         <SidebarNav items={MANAGER_NAV_ITEMS} />
         <div className="px-4 py-3 border-t border-border space-y-2">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-purple-100 dark:bg-purple-500/20 rounded-full flex items-center justify-center text-sm font-medium text-purple-600 dark:text-purple-400">
+            <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center text-sm font-medium text-primary">
               👤
             </div>
             <div className="flex-1 min-w-0">

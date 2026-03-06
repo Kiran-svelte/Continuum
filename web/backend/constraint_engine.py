@@ -807,11 +807,19 @@ def evaluate_rule_005(
             )
 
         for bp in blackout_dates:
-            bp_start = _parse_date(bp.get("start") or bp.get("start_date"))
-            bp_end = _parse_date(bp.get("end") or bp.get("end_date"))
+            # Handle both string dates (single day) and dict (date range)
+            if isinstance(bp, str):
+                # Single date string: treat as both start and end
+                bp_start = _parse_date(bp)
+                bp_end = bp_start
+                bp_name = f"blackout on {bp}"
+            else:
+                bp_start = _parse_date(bp.get("start") or bp.get("start_date"))
+                bp_end = _parse_date(bp.get("end") or bp.get("end_date"))
+                bp_name = bp.get("name", "blackout period")
+            
             if bp_start and bp_end:
                 if start_date <= bp_end and end_date >= bp_start:
-                    bp_name = bp.get("name", "blackout period")
                     msg = (
                         f"Dates overlap with {bp_name} "
                         f"({bp_start} to {bp_end})"

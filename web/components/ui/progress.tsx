@@ -55,7 +55,7 @@ export function ProgressBar({
   }, [percentage, animated, indeterminate]);
 
   const variantStyles = {
-    default: 'bg-primary',
+    default: 'bg-blue-600',
     success: 'bg-green-500',
     warning: 'bg-yellow-500',
     danger: 'bg-red-500',
@@ -72,7 +72,7 @@ export function ProgressBar({
     <div className={cn('w-full', className)}>
       <div
         className={cn(
-          'w-full overflow-hidden rounded-full bg-secondary',
+          'w-full overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700',
           sizeStyles[size]
         )}
         role="progressbar"
@@ -92,7 +92,7 @@ export function ProgressBar({
         />
       </div>
       {showValue && !indeterminate && (
-        <p className="text-xs text-muted-foreground mt-1">
+        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
           {Math.round(displayValue)}%
         </p>
       )}
@@ -167,13 +167,13 @@ export function LoadingOverlay({ show, message, className }: LoadingOverlayProps
   return (
     <div
       className={cn(
-        'absolute inset-0 z-50 flex flex-col items-center justify-center bg-background/80 backdrop-blur-sm',
+        'absolute inset-0 z-50 flex flex-col items-center justify-center bg-white/80 backdrop-blur-sm dark:bg-gray-900/80',
         className
       )}
     >
       <Spinner size="lg" />
       {message && (
-        <p className="mt-4 text-sm text-muted-foreground animate-pulse">{message}</p>
+        <p className="mt-4 text-sm text-gray-500 dark:text-gray-400 animate-pulse">{message}</p>
       )}
     </div>
   );
@@ -200,9 +200,9 @@ export function ProgressSteps({ steps, currentStep, className }: ProgressStepsPr
             <div
               className={cn(
                 'w-10 h-10 rounded-full flex items-center justify-center text-sm font-medium transition-all duration-300',
-                index < currentStep && 'bg-primary text-primary-foreground',
-                index === currentStep && 'bg-primary text-primary-foreground ring-4 ring-primary/20',
-                index > currentStep && 'bg-muted text-muted-foreground'
+                index < currentStep && 'bg-blue-600 text-white',
+                index === currentStep && 'bg-blue-600 text-white ring-4 ring-blue-600/20',
+                index > currentStep && 'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400'
               )}
             >
               {index < currentStep ? (
@@ -217,13 +217,13 @@ export function ProgressSteps({ steps, currentStep, className }: ProgressStepsPr
               <p
                 className={cn(
                   'text-sm font-medium',
-                  index <= currentStep ? 'text-foreground' : 'text-muted-foreground'
+                  index <= currentStep ? 'text-gray-900 dark:text-gray-100' : 'text-gray-500 dark:text-gray-400'
                 )}
               >
                 {step.label}
               </p>
               {step.description && (
-                <p className="text-xs text-muted-foreground">{step.description}</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">{step.description}</p>
               )}
             </div>
           </div>
@@ -231,7 +231,7 @@ export function ProgressSteps({ steps, currentStep, className }: ProgressStepsPr
             <div
               className={cn(
                 'h-0.5 w-16 mx-4 transition-colors duration-300',
-                index < currentStep ? 'bg-primary' : 'bg-muted'
+                index < currentStep ? 'bg-blue-600' : 'bg-gray-200 dark:bg-gray-700'
               )}
             />
           )}

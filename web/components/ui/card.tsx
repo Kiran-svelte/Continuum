@@ -10,16 +10,16 @@ export function Card({ className, variant = 'default', interactive = false, chil
     <div
       className={cn(
         'rounded-xl transition-all duration-200',
-        // Default - subtle border
-        variant === 'default' && 'border border-border bg-card text-card-foreground shadow-sm',
+        // Default - subtle border with explicit colors
+        variant === 'default' && 'border border-gray-200 bg-white text-gray-900 shadow-sm dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100',
         // Elevated - more prominent shadow
-        variant === 'elevated' && 'bg-card text-card-foreground shadow-lg hover:shadow-xl',
+        variant === 'elevated' && 'bg-white text-gray-900 shadow-lg hover:shadow-xl dark:bg-gray-900 dark:text-gray-100',
         // Bordered - clear border emphasis
-        variant === 'bordered' && 'border-2 border-border bg-card text-card-foreground',
+        variant === 'bordered' && 'border-2 border-gray-200 bg-white text-gray-900 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100',
         // Ghost - minimal styling
         variant === 'ghost' && 'bg-transparent',
         // Interactive state
-        interactive && 'cursor-pointer hover:border-primary/30 hover:shadow-md active:scale-[0.99]',
+        interactive && 'cursor-pointer hover:border-blue-300 hover:shadow-md active:scale-[0.99]',
         className
       )}
       {...props}
@@ -31,7 +31,7 @@ export function Card({ className, variant = 'default', interactive = false, chil
 
 export function CardHeader({ className, children }: React.HTMLAttributes<HTMLDivElement>) {
   return (
-    <div className={cn('px-6 py-4 border-b border-border', className)}>
+    <div className={cn('px-6 py-4 border-b border-gray-200 dark:border-gray-700', className)}>
       {children}
     </div>
   );
@@ -43,7 +43,7 @@ export function CardContent({ className, children }: React.HTMLAttributes<HTMLDi
 
 export function CardFooter({ className, children }: React.HTMLAttributes<HTMLDivElement>) {
   return (
-    <div className={cn('px-6 py-4 border-t border-border bg-muted/30', className)}>
+    <div className={cn('px-6 py-4 border-t border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-800/50', className)}>
       {children}
     </div>
   );
@@ -51,7 +51,7 @@ export function CardFooter({ className, children }: React.HTMLAttributes<HTMLDiv
 
 export function CardTitle({ className, children }: React.HTMLAttributes<HTMLHeadingElement>) {
   return (
-    <h3 className={cn('text-lg font-semibold text-foreground', className)}>
+    <h3 className={cn('text-lg font-semibold text-gray-900 dark:text-gray-100', className)}>
       {children}
     </h3>
   );
@@ -59,7 +59,7 @@ export function CardTitle({ className, children }: React.HTMLAttributes<HTMLHead
 
 export function CardDescription({ className, children }: React.HTMLAttributes<HTMLParagraphElement>) {
   return (
-    <p className={cn('text-sm text-muted-foreground', className)}>
+    <p className={cn('text-sm text-gray-500 dark:text-gray-400', className)}>
       {children}
     </p>
   );

@@ -6,6 +6,7 @@
  */
 
 import { logger } from './logger';
+import { statfsSync } from 'node:fs';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -202,8 +203,11 @@ function checkMemoryUsage(): ComponentCheck {
 function checkDiskUsage(): ComponentCheck {
   try {
     // Basic disk check — use /tmp as a writable indicator
-    const fs = require('fs');
-    const stats = fs.statfsSync?.('/tmp');
+    if (typeof statfsSync !== 'function') {
+      return { status: 'healthy', message: 'Disk check unavailable (statfsSync not supported)' };
+    }
+
+    const stats = statfsSync('/tmp');
     if (stats) {
       const totalGB = (stats.blocks * stats.bsize) / (1024 * 1024 * 1024);
       const freeGB = (stats.bfree * stats.bsize) / (1024 * 1024 * 1024);

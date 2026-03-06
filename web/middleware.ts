@@ -1,8 +1,5 @@
 import { NextResponse, type NextRequest } from 'next/server';
 
-// Firebase token cookie name
-const AUTH_COOKIE_NAME = 'firebase-auth-token';
-
 // ─── Configuration ──────────────────────────────────────────────────────────
 
 // Public routes that don't require authentication
@@ -17,6 +14,11 @@ const PUBLIC_ROUTES = [
   '/employee/sign-in',
   '/employee/sign-up',
   '/status',
+  '/terms',
+  '/privacy',
+  '/cookies',
+  '/support',
+  '/help',
   '/api/health',
   '/api/enterprise/metrics',
 ];
@@ -27,8 +29,10 @@ const PUBLIC_API_PATTERNS = [
   '/api/enterprise/metrics',
   '/api/security/env-check',
   '/api/auth/session',
+  '/api/auth/dev-create-user',
   '/api/auth/register',
   '/api/auth/join',
+  '/api/auth/callback',
   '/api/auth/test-firebase',
   '/api/auth/firebase-check',
   '/api/auth/test-signup-flow',
@@ -126,7 +130,7 @@ function addSecurityHeaders(response: NextResponse): void {
   );
   response.headers.set(
     'Content-Security-Policy',
-    "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com https://*.firebaseapp.com wss://*.pusher.com https://*.pusher.com;"
+    "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com https://*.firebaseapp.com https://*.supabase.co wss://*.pusher.com https://*.pusher.com;"
   );
   response.headers.set('X-DNS-Prefetch-Control', 'on');
   response.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
@@ -221,50 +225,15 @@ export async function middleware(request: NextRequest) {
     return response;
   }
 
-  // 6. Firebase auth check - verify auth cookie is present
-  // Note: Actual token verification happens in API routes via firebase-admin
-  // Middleware only checks for cookie presence as a quick gate
-  try {
-    const authCookie = request.cookies.get(AUTH_COOKIE_NAME);
-    const hasAuth = !!authCookie?.value;
+  // 6. Firebase auth — client-side managed; individual API routes verify tokens via auth-guard.
+  //    Middleware lets requests through; protected API routes call verifyAuth() themselves.
 
-    // 7. Auth check
-    if (!hasAuth) {
-      if (isApiRoute(pathname)) {
-        return NextResponse.json(
-          { error: 'Authentication required' },
-          { status: 401, headers: { 'X-Frame-Options': 'DENY' } }
-        );
-      }
-      // Redirect to appropriate sign-in page
-      const signInUrl = new URL('/sign-in', request.url);
-      signInUrl.searchParams.set('redirect', pathname);
-      return NextResponse.redirect(signInUrl);
-    }
-
-    // 8. Sensitive route logging
-    if (isSensitiveRoute(pathname)) {
-      const clientIP = getClientIP(request);
-      console.log(
-        `[SECURITY] Sensitive route access: ${request.method} ${pathname} from ${clientIP} at ${new Date().toISOString()}`
-      );
-    }
-
-  } catch (error) {
-    // If Firebase is not configured, allow in development
-    if (process.env.NODE_ENV === 'development') {
-      console.warn('[MIDDLEWARE] Firebase not configured, allowing in development');
-      return response;
-    }
-    
-    if (isApiRoute(pathname)) {
-      return NextResponse.json(
-        { error: 'Authentication service unavailable' },
-        { status: 503 }
-      );
-    }
-    
-    return NextResponse.redirect(new URL('/sign-in', request.url));
+  // 7. Sensitive route logging
+  if (isSensitiveRoute(pathname)) {
+    const clientIP = getClientIP(request);
+    console.log(
+      `[SECURITY] Sensitive route access: ${request.method} ${pathname} from ${clientIP} at ${new Date().toISOString()}`
+    );
   }
 
   return response;

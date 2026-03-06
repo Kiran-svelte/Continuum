@@ -14,7 +14,7 @@
 let promClient: typeof import('prom-client') | null = null;
 
 try {
-  promClient = require('prom-client');
+  promClient = await import('prom-client');
 } catch {
   console.warn('[metrics] prom-client not available — metrics collection disabled');
 }

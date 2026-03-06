@@ -91,14 +91,10 @@ export function ThemeProvider({
     [storageKey, calculateResolvedTheme]
   );
 
-  // Prevent hydration mismatch
-  if (!mounted) {
-    return <div style={{ visibility: 'hidden' }}>{children}</div>;
-  }
-
+  // Always wrap in provider, but hide content until mounted to prevent hydration mismatch
   return (
     <ThemeProviderContext.Provider value={{ theme, resolvedTheme, setTheme }}>
-      {children}
+      {mounted ? children : <div style={{ visibility: 'hidden' }}>{children}</div>}
     </ThemeProviderContext.Provider>
   );
 }

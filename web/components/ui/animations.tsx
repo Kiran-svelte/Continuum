@@ -89,7 +89,7 @@ export function AnimatedCard({
       whileHover={interactive ? { y: -4, boxShadow: '0 10px 40px rgba(0,0,0,0.1)' } : undefined}
       whileTap={interactive ? { scale: 0.98 } : undefined}
       className={cn(
-        'rounded-xl border border-border bg-card transition-colors',
+        'rounded-xl border border-gray-200 bg-white transition-colors dark:border-gray-700 dark:bg-gray-900',
         interactive && 'cursor-pointer',
         className
       )}
@@ -217,7 +217,7 @@ export function FloatingActionButton({
       whileTap={{ scale: 0.9 }}
       transition={{ type: 'spring', stiffness: 300, damping: 20 }}
       className={cn(
-        'fixed bottom-6 right-6 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg hover:shadow-xl transition-shadow',
+        'fixed bottom-6 right-6 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-blue-600 text-white shadow-lg hover:shadow-xl transition-shadow',
         className
       )}
       title={tooltip}
@@ -234,9 +234,9 @@ export function PulseIndicator({ className }: { className?: string }) {
       <motion.span
         animate={{ scale: [1, 1.5], opacity: [0.75, 0] }}
         transition={{ duration: 1, repeat: Infinity }}
-        className="absolute inline-flex h-full w-full rounded-full bg-primary"
+        className="absolute inline-flex h-full w-full rounded-full bg-blue-600"
       />
-      <span className="relative inline-flex h-3 w-3 rounded-full bg-primary" />
+      <span className="relative inline-flex h-3 w-3 rounded-full bg-blue-600" />
     </span>
   );
 }
@@ -300,7 +300,7 @@ export function ExpandingCard({
   return (
     <motion.div
       layout
-      className={cn('rounded-xl border border-border bg-card overflow-hidden', className)}
+      className={cn('rounded-xl border border-gray-200 bg-white overflow-hidden dark:border-gray-700 dark:bg-gray-900', className)}
       onClick={onToggle}
     >
       <motion.div layout="position">{children}</motion.div>

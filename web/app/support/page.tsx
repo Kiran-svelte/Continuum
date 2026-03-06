@@ -204,8 +204,8 @@ export default function SupportPage() {
             {/* Email Support */}
             <Card className="text-center">
               <CardContent className="pt-8 pb-6">
-                <div className="w-14 h-14 rounded-full bg-blue-100 dark:bg-blue-500/20 flex items-center justify-center mx-auto mb-4">
-                  <Mail className="w-7 h-7 text-blue-600 dark:text-blue-400" />
+                <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
+                  <Mail className="w-7 h-7 text-primary" />
                 </div>
                 <h3 className="font-semibold text-foreground mb-2">Email Support</h3>
                 <p className="text-sm text-muted-foreground mb-4">
@@ -223,8 +223,8 @@ export default function SupportPage() {
             {/* Live Chat */}
             <Card className="text-center">
               <CardContent className="pt-8 pb-6">
-                <div className="w-14 h-14 rounded-full bg-green-100 dark:bg-green-500/20 flex items-center justify-center mx-auto mb-4">
-                  <MessageCircle className="w-7 h-7 text-green-600 dark:text-green-400" />
+                <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
+                  <MessageCircle className="w-7 h-7 text-primary" />
                 </div>
                 <h3 className="font-semibold text-foreground mb-2">Live Chat</h3>
                 <p className="text-sm text-muted-foreground mb-4">
@@ -240,8 +240,8 @@ export default function SupportPage() {
             {/* Phone Support */}
             <Card className="text-center">
               <CardContent className="pt-8 pb-6">
-                <div className="w-14 h-14 rounded-full bg-purple-100 dark:bg-purple-500/20 flex items-center justify-center mx-auto mb-4">
-                  <Phone className="w-7 h-7 text-purple-600 dark:text-purple-400" />
+                <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
+                  <Phone className="w-7 h-7 text-primary" />
                 </div>
                 <h3 className="font-semibold text-foreground mb-2">Phone Support</h3>
                 <p className="text-sm text-muted-foreground mb-4">

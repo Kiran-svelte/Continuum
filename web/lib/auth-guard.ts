@@ -1,6 +1,7 @@
 import { cookies } from 'next/headers';
+import { createClient } from '@supabase/supabase-js';
 import prisma from '@/lib/prisma';
-import { verifyIdToken, type DecodedIdToken } from '@/lib/firebase-admin';
+import { verifyIdToken } from '@/lib/firebase-admin';
 import {
   getUserPermissions,
   hasPermission,
@@ -28,6 +29,11 @@ export interface AuthEmployee {
   accessScope: AccessScope;
 }
 
+export interface DecodedUser {
+  uid: string;
+  email?: string;
+}
+
 export class AuthError extends Error {
   status: number;
   constructor(message: string, status: number) {
@@ -37,37 +43,83 @@ export class AuthError extends Error {
   }
 }
 
-// ─── Firebase Token Constants ───────────────────────────────────────────────
+// ─── Supabase Auth Constants ────────────────────────────────────────────────
 
-const AUTH_COOKIE_NAME = 'firebase-auth-token';
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
-// ─── Firebase Auth Helpers ──────────────────────────────────────────────────
+// Create admin client for server-side JWT verification
+function getSupabaseAdmin() {
+  return createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false,
+    },
+  });
+}
+
+// ─── Supabase Auth Helpers ──────────────────────────────────────────────────
 
 /**
- * Gets the Firebase ID token from the session cookie
+ * Verifies a Supabase JWT token and returns the user
  */
-export async function getTokenFromCookies(): Promise<string | null> {
-  const cookieStore = await cookies();
-  return cookieStore.get(AUTH_COOKIE_NAME)?.value ?? null;
+async function verifySupabaseToken(token: string): Promise<DecodedUser> {
+  const supabase = getSupabaseAdmin();
+  
+  const { data: { user }, error } = await supabase.auth.getUser(token);
+  
+  if (error || !user) {
+    throw new Error(error?.message || 'Invalid token');
+  }
+  
+  return {
+    uid: user.id,
+    email: user.email,
+  };
 }
 
 /**
- * Gets the authenticated user from either Bearer token (Authorization header) or session cookies.
+ * Verifies a Firebase ID token and returns the user
+ */
+async function verifyFirebaseToken(token: string): Promise<DecodedUser> {
+  const decoded = await verifyIdToken(token);
+  return {
+    uid: decoded.uid,
+    email: decoded.email,
+  };
+}
+
+/**
+ * Verifies a token by trying Firebase first, then falling back to Supabase.
+ */
+async function verifyToken(token: string): Promise<DecodedUser> {
+  // Try Firebase first
+  try {
+    return await verifyFirebaseToken(token);
+  } catch {
+    // Fall back to Supabase
+    return await verifySupabaseToken(token);
+  }
+}
+
+/**
+ * Gets the authenticated user from either Bearer token (Authorization header) or cookies.
+ * Tries Firebase verification first, then falls back to Supabase.
  * Prefers Bearer token if present.
  */
-export async function getAuthUserFromRequest(request: Request): Promise<{ user: DecodedIdToken | null; error: Error | null }> {
+export async function getAuthUserFromRequest(request: Request): Promise<{ user: DecodedUser | null; error: Error | null }> {
   const authHeader = request.headers.get('Authorization');
   
   if (authHeader?.startsWith('Bearer ')) {
     const token = authHeader.slice(7);
     try {
-      const decodedToken = await verifyIdToken(token);
-      return { user: decodedToken, error: null };
+      const user = await verifyToken(token);
+      return { user, error: null };
     } catch (err) {
       return { user: null, error: err instanceof Error ? err : new Error('Invalid token') };
     }
   }
-  
+
   // Fall back to cookie-based auth
   const cookieHeader = request.headers.get('cookie');
   if (cookieHeader) {
@@ -77,11 +129,32 @@ export async function getAuthUserFromRequest(request: Request): Promise<{ user: 
         return [key, val.join('=')];
       })
     );
-    const token = cookies[AUTH_COOKIE_NAME];
-    if (token) {
+
+    // Try Firebase session cookie first
+    const firebaseToken = cookies['firebase-auth-token'];
+    if (firebaseToken) {
       try {
-        const decodedToken = await verifyIdToken(token);
-        return { user: decodedToken, error: null };
+        const decoded = decodeURIComponent(firebaseToken);
+        const user = await verifyFirebaseToken(decoded);
+        return { user, error: null };
+      } catch {
+        // Firebase cookie invalid, fall through to Supabase
+      }
+    }
+
+    // Fall back to Supabase access token in cookies
+    // Dynamically find the Supabase auth cookie by looking for sb-*-auth-token pattern
+    const supabaseCookieKey = Object.keys(cookies).find(key => key.startsWith('sb-') && key.endsWith('-auth-token'));
+    const accessToken = supabaseCookieKey ? cookies[supabaseCookieKey] : undefined;
+    if (accessToken) {
+      try {
+        // Parse the cookie JSON structure
+        const tokenData = JSON.parse(decodeURIComponent(accessToken));
+        const token = tokenData.access_token || tokenData;
+        if (typeof token === 'string') {
+          const user = await verifySupabaseToken(token);
+          return { user, error: null };
+        }
       } catch (err) {
         return { user: null, error: err instanceof Error ? err : new Error('Invalid token') };
       }
@@ -94,25 +167,62 @@ export async function getAuthUserFromRequest(request: Request): Promise<{ user: 
 // ─── Auth Guards ─────────────────────────────────────────────────────────────
 
 /**
- * Extracts auth from Firebase, looks up Employee via Prisma.
+ * Extracts the Supabase project ID from the URL for cookie name construction
+ */
+function getSupabaseProjectId(): string {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+  // URL format: https://<project-id>.supabase.co
+  const match = url.match(/https:\/\/([^.]+)\.supabase/);
+  return match?.[1] || 'default';
+}
+
+/**
+ * Extracts auth from Firebase or Supabase, looks up Employee via Prisma.
+ * Tries Firebase session cookie first, then falls back to Supabase cookie.
  * Returns the authenticated employee with role, company, and permissions.
  */
 export async function getAuthEmployee(): Promise<AuthEmployee> {
-  const token = await getTokenFromCookies();
-  
-  if (!token) {
-    throw new AuthError('Authentication required', 401);
+  const cookieStore = await cookies();
+
+  let decodedUser: DecodedUser | null = null;
+
+  // Try Firebase session cookie first
+  const firebaseCookie = cookieStore.get('firebase-auth-token');
+  if (firebaseCookie?.value) {
+    try {
+      const token = decodeURIComponent(firebaseCookie.value);
+      decodedUser = await verifyFirebaseToken(token);
+    } catch {
+      // Firebase cookie invalid, fall through to Supabase
+    }
   }
 
-  let decodedToken: DecodedIdToken;
-  try {
-    decodedToken = await verifyIdToken(token);
-  } catch {
-    throw new AuthError('Invalid or expired token', 401);
+  // Fall back to Supabase cookie if Firebase didn't succeed
+  if (!decodedUser) {
+    // Dynamically construct cookie name based on Supabase project ID
+    const projectId = getSupabaseProjectId();
+    const cookieName = `sb-${projectId}-auth-token`;
+    const authCookie = cookieStore.get(cookieName);
+
+    if (!authCookie?.value) {
+      throw new AuthError('Authentication required', 401);
+    }
+
+    try {
+      // Parse the Supabase cookie JSON
+      const tokenData = JSON.parse(decodeURIComponent(authCookie.value));
+      const accessToken = tokenData.access_token || tokenData;
+      if (typeof accessToken !== 'string') {
+        throw new Error('Invalid token format');
+      }
+      decodedUser = await verifySupabaseToken(accessToken);
+    } catch {
+      throw new AuthError('Invalid or expired token', 401);
+    }
   }
 
   const employee = await prisma.employee.findUnique({
-    where: { auth_id: decodedToken.uid },
+    where: { auth_id: decodedUser.uid },
     select: {
       id: true,
       auth_id: true,

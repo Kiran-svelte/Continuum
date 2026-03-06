@@ -4,12 +4,12 @@ import Link from 'next/link';
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { 
-  BookOpen, 
-  PlayCircle, 
-  FileText, 
-  Users, 
-  Settings, 
+import {
+  BookOpen,
+  PlayCircle,
+  FileText,
+  Users,
+  Settings,
   Calendar,
   CheckCircle,
   Clock,
@@ -19,6 +19,7 @@ import {
   ChevronRight,
   Search
 } from 'lucide-react';
+import { StartTutorialButton, employeeTutorial, managerTutorial, hrTutorial } from '@/components/tutorial';
 
 const HELP_SECTIONS = [
   {
@@ -297,9 +298,7 @@ export default function HelpCenterPage() {
                 <p className="text-sm text-muted-foreground mb-4">
                   Learn to manage your leave requests and profile
                 </p>
-                <Button variant="outline" size="sm">
-                  Start Tour
-                </Button>
+                <StartTutorialButton tutorial={employeeTutorial} variant="outline" className="text-xs px-3 py-1.5" />
               </CardContent>
             </Card>
 
@@ -312,9 +311,7 @@ export default function HelpCenterPage() {
                 <p className="text-sm text-muted-foreground mb-4">
                   Discover how to manage your team effectively
                 </p>
-                <Button variant="outline" size="sm">
-                  Start Tour
-                </Button>
+                <StartTutorialButton tutorial={managerTutorial} variant="outline" className="text-xs px-3 py-1.5" />
               </CardContent>
             </Card>
 
@@ -327,9 +324,7 @@ export default function HelpCenterPage() {
                 <p className="text-sm text-muted-foreground mb-4">
                   Master the HR administration features
                 </p>
-                <Button variant="outline" size="sm">
-                  Start Tour
-                </Button>
+                <StartTutorialButton tutorial={hrTutorial} variant="outline" className="text-xs px-3 py-1.5" />
               </CardContent>
             </Card>
           </div>

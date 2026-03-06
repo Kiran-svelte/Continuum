@@ -81,7 +81,7 @@ export function Modal({
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
             transition={{ duration: 0.2, ease: 'easeOut' }}
             className={cn(
-              'relative w-full rounded-xl bg-card border border-border shadow-2xl',
+              'relative w-full rounded-xl bg-white border border-gray-200 shadow-2xl dark:bg-gray-900 dark:border-gray-700',
               sizeStyles[size],
               className
             )}
@@ -92,12 +92,12 @@ export function Modal({
           >
             {/* Header */}
             {(title || showCloseButton) && (
-              <div className="flex items-start justify-between px-6 py-4 border-b border-border">
+              <div className="flex items-start justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700">
                 <div>
                   {title && (
                     <h2
                       id="modal-title"
-                      className="text-lg font-semibold text-foreground"
+                      className="text-lg font-semibold text-gray-900 dark:text-gray-100"
                     >
                       {title}
                     </h2>
@@ -105,7 +105,7 @@ export function Modal({
                   {description && (
                     <p
                       id="modal-description"
-                      className="mt-1 text-sm text-muted-foreground"
+                      className="mt-1 text-sm text-gray-500 dark:text-gray-400"
                     >
                       {description}
                     </p>
@@ -114,7 +114,7 @@ export function Modal({
                 {showCloseButton && (
                   <button
                     onClick={onClose}
-                    className="p-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+                    className="p-1 rounded-lg text-gray-500 hover:text-gray-900 hover:bg-gray-100 transition-colors dark:text-gray-400 dark:hover:text-gray-100 dark:hover:bg-gray-800"
                     aria-label="Close modal"
                   >
                     <X className="w-5 h-5" />
@@ -143,7 +143,7 @@ export function ModalFooter({
   return (
     <div
       className={cn(
-        'flex items-center justify-end gap-3 px-6 py-4 border-t border-border bg-muted/30 rounded-b-xl -mx-6 -mb-4',
+        'flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-200 bg-gray-50 rounded-b-xl -mx-6 -mb-4 dark:border-gray-700 dark:bg-gray-800/30',
         className
       )}
     >
@@ -177,9 +177,9 @@ export function ConfirmDialog({
   loading = false,
 }: ConfirmDialogProps) {
   const variantStyles = {
-    danger: 'bg-destructive text-destructive-foreground hover:bg-destructive/90',
+    danger: 'bg-red-600 text-white hover:bg-red-700',
     warning: 'bg-yellow-500 text-white hover:bg-yellow-600',
-    info: 'bg-primary text-primary-foreground hover:bg-primary/90',
+    info: 'bg-blue-600 text-white hover:bg-blue-700',
   };
 
   return (
@@ -209,16 +209,16 @@ export function ConfirmDialog({
             </svg>
           )}
         </div>
-        <h3 className="text-lg font-semibold text-foreground mb-2">{title}</h3>
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">{title}</h3>
         {description && (
-          <p className="text-sm text-muted-foreground">{description}</p>
+          <p className="text-sm text-gray-500 dark:text-gray-400">{description}</p>
         )}
       </div>
       <div className="flex gap-3 mt-4">
         <button
           onClick={onClose}
           disabled={loading}
-          className="flex-1 px-4 py-2 rounded-lg border border-border text-foreground hover:bg-secondary transition-colors disabled:opacity-50"
+          className="flex-1 px-4 py-2 rounded-lg border border-gray-200 text-gray-900 hover:bg-gray-100 transition-colors disabled:opacity-50 dark:border-gray-700 dark:text-gray-100 dark:hover:bg-gray-800"
         >
           {cancelLabel}
         </button>

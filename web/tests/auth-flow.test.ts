@@ -40,14 +40,14 @@ describe('Content-Security-Policy Configuration', () => {
     );
   });
 
-  it('next.config.ts CSP should not reference supabase', async () => {
+  it('next.config.ts CSP includes Supabase domain', async () => {
     const fs = await import('node:fs');
     const configPath = fileURLToPath(new URL('../next.config.ts', import.meta.url));
     const content = fs.readFileSync(configPath, 'utf-8');
     
     assert.ok(
-      !content.includes('supabase'),
-      'next.config.ts CSP should not reference supabase since the app uses Firebase'
+      content.includes('https://*.supabase.co'),
+      'next.config.ts CSP connect-src should include https://*.supabase.co for Supabase auth'
     );
   });
 

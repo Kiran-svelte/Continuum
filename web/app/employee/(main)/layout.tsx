@@ -11,6 +11,7 @@ const EMPLOYEE_NAV_ITEMS = [
   { label: 'Attendance', href: '/employee/attendance', icon: '🕐' },
   { label: 'Documents', href: '/employee/documents', icon: '📁' },
   { label: 'Profile', href: '/employee/profile', icon: '👤' },
+  { label: 'Settings', href: '/employee/settings', icon: '⚙️' },
 ];
 
 export default function EmployeeLayout({ children }: { children: React.ReactNode }) {

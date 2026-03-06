@@ -1,5 +1,13 @@
+'use client';
+
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { SkeletonDashboard } from '@/components/ui/skeleton';
+import { PageLoader } from '@/components/ui/progress';
+import { StartTutorialButton, managerTutorial } from '@/components/tutorial';
+import { ensureMe } from '@/lib/client-auth';
 
 const TEAM_METRICS = [
   { label: 'Team Size', value: '18', detail: '2 on leave today', icon: '👥' },
@@ -26,23 +34,65 @@ const TEAM_AVAILABILITY = [
 ];
 
 export default function ManagerDashboardPage() {
+  const router = useRouter();
+  const [loading, setLoading] = useState(true);
+  const [authChecked, setAuthChecked] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const me = await ensureMe();
+      if (cancelled) return;
+      if (!me) {
+        router.replace('/sign-in');
+        return;
+      }
+
+      const role = me.primary_role ?? 'employee';
+      const allowedRoles = ['admin', 'hr', 'director', 'manager', 'team_lead'];
+      if (!allowedRoles.includes(role)) {
+        router.replace('/employee/dashboard');
+        return;
+      }
+
+      setAuthChecked(true);
+      setTimeout(() => setLoading(false), 400);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [router]);
+
+  if (!authChecked || loading) {
+    return (
+      <>
+        <PageLoader />
+        <SkeletonDashboard />
+      </>
+    );
+  }
+
   return (
-    <div className="space-y-8">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Manager Dashboard</h1>
-        <p className="text-gray-500 mt-1">Team overview and pending actions</p>
+    <div className="space-y-8 animate-fade-in">
+      <div className="flex items-center justify-between animate-slide-up">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">Manager Dashboard</h1>
+          <p className="text-muted-foreground mt-1">Team overview and pending actions</p>
+        </div>
+        <StartTutorialButton tutorial={managerTutorial} variant="outline" className="text-xs px-3 py-1.5" />
       </div>
 
       {/* Team Metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 stagger">
         {TEAM_METRICS.map((metric) => (
-          <Card key={metric.label}>
+          <Card key={metric.label} className="animate-slide-up hover:shadow-md transition-shadow">
             <CardContent className="pt-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-500">{metric.label}</p>
-                  <p className="text-3xl font-bold text-gray-900 mt-1">{metric.value}</p>
-                  <p className="text-xs text-gray-400 mt-1">{metric.detail}</p>
+                  <p className="text-sm text-muted-foreground">{metric.label}</p>
+                  <p className="text-3xl font-bold text-foreground mt-1">{metric.value}</p>
+                  <p className="text-xs text-muted-foreground mt-1">{metric.detail}</p>
                 </div>
                 <span className="text-3xl">{metric.icon}</span>
               </div>
@@ -51,9 +101,9 @@ export default function ManagerDashboardPage() {
         ))}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-slide-up stagger">
         {/* Pending Approvals */}
-        <Card className="lg:col-span-2">
+        <Card className="lg:col-span-2 animate-fade-in">
           <CardHeader>
             <div className="flex items-center justify-between">
               <CardTitle>Pending Approvals</CardTitle>
@@ -63,21 +113,21 @@ export default function ManagerDashboardPage() {
           <CardContent>
             <div className="space-y-3">
               {PENDING_APPROVALS.map((req) => (
-                <div key={req.id} className="flex items-center justify-between p-3 rounded-lg border border-gray-100 hover:bg-gray-50">
+                <div key={req.id} className="flex items-center justify-between p-3 rounded-lg border border-border hover:bg-muted/50 transition-colors">
                   <div className="flex-1">
                     <div className="flex items-center gap-2">
-                      <p className="text-sm font-medium text-gray-900">{req.employee}</p>
-                      <span className="text-xs text-gray-400 font-mono">{req.id}</span>
+                      <p className="text-sm font-medium text-foreground">{req.employee}</p>
+                      <span className="text-xs text-muted-foreground font-mono">{req.id}</span>
                     </div>
-                    <p className="text-xs text-gray-500 mt-1">
+                    <p className="text-xs text-muted-foreground mt-1">
                       {req.type} · {req.dates} · {req.days} day{req.days > 1 ? 's' : ''} · Submitted {req.submitted}
                     </p>
                   </div>
                   <div className="flex gap-2">
-                    <button className="px-3 py-1.5 text-xs font-medium text-green-700 bg-green-50 rounded-lg hover:bg-green-100 transition-colors">
+                    <button className="px-3 py-1.5 text-xs font-medium text-green-700 bg-green-50 rounded-lg hover:bg-green-100 transition-colors dark:text-green-400 dark:bg-green-950 dark:hover:bg-green-900">
                       Approve
                     </button>
-                    <button className="px-3 py-1.5 text-xs font-medium text-red-700 bg-red-50 rounded-lg hover:bg-red-100 transition-colors">
+                    <button className="px-3 py-1.5 text-xs font-medium text-red-700 bg-red-50 rounded-lg hover:bg-red-100 transition-colors dark:text-red-400 dark:bg-red-950 dark:hover:bg-red-900">
                       Reject
                     </button>
                   </div>
@@ -88,7 +138,7 @@ export default function ManagerDashboardPage() {
         </Card>
 
         {/* Team Availability */}
-        <Card>
+        <Card className="animate-fade-in">
           <CardHeader>
             <CardTitle>Team Availability</CardTitle>
           </CardHeader>
@@ -96,10 +146,10 @@ export default function ManagerDashboardPage() {
             {TEAM_AVAILABILITY.map((member) => (
               <div key={member.name} className="flex items-center justify-between py-2">
                 <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center text-xs font-medium text-gray-600">
+                  <div className="w-8 h-8 bg-muted rounded-full flex items-center justify-center text-xs font-medium text-muted-foreground">
                     {member.name.split(' ').map((n) => n[0]).join('')}
                   </div>
-                  <p className="text-sm text-gray-900">{member.name}</p>
+                  <p className="text-sm text-foreground">{member.name}</p>
                 </div>
                 <Badge variant={member.badge}>{member.status}</Badge>
               </div>

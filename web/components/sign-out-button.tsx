@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { firebaseSignOut } from '@/lib/firebase';
+import { supabaseSignOut } from '@/lib/supabase';
 
 interface SignOutButtonProps {
   variant?: 'sidebar' | 'compact';
@@ -11,12 +12,23 @@ export function SignOutButton({ variant = 'sidebar' }: SignOutButtonProps) {
   const router = useRouter();
 
   async function handleSignOut() {
-    // Sign out from Firebase
-    await firebaseSignOut();
-    
-    // Clear the session cookie
-    await fetch('/api/auth/session', { method: 'DELETE' });
-    
+    try {
+      await supabaseSignOut();
+    } catch {
+      // ignore
+    }
+    try {
+      await firebaseSignOut();
+    } catch {
+      // ignore
+    }
+    try {
+      // Clear Firebase HTTP-only session cookie if present
+      await fetch('/api/auth/session', { method: 'DELETE' });
+    } catch {
+      // ignore
+    }
+
     router.push('/sign-in');
   }
 

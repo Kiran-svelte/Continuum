@@ -26,7 +26,7 @@ export async function POST(request: Request) {
     const apiKey = (process.env.NEXT_PUBLIC_FIREBASE_API_KEY || '').trim();
     
     // Step 1: Create Firebase user via REST API
-    let step1Start = Date.now();
+    const step1Start = Date.now();
     let idToken: string;
     
     try {
@@ -66,7 +66,7 @@ export async function POST(request: Request) {
     }
     
     // Step 2: Create session
-    let step2Start = Date.now();
+    const step2Start = Date.now();
     try {
       const sessionRes = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'https://web-bice-eight-83.vercel.app'}/api/auth/session`, {
         method: 'POST',
@@ -86,7 +86,7 @@ export async function POST(request: Request) {
     }
     
     // Step 3: Register company
-    let step3Start = Date.now();
+    const step3Start = Date.now();
     try {
       const registerRes = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'https://web-bice-eight-83.vercel.app'}/api/auth/register`, {
         method: 'POST',

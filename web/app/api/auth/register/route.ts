@@ -72,14 +72,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Account already registered' }, { status: 409 });
     }
 
+    console.log('[REGISTER] Parsing request body...');
     const body = await request.json();
+    console.log('[REGISTER] Body received:', JSON.stringify(body));
     const parsed = registerSchema.safeParse(body);
     if (!parsed.success) {
+      console.log('[REGISTER] Validation failed:', JSON.stringify(parsed.error.flatten()));
       return NextResponse.json(
         { error: 'Validation failed', details: parsed.error.flatten() },
         { status: 400 }
       );
     }
+    console.log('[REGISTER] Validation passed');
 
     const data = parsed.data;
     const firstName = sanitizeInput(data.first_name);

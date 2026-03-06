@@ -1,31 +1,10 @@
-# Continuum - Enterprise AI Leave Management
-# https://continuum.app
-
 User-agent: *
 Allow: /
-
-# Allow indexing of main pages
-Allow: /
-Allow: /status
-Allow: /sign-in
-Allow: /sign-up
-Allow: /privacy
-Allow: /terms
-Allow: /support
-Allow: /help
-
-# Disallow API routes and private areas
 Disallow: /api/
-Disallow: /employee/*
-Disallow: /hr/*
-Disallow: /manager/*
-Disallow: /onboarding/*
+Disallow: /employee/
+Disallow: /hr/
+Disallow: /manager/
+Disallow: /admin/
+Disallow: /onboarding/
 
-# Disallow query parameters that might cause duplicate content
-Disallow: /*?*
-
-# Sitemap
 Sitemap: https://continuum.app/sitemap.xml
-
-# Crawl-delay for respectful crawling
-Crawl-delay: 1

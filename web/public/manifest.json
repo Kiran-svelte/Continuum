@@ -1,7 +1,7 @@
 {
-  "name": "Continuum",
+  "name": "Continuum - Enterprise AI Leave Management",
   "short_name": "Continuum",
-  "description": "Enterprise AI Leave Management - Config-driven, multi-tenant, India-compliant HR platform",
+  "description": "Config-driven, multi-tenant, India-compliant, AI-powered HR platform",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",

@@ -13,6 +13,8 @@
   },
   "dependencies": {
     "@prisma/client": "^6.1.0",
+    "@supabase/ssr": "^0.9.0",
+    "@supabase/supabase-js": "^2.98.0",
     "clsx": "^2.1.0",
     "firebase": "^11.10.0",
     "firebase-admin": "^13.7.0",

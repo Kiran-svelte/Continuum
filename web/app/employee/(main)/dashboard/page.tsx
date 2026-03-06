@@ -1,10 +1,14 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Skeleton } from '@/components/ui/skeleton';
+import { Skeleton, SkeletonDashboard } from '@/components/ui/skeleton';
+import { PageLoader } from '@/components/ui/progress';
+import { WelcomeModal, FloatingTutorialButton, StartTutorialButton, employeeTutorial } from '@/components/tutorial';
 import Link from 'next/link';
+import { ensureMe } from '@/lib/client-auth';
 
 interface LeaveBalance {
   leave_type: string;
@@ -34,32 +38,73 @@ const LEAVE_COLORS: Record<string, string> = {
 };
 
 export default function EmployeeDashboardPage() {
+  const router = useRouter();
   const [balances, setBalances] = useState<LeaveBalance[]>([]);
   const [loadingBalances, setLoadingBalances] = useState(true);
+  const [pageReady, setPageReady] = useState(false);
 
+  // Verify auth and role on mount
   useEffect(() => {
-    async function load() {
-      try {
-        const res = await fetch('/api/leaves/balances');
-        if (res.ok) {
-          const json = await res.json();
-          setBalances((json.balances ?? []).slice(0, 4));
-        }
-      } finally {
-        setLoadingBalances(false);
+    let cancelled = false;
+    (async () => {
+      const me = await ensureMe();
+      if (cancelled) return;
+      if (!me) {
+        router.replace('/sign-in');
+        return;
       }
+
+      const role = me.primary_role ?? 'employee';
+
+      // Redirect admin/hr to their proper portal
+      if (role === 'admin' || role === 'hr') {
+        if (!me.company?.onboarding_completed) {
+          router.replace('/onboarding');
+        } else {
+          router.replace('/hr/dashboard');
+        }
+        return;
+      }
+
+      await loadBalances();
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [router]);
+
+  async function loadBalances() {
+    try {
+      const res = await fetch('/api/leaves/balances', { credentials: 'include' });
+      if (res.ok) {
+        const json = await res.json();
+        setBalances((json.balances ?? []).slice(0, 4));
+      }
+    } finally {
+      setLoadingBalances(false);
+      setPageReady(true);
     }
-    load();
-  }, []);
+  }
+
+  if (!pageReady) {
+    return (
+      <>
+        <PageLoader />
+        <SkeletonDashboard />
+      </>
+    );
+  }
 
   return (
     <div className="space-y-8 animate-fade-in">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between animate-slide-up">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Welcome back 👋</h1>
           <p className="text-muted-foreground mt-1">Here&apos;s your leave overview for this year</p>
         </div>
-        <div className="flex gap-3" data-tutorial="apply-leave-btn">
+        <div className="flex gap-3 items-center" data-tutorial="apply-leave-btn">
+          <StartTutorialButton tutorial={employeeTutorial} variant="outline" className="text-xs px-3 py-1.5" />
           <Link
             href="/employee/request-leave"
             className="inline-flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors"
@@ -70,11 +115,11 @@ export default function EmployeeDashboardPage() {
       </div>
 
       {/* Leave Balance Cards */}
-      <div data-tutorial="leave-balances">
+      <div data-tutorial="leave-balances" className="animate-slide-up">
         {loadingBalances ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 stagger">
             {[1, 2, 3, 4].map((i) => (
-              <Card key={i}>
+              <Card key={i} className="animate-fade-in">
                 <CardContent className="pt-4">
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
@@ -90,9 +135,9 @@ export default function EmployeeDashboardPage() {
             ))}
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 stagger">
             {balances.map((balance) => (
-              <Card key={balance.leave_type} className="hover:shadow-md transition-shadow">
+              <Card key={balance.leave_type} className="hover:shadow-md transition-shadow animate-slide-up">
                 <CardContent className="pt-4">
                   <div className="flex items-center justify-between mb-3">
                     <p className="text-sm text-muted-foreground">{balance.leave_type}</p>
@@ -120,9 +165,9 @@ export default function EmployeeDashboardPage() {
         )}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-slide-up stagger">
         {/* Quick Actions */}
-        <Card data-tutorial="quick-actions">
+        <Card data-tutorial="quick-actions" className="animate-fade-in">
           <CardHeader>
             <CardTitle>Quick Actions</CardTitle>
           </CardHeader>
@@ -149,7 +194,7 @@ export default function EmployeeDashboardPage() {
         </Card>
 
         {/* Upcoming Holidays */}
-        <Card className="lg:col-span-2">
+        <Card className="lg:col-span-2 animate-fade-in">
           <CardHeader>
             <CardTitle>Upcoming Holidays</CardTitle>
           </CardHeader>
@@ -166,6 +211,10 @@ export default function EmployeeDashboardPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Tutorial components */}
+      <WelcomeModal tutorial={employeeTutorial} roleName="Employee" />
+      <FloatingTutorialButton tutorial={employeeTutorial} />
     </div>
   );
 }
