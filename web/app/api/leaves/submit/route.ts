@@ -159,7 +159,10 @@ export async function POST(request: NextRequest) {
       try {
         const constraintResp = await fetch(`${constraintEngineUrl}/api/evaluate`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            'X-API-Key': process.env.CRON_SECRET || '',
+          },
           body: JSON.stringify({
             employee_id: employee.id,
             company_id: employee.org_id,
