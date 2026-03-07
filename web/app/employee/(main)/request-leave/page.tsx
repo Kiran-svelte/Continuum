@@ -1,9 +1,12 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { OptimisticButton } from '@/components/ui/optimistic-button';
+import { ProcessingState, ProgressSteps } from '@/components/ui/progress-indicators';
+import { SkeletonForm } from '@/components/ui/skeleton';
 
 // Fallback leave types if API fails
 const FALLBACK_LEAVE_TYPES = [
@@ -108,6 +111,24 @@ export default function RequestLeavePage() {
   const [success, setSuccess] = useState('');
   const [leaveTypes, setLeaveTypes] = useState(FALLBACK_LEAVE_TYPES);
   const [constraintResult, setConstraintResult] = useState<ConstraintResult | null>(null);
+  
+  // Enhanced state for optimistic UI
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitSuccess, setSubmitSuccess] = useState(false);
+  const [submitError, setSubmitError] = useState('');
+  const [constraintChecking, setConstraintChecking] = useState(false);
+  const [autoSaving, setAutoSaving] = useState(false);
+  const [pageLoading, setPageLoading] = useState(true);
+  
+  // Processing steps for submission
+  const submissionSteps = [
+    'Validating form data...',
+    'Checking constraint rules...',
+    'Updating leave balances...',
+    'Sending notifications...',
+    'Finalizing request...'
+  ];
+  const [currentSubmissionStep, setCurrentSubmissionStep] = useState('');
 
   // Fetch company-specific leave types on mount
   useEffect(() => {
@@ -125,10 +146,98 @@ export default function RequestLeavePage() {
         }
       } catch {
         // Use fallback types
+      } finally {
+        setPageLoading(false);
       }
     }
     fetchLeaveTypes();
   }, []);
+  
+  // Auto-save draft functionality
+  const saveDraft = useCallback(async () => {
+    if (!leaveType || !startDate || !endDate) return;
+    
+    setAutoSaving(true);
+    try {
+      // Save to localStorage as a draft
+      const draftData = {
+        leaveType,
+        startDate,
+        endDate,
+        halfDay,
+        reason,
+        timestamp: Date.now(),
+      };
+      localStorage.setItem('leave_request_draft', JSON.stringify(draftData));
+      
+      // Simulate API call delay
+      await new Promise(resolve => setTimeout(resolve, 500));
+    } catch {
+      // Silent fail for auto-save
+    } finally {
+      setAutoSaving(false);
+    }
+  }, [leaveType, startDate, endDate, halfDay, reason]);
+  
+  // Auto-save when form data changes
+  useEffect(() => {
+    const timeoutId = setTimeout(saveDraft, 2000); // Auto-save after 2 seconds of inactivity
+    return () => clearTimeout(timeoutId);
+  }, [saveDraft]);
+  
+  // Load draft on mount
+  useEffect(() => {
+    try {
+      const draft = localStorage.getItem('leave_request_draft');
+      if (draft) {
+        const draftData = JSON.parse(draft);
+        // Only load draft if it's recent (within 24 hours)
+        if (Date.now() - draftData.timestamp < 24 * 60 * 60 * 1000) {
+          setLeaveType(draftData.leaveType || '');
+          setStartDate(draftData.startDate || '');
+          setEndDate(draftData.endDate || '');
+          setHalfDay(draftData.halfDay || false);
+          setReason(draftData.reason || '');
+        }
+      }
+    } catch {
+      // Silent fail
+    }
+  }, []);
+  
+  // Real-time constraint checking (debounced)
+  const checkConstraints = useCallback(async () => {
+    if (!leaveType || !startDate || !endDate || constraintChecking) return;
+    
+    setConstraintChecking(true);
+    try {
+      const res = await fetch('/api/leaves/check-constraints', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          leave_type: leaveType,
+          start_date: startDate,
+          end_date: endDate,
+          is_half_day: halfDay,
+        }),
+      });
+      
+      if (res.ok) {
+        const result = await res.json();
+        setConstraintResult(result);
+      }
+    } catch {
+      // Silent fail for constraint checking
+    } finally {
+      setConstraintChecking(false);
+    }
+  }, [leaveType, startDate, endDate, halfDay, constraintChecking]);
+  
+  // Debounced constraint checking
+  useEffect(() => {
+    const timeoutId = setTimeout(checkConstraints, 1000);
+    return () => clearTimeout(timeoutId);
+  }, [checkConstraints]);
 
   // Calculate number of days for display
   const totalDays =
@@ -143,11 +252,27 @@ export default function RequestLeavePage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    
+    // Reset states
     setError('');
     setSuccess('');
+    setSubmitError('');
     setConstraintResult(null);
     setLoading(true);
+    setIsSubmitting(true);
+    setSubmitSuccess(false);
+    
     try {
+      // Step 1: Validate form data
+      setCurrentSubmissionStep(submissionSteps[0]);
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      // Step 2: Check constraints
+      setCurrentSubmissionStep(submissionSteps[1]);
+      await new Promise(resolve => setTimeout(resolve, 800));
+      
+      // Step 3: Submit request
+      setCurrentSubmissionStep(submissionSteps[2]);
       const res = await fetch('/api/leaves/submit', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -159,264 +284,369 @@ export default function RequestLeavePage() {
           reason,
         }),
       });
+      
       const json = await res.json();
+      
       if (!res.ok) {
         // Check if this is a constraint violation response
         if (json.violations && typeof json.violations === 'object' && !Array.isArray(json.violations)) {
           setConstraintResult(json.violations as ConstraintResult);
-          setError('');
+          setSubmitError('Some constraints were not met');
         } else if (json.error === 'Insufficient leave balance') {
           const remaining = typeof json.remaining === 'number' ? json.remaining : null;
           const requested = typeof json.requested === 'number' ? json.requested : null;
-          setError(
-            `Insufficient leave balance.` +
+          const errorMsg = `Insufficient leave balance.` +
             (remaining !== null ? ` You have ${remaining} day(s) remaining` : '') +
             (requested !== null ? ` but requested ${requested} day(s).` : '.') +
-            ' Consider using Leave Without Pay (LWP) or adjusting the dates.'
-          );
+            ' Consider using Leave Without Pay (LWP) or adjusting the dates.';
+          setError(errorMsg);
+          setSubmitError('Insufficient balance');
         } else {
           setError(json.error ?? 'Failed to submit leave request');
+          setSubmitError('Submission failed');
         }
         return;
       }
+      
+      // Step 4: Update notifications
+      setCurrentSubmissionStep(submissionSteps[3]);
+      await new Promise(resolve => setTimeout(resolve, 600));
+      
+      // Step 5: Finalize
+      setCurrentSubmissionStep(submissionSteps[4]);
+      await new Promise(resolve => setTimeout(resolve, 400));
+      
+      // Success!
+      setSubmitSuccess(true);
       setSuccess('Leave request submitted successfully! Your manager will review it shortly.');
+      
+      // Clear draft
+      localStorage.removeItem('leave_request_draft');
+      
       // Reset form
       setLeaveType('');
       setStartDate('');
       setEndDate('');
       setHalfDay(false);
       setReason('');
-      setTimeout(() => router.push('/employee/leave-history'), 1500);
+      
+      // Navigate after delay
+      setTimeout(() => router.push('/employee/leave-history'), 2000);
+      
+    } catch (err) {
+      setSubmitError('Network error');
+      setError('Network error occurred. Please try again.');
     } finally {
       setLoading(false);
+      setIsSubmitting(false);
+      setCurrentSubmissionStep('');
     }
   }
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Request Leave</h1>
-        <p className="text-gray-500 mt-1">Submit a new leave application</p>
+      {/* Page Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">Request Leave</h1>
+          <p className="text-muted-foreground mt-1">Submit a new leave application</p>
+        </div>
+        {autoSaving && (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <div className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" />
+            Auto-saving draft...
+          </div>
+        )}
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Leave Details</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {error && !constraintResult && (
-            <div className="mb-4 rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
-              {error}
-            </div>
-          )}
-          
-          {/* Detailed Constraint Violations Display */}
-          {constraintResult && (
-            <div className="mb-4 space-y-3">
-              {/* Blocking Violations */}
-              {constraintResult.violations && constraintResult.violations.length > 0 && (
-                <div className="rounded-lg bg-red-50 border border-red-200 px-4 py-3">
-                  <h4 className="font-semibold text-red-800 mb-2 flex items-center gap-2">
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                    </svg>
-                    Constraint Violations — your request cannot be submitted
-                  </h4>
-                  <ul className="space-y-3">
-                    {constraintResult.violations.map((v, i) => {
-                      const label = v.name || v.rule_name || v.rule_id;
-                      const suggestion = buildSuggestion(v);
-                      return (
-                        <li key={i} className="text-sm text-red-700 border-t border-red-100 pt-2 first:border-0 first:pt-0">
-                          <div className="font-semibold">{label}</div>
-                          <div className="mt-0.5">{v.message}</div>
-                          {suggestion && (
-                            <div className="mt-1.5 flex items-start gap-1.5 rounded bg-red-100 px-2 py-1.5 text-red-800">
-                              <span className="mt-0.5 shrink-0">💡</span>
-                              <span className="italic">{suggestion}</span>
-                            </div>
-                          )}
-                          {v.details && Object.keys(v.details).length > 0 && (
-                            <div className="mt-1 flex flex-wrap gap-x-3 text-xs text-red-500">
-                              {Object.entries(v.details).map(([key, val]) => (
-                                <span key={key}>{key.replace(/_/g, ' ')}: <strong>{String(val)}</strong></span>
-                              ))}
-                            </div>
-                          )}
-                        </li>
-                      );
-                    })}
-                  </ul>
+      {/* Loading State */}
+      {pageLoading && (
+        <Card>
+          <CardContent className="pt-6">
+            <SkeletonForm fields={5} />
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Submission Processing State */}
+      {isSubmitting && (
+        <Card>
+          <CardContent className="pt-6">
+            <ProcessingState
+              state="processing"
+              steps={submissionSteps}
+              currentStep={currentSubmissionStep}
+              message="Submitting your leave request..."
+            />
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Main Form */}
+      {!pageLoading && !isSubmitting && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center justify-between">
+              <span>Leave Details</span>
+              {constraintChecking && (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <div className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                  Checking constraints...
                 </div>
               )}
-
-              {/* Warnings */}
-              {constraintResult.warnings && constraintResult.warnings.length > 0 && (
-                <div className="rounded-lg bg-yellow-50 border border-yellow-200 px-4 py-3">
-                  <h4 className="font-semibold text-yellow-800 mb-2 flex items-center gap-2">
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    Warnings
-                  </h4>
-                  <ul className="space-y-3">
-                    {constraintResult.warnings.map((w, i) => {
-                      const label = w.name || w.rule_name || w.rule_id;
-                      const suggestion = buildSuggestion(w);
-                      return (
-                        <li key={i} className="text-sm text-yellow-700 border-t border-yellow-100 pt-2 first:border-0 first:pt-0">
-                          <div className="font-semibold">{label}</div>
-                          <div className="mt-0.5">{w.message}</div>
-                          {suggestion && (
-                            <div className="mt-1.5 flex items-start gap-1.5 rounded bg-yellow-100 px-2 py-1.5 text-yellow-800">
-                              <span className="mt-0.5 shrink-0">💡</span>
-                              <span className="italic">{suggestion}</span>
-                            </div>
-                          )}
-                        </li>
-                      );
-                    })}
-                  </ul>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {/* Success State */}
+            {submitSuccess && success && (
+              <div className="mb-4 rounded-lg bg-green-50 border border-green-200 px-4 py-3 text-sm text-green-700 dark:bg-green-900/20 dark:border-green-800 dark:text-green-300">
+                <div className="flex items-center gap-2">
+                  <span className="text-lg">✅</span>
+                  {success}
                 </div>
-              )}
-
-              {/* AI Recommendation */}
-              {constraintResult.recommendation && (
-                <div className="rounded-lg bg-blue-50 border border-blue-200 px-4 py-3">
-                  <h4 className="font-semibold text-blue-800 mb-1 flex items-center gap-2">
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-                    </svg>
-                    Recommendation
-                  </h4>
-                  <p className="text-sm text-blue-700">{constraintResult.recommendation}</p>
-                  {constraintResult.confidence_score !== undefined && (
-                    <p className="text-xs text-blue-500 mt-1">
-                      Confidence: {Math.round(constraintResult.confidence_score * 100)}%
-                    </p>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
-          
-          {success && (
-            <div className="mb-4 rounded-lg bg-green-50 border border-green-200 px-4 py-3 text-sm text-green-700">
-              {success}
-            </div>
-          )}
-
-          <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Leave Type */}
-            <div>
-              <label htmlFor="leaveType" className="block text-sm font-medium text-gray-700 mb-1">
-                Leave Type
-              </label>
-              <select
-                id="leaveType"
-                value={leaveType}
-                onChange={(e) => setLeaveType(e.target.value)}
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                required
-              >
-                <option value="">Select leave type</option>
-                {leaveTypes.map((type) => (
-                  <option key={type.value} value={type.value}>
-                    {type.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Date Range */}
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label htmlFor="startDate" className="block text-sm font-medium text-gray-700 mb-1">
-                  Start Date
-                </label>
-                <input
-                  id="startDate"
-                  type="date"
-                  value={startDate}
-                  min={new Date().toISOString().split('T')[0]}
-                  onChange={(e) => setStartDate(e.target.value)}
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                  required
-                />
-              </div>
-              <div>
-                <label htmlFor="endDate" className="block text-sm font-medium text-gray-700 mb-1">
-                  End Date
-                </label>
-                <input
-                  id="endDate"
-                  type="date"
-                  value={endDate}
-                  min={startDate || new Date().toISOString().split('T')[0]}
-                  onChange={(e) => setEndDate(e.target.value)}
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                  required
-                />
-              </div>
-            </div>
-
-            {/* Days count */}
-            {totalDays > 0 && (
-              <div className="rounded-lg bg-blue-50 border border-blue-100 px-4 py-2 text-sm text-blue-700">
-                Total: <span className="font-semibold">{totalDays} day{totalDays !== 1 ? 's' : ''}</span>
               </div>
             )}
 
-            {/* Half Day Toggle */}
-            <div className="flex items-center gap-3">
-              <input
-                id="halfDay"
-                type="checkbox"
-                checked={halfDay}
-                onChange={(e) => setHalfDay(e.target.checked)}
-                className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-              />
-              <label htmlFor="halfDay" className="text-sm text-gray-700">
-                Half-day leave
-              </label>
-            </div>
+            {/* Error State */}
+            {error && !constraintResult && (
+              <div className="mb-4 rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700 dark:bg-red-900/20 dark:border-red-800 dark:text-red-300">
+                <div className="flex items-center gap-2">
+                  <span className="text-lg">❌</span>
+                  {error}
+                </div>
+              </div>
+            )}
+            {/* Constraint Preview - Real-time feedback */}
+            {constraintResult && (
+              <div className="mb-6 space-y-4">
+                {/* Blocking Violations */}
+                {constraintResult.violations && constraintResult.violations.length > 0 && (
+                  <div className="rounded-lg bg-red-50 border border-red-200 px-4 py-4 dark:bg-red-900/20 dark:border-red-800">
+                    <h4 className="font-semibold text-red-800 dark:text-red-300 mb-3 flex items-center gap-2">
+                      <span className="text-lg">🚫</span>
+                      Constraint Violations — Request cannot be submitted
+                    </h4>
+                    <div className="space-y-3">
+                      {constraintResult.violations.map((v, i) => {
+                        const label = v.name || v.rule_name || v.rule_id;
+                        const suggestion = buildSuggestion(v);
+                        return (
+                          <div key={i} className="rounded-lg bg-red-100 dark:bg-red-900/40 px-3 py-3 border border-red-200 dark:border-red-800">
+                            <div className="font-semibold text-red-800 dark:text-red-200">{label}</div>
+                            <div className="mt-1 text-red-700 dark:text-red-300 text-sm">{v.message}</div>
+                            {suggestion && (
+                              <div className="mt-2 flex items-start gap-2 rounded bg-red-200 dark:bg-red-800/50 px-3 py-2 text-red-900 dark:text-red-100">
+                                <span className="mt-0.5 text-lg">💡</span>
+                                <span className="text-sm italic">{suggestion}</span>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
 
-            {/* Reason */}
-            <div>
-              <label htmlFor="reason" className="block text-sm font-medium text-gray-700 mb-1">
-                Reason <span className="text-gray-400 font-normal">(required)</span>
-              </label>
-              <textarea
-                id="reason"
-                value={reason}
-                onChange={(e) => setReason(e.target.value)}
-                rows={4}
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none resize-none"
-                placeholder="Provide a reason for your leave request..."
-                required
-                minLength={3}
-                maxLength={1000}
-              />
-              <p className="text-xs text-gray-400 mt-1">{reason.length}/1000</p>
-            </div>
+                {/* Warnings */}
+                {constraintResult.warnings && constraintResult.warnings.length > 0 && (
+                  <div className="rounded-lg bg-yellow-50 border border-yellow-200 px-4 py-4 dark:bg-yellow-900/20 dark:border-yellow-800">
+                    <h4 className="font-semibold text-yellow-800 dark:text-yellow-300 mb-3 flex items-center gap-2">
+                      <span className="text-lg">⚠️</span>
+                      Warnings
+                    </h4>
+                    <div className="space-y-3">
+                      {constraintResult.warnings.map((w, i) => {
+                        const label = w.name || w.rule_name || w.rule_id;
+                        const suggestion = buildSuggestion(w);
+                        return (
+                          <div key={i} className="text-sm text-yellow-700 dark:text-yellow-200">
+                            <div className="font-semibold">{label}</div>
+                            <div className="mt-1">{w.message}</div>
+                            {suggestion && (
+                              <div className="mt-2 flex items-start gap-2 rounded bg-yellow-100 dark:bg-yellow-900/40 px-2 py-2 text-yellow-800 dark:text-yellow-100">
+                                <span className="mt-0.5">💡</span>
+                                <span className="italic">{suggestion}</span>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
 
-            {/* Actions */}
-            <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => router.push('/employee/dashboard')}
-                disabled={loading}
-              >
-                Cancel
-              </Button>
-              <Button type="submit" disabled={loading}>
-                {loading ? 'Submitting…' : 'Submit Request'}
-              </Button>
-            </div>
-          </form>
-        </CardContent>
-      </Card>
+                {/* AI Recommendation */}
+                {constraintResult.recommendation && (
+                  <div className="rounded-lg bg-blue-50 border border-blue-200 px-4 py-4 dark:bg-blue-900/20 dark:border-blue-800">
+                    <h4 className="font-semibold text-blue-800 dark:text-blue-300 mb-2 flex items-center gap-2">
+                      <span className="text-lg">🤖</span>
+                      AI Recommendation
+                    </h4>
+                    <p className="text-sm text-blue-700 dark:text-blue-200">{constraintResult.recommendation}</p>
+                    {constraintResult.confidence_score !== undefined && (
+                      <div className="mt-2 flex items-center gap-2">
+                        <div className="flex-1 bg-blue-200 dark:bg-blue-800 rounded-full h-2">
+                          <div 
+                            className="bg-blue-600 dark:bg-blue-400 h-2 rounded-full transition-all duration-300"
+                            style={{ width: `${(constraintResult.confidence_score || 0) * 100}%` }}
+                          />
+                        </div>
+                        <span className="text-xs text-blue-600 dark:text-blue-300">
+                          {Math.round((constraintResult.confidence_score || 0) * 100)}% confidence
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+            {/* Enhanced Form */}
+            <form onSubmit={handleSubmit} className="space-y-6">
+              {/* Leave Type with better styling */}
+              <div>
+                <label htmlFor="leaveType" className="block text-sm font-medium text-foreground mb-2">
+                  Leave Type
+                </label>
+                <select
+                  id="leaveType"
+                  value={leaveType}
+                  onChange={(e) => setLeaveType(e.target.value)}
+                  className="w-full rounded-lg border border-border bg-background px-4 py-3 text-sm text-foreground focus:border-primary focus:ring-2 focus:ring-primary/20 focus:outline-none transition-all"
+                  required
+                  disabled={isSubmitting}
+                >
+                  <option value="">Select leave type</option>
+                  {leaveTypes.map((type) => (
+                    <option key={type.value} value={type.value}>
+                      {type.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Enhanced Date Range */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label htmlFor="startDate" className="block text-sm font-medium text-foreground mb-2">
+                    Start Date
+                  </label>
+                  <input
+                    id="startDate"
+                    type="date"
+                    value={startDate}
+                    min={new Date().toISOString().split('T')[0]}
+                    onChange={(e) => setStartDate(e.target.value)}
+                    className="w-full rounded-lg border border-border bg-background px-4 py-3 text-sm text-foreground focus:border-primary focus:ring-2 focus:ring-primary/20 focus:outline-none transition-all"
+                    required
+                    disabled={isSubmitting}
+                  />
+                </div>
+                <div>
+                  <label htmlFor="endDate" className="block text-sm font-medium text-foreground mb-2">
+                    End Date
+                  </label>
+                  <input
+                    id="endDate"
+                    type="date"
+                    value={endDate}
+                    min={startDate || new Date().toISOString().split('T')[0]}
+                    onChange={(e) => setEndDate(e.target.value)}
+                    className="w-full rounded-lg border border-border bg-background px-4 py-3 text-sm text-foreground focus:border-primary focus:ring-2 focus:ring-primary/20 focus:outline-none transition-all"
+                    required
+                    disabled={isSubmitting}
+                  />
+                </div>
+              </div>
+
+              {/* Enhanced Days counter with better visual feedback */}
+              {totalDays > 0 && (
+                <div className="flex items-center gap-4 rounded-lg bg-primary/5 border border-primary/10 px-4 py-3">
+                  <div className="flex items-center gap-2 text-primary">
+                    <span className="text-lg">📅</span>
+                    <span className="text-sm font-medium">Total Duration:</span>
+                  </div>
+                  <span className="text-lg font-bold text-primary">
+                    {totalDays} day{totalDays !== 1 ? 's' : ''}
+                  </span>
+                </div>
+              )}
+
+              {/* Enhanced Half Day Toggle */}
+              <div className="flex items-center gap-3 p-4 rounded-lg bg-muted/50 border border-border">
+                <input
+                  id="halfDay"
+                  type="checkbox"
+                  checked={halfDay}
+                  onChange={(e) => setHalfDay(e.target.checked)}
+                  className="h-4 w-4 rounded border-border text-primary focus:ring-primary transition-colors"
+                  disabled={isSubmitting}
+                />
+                <label htmlFor="halfDay" className="text-sm text-foreground font-medium">
+                  Half-day leave
+                </label>
+                {halfDay && (
+                  <span className="text-xs text-muted-foreground ml-auto">
+                    Duration will be 0.5 days
+                  </span>
+                )}
+              </div>
+
+              {/* Enhanced Reason field */}
+              <div>
+                <label htmlFor="reason" className="block text-sm font-medium text-foreground mb-2">
+                  Reason <span className="text-muted-foreground font-normal">(required)</span>
+                </label>
+                <textarea
+                  id="reason"
+                  value={reason}
+                  onChange={(e) => setReason(e.target.value)}
+                  rows={4}
+                  className="w-full rounded-lg border border-border bg-background px-4 py-3 text-sm text-foreground focus:border-primary focus:ring-2 focus:ring-primary/20 focus:outline-none resize-none transition-all"
+                  placeholder="Provide a clear reason for your leave request..."
+                  required
+                  minLength={3}
+                  maxLength={1000}
+                  disabled={isSubmitting}
+                />
+                <div className="flex justify-between items-center mt-1">
+                  <span className="text-xs text-muted-foreground">
+                    {reason.length}/1000 characters
+                  </span>
+                  {reason.length > 0 && reason.length < 10 && (
+                    <span className="text-xs text-yellow-600 dark:text-yellow-400">
+                      Please provide more details
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Enhanced Actions with OptimisticButton */}
+              <div className="flex justify-end gap-3 pt-6 border-t border-border">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => router.push('/employee/dashboard')}
+                  disabled={isSubmitting}
+                  className="min-w-[100px]"
+                >
+                  Cancel
+                </Button>
+                <OptimisticButton
+                  type="submit"
+                  isLoading={isSubmitting}
+                  loadingText="Submitting request..."
+                  successMessage={submitSuccess ? "Request submitted!" : undefined}
+                  errorMessage={submitError || undefined}
+                  disabled={!leaveType || !startDate || !endDate || !reason || isSubmitting || (constraintResult?.violations && constraintResult.violations.length > 0)}
+                  className="min-w-[140px]"
+                >
+                  Submit Request
+                </OptimisticButton>
+              </div>
+            </form>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

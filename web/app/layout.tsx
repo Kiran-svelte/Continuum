@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import { ThemeProvider } from '@/components/theme-provider';
 import { TutorialProvider } from '@/components/tutorial/tutorial-provider';
+import { GlobalErrorBoundary } from '@/components/global-error-boundary';
 import './globals.css';
 
 export const metadata: Metadata = {
@@ -89,11 +90,13 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className="antialiased min-h-screen bg-background text-foreground transition-colors duration-300">
-        <ThemeProvider defaultTheme="system" storageKey="continuum-theme">
-          <TutorialProvider>
-            {children}
-          </TutorialProvider>
-        </ThemeProvider>
+        <GlobalErrorBoundary>
+          <ThemeProvider defaultTheme="system" storageKey="continuum-theme">
+            <TutorialProvider>
+              {children}
+            </TutorialProvider>
+          </ThemeProvider>
+        </GlobalErrorBoundary>
       </body>
     </html>
   );

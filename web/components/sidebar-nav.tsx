@@ -12,9 +12,10 @@ interface NavItem {
 
 interface SidebarNavProps {
   items: NavItem[];
+  onItemClick?: () => void;
 }
 
-export function SidebarNav({ items }: SidebarNavProps) {
+export function SidebarNav({ items, onItemClick }: SidebarNavProps) {
   const pathname = usePathname();
 
   return (
@@ -25,17 +26,18 @@ export function SidebarNav({ items }: SidebarNavProps) {
           <Link
             key={item.href}
             href={item.href}
+            onClick={onItemClick}
             className={cn(
               'flex items-center gap-3 px-3 py-2 text-sm rounded-lg transition-all duration-200',
               isActive
-                ? 'bg-blue-600/10 text-blue-600 font-medium'
-                : 'text-gray-500 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-100'
+                ? 'bg-primary/10 text-primary font-medium'
+                : 'text-muted-foreground hover:bg-muted hover:text-foreground'
             )}
           >
             <span>{item.icon}</span>
             <span>{item.label}</span>
             {isActive && (
-              <span className="ml-auto w-1.5 h-1.5 rounded-full bg-blue-600 shrink-0" />
+              <span className="ml-auto w-1.5 h-1.5 rounded-full bg-primary shrink-0" />
             )}
           </Link>
         );

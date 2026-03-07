@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
@@ -10,6 +10,7 @@ import { SkeletonDashboard } from '@/components/ui/skeleton';
 import { PageLoader } from '@/components/ui/progress';
 import { StartTutorialButton, hrTutorial } from '@/components/tutorial';
 import { ensureMe } from '@/lib/client-auth';
+import { getPusherClient, getCompanyChannelName, type PusherEventType } from '@/lib/pusher-client';
 
 // ----- Types -----
 interface DashboardMetrics {
@@ -91,6 +92,12 @@ export default function HRDashboardPage() {
   const [loadingRequests, setLoadingRequests] = useState(true);
   const [userName, setUserName] = useState('');
   const [companyName, setCompanyName] = useState('');
+  
+  // Real-time state management
+  const [companyId, setCompanyId] = useState<string | null>(null);
+  const [isLive, setIsLive] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState<string>('');
+  const channelRef = useRef<any>(null);
 
   // Auth check
   useEffect(() => {
@@ -121,12 +128,137 @@ export default function HRDashboardPage() {
 
       setUserName(me.first_name || 'Admin');
       setCompanyName(me.company?.name || '');
+      setCompanyId(me.company?.id || null);
       setAuthChecked(true);
       setLoading(false);
     })();
 
     return () => { cancelled = true; };
   }, [router]);
+
+  // Real-time dashboard updates via Pusher
+  useEffect(() => {
+    if (!companyId) return;
+
+    const pusher = getPusherClient();
+    if (!pusher) {
+      console.warn('Pusher not available. Real-time updates disabled.');
+      return;
+    }
+
+    // Subscribe to company-wide events
+    const companyChannelName = getCompanyChannelName(companyId);
+    const channel = pusher.subscribe(companyChannelName);
+    channelRef.current = channel;
+
+    pusher.connection.bind('connected', () => {
+      setIsLive(true);
+      console.log('HR Dashboard: Real-time updates connected');
+    });
+
+    pusher.connection.bind('disconnected', () => {
+      setIsLive(false);
+      console.log('HR Dashboard: Real-time updates disconnected');
+    });
+
+    // Handle real-time metric updates
+    const handleMetricsUpdate = (data: any) => {
+      console.log('Received metrics update:', data);
+      setLastUpdated(new Date().toLocaleTimeString());
+      
+      if (data.type === 'pendingApprovals') {
+        setMetrics(prev => prev ? ({ ...prev, pendingApprovals: data.count }) : null);
+      } else if (data.type === 'employeeCount') {
+        setMetrics(prev => prev ? ({ ...prev, totalEmployees: data.count }) : null);
+      } else if (data.type === 'todayAbsent') {
+        setMetrics(prev => prev ? ({ ...prev, todayAbsent: data.count }) : null);
+      }
+    };
+
+    // Handle new leave requests
+    const handleNewLeaveRequest = (data: any) => {
+      console.log('New leave request:', data);
+      setLastUpdated(new Date().toLocaleTimeString());
+      
+      // Add to recent requests if it's not already there
+      setRecentRequests(prev => {
+        const exists = prev.find(r => r.id === data.id);
+        if (exists) return prev;
+        
+        const newRequest: LeaveRequestRow = {
+          id: data.id,
+          leave_type: data.leave_type,
+          start_date: data.start_date,
+          end_date: data.end_date,
+          total_days: data.total_days,
+          status: data.status || 'pending',
+          created_at: data.created_at || new Date().toISOString(),
+          employee: data.employee || {
+            id: '',
+            first_name: 'Unknown',
+            last_name: '',
+            department: null,
+            designation: null,
+          }
+        };
+        
+        return [newRequest, ...prev.slice(0, 4)];
+      });
+
+      // Update pending approvals count
+      if (data.status === 'pending') {
+        setMetrics(prev => prev ? ({ 
+          ...prev, 
+          pendingApprovals: prev.pendingApprovals + 1,
+          pendingUrgent: Math.min(prev.pendingApprovals + 1, 5)
+        }) : null);
+      }
+    };
+
+    // Handle leave request status changes
+    const handleLeaveStatusUpdate = (data: any) => {
+      console.log('Leave status updated:', data);
+      setLastUpdated(new Date().toLocaleTimeString());
+      
+      // Update in recent requests
+      setRecentRequests(prev => 
+        prev.map(req => 
+          req.id === data.id 
+            ? { ...req, status: data.status }
+            : req
+        )
+      );
+
+      // Update metrics if this affects pending count
+      if (data.oldStatus === 'pending' && data.status !== 'pending') {
+        setMetrics(prev => prev ? ({ 
+          ...prev, 
+          pendingApprovals: Math.max(0, prev.pendingApprovals - 1),
+          pendingUrgent: Math.max(0, Math.min(prev.pendingApprovals - 1, 5))
+        }) : null);
+      }
+    };
+
+    // Bind to real-time events
+    channel.bind('leave-request-submitted', handleNewLeaveRequest);
+    channel.bind('leave-request-approved', handleLeaveStatusUpdate);
+    channel.bind('leave-request-rejected', handleLeaveStatusUpdate);
+    channel.bind('metrics-updated', handleMetricsUpdate);
+    channel.bind('employee-joined', handleMetricsUpdate);
+    channel.bind('employee-left', handleMetricsUpdate);
+
+    return () => {
+      if (channelRef.current) {
+        channelRef.current.unbind('leave-request-submitted', handleNewLeaveRequest);
+        channelRef.current.unbind('leave-request-approved', handleLeaveStatusUpdate);
+        channelRef.current.unbind('leave-request-rejected', handleLeaveStatusUpdate);
+        channelRef.current.unbind('metrics-updated', handleMetricsUpdate);
+        channelRef.current.unbind('employee-joined', handleMetricsUpdate);
+        channelRef.current.unbind('employee-left', handleMetricsUpdate);
+        pusher.unsubscribe(companyChannelName);
+      }
+    };
+  }, [companyId]);
 
   // Fetch real metrics
   const fetchMetrics = useCallback(async () => {
@@ -246,7 +378,7 @@ export default function HRDashboardPage() {
       animate="visible"
       variants={containerVariants}
     >
-      {/* Header */}
+      {/* Enhanced Header with Live Status */}
       <motion.div
         className="flex items-center justify-between"
         variants={itemVariants}
@@ -255,9 +387,23 @@ export default function HRDashboardPage() {
           <h1 className="text-2xl font-bold text-foreground">
             Good {new Date().getHours() < 12 ? 'morning' : new Date().getHours() < 17 ? 'afternoon' : 'evening'}, {userName}
           </h1>
-          <p className="text-muted-foreground mt-1">
-            {companyName ? `${companyName} — ` : ''}Overview of your organization&apos;s leave management
-          </p>
+          <div className="flex items-center gap-4 mt-1">
+            <p className="text-muted-foreground">
+              {companyName ? `${companyName} — ` : ''}Overview of your organization&apos;s leave management
+            </p>
+            {/* Live status indicator */}
+            <div className="flex items-center gap-2 text-sm">
+              <div className={`w-2 h-2 rounded-full ${isLive ? 'bg-green-500' : 'bg-yellow-500'}`} />
+              <span className="text-muted-foreground">
+                {isLive ? 'Live' : 'Connecting...'}
+              </span>
+              {lastUpdated && isLive && (
+                <span className="text-xs text-muted-foreground">
+                  • Updated {lastUpdated}
+                </span>
+              )}
+            </div>
+          </div>
         </div>
         <div className="flex items-center gap-3">
           <StartTutorialButton tutorial={hrTutorial} variant="outline" className="text-xs px-3 py-1.5" />

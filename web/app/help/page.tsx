@@ -7,7 +7,6 @@ import { Button } from '@/components/ui/button';
 import {
   BookOpen,
   PlayCircle,
-  FileText,
   Users,
   Settings,
   Calendar,

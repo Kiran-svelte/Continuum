@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
@@ -10,6 +10,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { PageLoader } from '@/components/ui/progress';
 import { WelcomeModal, FloatingTutorialButton, StartTutorialButton, employeeTutorial } from '@/components/tutorial';
 import { ensureMe } from '@/lib/client-auth';
+import { getPusherClient, getUserChannelName, type PusherEventType } from '@/lib/pusher-client';
 
 interface LeaveBalance {
   leave_type: string;
@@ -94,6 +95,12 @@ export default function EmployeeDashboardPage() {
   const [loadingRequests, setLoadingRequests] = useState(true);
   const [pageReady, setPageReady] = useState(false);
   const [userName, setUserName] = useState('');
+  
+  // Real-time state management
+  const [userId, setUserId] = useState<string | null>(null);
+  const [isLive, setIsLive] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState<string>('');
+  const channelRef = useRef<any>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -117,11 +124,106 @@ export default function EmployeeDashboardPage() {
       }
 
       setUserName(me.first_name || 'there');
+      setUserId(me.id);
       setPageReady(true);
     })();
 
     return () => { cancelled = true; };
   }, [router]);
+
+  // Real-time dashboard updates for employees
+  useEffect(() => {
+    if (!userId) return;
+
+    const pusher = getPusherClient();
+    if (!pusher) {
+      console.warn('Pusher not available. Real-time updates disabled.');
+      return;
+    }
+
+    // Subscribe to user-specific events
+    const userChannelName = getUserChannelName(userId);
+    const channel = pusher.subscribe(userChannelName);
+    channelRef.current = channel;
+
+    pusher.connection.bind('connected', () => {
+      setIsLive(true);
+      console.log('Employee Dashboard: Real-time updates connected');
+    });
+
+    pusher.connection.bind('disconnected', () => {
+      setIsLive(false);
+      console.log('Employee Dashboard: Real-time updates disconnected');
+    });
+
+    // Handle leave balance updates
+    const handleBalanceUpdate = (data: any) => {
+      console.log('Balance updated:', data);
+      setLastUpdated(new Date().toLocaleTimeString());
+      
+      setBalances(prev => 
+        prev.map(balance => 
+          balance.leave_type === data.leave_type 
+            ? { ...balance, remaining: data.new_remaining }
+            : balance
+        )  
+      );
+    };
+
+    // Handle leave request status changes
+    const handleLeaveStatusUpdate = (data: any) => {
+      console.log('Leave request status updated:', data);
+      setLastUpdated(new Date().toLocaleTimeString());
+      
+      setRecentRequests(prev => 
+        prev.map(req => 
+          req.id === data.id 
+            ? { ...req, status: data.status }
+            : req
+        )
+      );
+    };
+
+    // Handle new leave request confirmation
+    const handleLeaveRequestConfirmed = (data: any) => {
+      console.log('Leave request confirmed:', data);
+      setLastUpdated(new Date().toLocaleTimeString());
+      
+      // Add to recent requests if not already there
+      setRecentRequests(prev => {
+        const exists = prev.find(r => r.id === data.id);
+        if (exists) return prev;
+        
+        const newRequest: LeaveRequestBrief = {
+          id: data.id,
+          leave_type: data.leave_type,
+          start_date: data.start_date,
+          end_date: data.end_date,
+          total_days: data.total_days,
+          status: data.status || 'pending',
+          created_at: data.created_at || new Date().toISOString(),
+        };
+        
+        return [newRequest, ...prev.slice(0, 2)];
+      });
+    };
+
+    // Bind to real-time events
+    channel.bind('leave-balance-updated', handleBalanceUpdate);
+    channel.bind('leave-request-approved', handleLeaveStatusUpdate);
+    channel.bind('leave-request-rejected', handleLeaveStatusUpdate);
+    channel.bind('leave-request-confirmed', handleLeaveRequestConfirmed);
+
+    return () => {
+      if (channelRef.current) {
+        channelRef.current.unbind('leave-balance-updated', handleBalanceUpdate);
+        channelRef.current.unbind('leave-request-approved', handleLeaveStatusUpdate);
+        channelRef.current.unbind('leave-request-rejected', handleLeaveStatusUpdate);
+        channelRef.current.unbind('leave-request-confirmed', handleLeaveRequestConfirmed);
+        pusher.unsubscribe(userChannelName);
+      }
+    };
+  }, [userId]);
 
   const loadBalances = useCallback(async () => {
     setLoadingBalances(true);
@@ -219,13 +321,27 @@ export default function EmployeeDashboardPage() {
       animate="visible"
       variants={containerVariants}
     >
-      {/* Header */}
+      {/* Enhanced Header with Live Status */}
       <motion.div className="flex items-center justify-between" variants={itemVariants}>
         <div>
           <h1 className="text-2xl font-bold text-foreground">
             Welcome back, {userName} 👋
           </h1>
-          <p className="text-muted-foreground mt-1">Here&apos;s your leave overview for this year</p>
+          <div className="flex items-center gap-4 mt-1">
+            <p className="text-muted-foreground">Here&apos;s your leave overview for this year</p>
+            {/* Live status indicator */}
+            <div className="flex items-center gap-2 text-sm">
+              <div className={`w-2 h-2 rounded-full ${isLive ? 'bg-green-500' : 'bg-yellow-500'}`} />
+              <span className="text-muted-foreground">
+                {isLive ? 'Live' : 'Connecting...'}
+              </span>
+              {lastUpdated && isLive && (
+                <span className="text-xs text-muted-foreground">
+                  • Updated {lastUpdated}
+                </span>
+              )}
+            </div>
+          </div>
         </div>
         <div className="flex gap-3 items-center" data-tutorial="apply-leave-btn">
           <StartTutorialButton tutorial={employeeTutorial} variant="outline" className="text-xs px-3 py-1.5" />
