@@ -7,6 +7,7 @@ import { checkApiRateLimit, getRateLimitHeaders } from '@/lib/api-rate-limit';
 import { createAuditLog, AUDIT_ACTIONS } from '@/lib/audit';
 import { sanitizeInput } from '@/lib/security';
 import { sendLeaveSubmissionEmail, sendLeaveAutoApprovedEmail } from '@/lib/email-service';
+import { getDefaultLeaveTypes } from '@/lib/leave-types-config';
 
 export const dynamic = 'force-dynamic';
 
@@ -64,8 +65,9 @@ export async function POST(request: NextRequest) {
     const totalDays = calculateTotalDays(startDate, endDate, data.is_half_day);
     const currentYear = new Date().getFullYear();
 
-    // Check leave balance
-    const balance = await prisma.leaveBalance.findUnique({
+    // Check leave balance — ensure a record exists so pending/used tracking is always accurate.
+    // `balance` starts as the existing record; if missing, we upsert a fresh one.
+    let balance = await prisma.leaveBalance.findUnique({
       where: {
         emp_id_leave_type_year: {
           emp_id: employee.id,
@@ -74,6 +76,43 @@ export async function POST(request: NextRequest) {
         },
       },
     });
+
+    if (!balance) {
+      // Seed this leave type's balance — prefer the company's configured quota,
+      // fall back to the catalog default.
+      const companyLeaveType = await prisma.leaveType.findUnique({
+        where: {
+          company_id_code: { company_id: employee.org_id, code: leaveType },
+        },
+        select: { default_quota: true },
+      });
+      const catalog = getDefaultLeaveTypes();
+      const catalogEntry = catalog.find((lt) => lt.code === leaveType);
+      const entitlement = companyLeaveType?.default_quota ?? catalogEntry?.defaultQuota ?? 0;
+
+      balance = await prisma.leaveBalance.upsert({
+        where: {
+          emp_id_leave_type_year: {
+            emp_id: employee.id,
+            leave_type: leaveType,
+            year: currentYear,
+          },
+        },
+        create: {
+          emp_id: employee.id,
+          company_id: employee.org_id,
+          leave_type: leaveType,
+          year: currentYear,
+          annual_entitlement: entitlement,
+          carried_forward: 0,
+          used_days: 0,
+          pending_days: 0,
+          encashed_days: 0,
+          remaining: entitlement,
+        },
+        update: {},
+      });
+    }
 
     const company = await prisma.company.findUnique({
       where: { id: employee.org_id },
@@ -90,20 +129,25 @@ export async function POST(request: NextRequest) {
       ? hrAlerts.auto_approve_threshold
       : 0.9;
 
-    if (balance) {
-      const remaining =
-        balance.annual_entitlement +
-        balance.carried_forward -
-        balance.used_days -
-        balance.pending_days -
-        balance.encashed_days;
+    // `balance` is guaranteed non-null here (upserted above).
+    // Scoping `remaining` to avoid leaking into the wider function body.
+    const remaining =
+      balance.annual_entitlement +
+      balance.carried_forward -
+      balance.used_days -
+      balance.pending_days -
+      balance.encashed_days;
 
-      if (remaining < totalDays && !company?.negative_balance) {
-        return NextResponse.json(
-          { error: 'Insufficient leave balance', remaining, requested: totalDays },
-          { status: 400 }
-        );
-      }
+    if (remaining < totalDays && !company?.negative_balance) {
+      return NextResponse.json(
+        {
+          error: 'Insufficient leave balance',
+          remaining,
+          requested: totalDays,
+          leave_type: leaveType,
+        },
+        { status: 400 }
+      );
     }
 
     // Call Python constraint engine
@@ -192,18 +236,17 @@ export async function POST(request: NextRequest) {
     });
 
     // Update leave balance: auto-approved = used immediately; pending = pending_days
-    if (balance) {
-      if (requestStatus === 'approved') {
-        await prisma.leaveBalance.update({
-          where: { id: balance.id },
-          data: { used_days: { increment: totalDays } },
-        });
-      } else {
-        await prisma.leaveBalance.update({
-          where: { id: balance.id },
-          data: { pending_days: { increment: totalDays } },
-        });
-      }
+    // balance is always non-null at this point (upserted above)
+    if (requestStatus === 'approved') {
+      await prisma.leaveBalance.update({
+        where: { id: balance.id },
+        data: { used_days: { increment: totalDays } },
+      });
+    } else {
+      await prisma.leaveBalance.update({
+        where: { id: balance.id },
+        data: { pending_days: { increment: totalDays } },
+      });
     }
 
     await createAuditLog({

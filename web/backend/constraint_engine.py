@@ -273,9 +273,10 @@ def _rule_result(
     category: str,
     message: str,
     details: dict | None = None,
+    suggestion: str | None = None,
 ) -> dict:
     """Standardised result dict returned by every rule evaluator."""
-    return {
+    result: dict = {
         "rule_id": rule_id,
         "name": name,
         "passed": passed,
@@ -284,6 +285,9 @@ def _rule_result(
         "message": message,
         "details": details or {},
     }
+    if suggestion:
+        result["suggestion"] = suggestion
+    return result
 
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
@@ -526,9 +530,14 @@ def evaluate_rule_001(
                 f"{leave_type} leave cannot exceed {max_days} consecutive days "
                 f"(requested {total_days})"
             )
-            result = _rule_result(rule_id, name, False, is_blocking, category, msg, {
-                "max_days": max_days, "requested_days": total_days,
-            })
+            result = _rule_result(
+                rule_id, name, False, is_blocking, category, msg,
+                {"max_days": max_days, "requested_days": total_days},
+                suggestion=(
+                    f"Split your request into multiple shorter requests of up to {max_days} day(s) each, "
+                    f"or contact HR to request a special exception."
+                ),
+            )
         else:
             result = _rule_result(
                 rule_id, name, True, is_blocking, category,
@@ -600,15 +609,26 @@ def evaluate_rule_002(
                     f"Insufficient {leave_type} balance: {remaining} remaining, "
                     f"{total_days} requested"
                 )
-                result = _rule_result(rule_id, name, False, is_blocking, category, msg, {
-                    "remaining": remaining,
-                    "requested": total_days,
-                    "entitlement": entitlement,
-                    "carried_forward": carried,
-                    "used": used,
-                    "pending": pending,
-                    "encashed": encashed,
-                })
+                result = _rule_result(
+                    rule_id, name, False, is_blocking, category, msg,
+                    {
+                        # Include both old keys (backward-compat) and new descriptive keys
+                        "remaining": remaining,
+                        "requested": total_days,
+                        "remaining_days": remaining,
+                        "requested_days": total_days,
+                        "entitlement": entitlement,
+                        "carried_forward": carried,
+                        "used": used,
+                        "pending": pending,
+                        "encashed": encashed,
+                    },
+                    suggestion=(
+                        f"You have {remaining} day(s) of {leave_type} left. "
+                        f"Try reducing the duration to {int(remaining)} day(s) or fewer. "
+                        f"Alternatively, consider Leave Without Pay (LWP) for the remaining days."
+                    ),
+                )
             else:
                 result = _rule_result(
                     rule_id, name, True, is_blocking, category,
@@ -673,10 +693,15 @@ def evaluate_rule_003(
                 f"Team coverage would drop to {coverage}% "
                 f"(minimum {min_pct}% required)"
             )
-            result = _rule_result(rule_id, name, False, is_blocking, category, msg, {
-                "team_size": team_size, "on_leave": on_leave,
-                "coverage_pct": coverage, "min_pct": min_pct,
-            })
+            result = _rule_result(
+                rule_id, name, False, is_blocking, category, msg,
+                {"team_size": team_size, "on_leave": on_leave,
+                 "coverage_pct": coverage, "min_pct": min_pct},
+                suggestion=(
+                    f"There are already {on_leave - 1} colleague(s) on leave during this period. "
+                    f"Consider choosing different dates, or discuss with your manager to coordinate coverage."
+                ),
+            )
         else:
             result = _rule_result(
                 rule_id, name, True, is_blocking, category,
@@ -731,9 +756,14 @@ def evaluate_rule_004(
                 f"{concurrent} employees would be on leave simultaneously "
                 f"(max {max_concurrent})"
             )
-            result = _rule_result(rule_id, name, False, is_blocking, category, msg, {
-                "concurrent": concurrent, "max_concurrent": max_concurrent,
-            })
+            result = _rule_result(
+                rule_id, name, False, is_blocking, category, msg,
+                {"concurrent": concurrent, "max_concurrent": max_concurrent},
+                suggestion=(
+                    f"The department already has the maximum allowed concurrent absences ({max_concurrent}). "
+                    f"Try a different date range or coordinate with your colleagues to stagger leave."
+                ),
+            )
         else:
             result = _rule_result(
                 rule_id, name, True, is_blocking, category,
@@ -826,11 +856,18 @@ def evaluate_rule_005(
                     )
                     elapsed = round((time.monotonic() - t0) * 1000, 2)
                     logger.info("RULE005 evaluated in %sms – passed=False", elapsed)
-                    return _rule_result(rule_id, name, False, is_blocking, category, msg, {
-                        "blackout_name": bp_name,
-                        "blackout_start": str(bp_start),
-                        "blackout_end": str(bp_end),
-                    })
+                    return _rule_result(
+                        rule_id, name, False, is_blocking, category, msg,
+                        {
+                            "blackout_name": bp_name,
+                            "blackout_start": str(bp_start),
+                            "blackout_end": str(bp_end),
+                        },
+                        suggestion=(
+                            f"These dates overlap with '{bp_name}' ({bp_start} to {bp_end}), "
+                            f"which is a restricted period. Please choose dates outside this window."
+                        ),
+                    )
 
         result = _rule_result(
             rule_id, name, True, is_blocking, category,
@@ -880,9 +917,15 @@ def evaluate_rule_006(
                 f"Only {days_notice} day(s) notice given; "
                 f"{leave_type} requires {min_notice} day(s)"
             )
-            result = _rule_result(rule_id, name, False, is_blocking, category, msg, {
-                "days_notice": days_notice, "required": min_notice,
-            })
+            result = _rule_result(
+                rule_id, name, False, is_blocking, category, msg,
+                {"days_notice": days_notice, "required": min_notice},
+                suggestion=(
+                    f"{leave_type} requires at least {min_notice} day(s) advance notice. "
+                    f"Move your start date to at least {request_date.isoformat()} + {min_notice} day(s), "
+                    f"or contact HR for an emergency exception."
+                ),
+            )
         else:
             result = _rule_result(
                 rule_id, name, True, is_blocking, category,
@@ -945,10 +988,18 @@ def evaluate_rule_007(
                 f"Consecutive {leave_type} days ({adjacent_days}) would exceed "
                 f"limit of {max_consec} in {rolling_days}-day window"
             )
-            result = _rule_result(rule_id, name, False, is_blocking, category, msg, {
-                "adjacent_days": adjacent_days, "max_consecutive": max_consec,
-                "rolling_days": rolling_days,
-            })
+            result = _rule_result(
+                rule_id, name, False, is_blocking, category, msg,
+                {
+                    "adjacent_days": adjacent_days, "max_consecutive": max_consec,
+                    "rolling_days": rolling_days,
+                },
+                suggestion=(
+                    f"You would have {adjacent_days} consecutive {leave_type} days, "
+                    f"which exceeds the {max_consec}-day limit in a {rolling_days}-day window. "
+                    f"Consider spacing your leave requests further apart, or use a different leave type for part of the period."
+                ),
+            )
         else:
             result = _rule_result(
                 rule_id, name, True, is_blocking, category,

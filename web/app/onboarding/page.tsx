@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { getSupabaseBrowserClient } from '@/lib/supabase';
 import { syncUser, createCompanyAndEmployee, joinCompanyAsEmployee } from '@/app/actions/auth';
+import { LEAVE_TYPE_CATALOG } from '@/lib/leave-types-config';
 
 const STEPS = [
   { id: 1, label: 'Company Setup', icon: '🏢' },
@@ -480,13 +481,16 @@ function CompleteStep({ joinCode }: { joinCode: string }) {
 
 // ─── Default data ────────────────────────────────────────────────────────────
 
-const DEFAULT_LEAVE_TYPES: LeaveTypeEntry[] = [
-  { code: 'CL', name: 'Casual Leave', days: 12, carryForward: false, enabled: true },
-  { code: 'SL', name: 'Sick Leave', days: 7, carryForward: false, enabled: true },
-  { code: 'PL', name: 'Privilege Leave', days: 15, carryForward: true, enabled: true },
-  { code: 'ML', name: 'Maternity Leave', days: 182, carryForward: false, enabled: true },
-  { code: 'PTL', name: 'Paternity Leave', days: 15, carryForward: false, enabled: true },
-];
+// All leave types from the catalog are shown in onboarding so admins can
+// choose which ones to enable for their company.
+const DEFAULT_LEAVE_TYPES: LeaveTypeEntry[] = LEAVE_TYPE_CATALOG.map((lt) => ({
+  code: lt.code,
+  name: lt.name,
+  days: lt.defaultQuota,
+  carryForward: lt.carryForward,
+  // Enable the most common leave types by default; admins can toggle the rest.
+  enabled: ['CL', 'SL', 'PL', 'EL', 'AL', 'ML', 'PTL', 'BL', 'LWP', 'WFH'].includes(lt.code),
+}));
 
 const DEFAULT_HOLIDAYS: HolidayEntry[] = [
   { name: 'Republic Day', date: '2025-01-26', enabled: true },
