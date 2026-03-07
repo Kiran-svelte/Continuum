@@ -72,16 +72,30 @@ function createTransport(): nodemailer.Transporter {
     });
   }
 
-  // SMTP fallback
+  // SMTP fallback — Gmail App Password
+  const smtpHost = process.env.SMTP_HOST?.trim() || 'smtp.gmail.com';
+  const smtpPort = parseInt(process.env.SMTP_PORT || '587', 10);
+  const gmailUser = process.env.GMAIL_USER?.trim() || '';
+  const gmailPass = process.env.GMAIL_APP_PASSWORD?.trim() || '';
+
+  if (!gmailUser || !gmailPass) {
+    console.warn('[EmailService] GMAIL_USER or GMAIL_APP_PASSWORD not set — emails will fail');
+  }
+
   return nodemailer.createTransport({
-    host: process.env.SMTP_HOST?.trim() || 'smtp.gmail.com',
-    port: parseInt(process.env.SMTP_PORT || '587', 10),
-    secure: false,
+    host: smtpHost,
+    port: smtpPort,
+    secure: smtpPort === 465,
     auth: {
-      user: process.env.GMAIL_USER?.trim() || '',
-      pass: process.env.GMAIL_APP_PASSWORD?.trim() || '',
+      user: gmailUser,
+      pass: gmailPass,
     },
-    ...timeouts,
+    tls: {
+      rejectUnauthorized: false,
+    },
+    connectionTimeout: 10_000,
+    greetingTimeout: 10_000,
+    socketTimeout: 15_000,
   });
 }
 

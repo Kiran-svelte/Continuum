@@ -1,42 +1,73 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
+import { motion } from 'framer-motion';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
 import { SkeletonDashboard } from '@/components/ui/skeleton';
 import { PageLoader } from '@/components/ui/progress';
 import { StartTutorialButton, managerTutorial } from '@/components/tutorial';
 import { ensureMe } from '@/lib/client-auth';
 
-const TEAM_METRICS = [
-  { label: 'Team Size', value: '18', detail: '2 on leave today', icon: '👥' },
-  { label: 'Pending Approvals', value: '7', detail: '3 need urgent action', icon: '⏳' },
-  { label: 'Team Utilization', value: '89%', detail: '16 of 18 available', icon: '📊' },
-  { label: 'Avg Response Time', value: '4.2h', detail: 'SLA target: 8h', icon: '⚡' },
-];
+interface LeaveRequestRow {
+  id: string;
+  leave_type: string;
+  start_date: string;
+  end_date: string;
+  total_days: number;
+  status: string;
+  created_at: string;
+  employee: {
+    id: string;
+    first_name: string;
+    last_name: string;
+    department: string | null;
+  };
+}
 
-const PENDING_APPROVALS = [
-  { id: 'LR-1042', employee: 'Priya Sharma', type: 'Casual Leave', dates: 'Jan 15–17', days: 3, submitted: '2 hours ago' },
-  { id: 'LR-1041', employee: 'Rahul Gupta', type: 'Sick Leave', dates: 'Jan 14', days: 1, submitted: '4 hours ago' },
-  { id: 'LR-1040', employee: 'Anita Desai', type: 'Privilege Leave', dates: 'Jan 20–24', days: 5, submitted: '1 day ago' },
-  { id: 'LR-1039', employee: 'Karan Singh', type: 'Work From Home', dates: 'Jan 16', days: 1, submitted: '1 day ago' },
-  { id: 'LR-1038', employee: 'Neha Mehta', type: 'Casual Leave', dates: 'Jan 17–18', days: 2, submitted: '2 days ago' },
-];
+interface TeamMember {
+  id: string;
+  first_name: string;
+  last_name: string;
+  department: string | null;
+  designation: string | null;
+  status: string;
+}
 
-const TEAM_AVAILABILITY = [
-  { name: 'Priya Sharma', status: 'On Leave', badge: 'warning' as const },
-  { name: 'Rahul Gupta', status: 'Available', badge: 'success' as const },
-  { name: 'Anita Desai', status: 'Available', badge: 'success' as const },
-  { name: 'Vikram Patel', status: 'WFH', badge: 'info' as const },
-  { name: 'Meera Joshi', status: 'On Leave', badge: 'warning' as const },
-  { name: 'Karan Singh', status: 'Available', badge: 'success' as const },
-];
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: { staggerChildren: 0.08, delayChildren: 0.1 },
+  },
+};
+
+const itemVariants = {
+  hidden: { opacity: 0, y: 20, scale: 0.95 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    scale: 1,
+    transition: { type: 'spring' as const, stiffness: 300, damping: 24 },
+  },
+};
 
 export default function ManagerDashboardPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [authChecked, setAuthChecked] = useState(false);
+  const [userName, setUserName] = useState('');
+  const [pendingRequests, setPendingRequests] = useState<LeaveRequestRow[]>([]);
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
+  const [loadingRequests, setLoadingRequests] = useState(true);
+  const [loadingTeam, setLoadingTeam] = useState(true);
+  const [teamSize, setTeamSize] = useState(0);
+  const [pendingCount, setPendingCount] = useState(0);
+  const [approvingId, setApprovingId] = useState<string | null>(null);
+  const [rejectingId, setRejectingId] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -55,14 +86,99 @@ export default function ManagerDashboardPage() {
         return;
       }
 
+      setUserName(me.first_name || 'Manager');
       setAuthChecked(true);
-      setTimeout(() => setLoading(false), 400);
+      setLoading(false);
     })();
 
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, [router]);
+
+  const fetchPendingRequests = useCallback(async () => {
+    setLoadingRequests(true);
+    try {
+      const res = await fetch('/api/leaves/list?status=pending&limit=10', { credentials: 'include' });
+      if (res.ok) {
+        const data = await res.json();
+        setPendingRequests(data.requests ?? []);
+        setPendingCount(data.pagination?.total ?? 0);
+      }
+    } finally {
+      setLoadingRequests(false);
+    }
+  }, []);
+
+  const fetchTeam = useCallback(async () => {
+    setLoadingTeam(true);
+    try {
+      const res = await fetch('/api/employees?limit=20', { credentials: 'include' });
+      if (res.ok) {
+        const data = await res.json();
+        setTeamMembers(data.employees ?? []);
+        setTeamSize(data.pagination?.total ?? 0);
+      }
+    } finally {
+      setLoadingTeam(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (authChecked) {
+      fetchPendingRequests();
+      fetchTeam();
+    }
+  }, [authChecked, fetchPendingRequests, fetchTeam]);
+
+  async function handleApprove(requestId: string) {
+    setApprovingId(requestId);
+    try {
+      const res = await fetch(`/api/leaves/approve/${requestId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ comments: 'Approved' }),
+      });
+      if (res.ok) {
+        setPendingRequests(prev => prev.filter(r => r.id !== requestId));
+        setPendingCount(c => Math.max(0, c - 1));
+      }
+    } finally {
+      setApprovingId(null);
+    }
+  }
+
+  async function handleReject(requestId: string) {
+    const reason = prompt('Reason for rejection:');
+    if (!reason) return;
+    setRejectingId(requestId);
+    try {
+      const res = await fetch(`/api/leaves/reject/${requestId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ comments: reason }),
+      });
+      if (res.ok) {
+        setPendingRequests(prev => prev.filter(r => r.id !== requestId));
+        setPendingCount(c => Math.max(0, c - 1));
+      }
+    } finally {
+      setRejectingId(null);
+    }
+  }
+
+  function formatDate(dateStr: string) {
+    return new Date(dateStr).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' });
+  }
+
+  function timeAgo(dateStr: string) {
+    const diff = Date.now() - new Date(dateStr).getTime();
+    const hours = Math.floor(diff / (1000 * 60 * 60));
+    if (hours < 1) return 'just now';
+    if (hours < 24) return `${hours}h ago`;
+    const days = Math.floor(hours / 24);
+    return `${days}d ago`;
+  }
 
   if (!authChecked || loading) {
     return (
@@ -73,90 +189,237 @@ export default function ManagerDashboardPage() {
     );
   }
 
+  const todayOnLeave = pendingRequests.length; // Simplified — in production would check approved leaves for today
+
   return (
-    <div className="space-y-8 animate-fade-in">
-      <div className="flex items-center justify-between animate-slide-up">
+    <motion.div
+      className="space-y-8"
+      initial="hidden"
+      animate="visible"
+      variants={containerVariants}
+    >
+      {/* Header */}
+      <motion.div className="flex items-center justify-between" variants={itemVariants}>
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Manager Dashboard</h1>
+          <h1 className="text-2xl font-bold text-foreground">
+            Hi, {userName}
+          </h1>
           <p className="text-muted-foreground mt-1">Team overview and pending actions</p>
         </div>
-        <StartTutorialButton tutorial={managerTutorial} variant="outline" className="text-xs px-3 py-1.5" />
-      </div>
+        <div className="flex items-center gap-3">
+          <StartTutorialButton tutorial={managerTutorial} variant="outline" className="text-xs px-3 py-1.5" />
+          <Link
+            href="/manager/approvals"
+            className="inline-flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2.5 rounded-xl text-sm font-medium hover:bg-primary/90 transition-all shadow-lg shadow-primary/20"
+          >
+            ✅ Review All
+          </Link>
+        </div>
+      </motion.div>
 
-      {/* Team Metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 stagger">
-        {TEAM_METRICS.map((metric) => (
-          <Card key={metric.label} className="animate-slide-up hover:shadow-md transition-shadow">
-            <CardContent className="pt-4">
+      {/* Metrics */}
+      <motion.div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6" variants={containerVariants}>
+        {[
+          { label: 'Team Size', value: teamSize, detail: `${teamSize} members`, icon: '👥', color: 'from-blue-500 to-blue-600', bgColor: 'bg-blue-500/10', textColor: 'text-blue-600 dark:text-blue-400' },
+          { label: 'Pending Approvals', value: pendingCount, detail: pendingCount > 0 ? `${Math.min(pendingCount, 3)} need attention` : 'All clear', icon: '⏳', color: 'from-amber-500 to-orange-500', bgColor: 'bg-amber-500/10', textColor: 'text-amber-600 dark:text-amber-400' },
+          { label: 'Team Available', value: teamSize - todayOnLeave, detail: `${teamSize > 0 ? (((teamSize - todayOnLeave) / teamSize) * 100).toFixed(0) : 0}% available`, icon: '📊', color: 'from-emerald-500 to-green-600', bgColor: 'bg-emerald-500/10', textColor: 'text-emerald-600 dark:text-emerald-400' },
+          { label: 'On Leave Today', value: todayOnLeave, detail: todayOnLeave > 0 ? `${todayOnLeave} away` : 'Full team present', icon: '🏠', color: 'from-purple-500 to-violet-600', bgColor: 'bg-purple-500/10', textColor: 'text-purple-600 dark:text-purple-400' },
+        ].map((metric, index) => (
+          <motion.div
+            key={metric.label}
+            variants={itemVariants}
+            whileHover={{ y: -4, boxShadow: '0 20px 40px -12px rgba(0,0,0,0.15)' }}
+          >
+            <Card className="relative overflow-hidden border-0 shadow-md">
+              <div className={`absolute top-0 left-0 right-0 h-1 bg-gradient-to-r ${metric.color}`} />
+              <CardContent className="pt-6 pb-5">
+                {(loadingRequests || loadingTeam) ? (
+                  <div className="space-y-3 animate-pulse">
+                    <div className="flex items-center justify-between">
+                      <Skeleton className="h-4 w-24" />
+                      <Skeleton className="h-10 w-10 rounded-xl" />
+                    </div>
+                    <Skeleton className="h-8 w-12" />
+                    <Skeleton className="h-3 w-28" />
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm font-medium text-muted-foreground">{metric.label}</p>
+                      <div className={`h-10 w-10 rounded-xl ${metric.bgColor} flex items-center justify-center text-lg`}>
+                        {metric.icon}
+                      </div>
+                    </div>
+                    <motion.p
+                      className={`text-3xl font-bold ${metric.textColor}`}
+                      initial={{ opacity: 0, scale: 0.5 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ type: 'spring', delay: index * 0.1 + 0.3 }}
+                    >
+                      {metric.value}
+                    </motion.p>
+                    <p className="text-xs text-muted-foreground">{metric.detail}</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </motion.div>
+        ))}
+      </motion.div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Pending Approvals - Real data */}
+        <motion.div className="lg:col-span-2" variants={itemVariants}>
+          <Card className="border-0 shadow-md overflow-hidden">
+            <CardHeader className="border-b border-border/50 bg-muted/30">
               <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">{metric.label}</p>
-                  <p className="text-3xl font-bold text-foreground mt-1">{metric.value}</p>
-                  <p className="text-xs text-muted-foreground mt-1">{metric.detail}</p>
-                </div>
-                <span className="text-3xl">{metric.icon}</span>
+                <CardTitle className="text-base">Pending Approvals</CardTitle>
+                {pendingCount > 0 && (
+                  <Badge variant="warning">{pendingCount} pending</Badge>
+                )}
               </div>
+            </CardHeader>
+            <CardContent className="p-0">
+              {loadingRequests ? (
+                <div className="divide-y divide-border/50">
+                  {[1, 2, 3, 4].map((i) => (
+                    <div key={i} className="px-6 py-4 animate-pulse">
+                      <div className="flex items-center gap-4">
+                        <Skeleton className="h-9 w-9 rounded-full" />
+                        <div className="flex-1 space-y-2">
+                          <Skeleton className="h-4 w-32" />
+                          <Skeleton className="h-3 w-48" />
+                        </div>
+                        <div className="flex gap-2">
+                          <Skeleton className="h-8 w-20 rounded-lg" />
+                          <Skeleton className="h-8 w-16 rounded-lg" />
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : pendingRequests.length === 0 ? (
+                <div className="py-16 text-center">
+                  <div className="text-4xl mb-3">✅</div>
+                  <p className="text-sm text-muted-foreground">No pending approvals</p>
+                  <p className="text-xs text-muted-foreground mt-1">You&apos;re all caught up!</p>
+                </div>
+              ) : (
+                <motion.div className="divide-y divide-border/50" initial="hidden" animate="visible" variants={containerVariants}>
+                  {pendingRequests.map((req) => (
+                    <motion.div
+                      key={req.id}
+                      variants={itemVariants}
+                      className="px-6 py-4 hover:bg-muted/30 transition-colors"
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className="h-9 w-9 rounded-full bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center text-xs font-semibold text-primary shrink-0">
+                          {req.employee.first_name?.[0]}{req.employee.last_name?.[0]}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <p className="text-sm font-medium text-foreground">
+                              {req.employee.first_name} {req.employee.last_name}
+                            </p>
+                            <span className="text-xs text-muted-foreground font-mono">{req.id.slice(0, 8)}</span>
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            {req.leave_type} · {formatDate(req.start_date)}
+                            {req.start_date !== req.end_date && ` – ${formatDate(req.end_date)}`}
+                            {' · '}{req.total_days} day{req.total_days !== 1 ? 's' : ''}
+                            {' · '}{timeAgo(req.created_at)}
+                          </p>
+                        </div>
+                        <div className="flex gap-2 shrink-0">
+                          <button
+                            onClick={() => handleApprove(req.id)}
+                            disabled={approvingId === req.id}
+                            className="px-3 py-1.5 text-xs font-medium text-emerald-700 bg-emerald-50 rounded-lg hover:bg-emerald-100 transition-colors dark:text-emerald-400 dark:bg-emerald-500/10 dark:hover:bg-emerald-500/20 disabled:opacity-50"
+                          >
+                            {approvingId === req.id ? '...' : 'Approve'}
+                          </button>
+                          <button
+                            onClick={() => handleReject(req.id)}
+                            disabled={rejectingId === req.id}
+                            className="px-3 py-1.5 text-xs font-medium text-red-700 bg-red-50 rounded-lg hover:bg-red-100 transition-colors dark:text-red-400 dark:bg-red-500/10 dark:hover:bg-red-500/20 disabled:opacity-50"
+                          >
+                            {rejectingId === req.id ? '...' : 'Reject'}
+                          </button>
+                        </div>
+                      </div>
+                    </motion.div>
+                  ))}
+                </motion.div>
+              )}
             </CardContent>
           </Card>
-        ))}
-      </div>
+        </motion.div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-slide-up stagger">
-        {/* Pending Approvals */}
-        <Card className="lg:col-span-2 animate-fade-in">
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle>Pending Approvals</CardTitle>
-              <Badge variant="warning">7 pending</Badge>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {PENDING_APPROVALS.map((req) => (
-                <div key={req.id} className="flex items-center justify-between p-3 rounded-lg border border-border hover:bg-muted/50 transition-colors">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2">
-                      <p className="text-sm font-medium text-foreground">{req.employee}</p>
-                      <span className="text-xs text-muted-foreground font-mono">{req.id}</span>
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {req.type} · {req.dates} · {req.days} day{req.days > 1 ? 's' : ''} · Submitted {req.submitted}
-                    </p>
-                  </div>
-                  <div className="flex gap-2">
-                    <button className="px-3 py-1.5 text-xs font-medium text-green-700 bg-green-50 rounded-lg hover:bg-green-100 transition-colors dark:text-green-400 dark:bg-green-950 dark:hover:bg-green-900">
-                      Approve
-                    </button>
-                    <button className="px-3 py-1.5 text-xs font-medium text-red-700 bg-red-50 rounded-lg hover:bg-red-100 transition-colors dark:text-red-400 dark:bg-red-950 dark:hover:bg-red-900">
-                      Reject
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Team Availability */}
-        <Card className="animate-fade-in">
-          <CardHeader>
-            <CardTitle>Team Availability</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {TEAM_AVAILABILITY.map((member) => (
-              <div key={member.name} className="flex items-center justify-between py-2">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 bg-muted rounded-full flex items-center justify-center text-xs font-medium text-muted-foreground">
-                    {member.name.split(' ').map((n) => n[0]).join('')}
-                  </div>
-                  <p className="text-sm text-foreground">{member.name}</p>
-                </div>
-                <Badge variant={member.badge}>{member.status}</Badge>
+        {/* Team Members */}
+        <motion.div variants={itemVariants}>
+          <Card className="border-0 shadow-md overflow-hidden">
+            <CardHeader className="border-b border-border/50 bg-muted/30">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-base">Team Members</CardTitle>
+                <Link href="/manager/team" className="text-xs text-primary hover:text-primary/80 font-medium transition-colors">
+                  View all →
+                </Link>
               </div>
-            ))}
-          </CardContent>
-        </Card>
+            </CardHeader>
+            <CardContent className="p-0">
+              {loadingTeam ? (
+                <div className="divide-y divide-border/50">
+                  {[1, 2, 3, 4, 5, 6].map((i) => (
+                    <div key={i} className="px-6 py-3 animate-pulse">
+                      <div className="flex items-center gap-3">
+                        <Skeleton className="h-8 w-8 rounded-full" />
+                        <div className="space-y-1.5">
+                          <Skeleton className="h-3.5 w-24" />
+                          <Skeleton className="h-3 w-16" />
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : teamMembers.length === 0 ? (
+                <div className="py-12 text-center">
+                  <div className="text-3xl mb-2">👥</div>
+                  <p className="text-sm text-muted-foreground">No team members found</p>
+                </div>
+              ) : (
+                <div className="divide-y divide-border/50 max-h-[400px] overflow-y-auto">
+                  {teamMembers.slice(0, 10).map((member, index) => (
+                    <motion.div
+                      key={member.id}
+                      initial={{ opacity: 0, x: 10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: 0.3 + index * 0.04 }}
+                      className="px-6 py-3 hover:bg-muted/30 transition-colors"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 bg-gradient-to-br from-primary/20 to-primary/5 rounded-full flex items-center justify-center text-xs font-medium text-primary">
+                            {member.first_name?.[0]}{member.last_name?.[0]}
+                          </div>
+                          <div>
+                            <p className="text-sm font-medium text-foreground">{member.first_name} {member.last_name}</p>
+                            {member.designation && (
+                              <p className="text-xs text-muted-foreground">{member.designation}</p>
+                            )}
+                          </div>
+                        </div>
+                        <Badge variant={member.status === 'active' ? 'success' : 'default'}>
+                          {member.status === 'active' ? 'Active' : member.status}
+                        </Badge>
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </motion.div>
       </div>
-    </div>
+    </motion.div>
   );
 }

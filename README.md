@@ -2216,6 +2216,659 @@ Proprietary — All rights reserved.
 
 ---
 
+## 19. Enterprise UI/UX Specification — Every Page, Every Button, Every Pixel
+
+> This section specifies every UI/UX detail for enterprise-grade polish. No element is left undefined. Every screen, every interaction, every loading state, every empty state, every error state is documented.
+
+---
+
+### 19.1 Global UI Standards
+
+| Standard | Specification |
+|----------|---------------|
+| **Design System** | Custom design tokens via Tailwind CSS 4 + CSS variables for light/dark mode (`--foreground`, `--background`, `--muted`, `--primary`, etc.) |
+| **Typography** | Inter font stack (`-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto`). Headings: `text-2xl font-bold`. Body: `text-sm`. Captions: `text-xs text-muted-foreground` |
+| **Color System** | Semantic colors per variant — `success` (green), `warning` (amber), `danger` (red), `info` (blue), `default` (gray). All colors use HSL with dark mode inverse |
+| **Spacing** | Page padding: `p-8`. Card gap: `gap-6`. Section gap: `space-y-8`. Inner content: `px-6 py-4` |
+| **Border Radius** | Cards: `rounded-xl` (12px). Buttons: `rounded-xl` (12px). Badges: `rounded-full`. Inputs: `rounded-lg` (8px) |
+| **Shadows** | Cards: `shadow-md` default, `shadow-xl` on hover. CTAs: `shadow-lg shadow-primary/20`. Modals: `shadow-2xl` |
+| **Animations** | All page transitions use Framer Motion `containerVariants` (stagger 80ms). Cards spring in with `stiffness: 300, damping: 24`. Hover lift: `y: -4px` |
+| **Dark Mode** | Full dark mode support. Toggle in sidebar header. Uses `dark:` Tailwind variants. Background: `bg-background` (dark: `hsl(240 10% 3.9%)`). Cards: `bg-card` |
+| **Responsive** | Mobile-first. Grid breakpoints: `md:grid-cols-2`, `lg:grid-cols-3`, `xl:grid-cols-4`. Sidebar collapses on mobile |
+| **Accessibility** | ARIA labels on all interactive elements. Keyboard navigation. Focus rings. `role="progressbar"` on progress components. Color contrast WCAG AA |
+
+---
+
+### 19.2 Loading States (Skeleton Screens)
+
+Every page MUST have three distinct visual states:
+
+#### State 1: Page Loading (Initial)
+- **Top progress bar**: Indeterminate `ProgressBar` component fixed at `top-0 left-0 right-0 z-50`
+- **Skeleton layout**: Mirrors the exact layout of the loaded page — same grid structure, same card count, same section arrangement
+- **Card skeletons**: `animate-pulse` with `bg-muted rounded` blocks matching content dimensions (title: `h-4 w-24`, value: `h-8 w-12`, bar: `h-2 w-full rounded-full`)
+- **Table skeletons**: Row-by-row shimmer with avatar circle + two text lines + badge placeholder per row
+- **Duration**: Skeleton shows until API response arrives — no artificial delay, no minimum display time
+
+#### State 2: Empty State (No Data)
+- **Icon**: Large emoji (text-4xl) relevant to the context (`📭` for no requests, `📅` for no attendance, `🗓️` for no holidays, `👥` for no team)
+- **Primary text**: `text-sm text-muted-foreground` explaining what's empty ("No leave requests yet")
+- **Secondary text**: `text-xs text-muted-foreground` explaining what the user can do ("Requests will appear here once employees submit them")
+- **CTA link**: If applicable, a primary-colored link to take action ("Submit your first request →")
+
+#### State 3: Error State
+- **Error banner**: `bg-destructive/10 border border-destructive/20 text-destructive rounded-xl px-4 py-3`
+- **Retry button**: Standard outline button below the error message
+- **Never show raw errors**: Production always shows user-friendly messages. Dev shows error.message
+
+#### State 4: Optimistic UI
+- **On action** (approve, reject, cancel): Immediately update local state before API response
+- **Opacity reduction**: `OptimisticWrapper` component applies `opacity-70` during pending operations
+- **Rollback on failure**: If API returns error, revert local state and show error toast
+
+---
+
+### 19.3 Page-by-Page UI Specification
+
+#### 19.3.1 Landing Page (`/`)
+
+| Element | Specification |
+|---------|---------------|
+| **Hero section** | Full-width gradient background (`from-blue-600 to-indigo-700`). Large heading (text-5xl), subtitle (text-xl text-blue-100), two CTA buttons ("Get Started" primary, "See Demo" outline) |
+| **Feature grid** | 3-column grid on desktop, 1-column mobile. Each card: icon + title + description. Hover lift animation |
+| **Pricing section** | 4-column grid (Free/Starter/Growth/Enterprise). Prices in INR (₹). "Most Popular" badge on Growth plan. Feature comparison checkmarks |
+| **Social proof** | Testimonial cards, company logos (if available), stats ("500+ companies trust us") |
+| **Footer** | Links: Terms, Privacy, Cookies, Support, Help, Status. Social: Twitter, LinkedIn, GitHub |
+| **Meta tags** | `og:title`, `og:description`, `og:image`, `og:url`. Twitter card. Favicon. Apple touch icon |
+
+#### 19.3.2 Sign In (`/sign-in`)
+
+| Element | Specification |
+|---------|---------------|
+| **Layout** | Centered card (max-w-md) with logo at top |
+| **Fields** | Email (type=email, autocomplete=email), Password (type=password, show/hide toggle) |
+| **Buttons** | "Sign In" primary button (full width), "Forgot Password?" link below |
+| **Loading state** | Button shows spinner + "Signing in..." during API call |
+| **Error state** | Red alert above form with error message ("Invalid credentials") |
+| **Success state** | Redirects immediately — no success message needed |
+| **Remember me** | Checkbox for persistent session (optional) |
+
+#### 19.3.3 Sign Up (`/sign-up`)
+
+| Element | Specification |
+|---------|---------------|
+| **Tab switcher** | Two tabs: "Start a Company" / "Join a Company". Active tab highlighted with primary color |
+| **Admin mode fields** | First name, last name, email, password, company name, industry dropdown, company size dropdown, timezone auto-detected |
+| **Employee mode fields** | First name, last name, email, password, company join code (auto-uppercase), role selector (Employee/Manager) |
+| **Validation** | Real-time field validation. Password: 8+ chars. Email: format check. Company code: 8 chars uppercase |
+| **Submit button** | "Create Company & Account" (admin), "Join Company" (employee). Full width, primary style |
+
+#### 19.3.4 Employee Dashboard (`/employee/dashboard`)
+
+| Element | Specification |
+|---------|---------------|
+| **Greeting header** | "Welcome back, {firstName} 👋" with time-based greeting (morning/afternoon/evening) |
+| **Leave balance cards** | Grid of cards, one per leave type. Each card: gradient accent line (color per type), type code badge, remaining count (text-3xl font-bold), "of X days remaining" subtitle, animated progress bar (fills from left, color per type) |
+| **Quick actions panel** | Vertical stack of action links: Apply Leave, Leave History, Attendance, Documents. Each: icon + title + subtitle + chevron. Gradient background per item |
+| **Recent requests** | Last 3 leave requests. Each row: type + days + date range + status badge. "View all →" link |
+| **Upcoming holidays** | Real data from `/api/company/holidays`. Each: name + date + day-of-week badge. "Custom" chip for company-specific holidays |
+| **Tutorial system** | Welcome modal on first visit. Floating tutorial button. Step-by-step guided tour |
+
+#### 19.3.5 HR Dashboard (`/hr/dashboard`)
+
+| Element | Specification |
+|---------|---------------|
+| **Metric cards** | 4-column grid: Total Employees (blue), Pending Approvals (amber), On Leave Today (purple), SLA Breaches (red). Each card: gradient accent line, icon in colored background circle, large number (text-3xl), subtitle with context |
+| **Recent leave requests** | Table-like list, 5 most recent. Each row: employee avatar (initials), full name, leave type chip, date range, days count, department, status badge. Click to navigate to detail |
+| **Quick actions** | 6 action cards: Manage Employees, Review Requests, Generate Report, Policy Settings, Attendance, Payroll. Each: gradient background, icon, title, subtitle, chevron arrow |
+| **All data is real** | Fetched from `/api/employees` (count), `/api/leaves/list` (pending + recent), computed metrics (on-leave today) |
+
+#### 19.3.6 Manager Dashboard (`/manager/dashboard`)
+
+| Element | Specification |
+|---------|---------------|
+| **Metric cards** | Team Size, Pending Approvals, Team Available, On Leave Today. Real data from `/api/employees` and `/api/leaves/list` |
+| **Pending approvals** | Full list with real employee data. Each row: avatar (initials), name, request ID (truncated), type, date range, days, time-ago. Inline "Approve" (green) and "Reject" (red) buttons with loading states |
+| **Team members** | Scrollable list (max 10 visible). Each: avatar, name, designation, status badge (Active/Inactive). "View all →" link to `/manager/team` |
+| **Approve flow** | Click Approve → request optimistically removed from list → API call → success: stays removed, error: re-appears with error toast |
+| **Reject flow** | Click Reject → browser prompt for reason → API call with reason → request removed |
+
+#### 19.3.7 Attendance Page (`/employee/attendance`)
+
+| Element | Specification |
+|---------|---------------|
+| **Clock in/out** | Header-level buttons. Clock In (green, office icon), WFH (outline green, house icon), Clock Out (red, door icon). Buttons conditionally show based on today's record state |
+| **Status message** | Green success banner on successful clock, amber warning on errors. Auto-dismisses after 10 seconds |
+| **Summary cards** | 4 cards: Present Days (green), WFH Days (blue), Total Hours (purple), Attendance % (amber). Real computed data per month |
+| **Attendance log** | Left panel. Month navigator (← month year →). Scrollable list of daily records: date + day, check-in time, check-out time, total hours, WFH badge, status badge |
+| **Leave balances** | Right panel. Bar-style progress indicators per leave type: type name, remaining/total, animated progress bar, used/pending counts |
+
+#### 19.3.8 Leave History (`/employee/leave-history`)
+
+| Element | Specification |
+|---------|---------------|
+| **Status filters** | Pill buttons: All, Pending, Approved, Rejected, Cancelled. Active pill: primary color filled. Inactive: muted background |
+| **Request list** | Full-width card with rows. Each row: leave type (bold), half-day chip (if applicable), status badge, date range, day count, reason (truncated), approver comments (italic with 💬), created date |
+| **Cancel button** | Only on pending/escalated rows. Red text "✕ Cancel" with confirmation dialog. Loading state "Cancelling..." |
+| **Pagination** | Bottom bar: ← Previous | Page X of Y | Next →. Disabled at boundaries |
+| **Empty state** | 📭 icon + "No leave requests found" + link to submit first request |
+
+#### 19.3.9 Request Leave (`/employee/request-leave`)
+
+| Element | Specification |
+|---------|---------------|
+| **Leave type dropdown** | Lists company's active leave types with codes. Shows current balance next to each type |
+| **Date pickers** | Start date and end date. Auto-calculates total days (excluding weekends/holidays) |
+| **Half-day toggle** | Checkbox/switch for half-day leave |
+| **Reason field** | Textarea, required, max 500 chars, with character count |
+| **Document upload** | Optional file upload for medical certificates etc. |
+| **Balance preview** | Shows "Current balance: X days" → "After this request: Y days" with color warning if balance goes low |
+| **Submit button** | Primary button "Submit Request". Loading state with spinner. Disabled when form incomplete |
+| **Success redirect** | On success, redirect to `/employee/leave-history` with success toast |
+
+#### 19.3.10 Policy Settings (`/hr/policy-settings`)
+
+| Element | Specification |
+|---------|---------------|
+| **Leave types table** | All 16 types with: code, name, category badge, default quota, carry-forward (Y/N), encashment (Y/N), paid (Y/N), gender filter, active toggle |
+| **Constraint rules table** | 13+ rules with: rule ID, name, category, blocking/warning toggle, priority, active toggle |
+| **Edit modals** | Click rule to open modal with editable config (JSON editor or form fields) |
+| **OTP requirement** | Modifying any rule shows OTP verification dialog before save |
+| **Save feedback** | Success toast on save. Error alert if validation fails |
+
+---
+
+### 19.4 UI Component Library Reference
+
+| Component | File | Props | Usage |
+|-----------|------|-------|-------|
+| `Button` | `components/ui/button.tsx` | `variant` (primary/outline/ghost/danger), `size` (sm/md/lg), `disabled`, `loading` | All CTAs and actions |
+| `Card` | `components/ui/card.tsx` | `CardHeader`, `CardTitle`, `CardContent` sub-components | All content containers |
+| `Badge` | `components/ui/badge.tsx` | `variant` (success/warning/danger/info/default) | Status indicators |
+| `Skeleton` | `components/ui/skeleton.tsx` | `className` for size control | Loading state placeholders |
+| `ProgressBar` | `components/ui/progress.tsx` | `value`, `max`, `variant`, `indeterminate`, `animated` | Progress indicators |
+| `PageLoader` | `components/ui/progress.tsx` | — | Top-of-page loading bar |
+| `Spinner` | `components/ui/progress.tsx` | `size` (sm/md/lg) | Inline loading |
+| `LoadingOverlay` | `components/ui/progress.tsx` | `show`, `message` | Full-area loading overlay |
+| `ProgressSteps` | `components/ui/progress.tsx` | `steps`, `currentStep` | Wizard step indicators |
+| `OptimisticWrapper` | `components/ui/progress.tsx` | `isOptimistic` | Wraps optimistic UI elements |
+| `Modal` | `components/ui/modal.tsx` | `open`, `onClose`, `title` | All dialogs and popups |
+| `Input` | `components/ui/input.tsx` | Standard input props + `error`, `label` | All form fields |
+| `SidebarNav` | `components/sidebar-nav.tsx` | `items[]` (label, href, icon) | Portal navigation |
+| `NotificationBell` | `components/notification-bell.tsx` | — | Header notification indicator |
+| `ThemeToggle` | `components/theme-toggle.tsx` | — | Light/dark mode switch |
+| `SignOutButton` | `components/sign-out-button.tsx` | — | Sidebar footer sign-out |
+
+---
+
+### 19.5 Animation System
+
+| Animation | Implementation | Trigger |
+|-----------|----------------|---------|
+| **Page entry** | Framer Motion `containerVariants` (stagger 80ms, delay 100ms) | Page mount |
+| **Card entry** | `itemVariants` — opacity 0→1, y 20→0, scale 0.95→1, spring physics | Staggered within container |
+| **Card hover** | `whileHover={{ y: -4, boxShadow: '0 20px 40px -12px rgba(0,0,0,0.15)' }}` | Cursor enter |
+| **Number entry** | Scale 0.5→1 with spring, delayed per index | After card appears |
+| **Progress bar fill** | `initial={{ width: 0 }}` → `animate={{ width: percentage }}`, duration 0.8s | After card appears |
+| **List item entry** | x: 10→0 or x: -20→0, staggered by 30-60ms | List mount |
+| **Button hover** | Icon `scale-110`, color transition, slight translate-x on chevrons | Cursor enter |
+| **Success/error messages** | `initial={{ opacity: 0, y: -10 }}` → visible | On event |
+| **Sidebar active indicator** | Blue dot + blue background with 200ms transition | Route change |
+
+---
+
+## 20. Enterprise Readiness Checklist
+
+> Every item must be verified before considering the platform production-ready for enterprise customers.
+
+---
+
+### 20.1 Authentication & Authorization
+
+- [ ] Sign up (admin) creates company + seeds all data atomically
+- [ ] Sign up (employee) joins via company code + seeds balances
+- [ ] Sign in redirects to correct portal by role (admin/hr → `/hr`, manager → `/manager`, employee → `/employee`)
+- [ ] Sign out clears all session cookies and redirects to `/sign-in`
+- [ ] Forgot password sends Supabase reset email
+- [ ] Reset password validates token + enforces minimum password length
+- [ ] JWT tokens refresh automatically via middleware
+- [ ] Expired sessions redirect to sign-in (not crash)
+- [ ] Cross-company data access is 403 Forbidden
+- [ ] Employee cannot access HR/Manager endpoints (403)
+- [ ] Manager cannot access HR-only endpoints (403)
+- [ ] Self-approval is blocked (employee cannot approve own leave)
+- [ ] Deactivated accounts (status=terminated) are blocked at auth guard
+- [ ] Rate limiting enforced on all API endpoints (429 on exceed)
+
+### 20.2 Employee Features
+
+- [ ] Dashboard shows real leave balances from API (no hardcoded data)
+- [ ] Dashboard shows real upcoming holidays from DB
+- [ ] Dashboard shows real recent leave requests
+- [ ] Apply leave form shows all active company leave types
+- [ ] Apply leave shows current balance per type
+- [ ] Apply leave validates dates (no past dates, start ≤ end)
+- [ ] Apply leave calls constraint engine and shows violations
+- [ ] Apply leave creates request + adjusts pending balance atomically
+- [ ] Leave history loads real data with pagination
+- [ ] Leave history supports status filter (all/pending/approved/rejected/cancelled)
+- [ ] Cancel pending request restores balance
+- [ ] Attendance page loads real attendance records from DB
+- [ ] Clock in creates attendance record with timestamp
+- [ ] Clock out updates record with total hours calculation
+- [ ] WFH flag correctly set on attendance records
+- [ ] Profile page shows real employee data from `/api/employees/me`
+- [ ] Profile edit (phone, department, designation) works with audit log
+- [ ] Documents page lists real uploaded documents
+
+### 20.3 Manager Features
+
+- [ ] Dashboard shows real team size from `/api/employees`
+- [ ] Dashboard shows real pending approvals count
+- [ ] Pending approvals list shows real leave requests for direct reports
+- [ ] Approve button calls `/api/leaves/approve/[id]` and updates balance
+- [ ] Reject button prompts for reason and calls `/api/leaves/reject/[id]`
+- [ ] Team list shows real direct reports
+- [ ] Team attendance shows today's check-in status for team
+- [ ] Reports page shows real leave analytics
+
+### 20.4 HR/Admin Features
+
+- [ ] Dashboard shows real employee count, pending approvals, on-leave-today
+- [ ] Employee directory with search, filter by status/role/department
+- [ ] Leave requests page with all company requests + approve/reject
+- [ ] Policy settings shows all leave types + constraint rules
+- [ ] Attendance overview for entire company
+- [ ] Payroll generation creates PayrollRun + PayrollSlips with India tax calculations
+- [ ] Organization page shows departments and hierarchy
+- [ ] Company settings editable (with OTP for destructive changes)
+- [ ] Reports with leave analytics, charts, export capability
+- [ ] Onboarding wizard completes all 6 steps and marks company complete
+
+### 20.5 Email System
+
+- [ ] Gmail SMTP transport works with app password
+- [ ] Gmail OAuth2 transport works (when configured)
+- [ ] Welcome email sent on company registration
+- [ ] Leave submission email sent to manager
+- [ ] Leave approval email sent to employee
+- [ ] Leave rejection email sent to employee
+- [ ] SLA breach email sent to next approver + HR
+- [ ] OTP email sent for sensitive operations
+- [ ] Auto-approved leave email sent to employee
+- [ ] Email test endpoint (`POST /api/email/test`) delivers test email
+- [ ] Email config check (`GET /api/email/test`) reports configuration status
+- [ ] Rate limiting (20 emails/minute) prevents abuse
+- [ ] Email failures don't crash API endpoints (graceful fallback)
+- [ ] All email templates have proper HTML with inline styles
+
+### 20.6 Constraint Engine
+
+- [ ] Python Flask server starts on port 8001
+- [ ] `POST /api/evaluate` accepts company_id, employee_id, leave_type, dates
+- [ ] RULE001 (Max Leave Duration) correctly enforces per-type limits
+- [ ] RULE002 (Leave Balance Check) prevents over-balance requests
+- [ ] RULE003 (Min Team Coverage) checks ≥60% team availability
+- [ ] RULE004 (Max Concurrent Leave) limits same-department overlaps
+- [ ] RULE005 (Blackout Period) blocks requests during blackout dates
+- [ ] RULE006 (Advance Notice) warns on short-notice requests
+- [ ] RULE007 (Consecutive Leave Limit) enforces max consecutive days
+- [ ] RULE008 (Sandwich Rule) detects weekend/holiday sandwich
+- [ ] RULE009 (Min Gap Between Leaves) warns on close-together requests
+- [ ] RULE010 (Probation Restriction) blocks probation employees
+- [ ] RULE011 (Critical Project Freeze) blocks during freeze periods
+- [ ] RULE012 (Document Requirement) flags when proof needed
+- [ ] RULE013 (Monthly Quota) enforces monthly limits
+- [ ] Blocking rules return 400 with violations
+- [ ] Warning rules allow request but set status to `escalated`
+- [ ] Confidence score returned for AI recommendation
+- [ ] Health check endpoint (`GET /health`) responds
+
+### 20.7 Data Integrity
+
+- [ ] Leave balance formula: `remaining = annual + carried - used - pending - encashed`
+- [ ] Balance never goes negative when `Company.negative_balance = false`
+- [ ] Leave request status follows state machine strictly
+- [ ] Audit log hash chain: `hash[n] = SHA256(data + hash[n-1])`
+- [ ] Audit log never deleted (no `deleted_at`, no hard delete)
+- [ ] Every write operation creates audit log entry
+- [ ] Tenant isolation: all queries scoped by company_id
+- [ ] Unique constraints: `[emp_id, leave_type, year]` for LeaveBalance
+- [ ] Soft delete everywhere (deleted_at field)
+- [ ] Leave balance adjustments create audit entries with reason
+
+### 20.8 Security
+
+- [ ] Security headers set (CSP, HSTS, X-Frame-Options DENY, X-Content-Type-Options)
+- [ ] Rate limiting per endpoint per user
+- [ ] Input sanitization (XSS, SQL injection prevention)
+- [ ] Zod schema validation on all API inputs
+- [ ] OTP required for destructive operations (settings, delete, billing)
+- [ ] No secrets in source code (all via environment variables)
+- [ ] No stack traces in production responses
+- [ ] HTTPS enforced in production
+- [ ] Session cookies HttpOnly + Secure + SameSite
+- [ ] CORS configured for production domain only
+
+### 20.9 UI/UX Quality
+
+- [ ] Every page has skeleton loading state (not blank white screen)
+- [ ] Every page has empty state with icon + message + CTA
+- [ ] Every page has error state with user-friendly message
+- [ ] All colors use theme tokens (no hardcoded `gray-900`, `blue-600` etc.)
+- [ ] Dark mode works on every page
+- [ ] Mobile responsive on every page
+- [ ] Framer Motion animations on page load
+- [ ] Hover effects on interactive cards
+- [ ] Progress bar animations on balance cards
+- [ ] Status badges use semantic color variants
+- [ ] No emoji or special characters in production error messages
+- [ ] Forms show validation errors inline
+- [ ] Buttons show loading state during API calls
+- [ ] Navigation shows active page indicator
+- [ ] Notification bell shows real unread count
+
+### 20.10 Performance
+
+- [ ] First Contentful Paint < 1.5s
+- [ ] Largest Contentful Paint < 2.5s
+- [ ] Total Bundle Size < 300kB first load JS
+- [ ] API responses < 500ms (p95)
+- [ ] Database queries use indexes (company_id, emp_id, date, status)
+- [ ] Pagination on all list endpoints (max 100 per page)
+- [ ] No N+1 queries (use Prisma includes)
+- [ ] Server-side rendering for marketing pages
+- [ ] Client-side navigation for portal pages (no full reloads)
+
+---
+
+## 21. Website, SEO & Marketing Readiness
+
+---
+
+### 21.1 Website Essentials
+
+| Item | Status | Location |
+|------|--------|----------|
+| Landing page live | Required | `/` (app/page.tsx) |
+| Open Graph tags | Required | `app/layout.tsx` metadata |
+| `og:title` | "Continuum — Enterprise AI Leave Management System" | |
+| `og:description` | "Config-driven, multi-tenant HR platform for Indian enterprises. AI-powered leave management, attendance tracking, payroll, and compliance." | |
+| `og:image` | OG image (1200x630) at `/og-image.png` | |
+| `og:url` | `https://continuum.hr` | |
+| Twitter card | `summary_large_image` type | |
+| Favicon | `/favicon.ico` + `/apple-touch-icon.png` | public/ |
+| Mobile responsive | All pages | Tailwind responsive classes |
+| SSL certificate | HTTPS via Vercel | Automatic |
+| Download/CTA button | "Get Started" → `/sign-up` | Landing page hero |
+| PWA manifest | `public/manifest.json` with app name, icons, theme color | |
+
+### 21.2 SEO Essentials
+
+| Item | Implementation |
+|------|----------------|
+| `<title>` tag | Dynamic per page via Next.js metadata API |
+| `<meta name="description">` | Unique per page, 150-160 chars |
+| `robots.txt` | `public/robots.txt` — allows all, disables /api/, /hr/, /employee/, /manager/ |
+| `sitemap.xml` | `app/sitemap.ts` — auto-generated with all public routes |
+| Structured data (JSON-LD) | SoftwareApplication schema on landing page |
+| Canonical URLs | `<link rel="canonical">` on all pages |
+| H1 per page | Every page has exactly one `<h1>` |
+| Alt text on images | All `<img>` tags have descriptive alt text |
+| Internal linking | Landing → Sign Up, Feature pages → Sign Up |
+| Page speed | > 90 Lighthouse score target |
+
+### 21.3 Legal Pages
+
+| Page | Route | Content Requirements |
+|------|-------|---------------------|
+| **Privacy Policy** | `/privacy` | Data collection, storage, usage, third-party services (Supabase, Gmail, Razorpay), user rights, contact info, last updated date |
+| **Terms of Service** | `/terms` | Acceptable use, subscription terms, liability limits, termination, refunds, governing law (India), dispute resolution |
+| **Cookie Notice** | `/cookies` | Cookie types (essential, analytics), consent mechanism, opt-out instructions |
+| **Support** | `/support` | Contact form, email support, FAQ, knowledge base links |
+| **Help** | `/help` | Getting started guide, FAQ by role, video tutorials, troubleshooting |
+
+---
+
+## 22. Multi-Company Load Testing Specification
+
+> Simulated enterprise load: 10 companies, 2-5 HR admins each, 30 employees each, all active daily.
+
+---
+
+### 22.1 Test Setup
+
+| Parameter | Value |
+|-----------|-------|
+| **Companies** | 10 distinct companies |
+| **HR/Admin per company** | 2-5 (admin + hr roles) |
+| **Employees per company** | 30 |
+| **Total users** | ~350 (10 × 35) |
+| **Daily active operations** | Clock-in, clock-out, leave requests, approvals, balance checks |
+| **Concurrent requests** | Peak 50 (14% of total users hitting API simultaneously) |
+
+### 22.2 Daily Operation Simulation
+
+For each company, each day:
+
+| Action | Volume | Endpoint | Expected |
+|--------|--------|----------|----------|
+| Clock in (all employees) | 30 | `POST /api/attendance` | 200 OK for all |
+| Clock out (all employees) | 30 | `POST /api/attendance` | 200 OK, hours calculated |
+| Submit leave (10% of employees) | 3 | `POST /api/leaves/submit` | 200 OK or 400 (violations) |
+| Check balance | 30 | `GET /api/leaves/balances` | 200 OK with balances |
+| View dashboard | 35 | Various | 200 OK, real data |
+| Approve/reject leaves | 2-3 | `PATCH /api/leaves/approve/[id]` | 200 OK, balance updated |
+| View leave history | 10 | `GET /api/leaves/list` | 200 OK, paginated |
+| View attendance | 15 | `GET /api/attendance` | 200 OK, monthly data |
+| View holidays | 5 | `GET /api/company/holidays` | 200 OK |
+| View notifications | 20 | `GET /api/notifications` | 200 OK |
+
+### 22.3 Stress Test Scenarios
+
+| Scenario | What to test | Pass criteria |
+|----------|-------------|---------------|
+| **Concurrent leave submit** | 10 employees from same department submit at once | No race conditions, team coverage rule works correctly |
+| **Balance race condition** | Two requests for same employee overlap | Balance never goes negative when disabled; exactly one succeeds if balance insufficient for both |
+| **Cross-company isolation** | Company A employee tries to view Company B data | 403 on every attempt |
+| **Rate limit under load** | 200 requests/minute from single user | 429 after threshold; legitimate requests from other users unaffected |
+| **SLA cron under load** | 100 pending requests past SLA | All escalated within 1 hour |
+| **Payroll generation** | Generate payroll for 30 employees simultaneously | All slips created, correct tax calculations, no timeouts |
+| **Auth session expiry** | Token expires mid-session | Automatic refresh or graceful redirect to sign-in |
+
+### 22.4 Expected Failure Modes & Recovery
+
+| Failure | Expected Behavior |
+|---------|-------------------|
+| Database connection pool exhausted | Retry with backoff, 503 after 3 retries |
+| Constraint engine down | Fail closed (reject leave request with "evaluation unavailable" message) |
+| Email service timeout | Log warning, queue for retry, don't block API response |
+| Redis unavailable (if configured) | Fall back to in-memory rate limiting |
+| Pusher unavailable | Notifications still created in DB; real-time delivery fails gracefully |
+
+---
+
+## 23. API Endpoint Complete Reference
+
+> Every endpoint in the system with method, path, authentication, request body, and response format.
+
+---
+
+### 23.1 Authentication Endpoints
+
+| Method | Path | Auth | Request | Response |
+|--------|------|------|---------|----------|
+| `POST` | `/api/auth/register` | Supabase session | `{ company_name, industry, size, timezone, first_name, last_name }` | `{ company_id, employee_id, join_code }` |
+| `POST` | `/api/auth/join` | Supabase session | `{ company_code, first_name, last_name, role? }` | `{ employee_id, company_id, company_name }` |
+| `GET` | `/api/auth/me` | Supabase session | — | `{ id, first_name, last_name, email, primary_role, company }` |
+| `POST` | `/api/auth/session` | Firebase token | `{ token }` | Sets HttpOnly cookie |
+| `DELETE` | `/api/auth/session` | Any | — | Clears auth cookie |
+| `GET` | `/api/auth/firebase-check` | None | — | `{ configured: bool }` |
+
+### 23.2 Leave Management Endpoints
+
+| Method | Path | Auth | Request | Response |
+|--------|------|------|---------|----------|
+| `POST` | `/api/leaves/submit` | Employee | `{ leave_type, start_date, end_date, reason, is_half_day?, attachment? }` | `{ request_id, status, constraint_result }` |
+| `GET` | `/api/leaves/balances` | Any auth | — | `{ year, balances: [{ leave_type, annual, carried, used, pending, remaining }] }` |
+| `GET` | `/api/leaves/list` | Any auth | `?page&limit&status&year&emp_id` | `{ requests: [], pagination: { page, limit, total, pages } }` |
+| `PATCH` | `/api/leaves/approve/[requestId]` | Manager/HR | `{ comments? }` | `{ request }` |
+| `PATCH` | `/api/leaves/reject/[requestId]` | Manager/HR | `{ comments }` | `{ request }` |
+| `PATCH` | `/api/leaves/cancel/[requestId]` | Employee/HR | `{ reason? }` | `{ request }` |
+
+### 23.3 Employee Endpoints
+
+| Method | Path | Auth | Request | Response |
+|--------|------|------|---------|----------|
+| `GET` | `/api/employees` | Manager+ | `?page&limit&search&status&department&role` | `{ employees: [], pagination }` |
+| `GET` | `/api/employees/me` | Any auth | — | Full employee profile |
+| `PATCH` | `/api/employees/me` | Any auth | `{ phone?, department?, designation? }` | Updated profile |
+
+### 23.4 Attendance Endpoints
+
+| Method | Path | Auth | Request | Response |
+|--------|------|------|---------|----------|
+| `GET` | `/api/attendance` | Any auth | `?month&year&limit` | `{ records: [], summary: { presentDays, wfhDays, totalHours, ... } }` |
+| `POST` | `/api/attendance` | Any auth | `{ action: 'check_in'/'check_out', is_wfh? }` | `{ attendance }` |
+
+### 23.5 Company Endpoints
+
+| Method | Path | Auth | Request | Response |
+|--------|------|------|---------|----------|
+| `GET` | `/api/company/leave-types` | Any auth | — | `{ leave_types: [] }` |
+| `GET` | `/api/company/holidays` | Any auth | — | `{ holidays: [] }` |
+
+### 23.6 HR Endpoints
+
+| Method | Path | Auth | Request | Response |
+|--------|------|------|---------|----------|
+| `POST` | `/api/hr/adjust-balance` | HR/Admin | `{ emp_id, leave_type, adjustment, reason }` | `{ balance }` |
+| `POST` | `/api/hr/approve-registration` | HR/Admin | `{ emp_id, action: 'approve'/'reject', reason? }` | Updated employee |
+| `GET/POST` | `/api/hr/policy` | HR/Admin | GET: list policies; POST: update policy | Policy data |
+| `GET/POST` | `/api/hr/settings` | HR/Admin | GET: company settings; POST: update settings | Settings data |
+
+### 23.7 System Endpoints
+
+| Method | Path | Auth | Request | Response |
+|--------|------|------|---------|----------|
+| `GET` | `/api/health` | None | — | `{ status, db, email, constraint_engine }` |
+| `GET/POST` | `/api/email/test` | Admin | POST: `{ to }` | `{ success, messageId }` |
+| `GET` | `/api/security/env-check` | Admin | — | `{ configured_vars, missing_vars, audit_chain_valid }` |
+| `POST` | `/api/security/otp` | Any auth | `{ action, method?: 'generate'/'verify', otp? }` | `{ sent }` or `{ valid }` |
+| `GET` | `/api/cron/sla-check` | CRON_SECRET | — | `{ escalated_count }` |
+| `GET` | `/api/enterprise/metrics` | Admin | — | Prometheus text format |
+| `POST` | `/api/onboarding/complete` | Admin | Full onboarding config JSON | `{ success, join_code }` |
+| `POST` | `/api/payroll/generate` | HR/Admin | `{ month, year }` | `{ payroll_run }` |
+| `POST` | `/api/payroll/approve` | HR/Admin | `{ payroll_run_id }` | `{ payroll_run }` |
+| `GET` | `/api/reports/leave-summary` | Manager+ | `?year` | `{ monthly_trend, by_type, by_status, top_takers }` |
+| `GET/POST` | `/api/notifications` | Any auth | GET: `?limit&unread`; POST: create | `{ notifications: [] }` |
+| `PATCH` | `/api/notifications/[id]/read` | Any auth | — | `{ success }` |
+| `POST` | `/api/notifications/read-all` | Any auth | — | `{ count }` |
+
+---
+
+## 24. Deployment & Production Checklist
+
+---
+
+### 24.1 Pre-Deployment
+
+| Step | Command/Action | Verification |
+|------|---------------|-------------|
+| Install dependencies | `npm install` | No errors, lock file updated |
+| Generate Prisma client | `npx prisma generate` | Client generated in `node_modules/.prisma` |
+| Push DB schema | `npx prisma db push` | All 35+ models created in PostgreSQL |
+| Build project | `npx next build` | "Compiled successfully", no type errors |
+| Run tests | `npm test` | All tests pass |
+| Check environment | `GET /api/security/env-check` | All required vars present |
+| Test email | `POST /api/email/test` | Email delivered to test address |
+| Test constraint engine | `GET http://localhost:8001/health` | `{ status: "healthy" }` |
+
+### 24.2 Vercel Deployment (Frontend)
+
+```bash
+# Install Vercel CLI
+npm i -g vercel
+
+# Link project
+vercel link
+
+# Set environment variables
+vercel env add NEXT_PUBLIC_SUPABASE_URL
+vercel env add NEXT_PUBLIC_SUPABASE_ANON_KEY
+vercel env add SUPABASE_SERVICE_ROLE_KEY
+vercel env add DATABASE_URL
+vercel env add DIRECT_URL
+vercel env add GMAIL_USER
+vercel env add GMAIL_APP_PASSWORD
+vercel env add CRON_SECRET
+# ... all required env vars
+
+# Deploy
+vercel --prod
+```
+
+### 24.3 Render Deployment (Constraint Engine)
+
+```bash
+# render.yaml in web/backend/ handles config
+# Push to GitHub → Render auto-deploys from render.yaml
+# Or manual:
+# 1. Create Web Service on Render
+# 2. Set root directory: web/backend
+# 3. Build command: pip install -r requirements.txt
+# 4. Start command: gunicorn constraint_engine:app --bind 0.0.0.0:8001
+# 5. Set DATABASE_URL environment variable
+```
+
+### 24.4 Post-Deployment Verification
+
+| Check | How | Expected |
+|-------|-----|----------|
+| App loads | Visit production URL | Landing page renders |
+| Auth works | Sign up → Sign in | Redirects to correct portal |
+| API healthy | `GET /api/health` | `{ status: "ok" }` |
+| DB connected | Create test company | Company appears in DB |
+| Email works | `POST /api/email/test` | Email delivered |
+| Constraint engine | Submit leave request | Constraint evaluation completes |
+| HTTPS active | Check browser padlock | Valid SSL certificate |
+| Security headers | `curl -I` production URL | CSP, HSTS, X-Frame present |
+
+### 24.5 Production Monitoring
+
+| Tool | URL | Purpose |
+|------|-----|---------|
+| Health check | `GET /api/health` | Load balancer health probe |
+| Prometheus metrics | `GET /api/enterprise/metrics` | Application metrics |
+| Grafana dashboard | `monitoring/grafana/dashboards/` | Visual metrics |
+| Vercel analytics | Vercel dashboard | Frontend performance |
+| Supabase dashboard | `app.supabase.com` | Database monitoring, auth logs |
+
+---
+
+## 25. Glossary
+
+| Term | Definition |
+|------|-----------|
+| **Company** | A tenant in the multi-tenant system. Each company has isolated data, policies, and employees |
+| **Join Code** | 8-character alphanumeric code (e.g., `A1B2C3D4`) used by employees to join a company during sign-up |
+| **Leave Balance** | Per-employee, per-leave-type, per-year ledger tracking annual entitlement, used, pending, carried forward, and remaining days |
+| **Constraint Policy** | A versioned snapshot of all active leave rules for a company, stored as JSON with timestamp |
+| **Constraint Engine** | Python Flask service that evaluates leave requests against 13+ configurable rules |
+| **SLA** | Service Level Agreement — maximum hours a leave request can remain pending before auto-escalation |
+| **Sandwich Rule** | Leave policy rule where weekends/holidays falling between two leave days are counted as leave |
+| **RBAC** | Role-Based Access Control — 6 roles with 40+ granular permission codes |
+| **Audit Trail** | Immutable SHA-256 hash-chained log of every data-changing operation in the system |
+| **Onboarding** | 6-step wizard where company admin configures policies, leave types, holidays, and notifications |
+| **Accrual** | Periodic credit of leave days to employee balance (monthly/quarterly/yearly via cron) |
+| **Carry Forward** | Unused leave days from one year transferred to the next, subject to per-type limits |
+| **Encashment** | Conversion of unused leave days to monetary compensation |
+| **LWP** | Leave Without Pay — leave type with infinite quota but no salary |
+| **Comp Off** | Compensatory off — leave earned by working on holidays/weekends |
+| **Pro-rata** | Proportional leave allocation for mid-year joiners based on remaining months |
+
+---
+
 ## Contact
 
 **Continuum** — Modern HR for Startups
