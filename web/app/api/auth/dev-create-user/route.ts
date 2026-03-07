@@ -19,7 +19,8 @@ const schema = z.object({
  * Requires: `SUPABASE_SERVICE_ROLE_KEY` configured.
  */
 export async function POST(request: NextRequest) {
-  if (process.env.NODE_ENV !== 'development') {
+  // Allow in production only if explicitly enabled via env var
+  if (process.env.NODE_ENV === 'production' && process.env.ENABLE_SIGNUP_FALLBACK !== 'true') {
     return NextResponse.json({ error: 'Not found' }, { status: 404 });
   }
 

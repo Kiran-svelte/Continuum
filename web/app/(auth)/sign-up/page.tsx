@@ -161,8 +161,11 @@ export default function SignUpPage() {
 
             const devData = await devRes.json().catch(() => ({}));
             if (devRes.status === 404) {
-              // Endpoint disabled in production - show email config message
-              setError('Email confirmation is required but email service is not configured. Please contact your administrator.');
+              // Fallback endpoint not available
+              setError('Account creation temporarily unavailable. Please contact support or try again later.');
+            } else if (devRes.status === 501 && devData.error?.includes('SUPABASE_SERVICE_ROLE_KEY')) {
+              // Service role key missing
+              setError('Email service configuration incomplete. Please contact your administrator.');
             } else if (devData.error) {
               setError(devData.error);
             } else {
