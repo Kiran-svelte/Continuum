@@ -181,13 +181,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Call Python constraint engine
+    // Call Python constraint engine with timeout
     let constraintResult: Record<string, unknown> | null = null;
     let constraintStatus: 'pass' | 'warnings' | 'fail' = 'pass';
 
     const constraintEngineUrl = process.env.CONSTRAINT_ENGINE_URL;
     if (constraintEngineUrl) {
       try {
+        // Add 15 second timeout to prevent hanging
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 15000);
+        
         const constraintResp = await fetch(`${constraintEngineUrl}/api/evaluate`, {
           method: 'POST',
           headers: {
@@ -202,7 +206,10 @@ export async function POST(request: NextRequest) {
             end_date: data.end_date,
             total_days: totalDays,
           }),
+          signal: controller.signal,
         });
+        
+        clearTimeout(timeoutId);
         constraintResult = (await constraintResp.json()) as Record<string, unknown>;
 
         // Engine returns: { passed: bool, violations: [], warnings: [], recommendation: string, confidence_score: float }
@@ -214,8 +221,23 @@ export async function POST(request: NextRequest) {
         } else if (warnings && warnings.length > 0) {
           constraintStatus = 'warnings';
         }
-      } catch {
-        // Constraint engine unavailable — proceed without it
+      } catch (err) {
+        // Constraint engine unavailable or timeout — proceed with manual review
+        console.warn('[LeaveSubmit] Constraint engine unavailable or timeout:', err);
+        // Mark as needing escalation for manual review
+        constraintStatus = 'warnings';
+        constraintResult = {
+          passed: true,
+          violations: [],
+          warnings: [{
+            rule_id: 'SYSTEM',
+            name: 'Manual Review Required',
+            message: 'Constraint engine was unavailable. Request will be escalated for manual review.',
+            is_blocking: false,
+          }],
+          recommendation: 'MANUAL_REVIEW',
+          confidence_score: 0.5,
+        };
       }
     }
 

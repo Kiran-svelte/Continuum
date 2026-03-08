@@ -4,8 +4,6 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { OptimisticButton } from '@/components/ui/optimistic-button';
-import { ProcessingState, ProgressSteps } from '@/components/ui/progress-indicators';
 import { SkeletonForm } from '@/components/ui/skeleton';
 
 // Type definitions for constraint violations
@@ -112,11 +110,9 @@ export default function RequestLeavePage() {
   const [autoSaving, setAutoSaving] = useState(false);
   const [pageLoading, setPageLoading] = useState(true);
   
-  // Processing steps for submission
-  const submissionSteps = [
-    'Submitting your leave request...',
-  ];
+  // Processing steps for submission - simplified to single step with sub-messages
   const [currentSubmissionStep, setCurrentSubmissionStep] = useState('');
+  const [submissionProgress, setSubmissionProgress] = useState(0);
 
   // Fetch company-specific leave types on mount
   useEffect(() => {
@@ -224,10 +220,18 @@ export default function RequestLeavePage() {
     setLoading(true);
     setIsSubmitting(true);
     setSubmitSuccess(false);
+    setSubmissionProgress(0);
     
     try {
-      // Single submission step - the API handles validation, constraints, and balance updates
-      setCurrentSubmissionStep('Submitting your leave request...');
+      // Show progress animation while API processes
+      setCurrentSubmissionStep('Validating your request...');
+      setSubmissionProgress(20);
+      
+      // Add small delay to show progress
+      await new Promise(r => setTimeout(r, 200));
+      setCurrentSubmissionStep('Checking constraints...');
+      setSubmissionProgress(40);
+      
       const res = await fetch('/api/leaves/submit', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -239,6 +243,9 @@ export default function RequestLeavePage() {
           reason,
         }),
       });
+      
+      setSubmissionProgress(80);
+      setCurrentSubmissionStep('Processing response...');
       
       const json = await res.json();
       
@@ -264,6 +271,7 @@ export default function RequestLeavePage() {
       }
       
       // Success!
+      setSubmissionProgress(100);
       setSubmitSuccess(true);
       setCurrentSubmissionStep('Request submitted successfully!');
       setSuccess('Leave request submitted successfully! Your manager will review it shortly.');
@@ -320,12 +328,28 @@ export default function RequestLeavePage() {
       {isSubmitting && (
         <Card>
           <CardContent className="pt-6">
-            <ProcessingState
-              state="processing"
-              steps={submissionSteps}
-              currentStep={currentSubmissionStep}
-              message="Submitting your leave request..."
-            />
+            <div className="space-y-4">
+              <div className="flex items-center gap-3">
+                <span className="text-2xl">{submitSuccess ? '✅' : '⏳'}</span>
+                <div className="flex-1">
+                  <div className={`font-medium ${submitSuccess ? 'text-green-600' : 'text-blue-600'}`}>
+                    {currentSubmissionStep || 'Processing...'}
+                  </div>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Progress</span>
+                  <span className="text-muted-foreground">{submissionProgress}%</span>
+                </div>
+                <div className="w-full bg-secondary rounded-full h-2 overflow-hidden">
+                  <div
+                    className="h-2 rounded-full bg-primary transition-all duration-500 ease-out"
+                    style={{ width: `${submissionProgress}%` }}
+                  />
+                </div>
+              </div>
+            </div>
           </CardContent>
         </Card>
       )}
