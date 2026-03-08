@@ -624,7 +624,7 @@ export default function RequestLeavePage() {
                 </div>
               </div>
 
-              {/* Enhanced Actions with OptimisticButton */}
+              {/* Submit Actions */}
               <div className="flex justify-end gap-3 pt-6 border-t border-border">
                 <Button
                   type="button"
@@ -635,17 +635,20 @@ export default function RequestLeavePage() {
                 >
                   Cancel
                 </Button>
-                <OptimisticButton
+                <Button
                   type="submit"
-                  isLoading={isSubmitting}
-                  loadingText="Submitting request..."
-                  successMessage={submitSuccess ? "Request submitted!" : undefined}
-                  errorMessage={submitError || undefined}
                   disabled={!leaveType || !startDate || !endDate || !reason || isSubmitting || (constraintResult?.violations && constraintResult.violations.length > 0)}
                   className="min-w-[140px]"
                 >
-                  Submit Request
-                </OptimisticButton>
+                  {isSubmitting ? (
+                    <span className="flex items-center gap-2">
+                      <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                      Submitting...
+                    </span>
+                  ) : (
+                    'Submit Request'
+                  )}
+                </Button>
               </div>
             </form>
           </CardContent>
