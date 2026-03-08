@@ -196,7 +196,7 @@ export default function SignUpPage() {
   // Loading state while checking auth
   if (checkingAuth) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 dark:from-slate-900 dark:via-slate-900 dark:to-slate-800 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 flex items-center justify-center dark:bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))]">
         <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary" />
       </div>
     );
@@ -205,7 +205,7 @@ export default function SignUpPage() {
   // Success state - email verification required
   if (success) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 dark:from-slate-900 dark:via-slate-900 dark:to-slate-800 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 flex items-center justify-center p-4 dark:bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))]">
         <div className="w-full max-w-md text-center">
           <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-green-500/20 flex items-center justify-center">
             <svg className="w-10 h-10 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -231,7 +231,7 @@ export default function SignUpPage() {
   // Mode selection screen
   if (mode === 'select') {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 dark:from-slate-900 dark:via-slate-900 dark:to-slate-800 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 flex items-center justify-center p-4 dark:bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))]">
         <div className="w-full max-w-2xl">
           <div className="text-center mb-8">
             <div className="w-12 h-12 mx-auto mb-4 rounded-xl bg-primary/20 flex items-center justify-center">
@@ -246,7 +246,7 @@ export default function SignUpPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <button
               onClick={() => setMode('admin')}
-              className="group bg-card hover:bg-muted/50 border border-border hover:border-primary/50 rounded-2xl p-6 transition-all text-left"
+              className="group bg-card dark:bg-slate-900/80 dark:backdrop-blur-xl hover:bg-muted/50 dark:hover:bg-slate-800/80 border border-border dark:border-slate-800/50 hover:border-primary/50 dark:hover:border-blue-500/50 rounded-2xl p-6 transition-all text-left shadow-lg dark:shadow-black/20"
             >
               <div className="w-12 h-12 bg-primary/20 rounded-xl flex items-center justify-center mb-4">
                 <svg className="w-6 h-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -264,7 +264,7 @@ export default function SignUpPage() {
 
             <button
               onClick={() => setMode('employee')}
-              className="group bg-card hover:bg-muted/50 border border-border hover:border-cyan-500/50 rounded-2xl p-6 transition-all text-left"
+              className="group bg-card dark:bg-slate-900/80 dark:backdrop-blur-xl hover:bg-muted/50 dark:hover:bg-slate-800/80 border border-border dark:border-slate-800/50 hover:border-cyan-500/50 rounded-2xl p-6 transition-all text-left shadow-lg dark:shadow-black/20"
             >
               <div className="w-12 h-12 bg-cyan-500/20 rounded-xl flex items-center justify-center mb-4">
                 <svg className="w-6 h-6 text-cyan-500 dark:text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -294,7 +294,7 @@ export default function SignUpPage() {
 
   // Sign-up form
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 dark:from-slate-900 dark:via-slate-900 dark:to-slate-800 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 flex items-center justify-center p-4 dark:bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))]">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <div className="w-12 h-12 mx-auto mb-4 rounded-xl bg-primary/20 flex items-center justify-center">

@@ -389,7 +389,7 @@ export default function EmployeeDashboardPage() {
           <StartTutorialButton tutorial={employeeTutorial} variant="outline" className="text-xs px-3 py-1.5" />
           <Link
             href="/employee/request-leave"
-            className="inline-flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2.5 rounded-xl text-sm font-medium hover:bg-primary/90 transition-all shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/30"
+            className="inline-flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2.5 rounded-xl text-sm font-medium hover:bg-primary/90 transition-all shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/30 dark:shadow-primary/30 dark:hover:shadow-primary/40"
           >
             📝 Apply Leave
           </Link>
@@ -433,7 +433,7 @@ export default function EmployeeDashboardPage() {
                   whileHover={{ y: -4, boxShadow: '0 20px 40px -12px rgba(0,0,0,0.15)' }}
                   className="group"
                 >
-                  <Card className="relative overflow-hidden border-0 shadow-md">
+                  <Card className="relative overflow-hidden border-0 shadow-md dark:shadow-lg dark:shadow-black/20 dark:bg-slate-900/80 dark:border dark:border-slate-800/50">
                     <div className={`absolute top-0 left-0 right-0 h-1 bg-gradient-to-r ${gradient}`} />
                     <CardContent className="pt-5 pb-4">
                       <div className="flex items-center justify-between mb-3">
@@ -479,8 +479,8 @@ export default function EmployeeDashboardPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Quick Actions */}
         <motion.div variants={itemVariants}>
-          <Card data-tutorial="quick-actions" className="border-0 shadow-md overflow-hidden h-full">
-            <CardHeader className="border-b border-border/50 bg-muted/30">
+          <Card data-tutorial="quick-actions" className="border-0 shadow-md dark:shadow-lg dark:shadow-black/20 dark:bg-slate-900/80 dark:border dark:border-slate-800/50 overflow-hidden h-full">
+            <CardHeader className="border-b border-border/50 bg-muted/30 dark:bg-slate-800/30">
               <CardTitle className="text-base">Quick Actions</CardTitle>
             </CardHeader>
             <CardContent className="p-4 space-y-2">
@@ -519,8 +519,8 @@ export default function EmployeeDashboardPage() {
         <motion.div className="lg:col-span-2 space-y-6" variants={containerVariants}>
           {/* Recent Leave Requests */}
           <motion.div variants={itemVariants}>
-            <Card className="border-0 shadow-md overflow-hidden">
-              <CardHeader className="border-b border-border/50 bg-muted/30">
+            <Card className="border-0 shadow-md dark:shadow-lg dark:shadow-black/20 dark:bg-slate-900/80 dark:border dark:border-slate-800/50 overflow-hidden">
+              <CardHeader className="border-b border-border/50 bg-muted/30 dark:bg-slate-800/30">
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-base">Recent Requests</CardTitle>
                   <Link href="/employee/leave-history" className="text-xs text-primary hover:text-primary/80 font-medium transition-colors">
@@ -580,8 +580,8 @@ export default function EmployeeDashboardPage() {
 
           {/* Upcoming Holidays - Real data from API */}
           <motion.div variants={itemVariants}>
-            <Card className="border-0 shadow-md overflow-hidden">
-              <CardHeader className="border-b border-border/50 bg-muted/30">
+            <Card className="border-0 shadow-md dark:shadow-lg dark:shadow-black/20 dark:bg-slate-900/80 dark:border dark:border-slate-800/50 overflow-hidden">
+              <CardHeader className="border-b border-border/50 bg-muted/30 dark:bg-slate-800/30">
                 <CardTitle className="text-base">Upcoming Holidays</CardTitle>
               </CardHeader>
               <CardContent className="p-0">
