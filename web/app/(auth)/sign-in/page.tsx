@@ -145,11 +145,11 @@ export default function SignInPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 dark:from-slate-900 dark:via-slate-900 dark:to-slate-800 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 flex items-center justify-center p-4 dark:bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))]">
       <div className="w-full max-w-md animate-fade-in">
         {/* Logo & Title */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-14 h-14 bg-primary rounded-2xl mb-4 shadow-lg shadow-primary/25 animate-float">
+          <div className="inline-flex items-center justify-center w-14 h-14 bg-primary rounded-2xl mb-4 shadow-lg shadow-primary/25 dark:shadow-primary/40 animate-float">
             <svg className="w-8 h-8 text-primary-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
             </svg>
@@ -159,7 +159,7 @@ export default function SignInPage() {
         </div>
 
         {/* Card */}
-        <div className="bg-card rounded-2xl shadow-xl border border-border p-6 card-lift">
+        <div className="bg-card dark:bg-slate-900/80 dark:backdrop-blur-xl rounded-2xl shadow-xl dark:shadow-2xl dark:shadow-black/30 border border-border dark:border-slate-800/50 p-6 card-lift">
           {error && (
             <div className="mb-5 flex items-start gap-3 p-4 bg-destructive/10 border border-destructive/20 rounded-xl animate-slide-up">
               <svg className="w-5 h-5 text-destructive flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -180,7 +180,7 @@ export default function SignInPage() {
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full h-11 px-4 bg-background text-foreground border border-input rounded-lg text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
+                className="w-full h-11 px-4 bg-background dark:bg-slate-800/50 text-foreground border border-input dark:border-slate-700 rounded-lg text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary dark:focus:ring-blue-500/50 focus:border-transparent transition-all"
                 placeholder="you@company.com"
                 required
                 autoComplete="email"
@@ -197,7 +197,7 @@ export default function SignInPage() {
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full h-11 px-4 bg-background text-foreground border border-input rounded-lg text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
+                className="w-full h-11 px-4 bg-background dark:bg-slate-800/50 text-foreground border border-input dark:border-slate-700 rounded-lg text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary dark:focus:ring-blue-500/50 focus:border-transparent transition-all"
                 placeholder="••••••••"
                 required
                 autoComplete="current-password"
@@ -211,11 +211,11 @@ export default function SignInPage() {
                   type="checkbox" 
                   checked={rememberMe}
                   onChange={(e) => setRememberMe(e.target.checked)}
-                  className="w-4 h-4 rounded border-input text-primary bg-background focus:ring-primary focus:ring-offset-0"
+                  className="w-4 h-4 rounded border-input dark:border-slate-600 text-primary bg-background dark:bg-slate-800 focus:ring-primary focus:ring-offset-0"
                 />
                 <span className="text-sm text-muted-foreground">Remember me</span>
               </label>
-              <Link href="/forgot-password" className="text-sm text-primary hover:text-primary/80 font-medium transition-colors">
+              <Link href="/forgot-password" className="text-sm text-primary dark:text-blue-400 hover:text-primary/80 dark:hover:text-blue-300 font-medium transition-colors">
                 Forgot password?
               </Link>
             </div>
@@ -224,7 +224,7 @@ export default function SignInPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full h-12 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg shadow-primary/25 btn-press"
+              className="w-full h-12 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg shadow-primary/25 dark:shadow-primary/30 dark:hover:shadow-primary/40 btn-press"
             >
               {loading ? (
                 <>
@@ -240,17 +240,17 @@ export default function SignInPage() {
           {/* Divider */}
           <div className="relative my-6">
             <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-border"></div>
+              <div className="w-full border-t border-border dark:border-slate-700"></div>
             </div>
             <div className="relative flex justify-center text-sm">
-              <span className="bg-card px-4 text-muted-foreground">or</span>
+              <span className="bg-card dark:bg-slate-900/80 px-4 text-muted-foreground">or</span>
             </div>
           </div>
 
           {/* Sign up link */}
           <p className="text-center text-sm text-muted-foreground">
             Don&apos;t have an account?{' '}
-            <Link href="/sign-up" className="text-primary hover:text-primary/80 font-medium transition-colors">
+            <Link href="/sign-up" className="text-primary dark:text-blue-400 hover:text-primary/80 dark:hover:text-blue-300 font-medium transition-colors">
               Create one now
             </Link>
           </p>

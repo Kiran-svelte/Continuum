@@ -148,14 +148,15 @@ export default function EmployeeLayout({ children }: { children: React.ReactNode
                 ? 'fixed left-0 top-0 bottom-0 z-50 w-80 shadow-xl' 
                 : 'relative w-64'
               }
-              bg-card border-r border-border flex flex-col
+              bg-card dark:bg-gradient-to-b dark:from-slate-900 dark:to-slate-950 
+              border-r border-border dark:border-slate-800/50 flex flex-col
             `}
           >
             {/* Sidebar header */}
-            <div className="px-6 py-4 border-b border-border flex items-center justify-between">
+            <div className="px-6 py-4 border-b border-border dark:border-slate-800/50 flex items-center justify-between bg-gradient-to-r from-transparent to-transparent dark:from-slate-900 dark:to-slate-900/50">
               <div>
                 <Link href="/employee/dashboard" onClick={closeSidebar}>
-                  <h1 className="text-xl font-bold text-primary">{companyName}</h1>
+                  <h1 className="text-xl font-bold text-primary dark:text-blue-400">{companyName}</h1>
                 </Link>
                 <p className="text-xs text-muted-foreground mt-0.5">Employee Portal</p>
               </div>
@@ -168,7 +169,7 @@ export default function EmployeeLayout({ children }: { children: React.ReactNode
               {isMobile && (
                 <button
                   onClick={closeSidebar}
-                  className="p-2 hover:bg-muted rounded-lg transition-colors lg:hidden"
+                  className="p-2 hover:bg-muted dark:hover:bg-slate-800 rounded-lg transition-colors lg:hidden"
                   aria-label="Close navigation menu"
                 >
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -184,9 +185,9 @@ export default function EmployeeLayout({ children }: { children: React.ReactNode
             </div>
 
             {/* Footer section */}
-            <div className="px-4 py-3 border-t border-border space-y-2">
+            <div className="px-4 py-3 border-t border-border dark:border-slate-800/50 space-y-2 bg-gradient-to-r from-transparent to-transparent dark:from-slate-900/50 dark:to-slate-950">
               <div className="flex items-center gap-3">
-                <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center text-sm font-medium text-primary">
+                <div className="w-8 h-8 bg-primary/10 dark:bg-blue-500/20 rounded-full flex items-center justify-center text-sm font-medium text-primary dark:text-blue-400">
                   👤
                 </div>
                 <div className="flex-1 min-w-0">

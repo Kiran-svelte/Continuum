@@ -30,38 +30,36 @@
 }
 
 /* 
-  60-30-10 Color Rule:
-  - 60% Dominant: Background, surfaces (--background, --card, --muted)
-  - 30% Secondary: Supporting elements, borders, secondary text (--secondary, --border, --muted-foreground)
-  - 10% Accent: CTAs, highlights, interactive elements (--primary, --accent)
+  FundFlow-inspired Light Theme & Dashboard-inspired Dark Theme
+  Based on premium fintech UI patterns
 */
 
 :root {
   /* Color scheme */
   color-scheme: light;
   
-  /* === LIGHT THEME === */
-  /* 60% Dominant Colors - Backgrounds & Surfaces */
-  --background: 0 0% 100%;
-  --foreground: 222 47% 11%;
-  --card: 0 0% 100%;
+  /* === LIGHT THEME (FundFlow Style) === */
+  /* Soft, airy backgrounds with slight blue tint */
+  --background: 220 30% 97%;           /* #F3F6FB - soft blue-white */
+  --foreground: 222 47% 11%;           /* Dark text */
+  --card: 0 0% 100%;                   /* Pure white cards */
   --card-foreground: 222 47% 11%;
   --popover: 0 0% 100%;
   --popover-foreground: 222 47% 11%;
   
-  /* 30% Secondary Colors - Supporting Elements */
-  --secondary: 210 40% 96%;
+  /* Soft secondary colors */
+  --secondary: 220 25% 94%;            /* #EDF0F7 */
   --secondary-foreground: 222 47% 11%;
-  --muted: 210 40% 96%;
+  --muted: 220 20% 96%;                /* Very light blue-gray */
   --muted-foreground: 215 16% 47%;
-  --border: 214 32% 91%;
-  --input: 214 32% 91%;
+  --border: 220 20% 90%;               /* Soft borders */
+  --input: 220 20% 94%;
   
-  /* 10% Accent Colors - Interactive & Highlights */
-  --primary: 221 83% 53%;
-  --primary-foreground: 210 40% 98%;
-  --accent: 221 83% 53%;
-  --accent-foreground: 210 40% 98%;
+  /* Blue accent - FundFlow style */
+  --primary: 221 83% 53%;              /* #3B82F6 - Vibrant blue */
+  --primary-foreground: 0 0% 100%;
+  --accent: 250 80% 60%;               /* #7C3AED - Purple accent */
+  --accent-foreground: 0 0% 100%;
   --ring: 221 83% 53%;
   
   /* Status Colors */
@@ -74,8 +72,17 @@
   --info: 199 89% 48%;
   --info-foreground: 0 0% 100%;
   
-  /* Radius */
-  --radius: 0.75rem;
+  /* Glassmorphism - Light Mode */
+  --glass-bg: rgba(255, 255, 255, 0.8);
+  --glass-border: rgba(255, 255, 255, 0.5);
+  --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+  
+  /* Sidebar specific */
+  --sidebar-bg: 0 0% 100%;
+  --sidebar-border: 220 20% 92%;
+  
+  /* Radius - larger for softer look */
+  --radius: 1rem;
   
   /* Animation Durations */
   --transition-fast: 150ms;
@@ -83,50 +90,59 @@
   --transition-slow: 500ms;
   
   /* Skeleton Animation */
-  --skeleton-from: 210 40% 96%;
-  --skeleton-to: 210 40% 90%;
+  --skeleton-from: 220 25% 94%;
+  --skeleton-to: 220 20% 90%;
 }
 
 .dark {
   color-scheme: dark;
   
-  /* === DARK THEME === */
-  /* 60% Dominant Colors - Backgrounds & Surfaces */
-  --background: 222 47% 6%;
+  /* === DARK THEME (Dashboard Style) === */
+  /* Deep navy/midnight blue backgrounds */
+  --background: 222 47% 6%;            /* #070B14 - Deep midnight */
   --foreground: 210 40% 98%;
-  --card: 222 47% 8%;
+  --card: 222 45% 10%;                 /* #0D1425 - Navy cards */
   --card-foreground: 210 40% 98%;
-  --popover: 222 47% 8%;
+  --popover: 222 45% 12%;
   --popover-foreground: 210 40% 98%;
   
-  /* 30% Secondary Colors - Supporting Elements */
-  --secondary: 217 33% 15%;
+  /* Rich secondary colors */
+  --secondary: 222 40% 15%;            /* #141E35 */
   --secondary-foreground: 210 40% 98%;
-  --muted: 217 33% 15%;
-  --muted-foreground: 215 20% 65%;
-  --border: 217 33% 20%;
-  --input: 217 33% 20%;
+  --muted: 222 35% 18%;                /* Muted navy */
+  --muted-foreground: 215 25% 65%;
+  --border: 222 35% 22%;               /* Subtle navy borders */
+  --input: 222 35% 18%;
   
-  /* 10% Accent Colors - Interactive & Highlights */
-  --primary: 217 91% 60%;
+  /* Glowing blue accent - Dashboard style */
+  --primary: 217 91% 60%;              /* #60A5FA - Bright sky blue */
   --primary-foreground: 222 47% 6%;
-  --accent: 217 91% 60%;
-  --accent-foreground: 222 47% 6%;
+  --accent: 250 80% 65%;               /* #8B5CF6 - Purple glow */
+  --accent-foreground: 0 0% 100%;
   --ring: 217 91% 60%;
   
-  /* Status Colors */
-  --destructive: 0 72% 51%;
+  /* Status Colors - Brighter for dark mode */
+  --destructive: 0 72% 55%;
   --destructive-foreground: 0 0% 100%;
-  --success: 142 71% 45%;
+  --success: 142 71% 50%;
   --success-foreground: 0 0% 100%;
-  --warning: 38 92% 50%;
+  --warning: 38 92% 55%;
   --warning-foreground: 0 0% 100%;
-  --info: 199 89% 48%;
+  --info: 199 89% 55%;
   --info-foreground: 0 0% 100%;
   
+  /* Glassmorphism - Dark Mode with glow */
+  --glass-bg: rgba(13, 20, 37, 0.7);
+  --glass-border: rgba(96, 165, 250, 0.15);
+  --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), 0 0 60px rgba(96, 165, 250, 0.05);
+  
+  /* Sidebar specific */
+  --sidebar-bg: 222 45% 8%;
+  --sidebar-border: 222 35% 18%;
+  
   /* Skeleton Animation */
-  --skeleton-from: 217 33% 15%;
-  --skeleton-to: 217 33% 20%;
+  --skeleton-from: 222 40% 15%;
+  --skeleton-to: 222 35% 20%;
 }
 
 /* Base styles */
@@ -149,6 +165,154 @@ html {
 /* Custom scrollbar for dark mode */
 .dark {
   scrollbar-color: hsl(var(--muted-foreground)) hsl(var(--muted));
+}
+
+/* ========================================
+   GLASSMORPHISM UTILITY CLASSES
+   ======================================== */
+
+/* Glass card - Light Mode: Soft frosted glass */
+.glass-card {
+  background: var(--glass-bg);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
+}
+
+/* Premium card with subtle gradient - Light */
+.premium-card {
+  background: linear-gradient(135deg, 
+    hsl(var(--card)) 0%, 
+    hsl(var(--secondary)) 100%
+  );
+  border: 1px solid hsl(var(--border));
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.06);
+}
+
+/* Dark mode enhancements */
+.dark .premium-card {
+  background: linear-gradient(135deg, 
+    hsl(222 45% 12%) 0%, 
+    hsl(222 40% 8%) 100%
+  );
+  border: 1px solid hsl(var(--border));
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.3), 
+              0 0 1px rgba(96, 165, 250, 0.2);
+}
+
+/* Glow effect for dark mode interactive elements */
+.dark .glow-primary {
+  box-shadow: 0 0 20px rgba(96, 165, 250, 0.15),
+              0 0 40px rgba(96, 165, 250, 0.1);
+}
+
+.dark .glow-primary:hover {
+  box-shadow: 0 0 30px rgba(96, 165, 250, 0.25),
+              0 0 60px rgba(96, 165, 250, 0.15);
+}
+
+/* Sidebar styles */
+.sidebar-nav {
+  background: hsl(var(--sidebar-bg));
+  border-right: 1px solid hsl(var(--sidebar-border));
+}
+
+.dark .sidebar-nav {
+  background: linear-gradient(180deg, 
+    hsl(222 45% 9%) 0%, 
+    hsl(222 47% 6%) 100%
+  );
+  border-right: 1px solid hsl(222 35% 15%);
+}
+
+/* Active nav item styles */
+.nav-item-active {
+  background: hsl(var(--primary) / 0.1);
+  color: hsl(var(--primary));
+  border-left: 3px solid hsl(var(--primary));
+}
+
+.dark .nav-item-active {
+  background: linear-gradient(90deg, 
+    hsl(217 91% 60% / 0.15) 0%, 
+    transparent 100%
+  );
+  color: hsl(217 91% 70%);
+  border-left: 3px solid hsl(217 91% 60%);
+  box-shadow: inset 0 0 20px hsl(217 91% 60% / 0.05);
+}
+
+/* Balance card gradient - Light Mode */
+.balance-card {
+  background: linear-gradient(135deg, 
+    #3B82F6 0%, 
+    #8B5CF6 50%, 
+    #EC4899 100%
+  );
+  color: white;
+}
+
+/* Balance card gradient - Dark Mode (with glow) */
+.dark .balance-card {
+  background: linear-gradient(135deg, 
+    #2563EB 0%, 
+    #7C3AED 50%, 
+    #DB2777 100%
+  );
+  box-shadow: 0 8px 32px rgba(37, 99, 235, 0.3),
+              0 0 60px rgba(124, 58, 237, 0.1);
+}
+
+/* Stats card with gradient accent */
+.stats-card {
+  position: relative;
+  overflow: hidden;
+}
+
+.stats-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 4px;
+  height: 100%;
+  background: linear-gradient(180deg, 
+    hsl(var(--primary)) 0%, 
+    hsl(var(--accent)) 100%
+  );
+}
+
+/* Progress bars with glow in dark mode */
+.dark .progress-glow {
+  box-shadow: 0 0 8px hsl(var(--primary) / 0.4);
+}
+
+/* Button glow effect */
+.dark .btn-glow {
+  transition: all 0.3s ease;
+}
+
+.dark .btn-glow:hover {
+  box-shadow: 0 0 20px hsl(var(--primary) / 0.4),
+              0 4px 12px hsl(var(--primary) / 0.2);
+}
+
+/* Grid background pattern for dark mode */
+.dark .grid-pattern {
+  background-image: 
+    linear-gradient(hsl(222 35% 15% / 0.5) 1px, transparent 1px),
+    linear-gradient(90deg, hsl(222 35% 15% / 0.5) 1px, transparent 1px);
+  background-size: 40px 40px;
+}
+
+/* Subtle dots pattern */
+.dark .dots-pattern {
+  background-image: radial-gradient(
+    hsl(217 91% 60% / 0.15) 1px, 
+    transparent 1px
+  );
+  background-size: 20px 20px;
 }
 
 ::-webkit-scrollbar {

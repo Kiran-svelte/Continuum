@@ -1,32 +1,37 @@
 import { cn } from '@/lib/utils';
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: 'primary' | 'secondary' | 'danger' | 'ghost' | 'outline' | 'success';
+  variant?: 'primary' | 'secondary' | 'danger' | 'ghost' | 'outline' | 'success' | 'gradient';
   size?: 'sm' | 'md' | 'lg';
   loading?: boolean;
+  glow?: boolean;
 }
 
-export function Button({ variant = 'primary', size = 'md', loading = false, className, children, disabled, ...props }: ButtonProps) {
+export function Button({ variant = 'primary', size = 'md', loading = false, glow = false, className, children, disabled, ...props }: ButtonProps) {
   return (
     <button
       className={cn(
-        'inline-flex items-center justify-center gap-2 rounded-lg font-medium transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98]',
-        // Primary - main CTAs (10% accent)
-        variant === 'primary' && 'bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm hover:shadow-md',
-        // Secondary - supporting actions (30% secondary)
-        variant === 'secondary' && 'bg-muted text-foreground hover:bg-muted/80',
-        // Danger - destructive actions
-        variant === 'danger' && 'bg-red-600 text-white hover:bg-red-700 shadow-sm',
+        'inline-flex items-center justify-center gap-2 rounded-lg font-medium transition-all duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98]',
+        // Primary - main CTAs with enhanced hover
+        variant === 'primary' && 'bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm hover:shadow-md dark:hover:shadow-primary/20',
+        // Secondary - supporting actions
+        variant === 'secondary' && 'bg-muted text-foreground hover:bg-muted/80 border border-transparent hover:border-border',
+        // Danger - destructive actions with glow in dark
+        variant === 'danger' && 'bg-red-600 text-white hover:bg-red-700 shadow-sm dark:hover:shadow-red-500/20',
         // Success - positive actions
-        variant === 'success' && 'bg-green-600 text-white hover:bg-green-700 dark:bg-green-500 dark:hover:bg-green-600 shadow-sm',
+        variant === 'success' && 'bg-green-600 text-white hover:bg-green-700 dark:bg-green-500 dark:hover:bg-green-600 shadow-sm dark:hover:shadow-green-500/20',
         // Ghost - minimal visual weight
         variant === 'ghost' && 'text-foreground hover:bg-muted',
-        // Outline - bordered button
+        // Outline - bordered button with hover fill
         variant === 'outline' && 'border border-border text-foreground hover:bg-muted/50 hover:border-primary/50',
+        // Gradient - special accent button
+        variant === 'gradient' && 'bg-gradient-to-r from-primary via-purple-500 to-pink-500 text-white shadow-md hover:shadow-lg dark:shadow-primary/20',
         // Sizes
         size === 'sm' && 'px-3 py-1.5 text-sm',
         size === 'md' && 'px-4 py-2 text-sm',
         size === 'lg' && 'px-6 py-3 text-base',
+        // Optional glow effect for dark mode
+        glow && 'btn-glow',
         className
       )}
       disabled={disabled || loading}
