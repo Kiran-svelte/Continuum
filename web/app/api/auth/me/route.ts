@@ -15,7 +15,13 @@ export async function GET() {
   try {
     const employee = await getAuthEmployee();
 
-    // Fetch company to get onboarding status
+    // Fetch designation (not included in getAuthEmployee)
+    const employeeDetails = await prisma.employee.findUnique({
+      where: { id: employee.id },
+      select: { designation: true },
+    });
+
+    // Fetch company to get onboarding status and timezone
     const company = await prisma.company.findUnique({
       where: { id: employee.org_id },
       select: {
@@ -23,6 +29,7 @@ export async function GET() {
         name: true,
         onboarding_completed: true,
         join_code: true,
+        timezone: true,
       },
     });
 
@@ -34,13 +41,16 @@ export async function GET() {
       primary_role: employee.primary_role,
       secondary_roles: employee.secondary_roles,
       department: employee.department,
+      designation: employeeDetails?.designation || null,
       org_id: employee.org_id,
       status: employee.status,
+      timezone: company?.timezone || 'Asia/Kolkata',
       company: company ? {
         id: company.id,
         name: company.name,
         onboarding_completed: company.onboarding_completed,
         join_code: company.join_code,
+        timezone: company.timezone,
       } : null,
     });
   } catch (error) {

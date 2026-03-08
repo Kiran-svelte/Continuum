@@ -68,11 +68,11 @@ export function WelcomeModal({ tutorial, userName, roleName = 'Employee' }: Welc
             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
             className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none"
           >
-            <div className="w-full max-w-lg rounded-2xl bg-white dark:bg-gray-900 shadow-2xl border border-gray-200 dark:border-gray-700 overflow-hidden pointer-events-auto">
+            <div className="w-full max-w-lg rounded-2xl bg-card shadow-2xl border border-border overflow-hidden pointer-events-auto">
               {/* Close button */}
               <button
                 onClick={handleMaybeLater}
-                className="absolute top-4 right-4 p-2 rounded-lg text-gray-500 hover:text-gray-900 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-gray-100 dark:hover:bg-gray-800 transition-colors"
+                className="absolute top-4 right-4 p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
               >
                 <X className="w-5 h-5" />
               </button>

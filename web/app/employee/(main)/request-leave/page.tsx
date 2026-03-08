@@ -8,15 +8,6 @@ import { OptimisticButton } from '@/components/ui/optimistic-button';
 import { ProcessingState, ProgressSteps } from '@/components/ui/progress-indicators';
 import { SkeletonForm } from '@/components/ui/skeleton';
 
-// Fallback leave types if API fails
-const FALLBACK_LEAVE_TYPES = [
-  { value: 'CL', label: 'Casual Leave (CL)' },
-  { value: 'SL', label: 'Sick Leave (SL)' },
-  { value: 'PL', label: 'Privilege Leave (PL)' },
-  { value: 'EL', label: 'Earned Leave (EL)' },
-  { value: 'LWP', label: 'Leave Without Pay (LWP)' },
-];
-
 // Type definitions for constraint violations
 // NOTE: The Python constraint engine returns `name` (not `rule_name`), so we
 // accept both to stay forward-compatible.
@@ -109,7 +100,8 @@ export default function RequestLeavePage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  const [leaveTypes, setLeaveTypes] = useState(FALLBACK_LEAVE_TYPES);
+  const [leaveTypes, setLeaveTypes] = useState<Array<{ value: string; label: string }>>([]);
+  const [leaveTypesError, setLeaveTypesError] = useState('');
   const [constraintResult, setConstraintResult] = useState<ConstraintResult | null>(null);
   
   // Enhanced state for optimistic UI
@@ -122,11 +114,7 @@ export default function RequestLeavePage() {
   
   // Processing steps for submission
   const submissionSteps = [
-    'Validating form data...',
-    'Checking constraint rules...',
-    'Updating leave balances...',
-    'Sending notifications...',
-    'Finalizing request...'
+    'Submitting your leave request...',
   ];
   const [currentSubmissionStep, setCurrentSubmissionStep] = useState('');
 
@@ -142,10 +130,14 @@ export default function RequestLeavePage() {
               value: lt.code,
               label: `${lt.name} (${lt.code})`,
             })));
+          } else {
+            setLeaveTypesError('No leave types configured. Please contact your HR administrator to complete company onboarding.');
           }
+        } else {
+          setLeaveTypesError('Failed to load leave types. Please try again later.');
         }
       } catch {
-        // Use fallback types
+        setLeaveTypesError('Unable to connect to the server. Please check your connection and try again.');
       } finally {
         setPageLoading(false);
       }
@@ -153,56 +145,27 @@ export default function RequestLeavePage() {
     fetchLeaveTypes();
   }, []);
   
-  // Auto-save draft functionality
+  // Auto-save draft functionality (disabled — was causing stale data on revisit)
   const saveDraft = useCallback(async () => {
-    if (!leaveType || !startDate || !endDate) return;
-    
-    setAutoSaving(true);
-    try {
-      // Save to localStorage as a draft
-      const draftData = {
-        leaveType,
-        startDate,
-        endDate,
-        halfDay,
-        reason,
-        timestamp: Date.now(),
-      };
-      localStorage.setItem('leave_request_draft', JSON.stringify(draftData));
-      
-      // Simulate API call delay
-      await new Promise(resolve => setTimeout(resolve, 500));
-    } catch {
-      // Silent fail for auto-save
-    } finally {
-      setAutoSaving(false);
-    }
-  }, [leaveType, startDate, endDate, halfDay, reason]);
+    // No-op: drafts removed to prevent stale constraint results on revisit
+    void 0;
+  }, []);
   
   // Auto-save when form data changes
   useEffect(() => {
     const timeoutId = setTimeout(saveDraft, 2000); // Auto-save after 2 seconds of inactivity
     return () => clearTimeout(timeoutId);
   }, [saveDraft]);
-  
-  // Load draft on mount
+
+  // Clear stale state on mount — always start with a fresh form.
+  // Drafts caused confusion by auto-restoring old constraint violations.
   useEffect(() => {
-    try {
-      const draft = localStorage.getItem('leave_request_draft');
-      if (draft) {
-        const draftData = JSON.parse(draft);
-        // Only load draft if it's recent (within 24 hours)
-        if (Date.now() - draftData.timestamp < 24 * 60 * 60 * 1000) {
-          setLeaveType(draftData.leaveType || '');
-          setStartDate(draftData.startDate || '');
-          setEndDate(draftData.endDate || '');
-          setHalfDay(draftData.halfDay || false);
-          setReason(draftData.reason || '');
-        }
-      }
-    } catch {
-      // Silent fail
-    }
+    localStorage.removeItem('leave_request_draft');
+    setConstraintResult(null);
+    setError('');
+    setSubmitError('');
+    setSuccess('');
+    setSubmitSuccess(false);
   }, []);
   
   // Real-time constraint checking (debounced)
@@ -231,7 +194,7 @@ export default function RequestLeavePage() {
     } finally {
       setConstraintChecking(false);
     }
-  }, [leaveType, startDate, endDate, halfDay, constraintChecking]);
+  }, [leaveType, startDate, endDate, halfDay]);
   
   // Debounced constraint checking
   useEffect(() => {
@@ -263,16 +226,8 @@ export default function RequestLeavePage() {
     setSubmitSuccess(false);
     
     try {
-      // Step 1: Validate form data
-      setCurrentSubmissionStep(submissionSteps[0]);
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      // Step 2: Check constraints
-      setCurrentSubmissionStep(submissionSteps[1]);
-      await new Promise(resolve => setTimeout(resolve, 800));
-      
-      // Step 3: Submit request
-      setCurrentSubmissionStep(submissionSteps[2]);
+      // Single submission step - the API handles validation, constraints, and balance updates
+      setCurrentSubmissionStep('Submitting your leave request...');
       const res = await fetch('/api/leaves/submit', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -308,16 +263,9 @@ export default function RequestLeavePage() {
         return;
       }
       
-      // Step 4: Update notifications
-      setCurrentSubmissionStep(submissionSteps[3]);
-      await new Promise(resolve => setTimeout(resolve, 600));
-      
-      // Step 5: Finalize
-      setCurrentSubmissionStep(submissionSteps[4]);
-      await new Promise(resolve => setTimeout(resolve, 400));
-      
       // Success!
       setSubmitSuccess(true);
+      setCurrentSubmissionStep('Request submitted successfully!');
       setSuccess('Leave request submitted successfully! Your manager will review it shortly.');
       
       // Clear draft
@@ -382,8 +330,20 @@ export default function RequestLeavePage() {
         </Card>
       )}
 
+      {/* Leave types not configured error */}
+      {!pageLoading && leaveTypesError && (
+        <Card>
+          <CardContent className="pt-6">
+            <div className="rounded-lg bg-yellow-50 border border-yellow-200 px-4 py-4 dark:bg-yellow-900/20 dark:border-yellow-800">
+              <h4 className="font-semibold text-yellow-800 dark:text-yellow-300 mb-2">Leave Types Not Available</h4>
+              <p className="text-sm text-yellow-700 dark:text-yellow-200">{leaveTypesError}</p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Main Form */}
-      {!pageLoading && !isSubmitting && (
+      {!pageLoading && !isSubmitting && !leaveTypesError && (
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center justify-between">
@@ -510,7 +470,17 @@ export default function RequestLeavePage() {
                 <select
                   id="leaveType"
                   value={leaveType}
-                  onChange={(e) => setLeaveType(e.target.value)}
+                  onChange={(e) => {
+                    setLeaveType(e.target.value);
+                    // Reset form context when leave type changes
+                    setConstraintResult(null);
+                    setStartDate('');
+                    setEndDate('');
+                    setHalfDay(false);
+                    setError('');
+                    setSubmitError('');
+                    setSuccess('');
+                  }}
                   className="w-full rounded-lg border border-border bg-background px-4 py-3 text-sm text-foreground focus:border-primary focus:ring-2 focus:ring-primary/20 focus:outline-none transition-all"
                   required
                   disabled={isSubmitting}
@@ -535,7 +505,12 @@ export default function RequestLeavePage() {
                     type="date"
                     value={startDate}
                     min={new Date().toISOString().split('T')[0]}
-                    onChange={(e) => setStartDate(e.target.value)}
+                    onChange={(e) => {
+                      setStartDate(e.target.value);
+                      if (halfDay && e.target.value) {
+                        setEndDate(e.target.value);
+                      }
+                    }}
                     className="w-full rounded-lg border border-border bg-background px-4 py-3 text-sm text-foreground focus:border-primary focus:ring-2 focus:ring-primary/20 focus:outline-none transition-all"
                     required
                     disabled={isSubmitting}
@@ -553,7 +528,7 @@ export default function RequestLeavePage() {
                     onChange={(e) => setEndDate(e.target.value)}
                     className="w-full rounded-lg border border-border bg-background px-4 py-3 text-sm text-foreground focus:border-primary focus:ring-2 focus:ring-primary/20 focus:outline-none transition-all"
                     required
-                    disabled={isSubmitting}
+                    disabled={isSubmitting || halfDay}
                   />
                 </div>
               </div>
@@ -577,7 +552,12 @@ export default function RequestLeavePage() {
                   id="halfDay"
                   type="checkbox"
                   checked={halfDay}
-                  onChange={(e) => setHalfDay(e.target.checked)}
+                  onChange={(e) => {
+                    setHalfDay(e.target.checked);
+                    if (e.target.checked && startDate) {
+                      setEndDate(startDate);
+                    }
+                  }}
                   className="h-4 w-4 rounded border-border text-primary focus:ring-primary transition-colors"
                   disabled={isSubmitting}
                 />

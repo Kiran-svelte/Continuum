@@ -55,7 +55,7 @@ function ConfigBadges({ config }: { config: Record<string, unknown> }) {
   return (
     <div className="flex flex-wrap gap-1 mt-1">
       {items.map((item) => (
-        <span key={item} className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded">
+        <span key={item} className="text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded">
           {item}
         </span>
       ))}
@@ -69,7 +69,7 @@ function RuleConfigEditor({
   saving,
 }: {
   rule: RuleRow;
-  onSave: (ruleId: string, patch: Record<string, unknown>) => void;
+  onSave: (ruleId: string, patch: Record<string, unknown>, isActive: boolean) => void;
   saving: boolean;
 }) {
   const [editing, setEditing] = useState(false);
@@ -87,7 +87,7 @@ function RuleConfigEditor({
     return (
       <button
         onClick={() => setEditing(true)}
-        className="text-xs text-blue-600 hover:underline mt-1"
+        className="text-xs text-primary hover:underline mt-1"
       >
         Edit
       </button>
@@ -95,48 +95,48 @@ function RuleConfigEditor({
   }
 
   return (
-    <div className="mt-3 p-3 bg-gray-50 rounded-lg border border-gray-200 space-y-3">
+    <div className="mt-3 p-3 bg-muted/50 rounded-lg border border-border space-y-3">
       <div className="flex items-center gap-3">
-        <label className="text-xs font-medium text-gray-600">Active</label>
+        <label className="text-xs font-medium text-muted-foreground">Active</label>
         <input
           type="checkbox"
           checked={isActive}
           onChange={(e) => setIsActive(e.target.checked)}
-          className="h-4 w-4 rounded border-gray-300"
+          className="h-4 w-4 rounded border-border"
         />
       </div>
 
       {rule.rule_id === 'RULE003' && (
         <div className="flex items-center gap-3">
-          <label className="text-xs font-medium text-gray-600">Min Coverage %</label>
+          <label className="text-xs font-medium text-muted-foreground">Min Coverage %</label>
           <input
             type="number"
             min={0}
             max={100}
             value={(config.min_coverage_percent as number) ?? 60}
             onChange={(e) => setConfig({ ...config, min_coverage_percent: parseInt(e.target.value) })}
-            className="border border-gray-300 rounded px-2 py-1 text-xs w-20"
+            className="border border-border rounded px-2 py-1 text-xs w-20"
           />
         </div>
       )}
 
       {rule.rule_id === 'RULE004' && (
         <div className="flex items-center gap-3">
-          <label className="text-xs font-medium text-gray-600">Max Concurrent</label>
+          <label className="text-xs font-medium text-muted-foreground">Max Concurrent</label>
           <input
             type="number"
             min={1}
             max={50}
             value={(config.max_concurrent as number) ?? 2}
             onChange={(e) => setConfig({ ...config, max_concurrent: parseInt(e.target.value) })}
-            className="border border-gray-300 rounded px-2 py-1 text-xs w-20"
+            className="border border-border rounded px-2 py-1 text-xs w-20"
           />
         </div>
       )}
 
       {rule.rule_id === 'RULE005' && (
         <div>
-          <label className="text-xs font-medium text-gray-600">Blackout Periods (JSON array)</label>
+          <label className="text-xs font-medium text-muted-foreground">Blackout Periods (JSON array)</label>
           <textarea
             rows={3}
             value={JSON.stringify(config.blackout_dates ?? [], null, 2)}
@@ -148,12 +148,12 @@ function RuleConfigEditor({
                 setJsonError('Invalid JSON — fix before saving');
               }
             }}
-            className={`mt-1 w-full border rounded px-2 py-1 text-xs font-mono ${jsonError ? 'border-red-400' : 'border-gray-300'}`}
+            className={`mt-1 w-full border rounded px-2 py-1 text-xs font-mono ${jsonError ? 'border-red-400' : 'border-border'}`}
           />
           {jsonError && (
             <p className="text-xs text-red-500 mt-1">{jsonError}</p>
           )}
-          <p className="text-xs text-gray-400 mt-1">
+          <p className="text-xs text-muted-foreground mt-1">
             Format: {`[{"name":"Q4 Freeze","start":"2025-10-01","end":"2025-10-07"}]`}
           </p>
         </div>
@@ -161,12 +161,12 @@ function RuleConfigEditor({
 
       {rule.rule_id === 'RULE002' && (
         <div className="flex items-center gap-3">
-          <label className="text-xs font-medium text-gray-600">Allow Negative Balance</label>
+          <label className="text-xs font-medium text-muted-foreground">Allow Negative Balance</label>
           <input
             type="checkbox"
             checked={!!config.allow_negative}
             onChange={(e) => setConfig({ ...config, allow_negative: e.target.checked })}
-            className="h-4 w-4 rounded border-gray-300"
+            className="h-4 w-4 rounded border-border"
           />
         </div>
       )}
@@ -174,17 +174,17 @@ function RuleConfigEditor({
       <div className="flex gap-2">
         <button
           onClick={() => {
-            onSave(rule.rule_id, { ...config });
+            onSave(rule.rule_id, { ...config }, isActive);
             setEditing(false);
           }}
           disabled={saving || !!jsonError}
-          className="text-xs bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 disabled:opacity-50"
+          className="text-xs bg-primary text-primary-foreground px-3 py-1 rounded hover:bg-primary/90 disabled:opacity-50"
         >
           {saving ? 'Saving…' : 'Save Rule'}
         </button>
         <button
           onClick={() => { setConfig(rule.config); setJsonError(''); setEditing(false); }}
-          className="text-xs text-gray-500 hover:underline"
+          className="text-xs text-muted-foreground hover:underline"
         >
           Cancel
         </button>
@@ -242,8 +242,8 @@ export default function PolicySettingsPage() {
   if (loading) {
     return (
       <div className="space-y-6 animate-pulse">
-        <div className="h-8 w-48 bg-gray-200 rounded" />
-        <div className="h-96 bg-gray-100 rounded-xl" />
+        <div className="h-8 w-48 bg-muted rounded" />
+        <div className="h-96 bg-muted rounded-xl" />
       </div>
     );
   }
@@ -251,11 +251,11 @@ export default function PolicySettingsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Policy Settings</h1>
-        <p className="text-gray-500 mt-1">
+        <h1 className="text-2xl font-bold text-foreground">Policy Settings</h1>
+        <p className="text-muted-foreground mt-1">
           Configure leave policies and constraint rules for your organization.
           {policy && (
-            <span className="ml-2 text-xs text-gray-400">
+            <span className="ml-2 text-xs text-muted-foreground">
               Policy v{policy.policy_version}
               {policy.policy_updated_at && (
                 <> · Last updated {new Date(policy.policy_updated_at).toLocaleDateString()}</>
@@ -266,12 +266,12 @@ export default function PolicySettingsPage() {
       </div>
 
       {error && (
-        <div className="rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
+        <div className="rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 px-4 py-3 text-sm text-red-700 dark:text-red-300">
           {error}
         </div>
       )}
       {success && (
-        <div className="rounded-lg bg-green-50 border border-green-200 px-4 py-3 text-sm text-green-700">
+        <div className="rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 px-4 py-3 text-sm text-green-700 dark:text-green-300">
           {success}
         </div>
       )}
@@ -291,32 +291,32 @@ export default function PolicySettingsPage() {
           </CardHeader>
           <CardContent>
             {policy.leave_types.length === 0 ? (
-              <p className="text-sm text-gray-500">
+              <p className="text-sm text-muted-foreground">
                 No leave types configured yet. Complete onboarding to set up leave types.
               </p>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="border-b border-gray-100">
-                      <th className="text-left py-3 pr-4 text-gray-500 font-medium">Code</th>
-                      <th className="text-left py-3 px-2 text-gray-500 font-medium">Name</th>
-                      <th className="text-left py-3 px-2 text-gray-500 font-medium">Quota</th>
-                      <th className="text-left py-3 px-2 text-gray-500 font-medium">Category</th>
-                      <th className="text-left py-3 px-2 text-gray-500 font-medium hidden md:table-cell">Carry Forward</th>
-                      <th className="text-left py-3 pl-2 text-gray-500 font-medium hidden lg:table-cell">Encashment</th>
+                    <tr className="border-b border-border">
+                      <th className="text-left py-3 pr-4 text-muted-foreground font-medium">Code</th>
+                      <th className="text-left py-3 px-2 text-muted-foreground font-medium">Name</th>
+                      <th className="text-left py-3 px-2 text-muted-foreground font-medium">Quota</th>
+                      <th className="text-left py-3 px-2 text-muted-foreground font-medium">Category</th>
+                      <th className="text-left py-3 px-2 text-muted-foreground font-medium hidden md:table-cell">Carry Forward</th>
+                      <th className="text-left py-3 pl-2 text-muted-foreground font-medium hidden lg:table-cell">Encashment</th>
                     </tr>
                   </thead>
                   <tbody>
                     {policy.leave_types.map((lt) => (
-                      <tr key={lt.code} className="border-b border-gray-50 hover:bg-gray-50">
+                      <tr key={lt.code} className="border-b border-border hover:bg-muted/50">
                         <td className="py-2.5 pr-4">
-                          <span className="inline-flex px-2 py-0.5 rounded text-xs font-bold font-mono bg-blue-50 text-blue-700">
+                          <span className="inline-flex px-2 py-0.5 rounded text-xs font-bold font-mono bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300">
                             {lt.code}
                           </span>
                         </td>
-                        <td className="py-2.5 px-2 text-gray-900">{lt.name}</td>
-                        <td className="py-2.5 px-2 text-gray-700 font-medium">{lt.default_quota} days</td>
+                        <td className="py-2.5 px-2 text-foreground">{lt.name}</td>
+                        <td className="py-2.5 px-2 text-foreground font-medium">{lt.default_quota} days</td>
                         <td className="py-2.5 px-2">
                           <Badge
                             variant={
@@ -332,20 +332,20 @@ export default function PolicySettingsPage() {
                         </td>
                         <td className="py-2.5 px-2 hidden md:table-cell">
                           {lt.carry_forward ? (
-                            <span className="text-green-600 text-xs font-medium">
+                            <span className="text-green-600 dark:text-green-400 text-xs font-medium">
                               ✓ Up to {lt.max_carry_forward} days
                             </span>
                           ) : (
-                            <span className="text-gray-400 text-xs">No</span>
+                            <span className="text-muted-foreground text-xs">No</span>
                           )}
                         </td>
                         <td className="py-2.5 pl-2 hidden lg:table-cell">
                           {lt.encashment_enabled ? (
-                            <span className="text-green-600 text-xs font-medium">
+                            <span className="text-green-600 dark:text-green-400 text-xs font-medium">
                               ✓ Up to {lt.encashment_max_days} days
                             </span>
                           ) : (
-                            <span className="text-gray-400 text-xs">No</span>
+                            <span className="text-muted-foreground text-xs">No</span>
                           )}
                         </td>
                       </tr>
@@ -374,48 +374,48 @@ export default function PolicySettingsPage() {
               {policy.rules.map((rule) => (
                 <div
                   key={rule.rule_id}
-                  className={`p-3 rounded-lg border transition-colors ${rule.is_active ? 'border-gray-100 hover:bg-gray-50' : 'border-gray-100 bg-gray-50 opacity-60'}`}
+                  className={`p-3 rounded-lg border transition-colors ${rule.is_active ? 'border-border hover:bg-muted/50' : 'border-border bg-muted/50 opacity-60'}`}
                 >
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-xs font-mono text-gray-400">{rule.rule_id}</span>
-                        <p className="text-sm font-semibold text-gray-900">{rule.name}</p>
+                        <span className="text-xs font-mono text-muted-foreground">{rule.rule_id}</span>
+                        <p className="text-sm font-semibold text-foreground">{rule.name}</p>
                         <Badge variant={CATEGORY_BADGE[rule.category] ?? 'default'}>
                           {rule.category}
                         </Badge>
                         {rule.is_blocking && (
-                          <span className="text-xs bg-red-50 text-red-600 px-2 py-0.5 rounded-full font-medium">
+                          <span className="text-xs bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 px-2 py-0.5 rounded-full font-medium">
                             Blocking
                           </span>
                         )}
                         {!rule.is_active && (
-                          <span className="text-xs bg-gray-200 text-gray-500 px-2 py-0.5 rounded-full font-medium">
+                          <span className="text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded-full font-medium">
                             Disabled
                           </span>
                         )}
                         {rule.persisted && (
-                          <span className="text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full font-medium">
+                          <span className="text-xs bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 px-2 py-0.5 rounded-full font-medium">
                             Customized
                           </span>
                         )}
                       </div>
-                      <p className="text-xs text-gray-500 mt-1">{rule.description}</p>
+                      <p className="text-xs text-muted-foreground mt-1">{rule.description}</p>
                       <ConfigBadges config={rule.config} />
                       <RuleConfigEditor
                         rule={rule}
-                        onSave={(ruleId, config) => saveRule(ruleId, config)}
+                        onSave={(ruleId, config, isActive) => saveRule(ruleId, config, isActive)}
                         saving={saving}
                       />
                     </div>
                     <div className="ml-4 shrink-0">
-                      <span className="text-xs text-gray-400">Priority {rule.priority}</span>
+                      <span className="text-xs text-muted-foreground">Priority {rule.priority}</span>
                     </div>
                   </div>
                 </div>
               ))}
             </div>
-            <p className="text-xs text-gray-400 mt-4">
+            <p className="text-xs text-muted-foreground mt-4">
               💡 Changes are applied immediately. The Python constraint engine reads these rules from the
               database on every leave request evaluation — no restart required.
             </p>

@@ -220,11 +220,12 @@ async function seedTestUsers() {
   });
 
   if (existingLeaveTypes === 0) {
+    // Test-only defaults; in production, leave types are configured during onboarding.
     const leaveTypes = [
-      { code: 'EL', name: 'Earned Leave', category: 'common' as const, default_quota: 12, paid: true },
-      { code: 'SL', name: 'Sick Leave', category: 'common' as const, default_quota: 7, paid: true },
-      { code: 'CL', name: 'Casual Leave', category: 'common' as const, default_quota: 7, paid: true },
-      { code: 'LOP', name: 'Loss of Pay', category: 'unpaid' as const, default_quota: 0, paid: false },
+      { code: 'CL', name: 'Casual Leave', category: 'common' as const, default_quota: 12, paid: true },
+      { code: 'SL', name: 'Sick Leave', category: 'common' as const, default_quota: 12, paid: true },
+      { code: 'EL', name: 'Earned Leave', category: 'common' as const, default_quota: 15, paid: true },
+      { code: 'LWP', name: 'Leave Without Pay', category: 'unpaid' as const, default_quota: 365, paid: false },
     ];
 
     await prisma.leaveType.createMany({

@@ -14,14 +14,14 @@ export function ThemeToggle({ className, variant = 'icon' }: ThemeToggleProps) {
 
   if (variant === 'button') {
     return (
-      <div className={cn('flex items-center gap-1 p-1 rounded-lg bg-gray-200/20 dark:bg-gray-700/20', className)}>
+      <div className={cn('flex items-center gap-1 p-1 rounded-lg bg-muted/50', className)}>
         <button
           onClick={() => setTheme('light')}
           className={cn(
             'flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-all duration-200',
             theme === 'light'
-              ? 'bg-white dark:bg-gray-800 text-blue-600 shadow-sm'
-              : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100'
+              ? 'bg-card text-primary shadow-sm'
+              : 'text-muted-foreground hover:text-foreground'
           )}
           title="Light mode"
         >
@@ -33,8 +33,8 @@ export function ThemeToggle({ className, variant = 'icon' }: ThemeToggleProps) {
           className={cn(
             'flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-all duration-200',
             theme === 'dark'
-              ? 'bg-white dark:bg-gray-800 text-blue-600 shadow-sm'
-              : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100'
+              ? 'bg-card text-primary shadow-sm'
+              : 'text-muted-foreground hover:text-foreground'
           )}
           title="Dark mode"
         >
@@ -46,8 +46,8 @@ export function ThemeToggle({ className, variant = 'icon' }: ThemeToggleProps) {
           className={cn(
             'flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-all duration-200',
             theme === 'system'
-              ? 'bg-white dark:bg-gray-800 text-blue-600 shadow-sm'
-              : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100'
+              ? 'bg-card text-primary shadow-sm'
+              : 'text-muted-foreground hover:text-foreground'
           )}
           title="System preference"
         >
@@ -69,7 +69,7 @@ export function ThemeToggle({ className, variant = 'icon' }: ThemeToggleProps) {
     <button
       onClick={cycleTheme}
       className={cn(
-        'relative p-2 rounded-lg transition-all duration-300 hover:bg-gray-200/20 dark:hover:bg-gray-700/20 active:scale-95',
+        'relative p-2 rounded-lg transition-all duration-300 hover:bg-muted/50 active:scale-95',
         className
       )}
       title={`Current: ${theme} (${resolvedTheme})`}

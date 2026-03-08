@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { getAuthEmployee, AuthError } from '@/lib/auth-guard';
-import { getDefaultLeaveTypes } from '@/lib/leave-types-config';
 
 export const dynamic = 'force-dynamic';
 
@@ -19,7 +18,7 @@ export async function GET() {
     });
 
     // INV-15: Auto-seed balances if none exist.
-    // Prefer company-configured leave types; fall back to the global catalog.
+    // Only seed from company-configured leave types — the system is config-driven.
     if (balances.length === 0) {
       const companyLeaveTypes = await prisma.leaveType.findMany({
         where: {
@@ -27,33 +26,39 @@ export async function GET() {
           is_active: true,
           deleted_at: null,
         },
-        select: { code: true, default_quota: true },
+        select: { code: true, default_quota: true, gender_specific: true },
       });
 
-      const typesToSeed =
-        companyLeaveTypes.length > 0
-          ? companyLeaveTypes.map((lt) => ({ code: lt.code, defaultQuota: lt.default_quota }))
-          : getDefaultLeaveTypes().map((lt) => ({ code: lt.code, defaultQuota: lt.defaultQuota }));
+      // Only seed if the company has configured leave types (onboarding completed)
+      if (companyLeaveTypes.length > 0) {
+        // Filter by gender if applicable
+        const empGender = employee.gender ?? 'other';
+        const typesToSeed = companyLeaveTypes.filter((lt) => {
+          if (!lt.gender_specific || lt.gender_specific === 'all') return true;
+          if (empGender === 'other') return true;
+          return lt.gender_specific === empGender;
+        });
 
-      const seedData = typesToSeed.map((lt) => ({
-        emp_id: employee.id,
-        company_id: employee.org_id,
-        leave_type: lt.code,
-        year: currentYear,
-        annual_entitlement: lt.defaultQuota,
-        carried_forward: 0,
-        used_days: 0,
-        pending_days: 0,
-        encashed_days: 0,
-        remaining: lt.defaultQuota,
-      }));
+        const seedData = typesToSeed.map((lt) => ({
+          emp_id: employee.id,
+          company_id: employee.org_id,
+          leave_type: lt.code,
+          year: currentYear,
+          annual_entitlement: lt.default_quota,
+          carried_forward: 0,
+          used_days: 0,
+          pending_days: 0,
+          encashed_days: 0,
+          remaining: lt.default_quota,
+        }));
 
-      await prisma.leaveBalance.createMany({ data: seedData, skipDuplicates: true });
+        await prisma.leaveBalance.createMany({ data: seedData, skipDuplicates: true });
 
-      balances = await prisma.leaveBalance.findMany({
-        where: { emp_id: employee.id, year: currentYear },
-        orderBy: { leave_type: 'asc' },
-      });
+        balances = await prisma.leaveBalance.findMany({
+          where: { emp_id: employee.id, year: currentYear },
+          orderBy: { leave_type: 'asc' },
+        });
+      }
     }
 
     // Compute remaining for each balance

@@ -25,7 +25,7 @@ export default function HomePage() {
             <Link href="/status" className="text-sm text-slate-300 hover:text-white transition-colors">Status</Link>
             <Link href="/support" className="text-sm text-slate-300 hover:text-white transition-colors">Support</Link>
             <Link href="/sign-in" className="text-sm text-slate-300 hover:text-white transition-colors">Sign In</Link>
-            <Link href="/sign-up" className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors">
+            <Link href="/sign-up" className="bg-primary text-primary-foreground px-4 py-2 rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors">
               Get Started
             </Link>
           </div>
@@ -35,7 +35,7 @@ export default function HomePage() {
       {/* Hero Section */}
       <section className="bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 text-white">
         <div className="max-w-7xl mx-auto px-6 py-24 text-center">
-          <div className="inline-flex items-center gap-2 bg-blue-500/10 border border-blue-500/20 rounded-full px-4 py-1.5 mb-6">
+          <div className="inline-flex items-center gap-2 bg-primary/10 border border-primary/20 rounded-full px-4 py-1.5 mb-6">
             <span className="text-xs font-medium text-blue-300">🚀 Now with AI-powered leave planning</span>
           </div>
           <h1 className="text-5xl md:text-6xl font-bold mb-6 leading-tight">
@@ -49,7 +49,7 @@ export default function HomePage() {
             From 10 employees to 10,000 — manage leave policies, approvals, and compliance effortlessly.
           </p>
           <div className="flex items-center justify-center gap-4">
-            <Link href="/sign-up" className="bg-blue-600 text-white px-8 py-3 rounded-lg text-base font-medium hover:bg-blue-700 transition-colors">
+            <Link href="/sign-up" className="bg-primary text-primary-foreground px-8 py-3 rounded-lg text-base font-medium hover:bg-primary/90 transition-colors">
               Start Free Trial
             </Link>
             <Link href="/status" className="border border-slate-600 text-slate-300 px-8 py-3 rounded-lg text-base font-medium hover:bg-slate-800 transition-colors">
@@ -93,28 +93,28 @@ export default function HomePage() {
                 key={plan.name}
                 className={`rounded-xl p-6 ${
                   plan.highlighted
-                    ? 'bg-blue-600 text-white ring-2 ring-blue-600 ring-offset-2 ring-offset-background'
+                    ? 'bg-primary text-primary-foreground ring-2 ring-primary ring-offset-2 ring-offset-background'
                     : 'bg-card border border-border'
                 }`}
               >
-                <h3 className={`text-lg font-semibold ${plan.highlighted ? 'text-white' : 'text-foreground'}`}>
+                <h3 className={`text-lg font-semibold ${plan.highlighted ? 'text-primary-foreground' : 'text-foreground'}`}>
                   {plan.name}
                 </h3>
                 <div className="mt-3">
-                  <span className={`text-3xl font-bold ${plan.highlighted ? 'text-white' : 'text-foreground'}`}>
+                  <span className={`text-3xl font-bold ${plan.highlighted ? 'text-primary-foreground' : 'text-foreground'}`}>
                     {plan.price}
                   </span>
-                  <span className={`text-sm ${plan.highlighted ? 'text-blue-200' : 'text-muted-foreground'}`}>
+                  <span className={`text-sm ${plan.highlighted ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>
                     {plan.period}
                   </span>
                 </div>
-                <p className={`text-sm mt-2 ${plan.highlighted ? 'text-blue-100' : 'text-muted-foreground'}`}>
+                <p className={`text-sm mt-2 ${plan.highlighted ? 'text-primary-foreground/80' : 'text-muted-foreground'}`}>
                   {plan.description}
                 </p>
                 <ul className="mt-6 space-y-2">
                   {plan.features.map((feature) => (
-                    <li key={feature} className={`text-sm flex items-center gap-2 ${plan.highlighted ? 'text-blue-100' : 'text-muted-foreground'}`}>
-                      <span className={plan.highlighted ? 'text-blue-200' : 'text-green-500'}>✓</span>
+                    <li key={feature} className={`text-sm flex items-center gap-2 ${plan.highlighted ? 'text-primary-foreground/80' : 'text-muted-foreground'}`}>
+                      <span className={plan.highlighted ? 'text-primary-foreground/70' : 'text-green-500'}>✓</span>
                       {feature}
                     </li>
                   ))}
@@ -122,7 +122,7 @@ export default function HomePage() {
                 <button
                   className={`w-full mt-6 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                     plan.highlighted
-                      ? 'bg-white text-blue-600 hover:bg-blue-50'
+                      ? 'bg-white text-primary hover:bg-primary-foreground/90'
                       : 'bg-primary text-primary-foreground hover:bg-primary/90'
                   }`}
                 >
@@ -140,7 +140,7 @@ export default function HomePage() {
           <h2 className="text-3xl font-bold text-white mb-4">Ready to streamline your leave management?</h2>
           <p className="text-slate-400 mb-8">Join hundreds of Indian companies already using Continuum.</p>
           <div className="flex items-center justify-center gap-4">
-            <Link href="/sign-up" className="bg-blue-600 text-white px-8 py-3 rounded-lg text-base font-medium hover:bg-blue-700 transition-colors">
+            <Link href="/sign-up" className="bg-primary text-primary-foreground px-8 py-3 rounded-lg text-base font-medium hover:bg-primary/90 transition-colors">
               Start Free Trial
             </Link>
             <Link href="/sign-in" className="border border-slate-600 text-slate-300 px-8 py-3 rounded-lg text-base font-medium hover:bg-slate-800 transition-colors">

@@ -1,14 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { randomBytes } from 'crypto';
-import type { Prisma } from '@prisma/client';
 import prisma from '@/lib/prisma';
 import { getAuthUserFromRequest } from '@/lib/auth-guard';
 import { checkApiRateLimit, getRateLimitHeaders } from '@/lib/api-rate-limit';
 import { createAuditLog, AUDIT_ACTIONS } from '@/lib/audit';
 import { sanitizeInput } from '@/lib/security';
-import { LEAVE_TYPE_CATALOG } from '@/lib/leave-types-config';
-import { DEFAULT_CONSTRAINT_RULES } from '@/lib/constraint-rules-config';
 import { sendWelcomeEmail } from '@/lib/email-service';
 
 export const dynamic = 'force-dynamic';
@@ -35,14 +32,13 @@ function generateJoinCode(): string {
  * 1. Authenticates via Firebase token (client must call Firebase signUp first)
  * 2. Creates a Company record with a unique join_code for employees
  * 3. Creates an Employee record with `admin` role
- * 4. Seeds default leave types for the company
- * 5. Seeds leave balances for the admin employee
- * 6. Seeds default constraint rules
- * 7. Creates an audit log entry
+ * 4. Does NOT seed leave types, balances, or constraint rules — those are
+ *    configured by HR during the onboarding wizard (config-driven approach).
+ * 5. Creates an audit log entry
  */
 export async function POST(request: NextRequest) {
   console.log('[REGISTER] Started');
-  
+
   // Rate limit by IP
   const ip = request.headers.get('x-forwarded-for') ?? 'unknown';
   const rateLimit = checkApiRateLimit(ip, 'auth');
@@ -67,7 +63,7 @@ export async function POST(request: NextRequest) {
     // Ensure this auth_id is not already linked to an employee
     const existing = await prisma.employee.findUnique({ where: { auth_id: user.uid } });
     console.log('[REGISTER] Existing employee:', existing?.id);
-    
+
     if (existing) {
       return NextResponse.json({ error: 'Account already registered' }, { status: 409 });
     }
@@ -91,7 +87,7 @@ export async function POST(request: NextRequest) {
     const companyName = sanitizeInput(data.company_name);
     const industry = data.industry ? sanitizeInput(data.industry) : undefined;
     const size = data.size ? sanitizeInput(data.size) : undefined;
-    const timezone = data.timezone ? sanitizeInput(data.timezone) : 'Asia/Kolkata';
+    const timezone = data.timezone ? sanitizeInput(data.timezone) : undefined;
 
     // Generate a unique join code for this company
     let joinCode = generateJoinCode();
@@ -103,11 +99,9 @@ export async function POST(request: NextRequest) {
       attempts++;
     }
 
-    const year = new Date().getFullYear();
-
-    // NOTE: Avoid interactive transactions in serverless + PgBouncer setups.
-    // Use sequential writes; these operations are small and should complete well
-    // within the function timeout.
+    // Create company with onboarding_completed = false.
+    // Leave types, balances, and constraint rules will be configured during
+    // the onboarding wizard — the system is fully config-driven.
     console.log('[REGISTER] Creating company...');
     const company = await prisma.company.create({
       data: {
@@ -116,6 +110,7 @@ export async function POST(request: NextRequest) {
         size,
         timezone,
         join_code: joinCode,
+        onboarding_completed: false,
       },
     });
 
@@ -130,53 +125,11 @@ export async function POST(request: NextRequest) {
         primary_role: 'admin',
         date_of_joining: new Date(),
         gender: 'other',
-        status: 'active',
+        status: 'onboarding',
       },
     });
 
-    console.log('[REGISTER] Seeding leave types...');
-    const leaveTypeInserts = LEAVE_TYPE_CATALOG.map((lt) => ({
-      company_id: company.id,
-      code: lt.code,
-      name: lt.name,
-      category: lt.category as 'common' | 'statutory' | 'special' | 'unpaid',
-      default_quota: lt.defaultQuota,
-      carry_forward: lt.carryForward,
-      max_carry_forward: lt.maxCarryForward,
-      encashment_enabled: lt.encashmentEnabled,
-      encashment_max_days: lt.encashmentMaxDays,
-      paid: lt.paid,
-      gender_specific: lt.genderSpecific as 'male' | 'female' | 'all' | undefined,
-    }));
-    await prisma.leaveType.createMany({ data: leaveTypeInserts });
-
-    console.log('[REGISTER] Seeding leave balances...');
-    const balanceInserts = LEAVE_TYPE_CATALOG.map((lt) => ({
-      emp_id: employee.id,
-      company_id: company.id,
-      leave_type: lt.code,
-      year,
-      annual_entitlement: lt.defaultQuota,
-      remaining: lt.defaultQuota,
-    }));
-    await prisma.leaveBalance.createMany({ data: balanceInserts });
-
-    console.log('[REGISTER] Seeding constraint rules...');
-    const ruleInserts = DEFAULT_CONSTRAINT_RULES.map((rule) => ({
-      company_id: company.id,
-      rule_id: rule.rule_id,
-      rule_type: rule.category,
-      name: rule.name,
-      description: rule.description,
-      category: rule.category as 'validation' | 'business' | 'compliance',
-      is_blocking: rule.is_blocking,
-      priority: rule.priority,
-      config: rule.config as Prisma.InputJsonValue,
-      applies_to_all: true,
-    }));
-    await prisma.leaveRule.createMany({ data: ruleInserts });
-
-    // 6. Audit log
+    // Audit log
     console.log('[REGISTER] Writing audit log...');
     await createAuditLog({
       companyId: company.id,
@@ -187,7 +140,7 @@ export async function POST(request: NextRequest) {
       newState: { company_name: companyName, admin_id: employee.id },
     });
 
-    // 7. Send welcome email (non-blocking)
+    // Send welcome email (non-blocking)
     void sendWelcomeEmail(user.email!, `${firstName} ${lastName}`, companyName).catch(
       (emailError) => {
         console.error('[Register] Welcome email failed:', emailError);
@@ -200,6 +153,7 @@ export async function POST(request: NextRequest) {
       company_id: company.id,
       employee_id: employee.id,
       join_code: joinCode,
+      onboarding_required: true,
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Registration failed';

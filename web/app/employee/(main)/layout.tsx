@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import { SidebarNav } from '@/components/sidebar-nav';
@@ -19,8 +20,47 @@ const EMPLOYEE_NAV_ITEMS = [
 ];
 
 export default function EmployeeLayout({ children }: { children: React.ReactNode }) {
+  const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [companyName, setCompanyName] = useState('Continuum');
+  const [authChecked, setAuthChecked] = useState(false);
+  const [userName, setUserName] = useState('');
+
+  // Fetch company name and verify auth
+  useEffect(() => {
+    fetch('/api/auth/me', { credentials: 'include' })
+      .then(res => {
+        if (!res.ok) {
+          router.replace('/sign-in');
+          return;
+        }
+        return res.json();
+      })
+      .then(data => {
+        if (!data) return;
+        // Role verification: redirect to correct portal if mismatched
+        const role = data.primary_role;
+        if (role === 'hr' || role === 'admin' || role === 'director') {
+          router.replace('/hr/dashboard');
+          return;
+        }
+        if (role === 'manager' || role === 'team_lead') {
+          router.replace('/manager/dashboard');
+          return;
+        }
+        if (data.company?.name) {
+          setCompanyName(data.company.name);
+        }
+        if (data.first_name) {
+          setUserName(data.first_name);
+        }
+        setAuthChecked(true);
+      })
+      .catch(() => {
+        router.replace('/sign-in');
+      });
+  }, [router]);
 
   // Handle mobile detection and sidebar auto-close
   useEffect(() => {
@@ -46,6 +86,17 @@ export default function EmployeeLayout({ children }: { children: React.ReactNode
     }
   };
 
+  if (!authChecked) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-background">
+        <div className="text-center space-y-3">
+          <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto" />
+          <p className="text-sm text-muted-foreground">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex h-screen bg-background overflow-hidden">
       {/* Mobile header bar */}
@@ -61,7 +112,7 @@ export default function EmployeeLayout({ children }: { children: React.ReactNode
             </svg>
           </button>
           <Link href="/employee/dashboard">
-            <h1 className="text-lg font-bold text-primary">Continuum</h1>
+            <h1 className="text-lg font-bold text-primary">{companyName}</h1>
           </Link>
         </div>
         <div className="flex items-center gap-2">
@@ -104,7 +155,7 @@ export default function EmployeeLayout({ children }: { children: React.ReactNode
             <div className="px-6 py-4 border-b border-border flex items-center justify-between">
               <div>
                 <Link href="/employee/dashboard" onClick={closeSidebar}>
-                  <h1 className="text-xl font-bold text-primary">Continuum</h1>
+                  <h1 className="text-xl font-bold text-primary">{companyName}</h1>
                 </Link>
                 <p className="text-xs text-muted-foreground mt-0.5">Employee Portal</p>
               </div>
@@ -139,7 +190,7 @@ export default function EmployeeLayout({ children }: { children: React.ReactNode
                   👤
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-foreground truncate">My Account</p>
+                  <p className="text-sm font-medium text-foreground truncate">{userName || 'My Account'}</p>
                   <p className="text-xs text-muted-foreground">Employee</p>
                 </div>
               </div>

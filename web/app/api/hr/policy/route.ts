@@ -66,8 +66,13 @@ export async function GET() {
       },
     });
 
-    // Merge DB rules with defaults so callers see all 13 rules
+    // Merge DB rules with defaults so callers see all 13 rules.
+    // DB rules (company-customized during onboarding) take full precedence.
+    // The DEFAULT_CONSTRAINT_RULES only provide the structural skeleton for
+    // rules not yet persisted in the DB.
     const rulesMap = new Map<string, Record<string, unknown>>();
+
+    // Seed with defaults (structural template only)
     for (const def of DEFAULT_CONSTRAINT_RULES) {
       rulesMap.set(def.rule_id, {
         rule_id: def.rule_id,
@@ -81,18 +86,19 @@ export async function GET() {
         persisted: false,
       });
     }
+
+    // Overlay with company-specific DB rules (takes full precedence)
     for (const row of dbRules) {
-      const existing = rulesMap.get(row.rule_id) ?? {};
+      const existing = rulesMap.get(row.rule_id);
       rulesMap.set(row.rule_id, {
-        ...existing,
         rule_id: row.rule_id,
         name: row.name,
-        description: row.description ?? existing.description,
+        description: row.description ?? (existing?.description ?? ''),
         category: row.category,
         is_blocking: row.is_blocking,
         is_active: row.is_active,
         priority: row.priority,
-        config: row.config,
+        config: row.config, // DB config is the full config, not a partial overlay
         persisted: true,
         db_id: row.id,
       });
@@ -158,10 +164,16 @@ export async function PATCH(request: NextRequest) {
     const companyId = employee.org_id;
     const { rules: updates } = parsed.data;
 
-    // Validate all rule IDs exist in the catalog
+    // Validate rule IDs: must exist in defaults or already be persisted for this company
     const validIds = new Set(DEFAULT_CONSTRAINT_RULES.map((r) => r.rule_id));
+    const existingDbRuleIds = new Set(
+      (await prisma.leaveRule.findMany({
+        where: { company_id: companyId, deleted_at: null },
+        select: { rule_id: true },
+      })).map((r) => r.rule_id)
+    );
     for (const u of updates) {
-      if (!validIds.has(u.rule_id)) {
+      if (!validIds.has(u.rule_id) && !existingDbRuleIds.has(u.rule_id)) {
         return NextResponse.json(
           { error: `Unknown rule_id: ${u.rule_id}` },
           { status: 400 }

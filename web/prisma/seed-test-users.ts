@@ -133,16 +133,19 @@ async function main() {
     where: { company_id: company.id },
   });
 
-  // If no leave types, create basic ones
+  // If no leave types, create common ones from the standard catalog.
+  // These are test-only defaults; in production, leave types are configured
+  // by HR during onboarding.
   if (leaveTypes.length === 0) {
     await prisma.leaveType.createMany({
       data: [
         { company_id: company.id, code: 'CL', name: 'Casual Leave', category: 'common', default_quota: 12, paid: true },
         { company_id: company.id, code: 'SL', name: 'Sick Leave', category: 'common', default_quota: 12, paid: true },
-        { company_id: company.id, code: 'EL', name: 'Earned Leave', category: 'common', default_quota: 15, paid: true },
+        { company_id: company.id, code: 'EL', name: 'Earned Leave', category: 'common', default_quota: 15, paid: true, carry_forward: true, max_carry_forward: 30 },
+        { company_id: company.id, code: 'LWP', name: 'Leave Without Pay', category: 'unpaid', default_quota: 365, paid: false },
       ],
     });
-    console.log('✅ Created default leave types\n');
+    console.log('✅ Created default leave types (test data)\n');
   }
 
   const year = new Date().getFullYear();

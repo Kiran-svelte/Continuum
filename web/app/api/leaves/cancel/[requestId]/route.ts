@@ -35,6 +35,7 @@ export async function POST(
         status: true,
         total_days: true,
         leave_type: true,
+        start_date: true,
       },
     });
 
@@ -73,36 +74,46 @@ export async function POST(
 
     const previousStatus = leaveRequest.status;
 
-    const updatedRequest = await prisma.leaveRequest.update({
-      where: { id: requestId },
-      data: {
-        status: 'cancelled',
-        cancel_reason: cancelReason,
-      },
-    });
+    // Atomically update status and balance in a transaction
+    const balanceYear = leaveRequest.start_date.getFullYear();
+    const updatedRequest = await prisma.$transaction(async (tx) => {
+      const updated = await tx.leaveRequest.update({
+        where: { id: requestId },
+        data: {
+          status: 'cancelled',
+          cancel_reason: cancelReason,
+        },
+      });
 
-    // Restore leave balance: undo pending_days or used_days based on previous status
-    const currentYear = new Date().getFullYear();
-    if (previousStatus === 'pending' || previousStatus === 'escalated') {
-      await prisma.leaveBalance.updateMany({
-        where: {
-          emp_id: leaveRequest.emp_id,
-          leave_type: leaveRequest.leave_type,
-          year: currentYear,
-        },
-        data: { pending_days: { decrement: leaveRequest.total_days } },
-      });
-    } else if (previousStatus === 'approved') {
-      // Reverse the used_days deduction
-      await prisma.leaveBalance.updateMany({
-        where: {
-          emp_id: leaveRequest.emp_id,
-          leave_type: leaveRequest.leave_type,
-          year: currentYear,
-        },
-        data: { used_days: { decrement: leaveRequest.total_days } },
-      });
-    }
+      // Restore leave balance based on previous status
+      if (previousStatus === 'pending' || previousStatus === 'escalated') {
+        await tx.leaveBalance.updateMany({
+          where: {
+            emp_id: leaveRequest.emp_id,
+            leave_type: leaveRequest.leave_type,
+            year: balanceYear,
+          },
+          data: {
+            pending_days: { decrement: leaveRequest.total_days },
+            remaining: { increment: leaveRequest.total_days },
+          },
+        });
+      } else if (previousStatus === 'approved') {
+        await tx.leaveBalance.updateMany({
+          where: {
+            emp_id: leaveRequest.emp_id,
+            leave_type: leaveRequest.leave_type,
+            year: balanceYear,
+          },
+          data: {
+            used_days: { decrement: leaveRequest.total_days },
+            remaining: { increment: leaveRequest.total_days },
+          },
+        });
+      }
+
+      return updated;
+    });
 
     await createAuditLog({
       companyId: employee.org_id,

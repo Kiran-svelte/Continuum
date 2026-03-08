@@ -52,6 +52,20 @@ export async function POST(request: NextRequest) {
 }
 
 /**
+ * GET /api/auth/session
+ * 
+ * Returns the current session status without requiring authentication.
+ * Used for health checks and session validation.
+ */
+export async function GET() {
+  return NextResponse.json({ 
+    status: 'available',
+    endpoint: 'session',
+    methods: ['GET', 'POST', 'DELETE']
+  });
+}
+
+/**
  * DELETE /api/auth/session
  * 
  * Clears the Firebase auth cookie (sign out).

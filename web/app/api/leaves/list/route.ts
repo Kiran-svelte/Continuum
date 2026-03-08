@@ -16,7 +16,7 @@ export const dynamic = 'force-dynamic';
  * Query params:
  *   page    - page number (default: 1)
  *   limit   - results per page (default: 20, max: 100)
- *   status  - filter by LeaveRequestStatus
+ *   status  - filter by LeaveRequestStatus (comma-separated for multiple, e.g. "pending,approved")
  *   year    - filter by year (default: current year)
  *   emp_id  - filter by specific employee (HR/admin only)
  */
@@ -71,7 +71,14 @@ export async function GET(request: NextRequest) {
       where.emp_id = empIdFilter;
     }
 
-    if (status) where.status = status;
+    if (status) {
+      const statuses = status.split(',').map((s) => s.trim()).filter(Boolean);
+      if (statuses.length === 1) {
+        where.status = statuses[0];
+      } else if (statuses.length > 1) {
+        where.status = { in: statuses };
+      }
+    }
 
     // Year filter using date range
     where.start_date = {

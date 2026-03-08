@@ -65,28 +65,34 @@ export async function POST(
       approved_by: leaveRequest.approved_by,
     };
 
-    const updatedRequest = await prisma.leaveRequest.update({
-      where: { id: requestId },
-      data: {
-        status: 'approved',
-        approved_by: employee.id,
-        approved_at: new Date(),
-        approver_comments: comments,
-      },
-    });
+    // Atomically update status and balance in a transaction
+    const balanceYear = leaveRequest.start_date.getFullYear();
+    const updatedRequest = await prisma.$transaction(async (tx) => {
+      const updated = await tx.leaveRequest.update({
+        where: { id: requestId },
+        data: {
+          status: 'approved',
+          approved_by: employee.id,
+          approved_at: new Date(),
+          approver_comments: comments,
+        },
+      });
 
-    // Update leave balance: used_days += total_days, pending_days -= total_days
-    const currentYear = new Date().getFullYear();
-    await prisma.leaveBalance.updateMany({
-      where: {
-        emp_id: leaveRequest.emp_id,
-        leave_type: leaveRequest.leave_type,
-        year: currentYear,
-      },
-      data: {
-        used_days: { increment: leaveRequest.total_days },
-        pending_days: { decrement: leaveRequest.total_days },
-      },
+      // Update leave balance: used_days += total_days, pending_days -= total_days
+      // Net effect on `remaining` is zero (both are subtracted in the formula).
+      await tx.leaveBalance.updateMany({
+        where: {
+          emp_id: leaveRequest.emp_id,
+          leave_type: leaveRequest.leave_type,
+          year: balanceYear,
+        },
+        data: {
+          used_days: { increment: leaveRequest.total_days },
+          pending_days: { decrement: leaveRequest.total_days },
+        },
+      });
+
+      return updated;
     });
 
     await createAuditLog({

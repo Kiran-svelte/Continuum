@@ -265,15 +265,17 @@ export default function HRDashboardPage() {
     setLoadingMetrics(true);
     try {
       // Fetch employees count and pending leave requests in parallel
-      const [empRes, pendingRes, todayRes] = await Promise.all([
+      const [empRes, pendingRes, todayRes, slaRes] = await Promise.all([
         fetch('/api/employees?limit=1', { credentials: 'include' }),
         fetch('/api/leaves/list?status=pending&limit=1', { credentials: 'include' }),
         fetch('/api/leaves/list?status=approved&limit=100', { credentials: 'include' }),
+        fetch(`/api/reports/leave-summary?year=${new Date().getFullYear()}`, { credentials: 'include' }),
       ]);
 
       let totalEmployees = 0;
       let pendingApprovals = 0;
       let todayAbsent = 0;
+      let slaBreaches = 0;
 
       if (empRes.ok) {
         const empData = await empRes.json();
@@ -295,15 +297,20 @@ export default function HRDashboardPage() {
         }).length;
       }
 
+      if (slaRes.ok) {
+        const slaData = await slaRes.json();
+        slaBreaches = slaData.sla_breaches ?? 0;
+      }
+
       setMetrics({
         totalEmployees,
         pendingApprovals,
         todayAbsent,
-        slaBreaches: 0,
+        slaBreaches,
         employeeChange: totalEmployees > 0 ? `${totalEmployees} active` : 'No employees yet',
         pendingUrgent: Math.min(pendingApprovals, 5),
         absentPercent: totalEmployees > 0 ? `${((todayAbsent / totalEmployees) * 100).toFixed(1)}% of workforce` : '0%',
-        slaCritical: 0,
+        slaCritical: slaBreaches,
       });
     } catch {
       setMetrics({

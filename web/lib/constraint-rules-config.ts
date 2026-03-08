@@ -225,55 +225,151 @@ export const DEFAULT_CONSTRAINT_RULES: ConstraintRuleConfig[] = [
 // ─── Functions ───────────────────────────────────────────────────────────────
 
 /**
- * Auto-generates constraint rules based on the selected leave types
- * and company configuration.
+ * Determines leave type categories from the selected types.
+ * Returns sets of type codes for common classifications used by rules.
+ */
+function classifyLeaveTypes(leaveTypes: LeaveTypeConfig[]) {
+  const allCodes = leaveTypes.map((lt) => lt.code);
+  // "Common" types (typically casual, privilege, earned, annual) — sandwich rule applies
+  const commonCodes = leaveTypes
+    .filter((lt) => lt.category === 'common')
+    .map((lt) => lt.code);
+  // "Emergency/statutory" types — typically exempt from sandwich, blackout, freeze rules
+  const emergencyCodes = leaveTypes
+    .filter((lt) => lt.category === 'statutory' || lt.code === 'SL')
+    .map((lt) => lt.code);
+  // Types requiring documentation (statutory medical + sick)
+  const docRequiredCodes = leaveTypes
+    .filter((lt) => lt.code === 'SL' || lt.code === 'ML')
+    .map((lt) => lt.code);
+  // Basic leave types suitable for probation
+  const probationCodes = leaveTypes
+    .filter((lt) => lt.code === 'SL' || lt.code === 'CL')
+    .filter((lt) => allCodes.includes(lt.code))
+    .map((lt) => lt.code);
+
+  return { allCodes, commonCodes, emergencyCodes, docRequiredCodes, probationCodes };
+}
+
+/**
+ * Auto-generates constraint rules based on the company's selected leave types
+ * and company configuration.  ALL rules are dynamically adapted — no rule
+ * references leave type codes that the company hasn't configured.
  */
 export function generateConstraintRules(
   leaveTypes: LeaveTypeConfig[],
   companyConfig?: CompanyConfig
 ): ConstraintRuleConfig[] {
-  const typeCodes = leaveTypes.map((lt) => lt.code);
+  const { allCodes, commonCodes, emergencyCodes, docRequiredCodes, probationCodes } =
+    classifyLeaveTypes(leaveTypes);
+
   const rules = DEFAULT_CONSTRAINT_RULES.map((rule) => {
     const cloned: ConstraintRuleConfig = {
       ...rule,
-      config: { ...rule.config },
+      config: JSON.parse(JSON.stringify(rule.config)),
     };
 
-    // Customize RULE001 max_days based on selected leave types
-    if (rule.rule_id === 'RULE001' && cloned.config.max_days) {
-      const maxDays = cloned.config.max_days as Record<string, number>;
-      const filtered: Record<string, number> = {};
-      for (const code of typeCodes) {
-        if (code in maxDays) {
-          filtered[code] = maxDays[code];
-        } else {
-          const lt = leaveTypes.find((l) => l.code === code);
-          if (lt) filtered[code] = lt.defaultQuota;
+    switch (rule.rule_id) {
+      // RULE001: Max Leave Duration — build from company's types & their quotas
+      case 'RULE001': {
+        const maxDays: Record<string, number> = {};
+        const defaultMap = rule.config.max_days as Record<string, number>;
+        for (const lt of leaveTypes) {
+          // Use the catalog default if it exists for the code, otherwise derive from quota
+          maxDays[lt.code] = defaultMap[lt.code] ?? lt.defaultQuota;
         }
+        cloned.config.max_days = maxDays;
+        break;
       }
-      cloned.config.max_days = filtered;
-    }
 
-    // Customize RULE002 based on company negative balance setting
-    if (rule.rule_id === 'RULE002' && companyConfig?.negative_balance !== undefined) {
-      cloned.config.allow_negative = companyConfig.negative_balance;
-    }
-
-    // Customize RULE006 notice_days - only include selected types
-    if (rule.rule_id === 'RULE006' && cloned.config.notice_days) {
-      const noticeDays = cloned.config.notice_days as Record<string, number>;
-      const filtered: Record<string, number> = {};
-      for (const code of typeCodes) {
-        if (code in noticeDays) {
-          filtered[code] = noticeDays[code];
+      // RULE002: Leave Balance — adapt to company negative balance setting
+      case 'RULE002': {
+        if (companyConfig?.negative_balance !== undefined) {
+          cloned.config.allow_negative = companyConfig.negative_balance;
         }
+        break;
       }
-      cloned.config.notice_days = filtered;
-    }
 
-    // Customize RULE010 probation based on company config
-    if (rule.rule_id === 'RULE010' && companyConfig?.probation_period_days) {
-      cloned.config.probation_months = Math.ceil(companyConfig.probation_period_days / 30);
+      // RULE005: Blackout Period — exempt only the emergency types the company has
+      case 'RULE005': {
+        cloned.config.exempt_leave_types = emergencyCodes;
+        break;
+      }
+
+      // RULE006: Advance Notice — only include selected types
+      case 'RULE006': {
+        const defaultNotice = rule.config.notice_days as Record<string, number>;
+        const noticeDays: Record<string, number> = {};
+        for (const lt of leaveTypes) {
+          noticeDays[lt.code] = defaultNotice[lt.code] ?? 1;
+        }
+        cloned.config.notice_days = noticeDays;
+        break;
+      }
+
+      // RULE007: Consecutive Leave Limit — adapt per-type entries
+      case 'RULE007': {
+        const defaultConsec = rule.config.max_consecutive as Record<string, number>;
+        const maxConsecutive: Record<string, number> = { default: defaultConsec.default ?? 10 };
+        for (const lt of leaveTypes) {
+          if (defaultConsec[lt.code] !== undefined) {
+            maxConsecutive[lt.code] = defaultConsec[lt.code];
+          }
+        }
+        cloned.config.max_consecutive = maxConsecutive;
+        break;
+      }
+
+      // RULE008: Sandwich Rule — apply to common types, exempt emergency/statutory
+      case 'RULE008': {
+        cloned.config.apply_to = commonCodes.length > 0 ? commonCodes : allCodes;
+        cloned.config.exempt = emergencyCodes;
+        break;
+      }
+
+      // RULE010: Probation Restriction — adapt to company config
+      case 'RULE010': {
+        if (companyConfig?.probation_period_days) {
+          cloned.config.probation_months = Math.ceil(companyConfig.probation_period_days / 30);
+        }
+        // Only allow leave types that exist in the company's catalog
+        cloned.config.allowed_during_probation = probationCodes.length > 0
+          ? probationCodes
+          : allCodes.slice(0, 2); // Fallback to first 2 types
+        // Build max_during_probation dynamically
+        const maxDuringProbation: Record<string, number> = {};
+        for (const code of (cloned.config.allowed_during_probation as string[])) {
+          const defaultMax = (rule.config.max_during_probation as Record<string, number>)?.[code];
+          maxDuringProbation[code] = defaultMax ?? 3;
+        }
+        cloned.config.max_during_probation = maxDuringProbation;
+        break;
+      }
+
+      // RULE011: Critical Project Freeze — exempt only company's emergency types
+      case 'RULE011': {
+        cloned.config.exempt_leave_types = emergencyCodes;
+        break;
+      }
+
+      // RULE012: Document Requirement — only reference types the company has
+      case 'RULE012': {
+        cloned.config.require_for_types = docRequiredCodes;
+        break;
+      }
+
+      // RULE013: Monthly Quota — adapt per-type entries
+      case 'RULE013': {
+        const defaultMonthly = rule.config.monthly_max as Record<string, number>;
+        const monthlyMax: Record<string, number> = { default: defaultMonthly.default ?? 5 };
+        for (const lt of leaveTypes) {
+          if (defaultMonthly[lt.code] !== undefined) {
+            monthlyMax[lt.code] = defaultMonthly[lt.code];
+          }
+        }
+        cloned.config.monthly_max = monthlyMax;
+        break;
+      }
     }
 
     return cloned;

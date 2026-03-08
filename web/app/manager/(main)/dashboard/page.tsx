@@ -66,6 +66,7 @@ export default function ManagerDashboardPage() {
   const [loadingTeam, setLoadingTeam] = useState(true);
   const [teamSize, setTeamSize] = useState(0);
   const [pendingCount, setPendingCount] = useState(0);
+  const [todayOnLeave, setTodayOnLeave] = useState(0);
   const [approvingId, setApprovingId] = useState<string | null>(null);
   const [rejectingId, setRejectingId] = useState<string | null>(null);
 
@@ -122,12 +123,31 @@ export default function ManagerDashboardPage() {
     }
   }, []);
 
+  const fetchTodayOnLeave = useCallback(async () => {
+    try {
+      const res = await fetch('/api/leaves/list?status=approved&limit=100', { credentials: 'include' });
+      if (res.ok) {
+        const data = await res.json();
+        const today = new Date().toISOString().split('T')[0];
+        const count = (data.requests ?? []).filter((r: LeaveRequestRow) => {
+          const start = r.start_date?.split('T')[0];
+          const end = r.end_date?.split('T')[0];
+          return start <= today && end >= today;
+        }).length;
+        setTodayOnLeave(count);
+      }
+    } catch {
+      // leave todayOnLeave at 0 on error
+    }
+  }, []);
+
   useEffect(() => {
     if (authChecked) {
       fetchPendingRequests();
       fetchTeam();
+      fetchTodayOnLeave();
     }
-  }, [authChecked, fetchPendingRequests, fetchTeam]);
+  }, [authChecked, fetchPendingRequests, fetchTeam, fetchTodayOnLeave]);
 
   async function handleApprove(requestId: string) {
     setApprovingId(requestId);
@@ -188,8 +208,6 @@ export default function ManagerDashboardPage() {
       </>
     );
   }
-
-  const todayOnLeave = pendingRequests.length; // Simplified — in production would check approved leaves for today
 
   return (
     <motion.div

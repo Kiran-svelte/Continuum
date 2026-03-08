@@ -19,6 +19,7 @@ import {
   Volume2,
   VolumeX,
 } from 'lucide-react';
+import { getFirebaseAuth, firebaseSendPasswordResetEmail } from '@/lib/firebase';
 
 function ToggleSwitch({ value, onChange }: { value: boolean; onChange: (v: boolean) => void }) {
   return (
@@ -48,6 +49,7 @@ export default function SettingsPage() {
   const [language, setLanguage] = useState('en');
   const [saving, setSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState('');
+  const [profile, setProfile] = useState<any>(null);
 
   useEffect(() => {
     setMounted(true);
@@ -62,6 +64,15 @@ export default function SettingsPage() {
     if (savedLanguage) setLanguage(savedLanguage);
   }, []);
 
+  useEffect(() => {
+    fetch('/api/auth/me', { credentials: 'include' })
+      .then(res => res.json())
+      .then(data => {
+        if (!data.error) setProfile(data);
+      })
+      .catch(() => {});
+  }, []);
+
   const handleSavePreferences = async () => {
     setSaving(true);
     localStorage.setItem('continuum-push-notifications', String(pushNotifications));
@@ -69,7 +80,6 @@ export default function SettingsPage() {
     localStorage.setItem('continuum-sound', String(soundEnabled));
     localStorage.setItem('continuum-language', language);
 
-    await new Promise(resolve => setTimeout(resolve, 500));
     setSaving(false);
     setSaveSuccess('Settings saved successfully!');
     setTimeout(() => setSaveSuccess(''), 3000);
@@ -151,15 +161,15 @@ export default function SettingsPage() {
             <div className="space-y-3">
               <div className="p-3 rounded-lg border border-border bg-muted/30">
                 <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Display Name</p>
-                <p className="text-sm font-medium text-foreground">--</p>
+                <p className="text-sm font-medium text-foreground">{profile ? `${profile.first_name} ${profile.last_name}` : '--'}</p>
               </div>
               <div className="p-3 rounded-lg border border-border bg-muted/30">
                 <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Email</p>
-                <p className="text-sm font-medium text-foreground">--</p>
+                <p className="text-sm font-medium text-foreground">{profile?.email || '--'}</p>
               </div>
               <div className="p-3 rounded-lg border border-border bg-muted/30">
                 <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Department</p>
-                <p className="text-sm font-medium text-foreground">--</p>
+                <p className="text-sm font-medium text-foreground">{profile?.department || '--'}</p>
               </div>
             </div>
             <p className="text-xs text-muted-foreground">
@@ -267,7 +277,7 @@ export default function SettingsPage() {
                 <Smartphone className="w-5 h-5 text-muted-foreground" />
                 <div>
                   <p className="text-sm font-medium text-foreground">Timezone</p>
-                  <p className="text-xs text-muted-foreground">Asia/Kolkata (IST +5:30)</p>
+                  <p className="text-xs text-muted-foreground">{profile?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone}</p>
                 </div>
               </div>
             </div>
@@ -311,14 +321,30 @@ export default function SettingsPage() {
         </CardHeader>
         <CardContent>
           <div className="grid gap-4 md:grid-cols-2">
-            <Button variant="outline" className="justify-start gap-3 h-auto py-4">
+            <Button variant="outline" className="justify-start gap-3 h-auto py-4" onClick={async () => {
+              try {
+                const auth = getFirebaseAuth();
+                const user = auth.currentUser;
+                if (!user?.email) {
+                  alert('Unable to determine your email address. Please sign in again.');
+                  return;
+                }
+                await firebaseSendPasswordResetEmail(user.email);
+                setSaveSuccess('Password reset email sent! Check your inbox.');
+                setTimeout(() => setSaveSuccess(''), 5000);
+              } catch {
+                alert('Failed to send password reset email. Please try again.');
+              }
+            }}>
               <Shield className="w-5 h-5 text-muted-foreground" />
               <div className="text-left">
                 <p className="font-medium">Change Password</p>
                 <p className="text-xs text-muted-foreground">Update your password</p>
               </div>
             </Button>
-            <Button variant="outline" className="justify-start gap-3 h-auto py-4">
+            <Button variant="outline" className="justify-start gap-3 h-auto py-4" onClick={() => {
+              alert('Two-factor authentication setup will be available in a future update.');
+            }}>
               <Smartphone className="w-5 h-5 text-muted-foreground" />
               <div className="text-left">
                 <p className="font-medium">Two-Factor Auth</p>

@@ -245,23 +245,37 @@ DEFAULT_RULES: list[dict[str, Any]] = [
 
 
 def _get_rule_config(rule_id: str, company_rules: list[dict] | None = None, leave_request: dict | None = None) -> dict:
-    """Return merged config for *rule_id* (company overrides + defaults).
-    
+    """Return the rule config for *rule_id*.
+
+    If a company-specific rule exists in the DB (set during onboarding), it is
+    used as the authoritative source — its config is NOT partially merged with
+    defaults.  The DEFAULT_RULES are only used as a structural fallback when no
+    company rule exists at all.
+
     Company rules can be passed directly or extracted from leave_request["_company_rules"].
     """
     defaults = next((r for r in DEFAULT_RULES if r["rule_id"] == rule_id), {})
-    
+
     # Try to get company_rules from leave_request if not passed directly
     if not company_rules and leave_request:
         company_rules = leave_request.get("_company_rules", [])
-    
+
     if not company_rules:
         return defaults
     override = next((r for r in company_rules if r.get("rule_id") == rule_id), None)
     if not override:
         return defaults
-    merged = {**defaults, **override}
-    merged["config"] = {**defaults.get("config", {}), **override.get("config", {})}
+    # Company rule is authoritative — use its config entirely (it was generated
+    # dynamically during onboarding by generateConstraintRules).
+    # Only fall back to default structural fields (name, description, etc.) if
+    # the company row doesn't have them.
+    merged = {**defaults}
+    for k, v in override.items():
+        if v is not None:
+            merged[k] = v
+    # The config from DB is the full config, not a partial overlay
+    if "config" in override and override["config"]:
+        merged["config"] = override["config"]
     return merged
 
 
@@ -523,7 +537,9 @@ def evaluate_rule_001(
         total_days = float(leave_request.get("total_days", 0))
         leave_type = leave_request.get("leave_type", "")
         max_days_map: dict = rule["config"].get("max_days", {})
-        max_days = max_days_map.get(leave_type, 30)
+        # If the leave type isn't in the config, it wasn't configured by HR —
+        # use a conservative fallback (the type's annual quota is unknown).
+        max_days = max_days_map.get(leave_type, max_days_map.get("default", 15))
 
         if total_days > max_days:
             msg = (
@@ -902,7 +918,8 @@ def evaluate_rule_006(
         request_date = _parse_date(leave_request.get("request_date")) or date.today()
 
         notice_map: dict = rule["config"].get("notice_days", {})
-        min_notice = notice_map.get(leave_type, 1)
+        # Default to 1 day notice if the leave type isn't in the config
+        min_notice = notice_map.get(leave_type, notice_map.get("default", 1))
 
         if not start_date:
             return _rule_result(

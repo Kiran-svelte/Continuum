@@ -116,17 +116,38 @@ export async function POST(request: NextRequest) {
 
     const now = new Date();
 
+    // Fetch company settings for grace period and half-day detection
+    const company = await prisma.company.findUnique({
+      where: { id: employee.org_id },
+      select: {
+        work_start: true,
+        work_end: true,
+        grace_period_minutes: true,
+        half_day_hours: true,
+      },
+    });
+
     if (action === 'check_in') {
       if (attendance?.check_in) {
         return NextResponse.json({ error: 'Already checked in today.' }, { status: 400 });
       }
+
+      // Determine if the employee is late based on work_start + grace period
+      const [startH, startM] = (company?.work_start || '09:00').split(':').map(Number);
+      const workStartTime = new Date(now);
+      workStartTime.setHours(startH, startM, 0, 0);
+
+      const graceMs = (company?.grace_period_minutes ?? 15) * 60 * 1000;
+      const graceCutoff = new Date(workStartTime.getTime() + graceMs);
+
+      const status = now > graceCutoff ? 'late' : 'present';
 
       if (attendance) {
         attendance = await prisma.attendance.update({
           where: { id: attendance.id },
           data: {
             check_in: now,
-            status: 'present',
+            status,
             is_wfh: is_wfh ?? false,
           },
         });
@@ -137,7 +158,7 @@ export async function POST(request: NextRequest) {
             company_id: employee.org_id,
             date: today,
             check_in: now,
-            status: 'present',
+            status,
             is_wfh: is_wfh ?? false,
           },
         });
@@ -153,11 +174,19 @@ export async function POST(request: NextRequest) {
       const checkIn = new Date(attendance.check_in);
       const totalHours = (now.getTime() - checkIn.getTime()) / (1000 * 60 * 60);
 
+      // Auto-detect half-day if total hours worked is below the threshold
+      const halfDayThreshold = company?.half_day_hours ?? 4;
+      let checkoutStatus = attendance.status; // preserve 'late' if they were late
+      if (totalHours < halfDayThreshold) {
+        checkoutStatus = 'half_day';
+      }
+
       attendance = await prisma.attendance.update({
         where: { id: attendance.id },
         data: {
           check_out: now,
           total_hours: parseFloat(totalHours.toFixed(2)),
+          status: checkoutStatus,
         },
       });
     }

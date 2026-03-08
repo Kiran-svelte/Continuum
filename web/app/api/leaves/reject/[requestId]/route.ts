@@ -54,27 +54,33 @@ export async function POST(
 
     const previousState = { status: leaveRequest.status };
 
-    const updatedRequest = await prisma.leaveRequest.update({
-      where: { id: requestId },
-      data: {
-        status: 'rejected',
-        approved_by: employee.id,
-        approved_at: new Date(),
-        approver_comments: comments,
-      },
-    });
+    // Atomically update status and balance in a transaction
+    const balanceYear = leaveRequest.start_date.getFullYear();
+    const updatedRequest = await prisma.$transaction(async (tx) => {
+      const updated = await tx.leaveRequest.update({
+        where: { id: requestId },
+        data: {
+          status: 'rejected',
+          approved_by: employee.id,
+          approved_at: new Date(),
+          approver_comments: comments,
+        },
+      });
 
-    // Update leave balance: pending_days -= total_days
-    const currentYear = new Date().getFullYear();
-    await prisma.leaveBalance.updateMany({
-      where: {
-        emp_id: leaveRequest.emp_id,
-        leave_type: leaveRequest.leave_type,
-        year: currentYear,
-      },
-      data: {
-        pending_days: { decrement: leaveRequest.total_days },
-      },
+      // Restore balance: pending_days -= total_days, remaining += total_days
+      await tx.leaveBalance.updateMany({
+        where: {
+          emp_id: leaveRequest.emp_id,
+          leave_type: leaveRequest.leave_type,
+          year: balanceYear,
+        },
+        data: {
+          pending_days: { decrement: leaveRequest.total_days },
+          remaining: { increment: leaveRequest.total_days },
+        },
+      });
+
+      return updated;
     });
 
     await createAuditLog({

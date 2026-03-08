@@ -89,7 +89,7 @@ export function AnimatedCard({
       whileHover={interactive ? { y: -4, boxShadow: '0 10px 40px rgba(0,0,0,0.1)' } : undefined}
       whileTap={interactive ? { scale: 0.98 } : undefined}
       className={cn(
-        'rounded-xl border border-gray-200 bg-white transition-colors dark:border-gray-700 dark:bg-gray-900',
+        'rounded-xl border border-border bg-card transition-colors',
         interactive && 'cursor-pointer',
         className
       )}
@@ -300,7 +300,7 @@ export function ExpandingCard({
   return (
     <motion.div
       layout
-      className={cn('rounded-xl border border-gray-200 bg-white overflow-hidden dark:border-gray-700 dark:bg-gray-900', className)}
+      className={cn('rounded-xl border border-border bg-card overflow-hidden', className)}
       onClick={onToggle}
     >
       <motion.div layout="position">{children}</motion.div>

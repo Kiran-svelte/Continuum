@@ -112,13 +112,14 @@ export async function getLeaveRequestDefaults(
     };
   });
 
-  // Suggest most frequently used leave type
+  // Suggest most frequently used leave type, or first available if no history
   const typeCounts: Record<string, number> = {};
   for (const req of recentRequests) {
     typeCounts[req.leave_type] = (typeCounts[req.leave_type] || 0) + 1;
   }
   const suggestedLeaveType =
-    Object.entries(typeCounts).sort(([, a], [, b]) => b - a)[0]?.[0] ?? 'CL';
+    Object.entries(typeCounts).sort(([, a], [, b]) => b - a)[0]?.[0]
+    ?? (availableLeaveTypes.length > 0 ? availableLeaveTypes[0].code : null);
 
   return {
     managerId,

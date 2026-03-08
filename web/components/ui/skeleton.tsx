@@ -66,7 +66,7 @@ export function SkeletonCard({ className }: { className?: string }) {
   return (
     <div
       className={cn(
-        'rounded-xl border border-gray-200 bg-white p-6 space-y-4 dark:border-gray-700 dark:bg-gray-900',
+        'rounded-xl border border-border bg-card p-6 space-y-4',
         className
       )}
     >
@@ -96,9 +96,9 @@ export function SkeletonTable({
   className?: string;
 }) {
   return (
-    <div className={cn('rounded-xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900', className)}>
+    <div className={cn('rounded-xl border border-border bg-card', className)}>
       {/* Header */}
-      <div className="flex gap-4 p-4 border-b border-gray-200 dark:border-gray-700">
+      <div className="flex gap-4 p-4 border-b border-border">
         {Array.from({ length: columns }).map((_, i) => (
           <Skeleton key={i} className="h-4 flex-1" />
         ))}
@@ -107,7 +107,7 @@ export function SkeletonTable({
       {Array.from({ length: rows }).map((_, rowIndex) => (
         <div
           key={rowIndex}
-          className="flex gap-4 p-4 border-b border-gray-200 last:border-0 dark:border-gray-700"
+          className="flex gap-4 p-4 border-b border-border last:border-0"
         >
           {Array.from({ length: columns }).map((_, colIndex) => (
             <Skeleton key={colIndex} className="h-4 flex-1" />
@@ -135,7 +135,7 @@ export function SkeletonDashboard({ className }: { className?: string }) {
         {Array.from({ length: 4 }).map((_, i) => (
           <div
             key={i}
-            className="rounded-xl border border-gray-200 bg-white p-6 space-y-3 dark:border-gray-700 dark:bg-gray-900"
+            className="rounded-xl border border-border bg-card p-6 space-y-3"
           >
             <div className="flex items-center justify-between">
               <Skeleton className="h-4 w-20" />
@@ -170,7 +170,7 @@ export function SkeletonList({
       {Array.from({ length: items }).map((_, i) => (
         <div
           key={i}
-          className="flex items-center gap-4 p-4 rounded-lg border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900"
+          className="flex items-center gap-4 p-4 rounded-lg border border-border bg-card"
         >
           <Skeleton variant="circular" className="w-10 h-10 shrink-0" />
           <div className="flex-1 space-y-2">

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, Fragment } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -44,12 +44,12 @@ const STATUS_BADGE: Record<string, 'success' | 'warning' | 'danger' | 'info' | '
 };
 
 const ROLE_COLORS: Record<string, string> = {
-  admin: 'text-purple-700 bg-purple-50',
-  hr: 'text-blue-700 bg-blue-50',
-  director: 'text-indigo-700 bg-indigo-50',
-  manager: 'text-orange-700 bg-orange-50',
-  team_lead: 'text-cyan-700 bg-cyan-50',
-  employee: 'text-gray-700 bg-gray-100',
+  admin: 'text-purple-700 bg-purple-50 dark:bg-purple-900/20 dark:text-purple-300',
+  hr: 'text-blue-700 bg-blue-50 dark:bg-blue-900/20 dark:text-blue-300',
+  director: 'text-indigo-700 bg-indigo-50 dark:bg-indigo-900/20 dark:text-indigo-300',
+  manager: 'text-orange-700 bg-orange-50 dark:bg-orange-900/20 dark:text-orange-300',
+  team_lead: 'text-cyan-700 bg-cyan-50 dark:bg-cyan-900/20 dark:text-cyan-300',
+  employee: 'text-foreground bg-muted',
 };
 
 export default function EmployeesPage() {
@@ -65,6 +65,15 @@ export default function EmployeesPage() {
   const [total, setTotal] = useState(0);
   const [approving, setApproving] = useState<string | null>(null);
   const [authReady, setAuthReady] = useState(false);
+
+  // "Add Employee" join-code panel state
+  const [showJoinCode, setShowJoinCode] = useState(false);
+  const [joinCode, setJoinCode] = useState('');
+  const [joinCodeLoading, setJoinCodeLoading] = useState(false);
+  const [joinCodeCopied, setJoinCodeCopied] = useState(false);
+
+  // "View" expandable row state
+  const [expandedEmployeeId, setExpandedEmployeeId] = useState<string | null>(null);
 
   // Ensure auth (Supabase cookie or legacy Firebase session cookie)
   useEffect(() => {
@@ -167,6 +176,38 @@ export default function EmployeesPage() {
     }
   }
 
+  async function fetchJoinCode() {
+    if (joinCode) {
+      // Already fetched; just toggle panel open
+      setShowJoinCode(true);
+      return;
+    }
+    setJoinCodeLoading(true);
+    setShowJoinCode(true);
+    try {
+      const res = await fetch('/api/auth/me', { credentials: 'include' });
+      const json = await res.json();
+      if (res.ok && json.company?.join_code) {
+        setJoinCode(json.company.join_code);
+      } else {
+        setJoinCode('');
+        setError('Could not retrieve join code');
+      }
+    } catch {
+      setError('Failed to fetch join code');
+    } finally {
+      setJoinCodeLoading(false);
+    }
+  }
+
+  function copyJoinCode() {
+    if (!joinCode) return;
+    navigator.clipboard.writeText(joinCode).then(() => {
+      setJoinCodeCopied(true);
+      setTimeout(() => setJoinCodeCopied(false), 2000);
+    });
+  }
+
   function formatDate(dateStr: string) {
     return new Date(dateStr).toLocaleDateString('en-IN', {
       day: '2-digit',
@@ -179,26 +220,52 @@ export default function EmployeesPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Employees</h1>
-          <p className="text-gray-500 mt-1">
-            {activeTab === 'all' 
+          <h1 className="text-2xl font-bold text-foreground">Employees</h1>
+          <p className="text-muted-foreground mt-1">
+            {activeTab === 'all'
               ? (total > 0 ? `${total} employees` : 'Manage your team')
               : `${pendingRegistrations.length} pending registrations`}
           </p>
         </div>
-        <Button>
-          ➕ Add Employee
+        <Button onClick={() => showJoinCode ? setShowJoinCode(false) : fetchJoinCode()}>
+          {showJoinCode ? 'Close' : 'Add Employee'}
         </Button>
       </div>
 
+      {/* Join Code Panel */}
+      {showJoinCode && (
+        <Card>
+          <CardContent className="pt-6">
+            <h3 className="text-sm font-semibold text-foreground mb-2">Invite New Employees</h3>
+            <p className="text-sm text-muted-foreground mb-4">
+              Share this code with new employees. They can use it to sign up and join your company.
+            </p>
+            {joinCodeLoading ? (
+              <div className="text-sm text-muted-foreground">Loading join code...</div>
+            ) : joinCode ? (
+              <div className="flex items-center gap-3">
+                <code className="px-4 py-2 bg-muted border border-border rounded-lg text-lg font-mono font-bold tracking-widest text-foreground select-all">
+                  {joinCode}
+                </code>
+                <Button variant="outline" size="sm" onClick={copyJoinCode}>
+                  {joinCodeCopied ? 'Copied!' : 'Copy'}
+                </Button>
+              </div>
+            ) : (
+              <div className="text-sm text-red-500">Join code unavailable. Please try again later.</div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
       {/* Tabs */}
-      <div className="flex gap-1 border-b border-gray-200">
+      <div className="flex gap-1 border-b border-border">
         <button
           onClick={() => setActiveTab('all')}
           className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
             activeTab === 'all'
-              ? 'border-blue-600 text-blue-600'
-              : 'border-transparent text-gray-500 hover:text-gray-700'
+              ? 'border-primary text-primary'
+              : 'border-transparent text-muted-foreground hover:text-foreground'
           }`}
         >
           All Employees
@@ -207,8 +274,8 @@ export default function EmployeesPage() {
           onClick={() => setActiveTab('pending')}
           className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors flex items-center gap-2 ${
             activeTab === 'pending'
-              ? 'border-blue-600 text-blue-600'
-              : 'border-transparent text-gray-500 hover:text-gray-700'
+              ? 'border-primary text-primary'
+              : 'border-transparent text-muted-foreground hover:text-foreground'
           }`}
         >
           Pending Registrations
@@ -229,12 +296,12 @@ export default function EmployeesPage() {
               value={search}
               onChange={(e) => { setSearch(e.target.value); setPage(1); }}
               placeholder="Search by name, email, designation…"
-              className="flex-1 min-w-48 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
+              className="flex-1 min-w-48 rounded-lg border border-border px-3 py-2 text-sm bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary"
             />
             <select
               value={statusFilter}
               onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
-              className="rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-700 focus:outline-none focus:border-blue-500"
+              className="rounded-lg border border-border px-3 py-2 text-sm text-foreground bg-background focus:outline-none focus:border-primary"
               aria-label="Filter by status"
             >
               <option value="">All Statuses</option>
@@ -251,71 +318,119 @@ export default function EmployeesPage() {
               <CardTitle>Employee Directory</CardTitle>
             </CardHeader>
             <CardContent>
-              {loading && <div className="py-12 text-center text-sm text-gray-400">Loading…</div>}
+              {loading && <div className="py-12 text-center text-sm text-muted-foreground">Loading…</div>}
               {error && !loading && (
-                <div className="rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
+                <div className="rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 px-4 py-3 text-sm text-red-700 dark:text-red-300">
                   {error}
                 </div>
               )}
               {!loading && !error && employees.length === 0 && (
                 <div className="py-12 text-center">
                   <span className="text-4xl">👥</span>
-                  <p className="text-gray-500 mt-3 text-sm">No employees found.</p>
+                  <p className="text-muted-foreground mt-3 text-sm">No employees found.</p>
                 </div>
               )}
               {!loading && !error && employees.length > 0 && (
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead>
-                      <tr className="border-b border-gray-100">
-                        <th className="text-left py-3 pr-4 text-gray-500 font-medium">Employee</th>
-                        <th className="text-left py-3 px-2 text-gray-500 font-medium">Role</th>
-                        <th className="text-left py-3 px-2 text-gray-500 font-medium hidden md:table-cell">Department</th>
-                        <th className="text-left py-3 px-2 text-gray-500 font-medium hidden lg:table-cell">Manager</th>
-                        <th className="text-left py-3 px-2 text-gray-500 font-medium hidden lg:table-cell">Joined</th>
-                        <th className="text-left py-3 px-2 text-gray-500 font-medium">Status</th>
-                        <th className="text-left py-3 pl-2 text-gray-500 font-medium">Actions</th>
+                      <tr className="border-b border-border">
+                        <th className="text-left py-3 pr-4 text-muted-foreground font-medium">Employee</th>
+                        <th className="text-left py-3 px-2 text-muted-foreground font-medium">Role</th>
+                        <th className="text-left py-3 px-2 text-muted-foreground font-medium hidden md:table-cell">Department</th>
+                        <th className="text-left py-3 px-2 text-muted-foreground font-medium hidden lg:table-cell">Manager</th>
+                        <th className="text-left py-3 px-2 text-muted-foreground font-medium hidden lg:table-cell">Joined</th>
+                        <th className="text-left py-3 px-2 text-muted-foreground font-medium">Status</th>
+                        <th className="text-left py-3 pl-2 text-muted-foreground font-medium">Actions</th>
                       </tr>
                     </thead>
                     <tbody>
                       {employees.map((emp) => (
-                        <tr key={emp.id} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
+                        <Fragment key={emp.id}>
+                        <tr className="border-b border-border/50 hover:bg-muted/50 transition-colors">
                           <td className="py-3 pr-4">
                             <div className="flex items-center gap-3">
-                              <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center text-xs font-bold text-blue-600 shrink-0">
+                              <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900/20 rounded-full flex items-center justify-center text-xs font-bold text-blue-600 dark:text-blue-400 shrink-0">
                                 {emp.first_name[0]}{emp.last_name[0]}
                               </div>
                               <div>
-                                <p className="font-medium text-gray-900">{emp.first_name} {emp.last_name}</p>
-                                <p className="text-xs text-gray-400">{emp.email}</p>
+                                <p className="font-medium text-foreground">{emp.first_name} {emp.last_name}</p>
+                                <p className="text-xs text-muted-foreground">{emp.email}</p>
                               </div>
                             </div>
                           </td>
                           <td className="py-3 px-2">
-                            <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${ROLE_COLORS[emp.primary_role] ?? 'bg-gray-100 text-gray-700'}`}>
+                            <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${ROLE_COLORS[emp.primary_role] ?? 'bg-muted text-foreground'}`}>
                               {emp.primary_role}
                             </span>
                           </td>
-                          <td className="py-3 px-2 text-gray-600 hidden md:table-cell">
-                            {emp.department ?? <span className="text-gray-300">—</span>}
+                          <td className="py-3 px-2 text-muted-foreground hidden md:table-cell">
+                            {emp.department ?? <span className="text-muted-foreground">—</span>}
                           </td>
-                          <td className="py-3 px-2 text-gray-600 hidden lg:table-cell">
+                          <td className="py-3 px-2 text-muted-foreground hidden lg:table-cell">
                             {emp.manager
                               ? `${emp.manager.first_name} ${emp.manager.last_name}`
-                              : <span className="text-gray-300">—</span>}
+                              : <span className="text-muted-foreground">—</span>}
                           </td>
-                          <td className="py-3 px-2 text-gray-500 hidden lg:table-cell text-xs">
+                          <td className="py-3 px-2 text-muted-foreground hidden lg:table-cell text-xs">
                             {formatDate(emp.date_of_joining)}
                           </td>
                           <td className="py-3 px-2">
                             <Badge variant={STATUS_BADGE[emp.status] ?? 'default'}>{emp.status}</Badge>
                           </td>
                           <td className="py-3 pl-2">
-                            <button className="text-xs text-blue-600 hover:underline font-medium">
-                              View
+                            <button
+                              className="text-xs text-blue-600 dark:text-blue-400 hover:underline font-medium"
+                              onClick={() =>
+                                setExpandedEmployeeId(expandedEmployeeId === emp.id ? null : emp.id)
+                              }
+                            >
+                              {expandedEmployeeId === emp.id ? 'Close' : 'View'}
                             </button>
                           </td>
                         </tr>
+                        {expandedEmployeeId === emp.id && (
+                          <tr className="bg-blue-50/50 dark:bg-blue-900/10">
+                            <td colSpan={7} className="px-4 py-4">
+                              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
+                                <div>
+                                  <span className="block text-muted-foreground text-xs font-medium mb-1">Phone</span>
+                                  <span className="text-foreground">{emp.phone ?? 'Not provided'}</span>
+                                </div>
+                                <div>
+                                  <span className="block text-muted-foreground text-xs font-medium mb-1">Date of Joining</span>
+                                  <span className="text-foreground">{formatDate(emp.date_of_joining)}</span>
+                                </div>
+                                <div>
+                                  <span className="block text-muted-foreground text-xs font-medium mb-1">Designation</span>
+                                  <span className="text-foreground">{emp.designation ?? 'Not set'}</span>
+                                </div>
+                                <div>
+                                  <span className="block text-muted-foreground text-xs font-medium mb-1">Status</span>
+                                  <Badge variant={STATUS_BADGE[emp.status] ?? 'default'}>{emp.status}</Badge>
+                                  {emp.status === 'probation' && (
+                                    <span className="ml-2 text-xs text-yellow-600 dark:text-yellow-400">Under review</span>
+                                  )}
+                                  {emp.status === 'on_notice' && (
+                                    <span className="ml-2 text-xs text-orange-600 dark:text-orange-400">Notice period active</span>
+                                  )}
+                                  {emp.status === 'suspended' && (
+                                    <span className="ml-2 text-xs text-red-600 dark:text-red-400">Account suspended</span>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="mt-3 text-right">
+                                <button
+                                  className="text-xs text-muted-foreground hover:text-foreground hover:underline"
+                                  onClick={() => setExpandedEmployeeId(null)}
+                                >
+                                  Close
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                        </Fragment>
                       ))}
                     </tbody>
                   </table>
@@ -324,7 +439,7 @@ export default function EmployeesPage() {
 
               {/* Pagination */}
               {totalPages > 1 && (
-                <div className="flex items-center justify-between mt-6 pt-4 border-t border-gray-100">
+                <div className="flex items-center justify-between mt-6 pt-4 border-t border-border">
                   <Button
                     variant="outline"
                     size="sm"
@@ -333,7 +448,7 @@ export default function EmployeesPage() {
                   >
                     ← Previous
                   </Button>
-                  <span className="text-sm text-gray-500">Page {page} of {totalPages}</span>
+                  <span className="text-sm text-muted-foreground">Page {page} of {totalPages}</span>
                   <Button
                     variant="outline"
                     size="sm"
@@ -355,39 +470,39 @@ export default function EmployeesPage() {
             <CardTitle>Pending Registrations</CardTitle>
           </CardHeader>
           <CardContent>
-            {loading && <div className="py-12 text-center text-sm text-gray-400">Loading…</div>}
+            {loading && <div className="py-12 text-center text-sm text-muted-foreground">Loading…</div>}
             {error && !loading && (
-              <div className="rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
+              <div className="rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 px-4 py-3 text-sm text-red-700 dark:text-red-300">
                 {error}
               </div>
             )}
             {!loading && !error && pendingRegistrations.length === 0 && (
               <div className="py-12 text-center">
                 <span className="text-4xl">✅</span>
-                <p className="text-gray-500 mt-3 text-sm">No pending registrations.</p>
-                <p className="text-gray-400 mt-1 text-xs">All employee registrations have been processed.</p>
+                <p className="text-muted-foreground mt-3 text-sm">No pending registrations.</p>
+                <p className="text-muted-foreground mt-1 text-xs">All employee registrations have been processed.</p>
               </div>
             )}
             {!loading && !error && pendingRegistrations.length > 0 && (
               <div className="space-y-4">
                 {pendingRegistrations.map((reg) => (
-                  <div key={reg.id} className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition-colors">
+                  <div key={reg.id} className="border border-border rounded-lg p-4 hover:bg-muted/50 transition-colors">
                     <div className="flex items-start justify-between">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-orange-100 rounded-full flex items-center justify-center text-sm font-bold text-orange-600">
+                        <div className="w-10 h-10 bg-orange-100 dark:bg-orange-900/20 rounded-full flex items-center justify-center text-sm font-bold text-orange-600 dark:text-orange-400">
                           {reg.first_name[0]}{reg.last_name[0]}
                         </div>
                         <div>
-                          <p className="font-medium text-gray-900">{reg.first_name} {reg.last_name}</p>
-                          <p className="text-sm text-gray-500">{reg.email}</p>
+                          <p className="font-medium text-foreground">{reg.first_name} {reg.last_name}</p>
+                          <p className="text-sm text-muted-foreground">{reg.email}</p>
                           <div className="flex items-center gap-2 mt-1">
-                            <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${ROLE_COLORS[reg.primary_role] ?? 'bg-gray-100 text-gray-700'}`}>
+                            <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${ROLE_COLORS[reg.primary_role] ?? 'bg-muted text-foreground'}`}>
                               {reg.primary_role}
                             </span>
                             {reg.department && (
-                              <span className="text-xs text-gray-400">• {reg.department}</span>
+                              <span className="text-xs text-muted-foreground">• {reg.department}</span>
                             )}
-                            <span className="text-xs text-gray-400">• Registered {formatDate(reg.created_at)}</span>
+                            <span className="text-xs text-muted-foreground">• Registered {formatDate(reg.created_at)}</span>
                           </div>
                         </div>
                       </div>
@@ -397,7 +512,7 @@ export default function EmployeesPage() {
                           variant="outline"
                           onClick={() => handleApproval(reg.id, 'reject')}
                           disabled={approving === reg.id}
-                          className="text-red-600 border-red-200 hover:bg-red-50"
+                          className="text-red-600 dark:text-red-400 border-red-200 dark:border-red-800 hover:bg-red-50 dark:hover:bg-red-900/20"
                         >
                           Reject
                         </Button>

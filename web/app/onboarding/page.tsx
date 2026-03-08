@@ -27,6 +27,10 @@ interface CompanyData {
   slaHours: number;
   negativeBal: boolean;
   probationDays: number;
+  workStart?: string;
+  workEnd?: string;
+  gracePeriodMinutes?: number;
+  halfDayHours?: number;
 }
 
 interface LeaveTypeEntry {
@@ -76,23 +80,23 @@ function CompanySetupStep({
   return (
     <div className="space-y-4">
       <div>
-        <label htmlFor="companyName" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Company Name</label>
+        <label htmlFor="companyName" className="block text-sm font-medium text-foreground mb-1">Company Name</label>
         <input
           id="companyName"
           type="text"
           value={data.companyName}
           onChange={(e) => onChange({ ...data, companyName: e.target.value })}
-          className="w-full rounded-lg border border-gray-300 dark:border-gray-600 px-3 py-2 text-sm text-gray-900 dark:text-white dark:bg-slate-800 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+          className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground focus:border-primary focus:ring-2 focus:ring-primary focus:outline-none"
           placeholder="Acme Corporation"
         />
       </div>
       <div>
-        <label htmlFor="industry" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Industry</label>
+        <label htmlFor="industry" className="block text-sm font-medium text-foreground mb-1">Industry</label>
         <select
           id="industry"
           value={data.industry}
           onChange={(e) => onChange({ ...data, industry: e.target.value })}
-          className="w-full rounded-lg border border-gray-300 dark:border-gray-600 px-3 py-2 text-sm text-gray-900 dark:text-white dark:bg-slate-800 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+          className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground focus:border-primary focus:ring-2 focus:ring-primary focus:outline-none"
         >
           <option value="">Select industry</option>
           <option value="technology">Technology</option>
@@ -104,12 +108,12 @@ function CompanySetupStep({
         </select>
       </div>
       <div>
-        <label htmlFor="employeeCount" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Employee Count</label>
+        <label htmlFor="employeeCount" className="block text-sm font-medium text-foreground mb-1">Employee Count</label>
         <select
           id="employeeCount"
           value={data.employeeCount}
           onChange={(e) => onChange({ ...data, employeeCount: e.target.value })}
-          className="w-full rounded-lg border border-gray-300 dark:border-gray-600 px-3 py-2 text-sm text-gray-900 dark:text-white dark:bg-slate-800 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+          className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground focus:border-primary focus:ring-2 focus:ring-primary focus:outline-none"
         >
           <option value="">Select range</option>
           <option value="1-50">1–50</option>
@@ -119,21 +123,30 @@ function CompanySetupStep({
         </select>
       </div>
       <div>
-        <label htmlFor="timezone" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Timezone</label>
+        <label htmlFor="timezone" className="block text-sm font-medium text-foreground mb-1">Timezone</label>
         <select
           id="timezone"
           value={data.timezone}
           onChange={(e) => onChange({ ...data, timezone: e.target.value })}
-          className="w-full rounded-lg border border-gray-300 dark:border-gray-600 px-3 py-2 text-sm text-gray-900 dark:text-white dark:bg-slate-800 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+          className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground focus:border-primary focus:ring-2 focus:ring-primary focus:outline-none"
         >
+          <option value="">Select timezone</option>
           <option value="Asia/Kolkata">Asia/Kolkata (IST)</option>
           <option value="America/New_York">America/New_York (EST)</option>
+          <option value="America/Chicago">America/Chicago (CST)</option>
+          <option value="America/Los_Angeles">America/Los_Angeles (PST)</option>
           <option value="Europe/London">Europe/London (GMT)</option>
+          <option value="Europe/Berlin">Europe/Berlin (CET)</option>
+          <option value="Asia/Tokyo">Asia/Tokyo (JST)</option>
+          <option value="Asia/Shanghai">Asia/Shanghai (CST)</option>
+          <option value="Asia/Dubai">Asia/Dubai (GST)</option>
+          <option value="Asia/Singapore">Asia/Singapore (SGT)</option>
+          <option value="Australia/Sydney">Australia/Sydney (AEST)</option>
         </select>
       </div>
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <label htmlFor="slaHours" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+          <label htmlFor="slaHours" className="block text-sm font-medium text-foreground mb-1">
             SLA for Approvals (hours)
           </label>
           <input
@@ -143,11 +156,11 @@ function CompanySetupStep({
             max={336}
             value={data.slaHours}
             onChange={(e) => onChange({ ...data, slaHours: parseInt(e.target.value) || 48 })}
-            className="w-full rounded-lg border border-gray-300 dark:border-gray-600 px-3 py-2 text-sm text-gray-900 dark:text-white dark:bg-slate-800 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+            className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground focus:border-primary focus:ring-2 focus:ring-primary focus:outline-none"
           />
         </div>
         <div>
-          <label htmlFor="probationDays" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+          <label htmlFor="probationDays" className="block text-sm font-medium text-foreground mb-1">
             Probation Period (days)
           </label>
           <input
@@ -157,22 +170,69 @@ function CompanySetupStep({
             max={730}
             value={data.probationDays}
             onChange={(e) => onChange({ ...data, probationDays: parseInt(e.target.value) || 180 })}
-            className="w-full rounded-lg border border-gray-300 dark:border-gray-600 px-3 py-2 text-sm text-gray-900 dark:text-white dark:bg-slate-800 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+            className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground focus:border-primary focus:ring-2 focus:ring-primary focus:outline-none"
           />
         </div>
       </div>
-      <div className="flex items-center justify-between p-3 rounded-lg border border-gray-200 dark:border-gray-700">
+      <div className="flex items-center justify-between p-3 rounded-lg border border-border">
         <div>
-          <p className="text-sm font-medium text-gray-900 dark:text-white">Allow Negative Balance</p>
-          <p className="text-xs text-gray-500 dark:text-gray-400">Employees can take leave even when balance is zero</p>
+          <p className="text-sm font-medium text-foreground">Allow Negative Balance</p>
+          <p className="text-xs text-muted-foreground">Employees can take leave even when balance is zero</p>
         </div>
         <input
           type="checkbox"
           checked={data.negativeBal}
           onChange={(e) => onChange({ ...data, negativeBal: e.target.checked })}
-          className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+          className="h-4 w-4 rounded border-input text-primary focus:ring-primary"
           aria-label="Allow negative balance"
         />
+      </div>
+
+      {/* Work Schedule */}
+      <div className="mt-6 border-t border-border pt-6">
+        <h3 className="text-lg font-semibold text-foreground mb-4">Work Schedule</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-foreground mb-1">Work Start Time</label>
+            <input
+              type="time"
+              value={data.workStart || '09:00'}
+              onChange={(e) => onChange({...data, workStart: e.target.value})}
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus:border-primary focus:ring-primary"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-foreground mb-1">Work End Time</label>
+            <input
+              type="time"
+              value={data.workEnd || '18:00'}
+              onChange={(e) => onChange({...data, workEnd: e.target.value})}
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus:border-primary focus:ring-primary"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-foreground mb-1">Grace Period (minutes)</label>
+            <input
+              type="number"
+              min="0" max="120"
+              value={data.gracePeriodMinutes ?? 15}
+              onChange={(e) => onChange({...data, gracePeriodMinutes: parseInt(e.target.value) || 15})}
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus:border-primary focus:ring-primary"
+            />
+            <p className="text-xs text-muted-foreground mt-1">Minutes after work start before marking late</p>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-foreground mb-1">Half-Day Threshold (hours)</label>
+            <input
+              type="number"
+              min="1" max="12" step="0.5"
+              value={data.halfDayHours ?? 4}
+              onChange={(e) => onChange({...data, halfDayHours: parseFloat(e.target.value) || 4})}
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus:border-primary focus:ring-primary"
+            />
+            <p className="text-xs text-muted-foreground mt-1">Hours below which attendance is marked as half-day</p>
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -187,13 +247,18 @@ function LeaveTypesStep({
 }) {
   return (
     <div className="space-y-4">
-      <p className="text-sm text-gray-500 dark:text-gray-400">Configure the leave types for your organization. You can customize these later.</p>
+      <p className="text-sm text-muted-foreground">Select and configure the leave types for your organization. Choose at least one type.</p>
+      {data.filter((t) => t.enabled).length === 0 && (
+        <div className="rounded-lg bg-yellow-50 border border-yellow-200 px-3 py-2 text-sm text-yellow-700 dark:bg-yellow-900/20 dark:border-yellow-800 dark:text-yellow-300">
+          Please select at least one leave type to continue.
+        </div>
+      )}
       <div className="space-y-3">
         {data.map((type, idx) => (
-          <div key={type.code} className="flex items-center justify-between p-3 rounded-lg border border-gray-200 dark:border-gray-700">
+          <div key={type.code} className="flex items-center justify-between p-3 rounded-lg border border-border">
             <div>
-              <p className="text-sm font-medium text-gray-900 dark:text-white">{type.name}</p>
-              <p className="text-xs text-gray-500 dark:text-gray-400">{type.days} days/year · {type.carryForward ? 'Carry forward enabled' : 'No carry forward'}</p>
+              <p className="text-sm font-medium text-foreground">{type.name}</p>
+              <p className="text-xs text-muted-foreground">{type.days} days/year · {type.carryForward ? 'Carry forward enabled' : 'No carry forward'}</p>
             </div>
             <input
               type="checkbox"
@@ -203,7 +268,7 @@ function LeaveTypesStep({
                 updated[idx] = { ...type, enabled: e.target.checked };
                 onChange(updated);
               }}
-              className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+              className="h-4 w-4 rounded border-input text-primary focus:ring-primary"
               aria-label={`Enable ${type.name}`}
             />
           </div>
@@ -239,16 +304,16 @@ function ConstraintRulesStep({
 
   return (
     <div className="space-y-5">
-      <p className="text-sm text-gray-500 dark:text-gray-400">
+      <p className="text-sm text-muted-foreground">
         Configure how the constraint engine evaluates leave requests.
       </p>
 
       {/* Team Coverage */}
-      <div className="p-4 rounded-lg border border-gray-200 dark:border-gray-700 space-y-2">
+      <div className="p-4 rounded-lg border border-border space-y-2">
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-sm font-medium text-gray-900 dark:text-white">Minimum Team Coverage</p>
-            <p className="text-xs text-gray-500 dark:text-gray-400">Minimum % of team that must be present</p>
+            <p className="text-sm font-medium text-foreground">Minimum Team Coverage</p>
+            <p className="text-xs text-muted-foreground">Minimum % of team that must be present</p>
           </div>
           <div className="flex items-center gap-2">
             <input
@@ -261,7 +326,7 @@ function ConstraintRulesStep({
               className="w-28"
               aria-label="Minimum team coverage percentage"
             />
-            <span className="text-sm font-semibold text-gray-900 dark:text-white w-10 text-right">
+            <span className="text-sm font-semibold text-foreground w-10 text-right">
               {data.minCoveragePercent}%
             </span>
           </div>
@@ -269,11 +334,11 @@ function ConstraintRulesStep({
       </div>
 
       {/* Max Concurrent */}
-      <div className="p-4 rounded-lg border border-gray-200 dark:border-gray-700 space-y-2">
+      <div className="p-4 rounded-lg border border-border space-y-2">
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-sm font-medium text-gray-900 dark:text-white">Max Concurrent Leaves</p>
-            <p className="text-xs text-gray-500 dark:text-gray-400">Maximum employees on leave at same time</p>
+            <p className="text-sm font-medium text-foreground">Max Concurrent Leaves</p>
+            <p className="text-xs text-muted-foreground">Maximum employees on leave at same time</p>
           </div>
           <input
             type="number"
@@ -281,24 +346,24 @@ function ConstraintRulesStep({
             max={50}
             value={data.maxConcurrent}
             onChange={(e) => onChange({ ...data, maxConcurrent: parseInt(e.target.value) || 2 })}
-            className="w-16 rounded-lg border border-gray-300 dark:border-gray-600 px-2 py-1 text-sm text-gray-900 dark:text-white dark:bg-slate-800 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none text-center"
+            className="w-16 rounded-lg border border-input bg-background px-2 py-1 text-sm text-foreground focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none text-center"
             aria-label="Maximum concurrent leaves"
           />
         </div>
       </div>
 
       {/* Blackout Dates */}
-      <div className="p-4 rounded-lg border border-gray-200 dark:border-gray-700 space-y-3">
+      <div className="p-4 rounded-lg border border-border space-y-3">
         <div>
-          <p className="text-sm font-medium text-gray-900 dark:text-white">Blackout Periods</p>
-          <p className="text-xs text-gray-500 dark:text-gray-400">Dates when leave is not allowed (except emergency)</p>
+          <p className="text-sm font-medium text-foreground">Blackout Periods</p>
+          <p className="text-xs text-muted-foreground">Dates when leave is not allowed (except emergency)</p>
         </div>
         {data.blackoutDates.length > 0 && (
           <div className="space-y-2">
             {data.blackoutDates.map((bd, idx) => (
-              <div key={idx} className="flex items-center justify-between bg-gray-50 dark:bg-slate-800 px-3 py-2 rounded text-xs">
-                <span className="font-medium text-gray-900 dark:text-white">{bd.name}</span>
-                <span className="text-gray-500 dark:text-gray-400">{bd.start} → {bd.end}</span>
+              <div key={idx} className="flex items-center justify-between bg-muted px-3 py-2 rounded text-xs">
+                <span className="font-medium text-foreground">{bd.name}</span>
+                <span className="text-muted-foreground">{bd.start} → {bd.end}</span>
                 <button
                   type="button"
                   onClick={() => removeBlackout(idx)}
@@ -316,38 +381,38 @@ function ConstraintRulesStep({
             placeholder="Name (e.g. Q4 Freeze)"
             value={blackoutInput.name}
             onChange={(e) => setBlackoutInput({ ...blackoutInput, name: e.target.value })}
-            className="col-span-3 sm:col-span-1 rounded border border-gray-300 dark:border-gray-600 px-2 py-1 text-xs dark:bg-slate-800 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            className="col-span-3 sm:col-span-1 rounded border border-input bg-background px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-primary"
           />
           <input
             type="date"
             value={blackoutInput.start}
             onChange={(e) => setBlackoutInput({ ...blackoutInput, start: e.target.value })}
-            className="rounded border border-gray-300 dark:border-gray-600 px-2 py-1 text-xs dark:bg-slate-800 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            className="rounded border border-input bg-background px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-primary"
             aria-label="Blackout start date"
           />
           <input
             type="date"
             value={blackoutInput.end}
             onChange={(e) => setBlackoutInput({ ...blackoutInput, end: e.target.value })}
-            className="rounded border border-gray-300 dark:border-gray-600 px-2 py-1 text-xs dark:bg-slate-800 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            className="rounded border border-input bg-background px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-primary"
             aria-label="Blackout end date"
           />
         </div>
         <button
           type="button"
           onClick={addBlackout}
-          className="text-xs bg-gray-100 dark:bg-slate-700 hover:bg-gray-200 dark:hover:bg-slate-600 text-gray-700 dark:text-gray-300 px-3 py-1.5 rounded transition-colors"
+          className="text-xs bg-muted hover:bg-muted/80 text-muted-foreground px-3 py-1.5 rounded transition-colors"
         >
           + Add Blackout Period
         </button>
       </div>
 
       {/* Auto-Approve */}
-      <div className="p-4 rounded-lg border border-gray-200 dark:border-gray-700 space-y-3">
+      <div className="p-4 rounded-lg border border-border space-y-3">
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-sm font-medium text-gray-900 dark:text-white">Auto-Approve</p>
-            <p className="text-xs text-gray-500 dark:text-gray-400">
+            <p className="text-sm font-medium text-foreground">Auto-Approve</p>
+            <p className="text-xs text-muted-foreground">
               Auto-approve when constraint engine confidence meets threshold
             </p>
           </div>
@@ -355,13 +420,13 @@ function ConstraintRulesStep({
             type="checkbox"
             checked={data.autoApprove}
             onChange={(e) => onChange({ ...data, autoApprove: e.target.checked })}
-            className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+            className="h-4 w-4 rounded border-input text-primary focus:ring-primary"
             aria-label="Enable auto-approve"
           />
         </div>
         {data.autoApprove && (
           <div className="flex items-center gap-3 mt-2">
-            <label className="text-xs text-gray-600 dark:text-gray-400 w-36">Confidence Threshold</label>
+            <label className="text-xs text-muted-foreground w-36">Confidence Threshold</label>
             <input
               type="range"
               min={0.5}
@@ -372,7 +437,7 @@ function ConstraintRulesStep({
               className="w-28"
               aria-label="Auto-approve confidence threshold"
             />
-            <span className="text-sm font-semibold text-gray-900 dark:text-white w-12">
+            <span className="text-sm font-semibold text-foreground w-12">
               {(data.autoApproveThreshold * 100).toFixed(0)}%
             </span>
           </div>
@@ -391,10 +456,10 @@ function HolidaysStep({
 }) {
   return (
     <div className="space-y-4">
-      <p className="text-sm text-gray-500 dark:text-gray-400">Select the holidays to include in your company calendar.</p>
+      <p className="text-sm text-muted-foreground">Select the holidays to include in your company calendar.</p>
       <div className="space-y-2 mt-4">
         {data.map((holiday, idx) => (
-          <div key={holiday.name} className="flex items-center justify-between py-2 px-3 rounded-lg border border-gray-100 dark:border-gray-700">
+          <div key={holiday.name} className="flex items-center justify-between py-2 px-3 rounded-lg border border-border">
             <div className="flex items-center gap-3">
               <input
                 type="checkbox"
@@ -404,12 +469,12 @@ function HolidaysStep({
                   updated[idx] = { ...holiday, enabled: e.target.checked };
                   onChange(updated);
                 }}
-                className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                className="h-4 w-4 rounded border-input text-primary focus:ring-primary"
                 aria-label={`Enable ${holiday.name}`}
               />
-              <span className="text-sm text-gray-900 dark:text-white">{holiday.name}</span>
+              <span className="text-sm text-foreground">{holiday.name}</span>
             </div>
-            <span className="text-xs text-gray-500 dark:text-gray-400">{holiday.date}</span>
+            <span className="text-xs text-muted-foreground">{holiday.date}</span>
           </div>
         ))}
       </div>
@@ -433,16 +498,16 @@ function NotificationsStep({
 
   return (
     <div className="space-y-4">
-      <p className="text-sm text-gray-500 dark:text-gray-400">Configure notification preferences.</p>
+      <p className="text-sm text-muted-foreground">Configure notification preferences.</p>
       <div className="space-y-3">
         {items.map(({ key, label }) => (
-          <div key={key} className="flex items-center justify-between p-3 rounded-lg border border-gray-200 dark:border-gray-700">
-            <span className="text-sm text-gray-900 dark:text-white">{label}</span>
+          <div key={key} className="flex items-center justify-between p-3 rounded-lg border border-border">
+            <span className="text-sm text-foreground">{label}</span>
             <input
               type="checkbox"
               checked={data[key]}
               onChange={(e) => onChange({ ...data, [key]: e.target.checked })}
-              className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+              className="h-4 w-4 rounded border-input text-primary focus:ring-primary"
               aria-label={label}
             />
           </div>
@@ -456,21 +521,21 @@ function CompleteStep({ joinCode }: { joinCode: string }) {
   return (
     <div className="text-center py-8">
       <span className="text-6xl">🎉</span>
-      <h2 className="text-2xl font-bold text-gray-900 dark:text-white mt-4">Setup Complete!</h2>
-      <p className="text-gray-500 dark:text-gray-400 mt-2 max-w-md mx-auto">
+      <h2 className="text-2xl font-bold text-foreground mt-4">Setup Complete!</h2>
+      <p className="text-muted-foreground mt-2 max-w-md mx-auto">
         Your organization is now configured and ready to use.
       </p>
       {joinCode && (
-        <div className="mt-6 p-4 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-lg text-left max-w-sm mx-auto">
-          <p className="text-sm font-medium text-blue-900 dark:text-blue-200 mb-1">Company Join Code</p>
-          <p className="text-2xl font-mono font-bold text-blue-700 dark:text-blue-300 tracking-widest">{joinCode}</p>
-          <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">Share this with your employees so they can sign up.</p>
+        <div className="mt-6 p-4 bg-primary/10 border border-primary/20 rounded-lg text-left max-w-sm mx-auto">
+          <p className="text-sm font-medium text-primary mb-1">Company Join Code</p>
+          <p className="text-2xl font-mono font-bold text-primary tracking-widest">{joinCode}</p>
+          <p className="text-xs text-primary/80 mt-1">Share this with your employees so they can sign up.</p>
         </div>
       )}
       <div className="mt-8">
         <a
           href="/hr/dashboard"
-          className="inline-flex items-center gap-2 bg-blue-600 text-white px-6 py-3 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
+          className="inline-flex items-center gap-2 bg-primary text-primary-foreground px-6 py-3 rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors"
         >
           Go to HR Dashboard →
         </a>
@@ -483,22 +548,26 @@ function CompleteStep({ joinCode }: { joinCode: string }) {
 
 // All leave types from the catalog are shown in onboarding so admins can
 // choose which ones to enable for their company.
+// None are pre-enabled — the admin must explicitly select types for their company,
+// ensuring a fully config-driven setup.
 const DEFAULT_LEAVE_TYPES: LeaveTypeEntry[] = LEAVE_TYPE_CATALOG.map((lt) => ({
   code: lt.code,
   name: lt.name,
   days: lt.defaultQuota,
   carryForward: lt.carryForward,
-  // Enable the most common leave types by default; admins can toggle the rest.
-  enabled: ['CL', 'SL', 'PL', 'EL', 'AL', 'ML', 'PTL', 'BL', 'LWP', 'WFH'].includes(lt.code),
+  enabled: false,
 }));
 
+// Default holidays use the current year. These are common Indian national
+// holidays shown as suggestions — the admin can toggle or add their own.
+const CURRENT_YEAR = new Date().getFullYear();
 const DEFAULT_HOLIDAYS: HolidayEntry[] = [
-  { name: 'Republic Day', date: '2025-01-26', enabled: true },
-  { name: 'Holi', date: '2025-03-14', enabled: true },
-  { name: 'Independence Day', date: '2025-08-15', enabled: true },
-  { name: 'Gandhi Jayanti', date: '2025-10-02', enabled: true },
-  { name: 'Diwali', date: '2025-10-20', enabled: true },
-  { name: 'Christmas', date: '2025-12-25', enabled: true },
+  { name: 'Republic Day', date: `${CURRENT_YEAR}-01-26`, enabled: true },
+  { name: 'Holi', date: `${CURRENT_YEAR}-03-14`, enabled: true },
+  { name: 'Independence Day', date: `${CURRENT_YEAR}-08-15`, enabled: true },
+  { name: 'Gandhi Jayanti', date: `${CURRENT_YEAR}-10-02`, enabled: true },
+  { name: 'Diwali', date: `${CURRENT_YEAR}-10-20`, enabled: true },
+  { name: 'Christmas', date: `${CURRENT_YEAR}-12-25`, enabled: true },
 ];
 
 // ─── Main page ───────────────────────────────────────────────────────────────
@@ -518,10 +587,14 @@ function OnboardingPageInner() {
     companyName: '',
     industry: '',
     employeeCount: '',
-    timezone: 'Asia/Kolkata',
+    timezone: '',
     slaHours: 48,
     negativeBal: false,
     probationDays: 180,
+    workStart: '09:00',
+    workEnd: '18:00',
+    gracePeriodMinutes: 15,
+    halfDayHours: 4,
   });
   const [leaveTypes, setLeaveTypes] = useState<LeaveTypeEntry[]>(DEFAULT_LEAVE_TYPES);
   const [constraintConfig, setConstraintConfig] = useState<ConstraintConfig>({
@@ -544,7 +617,7 @@ function OnboardingPageInner() {
     async function checkAuth() {
       const supabase = getSupabaseBrowserClient();
       const { data: { user } } = await supabase.auth.getUser();
-      
+
       if (!user) {
         // Not authenticated - redirect to sign-up
         router.replace('/sign-up');
@@ -567,7 +640,7 @@ function OnboardingPageInner() {
 
       // Sync user to check if they have a Company/Employee record
       const syncResult = await syncUser();
-      
+
       if (!syncResult.success) {
         setError(syncResult.error || 'Failed to load profile');
         setLoading(false);
@@ -597,9 +670,9 @@ function OnboardingPageInner() {
         // Admin/HR intent: show Company Setup wizard
         // Pre-fill name if available from sync
         if ('userName' in syncResult && syncResult.userName) {
-          setCompanyData(prev => ({ 
-            ...prev, 
-            companyName: prev.companyName || `${syncResult.userName}'s Company` 
+          setCompanyData(prev => ({
+            ...prev,
+            companyName: prev.companyName || `${syncResult.userName}'s Company`
           }));
         }
         setLoading(false);
@@ -612,7 +685,7 @@ function OnboardingPageInner() {
         if (syncResult.company.joinCode) {
           setJoinCode(syncResult.company.joinCode);
         }
-        
+
         // If onboarding already completed, redirect to dashboard
         if (syncResult.company.onboardingCompleted) {
           const role = syncResult.employee?.primaryRole ?? 'employee';
@@ -625,14 +698,14 @@ function OnboardingPageInner() {
           }
           return;
         }
-        
+
         // User has a company but onboarding not complete - skip to step 1 (Leave Types)
         setCurrentStep(1);
       }
 
       setLoading(false);
     }
-    
+
     checkAuth();
   }, [router, searchParams]);
 
@@ -643,7 +716,7 @@ function OnboardingPageInner() {
   async function handleNext() {
     setError('');
     setSaving(true);
-    
+
     try {
       // Step 0: Company Setup - Create Company + Employee via server action
       if (currentStep === 0 && !companyId) {
@@ -652,7 +725,12 @@ function OnboardingPageInner() {
           setSaving(false);
           return;
         }
-        
+        if (!companyData.timezone) {
+          setError('Please select a timezone');
+          setSaving(false);
+          return;
+        }
+
         const result = await createCompanyAndEmployee({
           companyName: companyData.companyName,
           industry: companyData.industry || undefined,
@@ -663,21 +741,31 @@ function OnboardingPageInner() {
           probationDays: companyData.probationDays,
           primaryRole: (searchParams.get('intent') || '').toLowerCase() === 'hr' ? 'hr' : 'admin',
         });
-        
+
         if (!result.success) {
           setError(result.error || 'Failed to create company');
           setSaving(false);
           return;
         }
-        
+
         if (result.company) {
           setCompanyId(result.company.id);
           setJoinCode(result.company.joinCode || '');
         }
-        
+
         setCurrentStep(1);
         setSaving(false);
         return;
+      }
+
+      // Step 1: Leave Types - require at least one type selected
+      if (currentStep === 1) {
+        const enabledCount = leaveTypes.filter((lt) => lt.enabled).length;
+        if (enabledCount === 0) {
+          setError('Please select at least one leave type for your organization');
+          setSaving(false);
+          return;
+        }
       }
 
       // Last step before Complete: Save all remaining settings
@@ -706,6 +794,10 @@ function OnboardingPageInner() {
             auto_approve: constraintConfig.autoApprove,
             auto_approve_threshold: constraintConfig.autoApproveThreshold,
           },
+          work_start: companyData.workStart,
+          work_end: companyData.workEnd,
+          grace_period_minutes: companyData.gracePeriodMinutes,
+          half_day_hours: companyData.halfDayHours,
         };
 
         const res = await fetch('/api/onboarding/complete', {
@@ -713,14 +805,14 @@ function OnboardingPageInner() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),
         });
-        
+
         const json = await res.json();
         if (!res.ok) {
           setError(json.error ?? 'Failed to save onboarding data');
           setSaving(false);
           return;
         }
-        
+
         if (json.join_code) setJoinCode(json.join_code);
         setCurrentStep((s) => s + 1);
         setSaving(false);
@@ -756,21 +848,21 @@ function OnboardingPageInner() {
   // Show loading state while checking auth
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-slate-900 flex items-center justify-center">
+      <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
-          <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto" />
-          <p className="mt-4 text-gray-500 dark:text-gray-400">Loading...</p>
+          <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto" />
+          <p className="mt-4 text-muted-foreground">Loading...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-slate-900 flex items-center justify-center px-4">
+    <div className="min-h-screen bg-background flex items-center justify-center px-4">
       <div className="w-full max-w-2xl">
         <div className="text-center mb-8">
-          <h1 className="text-2xl font-bold text-blue-600">Continuum</h1>
-          <p className="text-gray-500 dark:text-gray-400 mt-2">Organization Setup</p>
+          <h1 className="text-2xl font-bold text-primary">Continuum</h1>
+          <p className="text-muted-foreground mt-2">Organization Setup</p>
         </div>
 
         {/* Step Indicators */}
@@ -780,27 +872,27 @@ function OnboardingPageInner() {
               <div
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
                   index === currentStep
-                    ? 'bg-blue-600 text-white'
+                    ? 'bg-primary text-primary-foreground'
                     : index < currentStep
-                      ? 'bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300'
-                      : 'bg-gray-100 dark:bg-slate-700 text-gray-500 dark:text-gray-400'
+                      ? 'bg-primary/10 text-primary'
+                      : 'bg-muted text-muted-foreground'
                 }`}
               >
                 <span>{step.icon}</span>
                 <span className="hidden sm:inline">{step.label}</span>
               </div>
               {index < STEPS.length - 1 && (
-                <div className={`w-6 h-0.5 mx-1 ${index < currentStep ? 'bg-blue-400' : 'bg-gray-200 dark:bg-gray-600'}`} />
+                <div className={`w-6 h-0.5 mx-1 ${index < currentStep ? 'bg-primary' : 'bg-border'}`} />
               )}
             </div>
           ))}
         </div>
 
         {/* Step Content */}
-        <Card className="dark:bg-slate-800 dark:border-slate-700">
+        <Card>
           <CardContent className="pt-6">
             {!isCompletionStep && (
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">{STEPS[currentStep].label}</h2>
+              <h2 className="text-lg font-semibold text-foreground mb-4">{STEPS[currentStep].label}</h2>
             )}
 
             {error && (
@@ -812,7 +904,7 @@ function OnboardingPageInner() {
             {renderStepContent()}
 
             {!isCompletionStep && (
-              <div className="flex justify-between mt-8 pt-4 border-t border-gray-100 dark:border-gray-700">
+              <div className="flex justify-between mt-8 pt-4 border-t border-border">
                 <Button
                   variant="outline"
                   onClick={() => setCurrentStep((s) => s - 1)}

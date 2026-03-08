@@ -35,7 +35,9 @@ interface LeaveRequestBrief {
   created_at: string;
 }
 
-const LEAVE_COLORS: Record<string, string> = {
+// Auto-assign gradient colors for any leave type code. Known types get stable
+// colors; custom/unknown types are assigned from a rotating palette.
+const KNOWN_LEAVE_COLORS: Record<string, string> = {
   CL: 'from-blue-500 to-blue-600',
   SL: 'from-emerald-500 to-green-600',
   PL: 'from-purple-500 to-violet-600',
@@ -47,7 +49,7 @@ const LEAVE_COLORS: Record<string, string> = {
   BL: 'from-gray-500 to-slate-600',
 };
 
-const LEAVE_BG_COLORS: Record<string, string> = {
+const KNOWN_LEAVE_BG_COLORS: Record<string, string> = {
   CL: 'bg-blue-500/10',
   SL: 'bg-emerald-500/10',
   PL: 'bg-purple-500/10',
@@ -58,6 +60,46 @@ const LEAVE_BG_COLORS: Record<string, string> = {
   PTL: 'bg-cyan-500/10',
   BL: 'bg-gray-500/10',
 };
+
+// Palette for dynamically assigned leave types not in the known map
+const DYNAMIC_GRADIENTS = [
+  'from-indigo-500 to-blue-600',
+  'from-teal-500 to-emerald-600',
+  'from-amber-500 to-yellow-600',
+  'from-fuchsia-500 to-pink-600',
+  'from-lime-500 to-green-600',
+  'from-sky-500 to-cyan-600',
+  'from-rose-500 to-red-600',
+  'from-violet-500 to-purple-600',
+];
+
+const DYNAMIC_BG_COLORS = [
+  'bg-indigo-500/10',
+  'bg-teal-500/10',
+  'bg-amber-500/10',
+  'bg-fuchsia-500/10',
+  'bg-lime-500/10',
+  'bg-sky-500/10',
+  'bg-rose-500/10',
+  'bg-violet-500/10',
+];
+
+// Deterministic hash for a leave type code → index
+function hashCode(str: string): number {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = (hash * 31 + str.charCodeAt(i)) | 0;
+  }
+  return Math.abs(hash);
+}
+
+function getLeaveColor(code: string): string {
+  return KNOWN_LEAVE_COLORS[code] ?? DYNAMIC_GRADIENTS[hashCode(code) % DYNAMIC_GRADIENTS.length];
+}
+
+function getLeaveBgColor(code: string): string {
+  return KNOWN_LEAVE_BG_COLORS[code] ?? DYNAMIC_BG_COLORS[hashCode(code) % DYNAMIC_BG_COLORS.length];
+}
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -378,8 +420,8 @@ export default function EmployeeDashboardPage() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {balances.map((balance, index) => {
-              const gradient = LEAVE_COLORS[balance.leave_type] ?? 'from-primary to-primary/80';
-              const bgColor = LEAVE_BG_COLORS[balance.leave_type] ?? 'bg-primary/10';
+              const gradient = getLeaveColor(balance.leave_type);
+              const bgColor = getLeaveBgColor(balance.leave_type);
               const percentage = balance.annual_entitlement > 0
                 ? Math.min(100, (balance.remaining / balance.annual_entitlement) * 100)
                 : 0;

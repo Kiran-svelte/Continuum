@@ -59,6 +59,10 @@ const onboardingSchema = z.object({
     auto_approve: z.boolean().optional(),
     auto_approve_threshold: z.number().min(0).max(1).optional(),
   }).optional(),
+  work_start: z.string().optional(),
+  work_end: z.string().optional(),
+  grace_period_minutes: z.number().int().min(0).max(120).optional(),
+  half_day_hours: z.number().min(1).max(12).optional(),
 });
 
 /**
@@ -117,6 +121,22 @@ export async function POST(request: NextRequest) {
           await tx.company.update({
             where: { id: companyId },
             data: companyUpdate,
+          });
+        }
+      }
+
+      // 1b. Update work schedule fields (top-level in payload)
+      {
+        const workScheduleUpdate: Record<string, unknown> = {};
+        if (data.work_start) workScheduleUpdate.work_start = data.work_start;
+        if (data.work_end) workScheduleUpdate.work_end = data.work_end;
+        if (data.grace_period_minutes !== undefined) workScheduleUpdate.grace_period_minutes = data.grace_period_minutes;
+        if (data.half_day_hours !== undefined) workScheduleUpdate.half_day_hours = data.half_day_hours;
+
+        if (Object.keys(workScheduleUpdate).length > 0) {
+          await tx.company.update({
+            where: { id: companyId },
+            data: workScheduleUpdate,
           });
         }
       }
@@ -228,10 +248,10 @@ export async function POST(request: NextRequest) {
         }));
 
         const constraintRules = generateConstraintRules(leaveTypeConfigs, {
-          probation_period_days: fetchedCompany?.probation_period_days ?? 180,
-          sla_hours: fetchedCompany?.sla_hours ?? 48,
+          probation_period_days: fetchedCompany?.probation_period_days ?? undefined,
+          sla_hours: fetchedCompany?.sla_hours ?? undefined,
           negative_balance: fetchedCompany?.negative_balance ?? false,
-          work_days: (data.company?.work_days ?? [1, 2, 3, 4, 5]) as number[],
+          work_days: data.company?.work_days as number[] | undefined,
         });
 
         for (const rule of constraintRules) {

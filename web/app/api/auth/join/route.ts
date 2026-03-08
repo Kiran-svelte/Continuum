@@ -5,7 +5,6 @@ import { getAuthUserFromRequest } from '@/lib/auth-guard';
 import { checkApiRateLimit, getRateLimitHeaders } from '@/lib/api-rate-limit';
 import { createAuditLog, AUDIT_ACTIONS } from '@/lib/audit';
 import { sanitizeInput } from '@/lib/security';
-import { LEAVE_TYPE_CATALOG } from '@/lib/leave-types-config';
 import { sendWelcomeEmail } from '@/lib/email-service';
 
 export const dynamic = 'force-dynamic';
@@ -99,18 +98,21 @@ export async function POST(request: NextRequest) {
         },
       });
 
-      // Seed leave balances from company's active leave types,
-      // falling back to catalog defaults if no custom types exist
-      const leaveTypesToSeed =
-        company.leave_types.length > 0
-          ? company.leave_types.map((lt) => ({
-              code: lt.code,
-              quota: lt.default_quota,
-            }))
-          : LEAVE_TYPE_CATALOG.map((lt) => ({
-              code: lt.code,
-              quota: lt.defaultQuota,
-            }));
+      // Seed leave balances from company's active leave types only.
+      // No catalog fallback — the system is config-driven; leave types must
+      // be configured during company onboarding.
+      const leaveTypesToSeed = company.leave_types
+        .filter((lt) => {
+          // Filter gender-specific leave types
+          const genderFilter = (lt as { gender_specific?: string }).gender_specific;
+          if (!genderFilter || genderFilter === 'all') return true;
+          if (data.gender === 'other') return true;
+          return genderFilter === data.gender;
+        })
+        .map((lt) => ({
+          code: lt.code,
+          quota: lt.default_quota,
+        }));
 
       const balanceInserts = leaveTypesToSeed.map(({ code, quota }) => ({
         emp_id: employee.id,

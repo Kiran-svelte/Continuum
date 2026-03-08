@@ -16,7 +16,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
         {label && (
           <label
             htmlFor={inputId}
-            className="block text-sm font-medium text-gray-900 dark:text-gray-100 mb-1.5"
+            className="block text-sm font-medium text-foreground mb-1.5"
           >
             {label}
           </label>
@@ -25,15 +25,14 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
           id={inputId}
           ref={ref}
           className={cn(
-            'w-full rounded-lg border bg-white px-3 py-2 text-sm text-gray-900',
-            'placeholder:text-gray-400',
+            'w-full rounded-lg border bg-background px-3 py-2 text-sm text-foreground',
+            'placeholder:text-muted-foreground',
             'transition-all duration-200',
-            'focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-white',
+            'focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-background',
             'disabled:cursor-not-allowed disabled:opacity-50',
-            'dark:bg-gray-900 dark:text-gray-100 dark:placeholder:text-gray-500 dark:focus:ring-offset-gray-900',
             error
               ? 'border-red-500 focus:ring-red-500'
-              : 'border-gray-300 hover:border-blue-300 dark:border-gray-600 dark:hover:border-blue-400',
+              : 'border-border hover:border-primary/50',
             className
           )}
           {...props}
@@ -42,7 +41,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
           <p
             className={cn(
               'mt-1.5 text-sm',
-              error ? 'text-red-600 dark:text-red-400' : 'text-gray-500 dark:text-gray-400'
+              error ? 'text-red-600 dark:text-red-400' : 'text-muted-foreground'
             )}
           >
             {error || helperText}
@@ -71,7 +70,7 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
         {label && (
           <label
             htmlFor={inputId}
-            className="block text-sm font-medium text-gray-900 dark:text-gray-100 mb-1.5"
+            className="block text-sm font-medium text-foreground mb-1.5"
           >
             {label}
           </label>
@@ -80,15 +79,14 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
           id={inputId}
           ref={ref}
           className={cn(
-            'w-full rounded-lg border bg-white px-3 py-2 text-sm text-gray-900',
-            'placeholder:text-gray-400',
+            'w-full rounded-lg border bg-background px-3 py-2 text-sm text-foreground',
+            'placeholder:text-muted-foreground',
             'transition-all duration-200 resize-y min-h-[100px]',
-            'focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-white',
+            'focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-background',
             'disabled:cursor-not-allowed disabled:opacity-50',
-            'dark:bg-gray-900 dark:text-gray-100 dark:placeholder:text-gray-500 dark:focus:ring-offset-gray-900',
             error
               ? 'border-red-500 focus:ring-red-500'
-              : 'border-gray-300 hover:border-blue-300 dark:border-gray-600 dark:hover:border-blue-400',
+              : 'border-border hover:border-primary/50',
             className
           )}
           {...props}
@@ -97,7 +95,7 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
           <p
             className={cn(
               'mt-1.5 text-sm',
-              error ? 'text-red-600 dark:text-red-400' : 'text-gray-500 dark:text-gray-400'
+              error ? 'text-red-600 dark:text-red-400' : 'text-muted-foreground'
             )}
           >
             {error || helperText}
@@ -127,7 +125,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
         {label && (
           <label
             htmlFor={inputId}
-            className="block text-sm font-medium text-gray-900 dark:text-gray-100 mb-1.5"
+            className="block text-sm font-medium text-foreground mb-1.5"
           >
             {label}
           </label>
@@ -136,14 +134,13 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
           id={inputId}
           ref={ref}
           className={cn(
-            'w-full rounded-lg border bg-white px-3 py-2 text-sm text-gray-900',
+            'w-full rounded-lg border bg-background px-3 py-2 text-sm text-foreground',
             'transition-all duration-200',
-            'focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-white',
+            'focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-background',
             'disabled:cursor-not-allowed disabled:opacity-50',
-            'dark:bg-gray-900 dark:text-gray-100 dark:focus:ring-offset-gray-900',
             error
               ? 'border-red-500 focus:ring-red-500'
-              : 'border-gray-300 hover:border-blue-300 dark:border-gray-600 dark:hover:border-blue-400',
+              : 'border-border hover:border-primary/50',
             className
           )}
           {...props}
@@ -158,7 +155,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
           <p
             className={cn(
               'mt-1.5 text-sm',
-              error ? 'text-red-600 dark:text-red-400' : 'text-gray-500 dark:text-gray-400'
+              error ? 'text-red-600 dark:text-red-400' : 'text-muted-foreground'
             )}
           >
             {error || helperText}
@@ -188,11 +185,10 @@ export const Checkbox = forwardRef<HTMLInputElement, CheckboxProps>(
           id={inputId}
           ref={ref}
           className={cn(
-            'h-4 w-4 rounded border-gray-300 bg-white text-blue-600',
-            'focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-white',
+            'h-4 w-4 rounded border-border bg-background text-primary',
+            'focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-background',
             'disabled:cursor-not-allowed disabled:opacity-50',
             'transition-colors',
-            'dark:border-gray-600 dark:bg-gray-900 dark:focus:ring-offset-gray-900',
             className
           )}
           {...props}
@@ -202,13 +198,13 @@ export const Checkbox = forwardRef<HTMLInputElement, CheckboxProps>(
             {label && (
               <label
                 htmlFor={inputId}
-                className="text-sm font-medium text-gray-900 dark:text-gray-100 cursor-pointer"
+                className="text-sm font-medium text-foreground cursor-pointer"
               >
                 {label}
               </label>
             )}
             {description && (
-              <p className="text-sm text-gray-500 dark:text-gray-400">{description}</p>
+              <p className="text-sm text-muted-foreground">{description}</p>
             )}
           </div>
         )}

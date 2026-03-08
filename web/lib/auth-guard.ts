@@ -25,6 +25,7 @@ export interface AuthEmployee {
   primary_role: UserRole;
   secondary_roles: string[] | null;
   department: string | null;
+  gender: string | null;
   status: string;
   permissions: PermissionCode[];
   accessScope: AccessScope;
@@ -230,6 +231,7 @@ export async function getAuthEmployee(): Promise<AuthEmployee> {
       primary_role: true,
       secondary_roles: true,
       department: true,
+      gender: true,
       status: true,
     },
   });
@@ -255,6 +257,7 @@ export async function getAuthEmployee(): Promise<AuthEmployee> {
     primary_role: primaryRole,
     secondary_roles: employee.secondary_roles as string[] | null,
     department: employee.department,
+    gender: employee.gender ?? null,
     status: employee.status,
     permissions,
     accessScope: getAccessScope(primaryRole),

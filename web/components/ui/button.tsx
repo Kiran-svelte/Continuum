@@ -10,19 +10,19 @@ export function Button({ variant = 'primary', size = 'md', loading = false, clas
   return (
     <button
       className={cn(
-        'inline-flex items-center justify-center gap-2 rounded-lg font-medium transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98]',
-        // Primary - main CTAs (10% accent) - explicit blue colors for visibility
-        variant === 'primary' && 'bg-blue-600 text-white hover:bg-blue-700 shadow-sm hover:shadow-md',
+        'inline-flex items-center justify-center gap-2 rounded-lg font-medium transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98]',
+        // Primary - main CTAs (10% accent)
+        variant === 'primary' && 'bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm hover:shadow-md',
         // Secondary - supporting actions (30% secondary)
-        variant === 'secondary' && 'bg-gray-100 text-gray-900 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-100 dark:hover:bg-gray-700',
+        variant === 'secondary' && 'bg-muted text-foreground hover:bg-muted/80',
         // Danger - destructive actions
         variant === 'danger' && 'bg-red-600 text-white hover:bg-red-700 shadow-sm',
         // Success - positive actions
         variant === 'success' && 'bg-green-600 text-white hover:bg-green-700 dark:bg-green-500 dark:hover:bg-green-600 shadow-sm',
         // Ghost - minimal visual weight
-        variant === 'ghost' && 'text-gray-900 hover:bg-gray-100 dark:text-gray-100 dark:hover:bg-gray-800',
+        variant === 'ghost' && 'text-foreground hover:bg-muted',
         // Outline - bordered button
-        variant === 'outline' && 'border border-gray-300 text-gray-900 hover:bg-gray-50 hover:border-blue-300 dark:border-gray-600 dark:text-gray-100 dark:hover:bg-gray-800',
+        variant === 'outline' && 'border border-border text-foreground hover:bg-muted/50 hover:border-primary/50',
         // Sizes
         size === 'sm' && 'px-3 py-1.5 text-sm',
         size === 'md' && 'px-4 py-2 text-sm',

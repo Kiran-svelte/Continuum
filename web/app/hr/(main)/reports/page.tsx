@@ -58,28 +58,71 @@ export default function ReportsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Leave Reports</h1>
-          <p className="text-gray-500 mt-1">Analytics and insights for {year}</p>
+          <h1 className="text-2xl font-bold text-foreground">Leave Reports</h1>
+          <p className="text-muted-foreground mt-1">Analytics and insights for {year}</p>
         </div>
         <div className="flex items-center gap-3">
           <select
             value={year}
             onChange={(e) => setYear(parseInt(e.target.value, 10))}
-            className="rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-700 focus:outline-none focus:border-blue-500"
+            className="rounded-lg border border-border px-3 py-2 text-sm text-foreground focus:outline-none focus:border-primary"
           >
             {[new Date().getFullYear(), new Date().getFullYear() - 1].map((y) => (
               <option key={y} value={y}>{y}</option>
             ))}
           </select>
-          <button className="inline-flex items-center gap-2 border border-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors">
+          <button
+            onClick={() => {
+              if (!data) return;
+              const rows: string[] = [];
+
+              // Status breakdown
+              rows.push('--- Status Breakdown ---');
+              rows.push('Status,Count');
+              data.by_status.forEach((s) => rows.push(`${s.status},${s.count}`));
+              rows.push('');
+
+              // Leave type breakdown
+              rows.push('--- Leave Type Breakdown ---');
+              rows.push('Leave Type,Count,Total Days');
+              data.by_leave_type.forEach((lt) => rows.push(`${lt.leave_type},${lt.count},${lt.total_days}`));
+              rows.push('');
+
+              // Monthly trend
+              rows.push('--- Monthly Trend ---');
+              rows.push('Month,Requests,Days');
+              data.monthly.forEach((m) => rows.push(`${MONTHS[m.month - 1]},${m.requests},${m.days}`));
+              rows.push('');
+
+              // Top takers
+              rows.push('--- Top Leave Takers ---');
+              rows.push('Employee ID,Name,Department,Days Used');
+              data.top_takers.forEach((t) =>
+                rows.push(`${t.emp_id},"${t.name}",${t.department ?? ''},${t.days_used}`)
+              );
+
+              const csv = rows.join('\n');
+              const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = `leave-report-${year}.csv`;
+              document.body.appendChild(a);
+              a.click();
+              document.body.removeChild(a);
+              URL.revokeObjectURL(url);
+            }}
+            disabled={!data}
+            className="inline-flex items-center gap-2 border border-border text-foreground px-4 py-2 rounded-lg text-sm font-medium hover:bg-muted/50 transition-colors disabled:opacity-50"
+          >
             📥 Export CSV
           </button>
         </div>
       </div>
 
-      {loading && <div className="py-12 text-center text-sm text-gray-400">Loading report…</div>}
+      {loading && <div className="py-12 text-center text-sm text-muted-foreground">Loading report…</div>}
       {error && !loading && (
-        <div className="rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
+        <div className="rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 px-4 py-3 text-sm text-red-700 dark:text-red-300">
           {error}
         </div>
       )}
@@ -90,36 +133,36 @@ export default function ReportsPage() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <Card>
               <CardContent className="pt-4">
-                <p className="text-xs text-gray-500">Total Requests</p>
-                <p className="text-3xl font-bold text-gray-900 mt-1">{totalRequests}</p>
-                <p className="text-xs text-gray-400 mt-1">this year</p>
+                <p className="text-xs text-muted-foreground">Total Requests</p>
+                <p className="text-3xl font-bold text-foreground mt-1">{totalRequests}</p>
+                <p className="text-xs text-muted-foreground mt-1">this year</p>
               </CardContent>
             </Card>
             <Card>
               <CardContent className="pt-4">
-                <p className="text-xs text-gray-500">Active Employees</p>
-                <p className="text-3xl font-bold text-gray-900 mt-1">{data.total_employees}</p>
-                <p className="text-xs text-gray-400 mt-1">in company</p>
+                <p className="text-xs text-muted-foreground">Active Employees</p>
+                <p className="text-3xl font-bold text-foreground mt-1">{data.total_employees}</p>
+                <p className="text-xs text-muted-foreground mt-1">in company</p>
               </CardContent>
             </Card>
             <Card>
               <CardContent className="pt-4">
-                <p className="text-xs text-gray-500">Approval Rate</p>
-                <p className="text-3xl font-bold text-green-600 mt-1">
+                <p className="text-xs text-muted-foreground">Approval Rate</p>
+                <p className="text-3xl font-bold text-green-600 dark:text-green-400 mt-1">
                   {totalRequests > 0
                     ? `${Math.round(((data.by_status.find((s) => s.status === 'approved')?.count ?? 0) / totalRequests) * 100)}%`
                     : '—'}
                 </p>
-                <p className="text-xs text-gray-400 mt-1">approved / total</p>
+                <p className="text-xs text-muted-foreground mt-1">approved / total</p>
               </CardContent>
             </Card>
             <Card>
               <CardContent className="pt-4">
-                <p className="text-xs text-gray-500">SLA Breaches</p>
-                <p className={`text-3xl font-bold mt-1 ${data.sla_breaches > 0 ? 'text-red-600' : 'text-gray-900'}`}>
+                <p className="text-xs text-muted-foreground">SLA Breaches</p>
+                <p className={`text-3xl font-bold mt-1 ${data.sla_breaches > 0 ? 'text-red-600 dark:text-red-400' : 'text-foreground'}`}>
                   {data.sla_breaches}
                 </p>
-                <p className="text-xs text-gray-400 mt-1">this year</p>
+                <p className="text-xs text-muted-foreground mt-1">this year</p>
               </CardContent>
             </Card>
           </div>
@@ -138,20 +181,20 @@ export default function ReportsPage() {
                         <Badge variant={STATUS_BADGE[s.status] ?? 'default'}>{s.status}</Badge>
                       </div>
                       <div className="flex items-center gap-3">
-                        <div className="w-32 bg-gray-100 rounded-full h-2">
+                        <div className="w-32 bg-muted rounded-full h-2">
                           <div
-                            className="bg-blue-500 h-2 rounded-full"
+                            className="bg-primary h-2 rounded-full"
                             style={{ width: `${totalRequests > 0 ? (s.count / totalRequests) * 100 : 0}%` }}
                           />
                         </div>
-                        <span className="text-sm font-semibold text-gray-900 w-8 text-right">
+                        <span className="text-sm font-semibold text-foreground w-8 text-right">
                           {s.count}
                         </span>
                       </div>
                     </div>
                   ))}
                   {data.by_status.length === 0 && (
-                    <p className="text-sm text-gray-400 text-center py-4">No data yet.</p>
+                    <p className="text-sm text-muted-foreground text-center py-4">No data yet.</p>
                   )}
                 </div>
               </CardContent>
@@ -166,15 +209,15 @@ export default function ReportsPage() {
                 <div className="space-y-3">
                   {data.by_leave_type.slice(0, 8).map((lt) => (
                     <div key={lt.leave_type} className="flex items-center justify-between">
-                      <span className="text-sm font-medium text-gray-700">{lt.leave_type}</span>
+                      <span className="text-sm font-medium text-foreground">{lt.leave_type}</span>
                       <div className="flex items-center gap-3">
-                        <span className="text-xs text-gray-400">{lt.total_days} days</span>
-                        <span className="text-sm font-semibold text-gray-900">{lt.count} requests</span>
+                        <span className="text-xs text-muted-foreground">{lt.total_days} days</span>
+                        <span className="text-sm font-semibold text-foreground">{lt.count} requests</span>
                       </div>
                     </div>
                   ))}
                   {data.by_leave_type.length === 0 && (
-                    <p className="text-sm text-gray-400 text-center py-4">No data yet.</p>
+                    <p className="text-sm text-muted-foreground text-center py-4">No data yet.</p>
                   )}
                 </div>
               </CardContent>
@@ -189,16 +232,16 @@ export default function ReportsPage() {
                 <div className="flex items-end gap-2 h-40">
                   {data.monthly.map((m) => (
                     <div key={m.month} className="flex-1 flex flex-col items-center gap-1">
-                      <span className="text-xs text-gray-400">{m.days || ''}</span>
+                      <span className="text-xs text-muted-foreground">{m.days || ''}</span>
                       <div
-                        className="w-full bg-blue-500 rounded-t-sm transition-all"
+                        className="w-full bg-primary rounded-t-sm transition-all"
                         style={{
                           height: `${m.days > 0 ? Math.max(4, (m.days / maxMonthlyDays) * 100) : 2}px`,
                           opacity: m.days > 0 ? 1 : 0.2,
                         }}
                         title={`${MONTHS[m.month - 1]}: ${m.days} days, ${m.requests} requests`}
                       />
-                      <span className="text-xs text-gray-500">{MONTHS[m.month - 1]}</span>
+                      <span className="text-xs text-muted-foreground">{MONTHS[m.month - 1]}</span>
                     </div>
                   ))}
                 </div>
@@ -216,13 +259,13 @@ export default function ReportsPage() {
                     {data.top_takers.map((t, i) => (
                       <div key={t.emp_id} className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
-                          <span className="text-sm font-bold text-gray-400 w-5">#{i + 1}</span>
+                          <span className="text-sm font-bold text-muted-foreground w-5">#{i + 1}</span>
                           <div>
-                            <p className="text-sm font-medium text-gray-900">{t.name}</p>
-                            <p className="text-xs text-gray-400">{t.department ?? '—'}</p>
+                            <p className="text-sm font-medium text-foreground">{t.name}</p>
+                            <p className="text-xs text-muted-foreground">{t.department ?? '—'}</p>
                           </div>
                         </div>
-                        <span className="text-sm font-semibold text-gray-900">{t.days_used} days</span>
+                        <span className="text-sm font-semibold text-foreground">{t.days_used} days</span>
                       </div>
                     ))}
                   </div>

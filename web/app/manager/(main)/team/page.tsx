@@ -47,14 +47,14 @@ export default function ManagerTeamPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">My Team</h1>
-        <p className="text-gray-500 mt-1">
+        <h1 className="text-2xl font-bold text-foreground">My Team</h1>
+        <p className="text-muted-foreground mt-1">
           {loading ? 'Loading…' : `${team.length} team member${team.length !== 1 ? 's' : ''}`}
         </p>
       </div>
 
       {error && (
-        <div className="rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
+        <div className="rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 px-4 py-3 text-sm text-red-700 dark:text-red-300">
           {error}
         </div>
       )}
@@ -64,11 +64,11 @@ export default function ManagerTeamPage() {
           <CardTitle>Team Members</CardTitle>
         </CardHeader>
         <CardContent>
-          {loading && <div className="py-12 text-center text-sm text-gray-400">Loading…</div>}
+          {loading && <div className="py-12 text-center text-sm text-muted-foreground">Loading…</div>}
           {!loading && team.length === 0 && !error && (
             <div className="py-12 text-center">
               <span className="text-4xl">👥</span>
-              <p className="text-gray-500 mt-3 text-sm">No direct reports found.</p>
+              <p className="text-muted-foreground mt-3 text-sm">No direct reports found.</p>
             </div>
           )}
           {!loading && team.length > 0 && (
@@ -76,16 +76,16 @@ export default function ManagerTeamPage() {
               {team.map((member) => (
                 <div
                   key={member.id}
-                  className="flex items-center gap-3 p-3 rounded-lg border border-gray-100 hover:bg-gray-50 transition-colors"
+                  className="flex items-center gap-3 p-3 rounded-lg border border-border hover:bg-muted/50 transition-colors"
                 >
-                  <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center text-sm font-bold text-blue-600 shrink-0">
+                  <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/20 rounded-full flex items-center justify-center text-sm font-bold text-blue-600 dark:text-blue-400 shrink-0">
                     {member.first_name[0]}{member.last_name[0]}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-gray-900 truncate">
+                    <p className="text-sm font-semibold text-foreground truncate">
                       {member.first_name} {member.last_name}
                     </p>
-                    <p className="text-xs text-gray-400 truncate">{member.designation ?? member.email}</p>
+                    <p className="text-xs text-muted-foreground truncate">{member.designation ?? member.email}</p>
                   </div>
                   <Badge variant={STATUS_BADGE[member.status] ?? 'default'}>{member.status}</Badge>
                 </div>

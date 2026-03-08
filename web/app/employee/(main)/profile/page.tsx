@@ -109,8 +109,8 @@ export default function ProfilePage() {
     <div className="max-w-3xl space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">My Profile</h1>
-          <p className="text-gray-500 mt-1">Your employment details and leave summary</p>
+          <h1 className="text-2xl font-bold text-foreground">My Profile</h1>
+          <p className="text-muted-foreground mt-1">Your employment details and leave summary</p>
         </div>
         {!editing && profile && (
           <Button variant="outline" onClick={() => setEditing(true)}>
@@ -120,27 +120,27 @@ export default function ProfilePage() {
       </div>
 
       {saveSuccess && (
-        <div className="rounded-lg bg-green-50 border border-green-200 px-4 py-3 text-sm text-green-700">
+        <div className="rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 px-4 py-3 text-sm text-green-700 dark:text-green-300">
           ✓ {saveSuccess}
         </div>
       )}
 
       {loadingProfile ? (
         <Card>
-          <CardContent className="py-12 text-center text-sm text-gray-400">Loading profile…</CardContent>
+          <CardContent className="py-12 text-center text-sm text-muted-foreground">Loading profile…</CardContent>
         </Card>
       ) : profile ? (
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center gap-5">
-              <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center text-xl font-bold text-blue-600">
+              <div className="w-16 h-16 bg-blue-100 dark:bg-blue-900/20 rounded-full flex items-center justify-center text-xl font-bold text-primary">
                 {profile.first_name[0]}{profile.last_name[0]}
               </div>
               <div>
-                <h2 className="text-xl font-semibold text-gray-900">
+                <h2 className="text-xl font-semibold text-foreground">
                   {profile.first_name} {profile.last_name}
                 </h2>
-                <p className="text-gray-500 text-sm">
+                <p className="text-muted-foreground text-sm">
                   {profile.designation ?? 'No designation set'} · {profile.department ?? 'No department'}
                 </p>
                 <div className="flex items-center gap-2 mt-2">
@@ -151,41 +151,41 @@ export default function ProfilePage() {
             </div>
 
             {editing ? (
-              <form onSubmit={handleSave} className="mt-6 pt-6 border-t border-gray-100 space-y-4">
-                <h3 className="text-sm font-semibold text-gray-700">Edit Profile</h3>
+              <form onSubmit={handleSave} className="mt-6 pt-6 border-t border-border space-y-4">
+                <h3 className="text-sm font-semibold text-foreground">Edit Profile</h3>
                 {saveError && (
-                  <div className="rounded-lg bg-red-50 border border-red-200 px-3 py-2 text-sm text-red-700">
+                  <div className="rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 px-3 py-2 text-sm text-red-700 dark:text-red-300">
                     {saveError}
                   </div>
                 )}
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1">Phone</label>
+                    <label className="block text-xs font-medium text-muted-foreground mb-1">Phone</label>
                     <input
                       type="tel"
                       value={phone}
                       onChange={(e) => setPhone(e.target.value)}
-                      className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
+                      className="w-full rounded-lg border border-border px-3 py-2 text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
                       placeholder="+91 98765 43210"
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1">Department</label>
+                    <label className="block text-xs font-medium text-muted-foreground mb-1">Department</label>
                     <input
                       type="text"
                       value={department}
                       onChange={(e) => setDepartment(e.target.value)}
-                      className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
+                      className="w-full rounded-lg border border-border px-3 py-2 text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
                       placeholder="Engineering"
                     />
                   </div>
                   <div className="col-span-2">
-                    <label className="block text-xs font-medium text-gray-600 mb-1">Designation</label>
+                    <label className="block text-xs font-medium text-muted-foreground mb-1">Designation</label>
                     <input
                       type="text"
                       value={designation}
                       onChange={(e) => setDesignation(e.target.value)}
-                      className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
+                      className="w-full rounded-lg border border-border px-3 py-2 text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
                       placeholder="Senior Software Engineer"
                     />
                   </div>
@@ -204,7 +204,7 @@ export default function ProfilePage() {
                 </div>
               </form>
             ) : (
-              <div className="grid grid-cols-2 gap-4 mt-6 pt-6 border-t border-gray-100">
+              <div className="grid grid-cols-2 gap-4 mt-6 pt-6 border-t border-border">
                 {[
                   { label: 'Email', value: profile.email },
                   { label: 'Phone', value: profile.phone ?? '—' },
@@ -214,8 +214,8 @@ export default function ProfilePage() {
                   { label: 'Department', value: profile.department ?? '—' },
                 ].map((item) => (
                   <div key={item.label}>
-                    <p className="text-xs text-gray-400 uppercase tracking-wide">{item.label}</p>
-                    <p className="text-sm text-gray-900 mt-0.5 font-medium">{item.value}</p>
+                    <p className="text-xs text-muted-foreground uppercase tracking-wide">{item.label}</p>
+                    <p className="text-sm text-foreground mt-0.5 font-medium">{item.value}</p>
                   </div>
                 ))}
               </div>
@@ -224,7 +224,7 @@ export default function ProfilePage() {
         </Card>
       ) : (
         <Card>
-          <CardContent className="py-12 text-center text-sm text-gray-400">
+          <CardContent className="py-12 text-center text-sm text-muted-foreground">
             Could not load profile.
           </CardContent>
         </Card>
@@ -237,31 +237,31 @@ export default function ProfilePage() {
         </CardHeader>
         <CardContent>
           {loadingBalances && (
-            <div className="text-sm text-gray-400 py-4 text-center">Loading balances…</div>
+            <div className="text-sm text-muted-foreground py-4 text-center">Loading balances…</div>
           )}
           {!loadingBalances && balances.length === 0 && (
-            <div className="text-sm text-gray-400 py-4 text-center">No leave balances found.</div>
+            <div className="text-sm text-muted-foreground py-4 text-center">No leave balances found.</div>
           )}
           {!loadingBalances && balances.length > 0 && (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-gray-100">
-                    <th className="text-left py-2 pr-4 text-gray-500 font-medium">Leave Type</th>
-                    <th className="text-right py-2 px-2 text-gray-500 font-medium">Entitled</th>
-                    <th className="text-right py-2 px-2 text-gray-500 font-medium">Used</th>
-                    <th className="text-right py-2 px-2 text-gray-500 font-medium">Pending</th>
-                    <th className="text-right py-2 pl-2 text-gray-500 font-medium">Remaining</th>
+                  <tr className="border-b border-border">
+                    <th className="text-left py-2 pr-4 text-muted-foreground font-medium">Leave Type</th>
+                    <th className="text-right py-2 px-2 text-muted-foreground font-medium">Entitled</th>
+                    <th className="text-right py-2 px-2 text-muted-foreground font-medium">Used</th>
+                    <th className="text-right py-2 px-2 text-muted-foreground font-medium">Pending</th>
+                    <th className="text-right py-2 pl-2 text-muted-foreground font-medium">Remaining</th>
                   </tr>
                 </thead>
                 <tbody>
                   {balances.map((b) => (
-                    <tr key={b.leave_type} className="border-b border-gray-50 last:border-0">
-                      <td className="py-2 pr-4 font-medium text-gray-900">{b.leave_type}</td>
-                      <td className="py-2 px-2 text-right text-gray-600">{b.annual_entitlement}</td>
-                      <td className="py-2 px-2 text-right text-gray-600">{b.used_days}</td>
+                    <tr key={b.leave_type} className="border-b border-border/50 last:border-0">
+                      <td className="py-2 pr-4 font-medium text-foreground">{b.leave_type}</td>
+                      <td className="py-2 px-2 text-right text-muted-foreground">{b.annual_entitlement}</td>
+                      <td className="py-2 px-2 text-right text-muted-foreground">{b.used_days}</td>
                       <td className="py-2 px-2 text-right text-yellow-600">{b.pending_days}</td>
-                      <td className="py-2 pl-2 text-right font-semibold text-blue-600">{b.remaining}</td>
+                      <td className="py-2 pl-2 text-right font-semibold text-primary">{b.remaining}</td>
                     </tr>
                   ))}
                 </tbody>

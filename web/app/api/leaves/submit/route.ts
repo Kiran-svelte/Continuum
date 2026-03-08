@@ -7,7 +7,6 @@ import { checkApiRateLimit, getRateLimitHeaders } from '@/lib/api-rate-limit';
 import { createAuditLog, AUDIT_ACTIONS } from '@/lib/audit';
 import { sanitizeInput } from '@/lib/security';
 import { sendLeaveSubmissionEmail, sendLeaveAutoApprovedEmail } from '@/lib/email-service';
-import { getDefaultLeaveTypes } from '@/lib/leave-types-config';
 
 export const dynamic = 'force-dynamic';
 
@@ -78,17 +77,26 @@ export async function POST(request: NextRequest) {
     });
 
     if (!balance) {
-      // Seed this leave type's balance — prefer the company's configured quota,
-      // fall back to the catalog default.
+      // Seed this leave type's balance from the company's configured quota.
+      // No catalog fallback — the system is fully config-driven.
       const companyLeaveType = await prisma.leaveType.findUnique({
         where: {
           company_id_code: { company_id: employee.org_id, code: leaveType },
         },
-        select: { default_quota: true },
+        select: { default_quota: true, is_active: true },
       });
-      const catalog = getDefaultLeaveTypes();
-      const catalogEntry = catalog.find((lt) => lt.code === leaveType);
-      const entitlement = companyLeaveType?.default_quota ?? catalogEntry?.defaultQuota ?? 0;
+
+      if (!companyLeaveType || !companyLeaveType.is_active) {
+        return NextResponse.json(
+          {
+            error: 'This leave type is not configured for your company',
+            leave_type: leaveType,
+          },
+          { status: 400 }
+        );
+      }
+
+      const entitlement = companyLeaveType.default_quota;
 
       balance = await prisma.leaveBalance.upsert({
         where: {
@@ -147,6 +155,29 @@ export async function POST(request: NextRequest) {
           leave_type: leaveType,
         },
         { status: 400 }
+      );
+    }
+
+    // Check for overlapping leave requests (duplicate detection)
+    const overlapping = await prisma.leaveRequest.findFirst({
+      where: {
+        emp_id: employee.id,
+        status: { in: ['pending', 'approved', 'escalated'] },
+        start_date: { lte: endDate },
+        end_date: { gte: startDate },
+      },
+      select: { id: true, leave_type: true, start_date: true, end_date: true, status: true },
+    });
+
+    if (overlapping) {
+      const oStart = overlapping.start_date.toISOString().split('T')[0];
+      const oEnd = overlapping.end_date.toISOString().split('T')[0];
+      return NextResponse.json(
+        {
+          error: `You already have a ${overlapping.status} ${overlapping.leave_type} request from ${oStart} to ${oEnd} that overlaps with these dates`,
+          overlapping_request_id: overlapping.id,
+        },
+        { status: 409 }
       );
     }
 
@@ -239,16 +270,22 @@ export async function POST(request: NextRequest) {
     });
 
     // Update leave balance: auto-approved = used immediately; pending = pending_days
-    // balance is always non-null at this point (upserted above)
+    // Also sync the `remaining` column so it stays consistent for reporting.
     if (requestStatus === 'approved') {
       await prisma.leaveBalance.update({
         where: { id: balance.id },
-        data: { used_days: { increment: totalDays } },
+        data: {
+          used_days: { increment: totalDays },
+          remaining: { decrement: totalDays },
+        },
       });
     } else {
       await prisma.leaveBalance.update({
         where: { id: balance.id },
-        data: { pending_days: { increment: totalDays } },
+        data: {
+          pending_days: { increment: totalDays },
+          remaining: { decrement: totalDays },
+        },
       });
     }
 

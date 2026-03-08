@@ -36,7 +36,7 @@ export function SignOutButton({ variant = 'sidebar' }: SignOutButtonProps) {
     return (
       <button
         onClick={handleSignOut}
-        className="flex items-center gap-2 text-xs text-gray-400 hover:text-red-500 transition-colors"
+        className="flex items-center gap-2 text-xs text-muted-foreground hover:text-red-500 transition-colors"
         title="Sign out"
       >
         <span>↩</span>
@@ -48,7 +48,7 @@ export function SignOutButton({ variant = 'sidebar' }: SignOutButtonProps) {
   return (
     <button
       onClick={handleSignOut}
-      className="flex items-center gap-3 w-full px-3 py-2 text-sm text-gray-500 rounded-lg hover:bg-red-50 hover:text-red-600 transition-colors"
+      className="flex items-center gap-3 w-full px-3 py-2 text-sm text-muted-foreground rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-600 dark:hover:text-red-400 transition-colors"
     >
       <span>↩</span>
       <span>Sign Out</span>

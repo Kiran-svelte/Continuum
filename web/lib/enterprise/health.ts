@@ -63,18 +63,26 @@ async function checkDatabase(): Promise<ComponentCheck> {
 
 async function checkConstraintEngine(): Promise<ComponentCheck> {
   const start = Date.now();
-  const url = process.env.CONSTRAINT_ENGINE_URL || 'http://localhost:8001';
+  const url = process.env.CONSTRAINT_ENGINE_URL || 'https://continuum-constraint-engine-ukfv.onrender.com';
+  
   try {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 5000);
-    const res = await fetch(`${url}/health`, { signal: controller.signal });
+    const timeout = setTimeout(() => controller.abort(), 15000); // Increased timeout for cold starts
+    const res = await fetch(`${url}/health`, { 
+      signal: controller.signal,
+      headers: {
+        'User-Agent': 'Continuum-HealthCheck/1.0'
+      }
+    });
     clearTimeout(timeout);
 
     if (res.ok) {
+      const data = await res.json();
       return {
         status: 'healthy',
-        message: 'Constraint engine is responsive',
+        message: `Constraint engine is responsive (${data.status})`,
         latency: Date.now() - start,
+        details: { version: data.version, db_connected: data.db_connected }
       };
     }
     return {
@@ -83,11 +91,22 @@ async function checkConstraintEngine(): Promise<ComponentCheck> {
       latency: Date.now() - start,
     };
   } catch (err) {
+    const latency = Date.now() - start;
     const message = err instanceof Error ? err.message : 'Connection failed';
+    
+    // If it's a timeout and latency > 10s, it's likely a cold start - mark as degraded instead of unhealthy
+    if (message.includes('aborted') && latency > 10000) {
+      return {
+        status: 'degraded',
+        message: `Constraint engine cold start (${Math.round(latency/1000)}s timeout)`,
+        latency,
+      };
+    }
+    
     return {
       status: 'unhealthy',
       message: `Constraint engine unreachable: ${message}`,
-      latency: Date.now() - start,
+      latency,
     };
   }
 }

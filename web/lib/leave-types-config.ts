@@ -18,6 +18,13 @@ export interface LeaveTypeConfig {
 }
 
 // ─── Leave Type Catalog (16 types) ──────────────────────────────────────────
+//
+// IMPORTANT: This catalog is used ONLY during onboarding as a list of
+// suggested leave types with industry-standard default quotas.  It is NOT the
+// runtime source of truth.  After onboarding, the company's configured leave
+// types are stored in the `LeaveType` DB table and all API routes read from
+// there.  DO NOT use this catalog as a fallback in API routes.
+//
 
 export const LEAVE_TYPE_CATALOG: LeaveTypeConfig[] = [
   // Common

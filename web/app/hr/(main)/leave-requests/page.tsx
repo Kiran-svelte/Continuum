@@ -96,8 +96,8 @@ export default function HRLeaveRequestsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Leave Requests</h1>
-          <p className="text-gray-500 mt-1">
+          <h1 className="text-2xl font-bold text-foreground">Leave Requests</h1>
+          <p className="text-muted-foreground mt-1">
             {total > 0 ? `${total} requests` : 'Manage leave requests'}
           </p>
         </div>
@@ -116,8 +116,8 @@ export default function HRLeaveRequestsPage() {
             onClick={() => { setStatusFilter(f.value); setPage(1); }}
             className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
               statusFilter === f.value
-                ? 'bg-blue-600 text-white'
-                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                ? 'bg-primary text-primary-foreground'
+                : 'bg-muted text-muted-foreground hover:bg-muted/50'
             }`}
           >
             {f.label}
@@ -138,53 +138,53 @@ export default function HRLeaveRequestsPage() {
           </div>
         </CardHeader>
         <CardContent>
-          {loading && <div className="py-12 text-center text-sm text-gray-400">Loading…</div>}
+          {loading && <div className="py-12 text-center text-sm text-muted-foreground">Loading…</div>}
           {error && !loading && (
-            <div className="rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
+            <div className="rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 px-4 py-3 text-sm text-red-700 dark:text-red-400">
               {error}
             </div>
           )}
           {!loading && !error && requests.length === 0 && (
             <div className="py-12 text-center">
               <span className="text-4xl">📭</span>
-              <p className="text-gray-500 mt-3 text-sm">No leave requests found.</p>
+              <p className="text-muted-foreground mt-3 text-sm">No leave requests found.</p>
             </div>
           )}
           {!loading && !error && requests.length > 0 && (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-gray-100">
-                    <th className="text-left py-3 pr-4 text-gray-500 font-medium">Employee</th>
-                    <th className="text-left py-3 px-2 text-gray-500 font-medium">Type</th>
-                    <th className="text-left py-3 px-2 text-gray-500 font-medium">Dates</th>
-                    <th className="text-left py-3 px-2 text-gray-500 font-medium">Days</th>
-                    <th className="text-left py-3 px-2 text-gray-500 font-medium">Status</th>
-                    <th className="text-left py-3 pl-2 text-gray-500 font-medium">Actions</th>
+                  <tr className="border-b border-border">
+                    <th className="text-left py-3 pr-4 text-muted-foreground font-medium">Employee</th>
+                    <th className="text-left py-3 px-2 text-muted-foreground font-medium">Type</th>
+                    <th className="text-left py-3 px-2 text-muted-foreground font-medium">Dates</th>
+                    <th className="text-left py-3 px-2 text-muted-foreground font-medium">Days</th>
+                    <th className="text-left py-3 px-2 text-muted-foreground font-medium">Status</th>
+                    <th className="text-left py-3 pl-2 text-muted-foreground font-medium">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {requests.map((req) => (
-                    <tr key={req.id} className="border-b border-gray-50 hover:bg-gray-50">
+                    <tr key={req.id} className="border-b border-border hover:bg-muted/50">
                       <td className="py-3 pr-4">
                         <div className="flex items-center gap-2">
-                          <div className="w-7 h-7 bg-blue-100 rounded-full flex items-center justify-center text-xs font-bold text-blue-600 shrink-0">
+                          <div className="w-7 h-7 bg-primary/10 rounded-full flex items-center justify-center text-xs font-bold text-primary shrink-0">
                             {req.employee.first_name[0]}{req.employee.last_name[0]}
                           </div>
                           <div>
-                            <p className="font-medium text-gray-900">
+                            <p className="font-medium text-foreground">
                               {req.employee.first_name} {req.employee.last_name}
                             </p>
-                            <p className="text-xs text-gray-400">{req.employee.department ?? '—'}</p>
+                            <p className="text-xs text-muted-foreground">{req.employee.department ?? '—'}</p>
                           </div>
                         </div>
                       </td>
-                      <td className="py-3 px-2 font-medium text-gray-900">{req.leave_type}</td>
-                      <td className="py-3 px-2 text-gray-600">
+                      <td className="py-3 px-2 font-medium text-foreground">{req.leave_type}</td>
+                      <td className="py-3 px-2 text-muted-foreground">
                         {formatDate(req.start_date)}
                         {req.start_date !== req.end_date && ` – ${formatDate(req.end_date)}`}
                       </td>
-                      <td className="py-3 px-2 text-gray-600">{req.total_days}</td>
+                      <td className="py-3 px-2 text-muted-foreground">{req.total_days}</td>
                       <td className="py-3 px-2">
                         <Badge variant={STATUS_BADGE[req.status] ?? 'default'}>{req.status}</Badge>
                       </td>
@@ -194,20 +194,20 @@ export default function HRLeaveRequestsPage() {
                             <button
                               onClick={() => handleAction(req.id, 'approve')}
                               disabled={actionLoading === req.id + 'approve'}
-                              className="px-2.5 py-1 text-xs font-medium text-green-700 bg-green-50 rounded-lg hover:bg-green-100 disabled:opacity-50"
+                              className="px-2.5 py-1 text-xs font-medium text-green-700 dark:text-green-400 bg-green-50 dark:bg-green-900/20 rounded-lg hover:bg-green-100 dark:hover:bg-green-900/30 disabled:opacity-50"
                             >
                               {actionLoading === req.id + 'approve' ? '…' : 'Approve'}
                             </button>
                             <button
                               onClick={() => handleAction(req.id, 'reject')}
                               disabled={actionLoading === req.id + 'reject'}
-                              className="px-2.5 py-1 text-xs font-medium text-red-700 bg-red-50 rounded-lg hover:bg-red-100 disabled:opacity-50"
+                              className="px-2.5 py-1 text-xs font-medium text-red-700 dark:text-red-400 bg-red-50 dark:bg-red-900/20 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/30 disabled:opacity-50"
                             >
                               {actionLoading === req.id + 'reject' ? '…' : 'Reject'}
                             </button>
                           </div>
                         ) : (
-                          <span className="text-xs text-gray-400">—</span>
+                          <span className="text-xs text-muted-foreground">—</span>
                         )}
                       </td>
                     </tr>
@@ -218,11 +218,11 @@ export default function HRLeaveRequestsPage() {
           )}
 
           {totalPages > 1 && (
-            <div className="flex items-center justify-between mt-6 pt-4 border-t border-gray-100">
+            <div className="flex items-center justify-between mt-6 pt-4 border-t border-border">
               <Button variant="outline" size="sm" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page <= 1}>
                 ← Previous
               </Button>
-              <span className="text-sm text-gray-500">Page {page} of {totalPages}</span>
+              <span className="text-sm text-muted-foreground">Page {page} of {totalPages}</span>
               <Button variant="outline" size="sm" onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page >= totalPages}>
                 Next →
               </Button>

@@ -23,6 +23,7 @@ import {
   FileText,
   AlertTriangle,
 } from 'lucide-react';
+import { getFirebaseAuth, firebaseSendPasswordResetEmail } from '@/lib/firebase';
 
 interface CompanyInfo {
   id: string;
@@ -519,28 +520,47 @@ export default function HRSettingsPage() {
         </CardHeader>
         <CardContent>
           <div className="grid gap-4 md:grid-cols-2">
-            <Button variant="outline" className="justify-start gap-3 h-auto py-4">
+            <Button variant="outline" className="justify-start gap-3 h-auto py-4" onClick={async () => {
+              try {
+                const auth = getFirebaseAuth();
+                const user = auth.currentUser;
+                if (!user?.email) {
+                  alert('Unable to determine your email address. Please sign in again.');
+                  return;
+                }
+                await firebaseSendPasswordResetEmail(user.email);
+                alert('Password reset email sent! Check your inbox.');
+              } catch {
+                alert('Failed to send password reset email. Please try again.');
+              }
+            }}>
               <Shield className="w-5 h-5 text-muted-foreground" />
               <div className="text-left">
                 <p className="font-medium">Change Password</p>
                 <p className="text-xs text-muted-foreground">Update your admin password</p>
               </div>
             </Button>
-            <Button variant="outline" className="justify-start gap-3 h-auto py-4">
+            <Button variant="outline" className="justify-start gap-3 h-auto py-4" onClick={() => {
+              alert('Two-factor authentication setup will be available in a future update.');
+            }}>
               <Smartphone className="w-5 h-5 text-muted-foreground" />
               <div className="text-left">
                 <p className="font-medium">Two-Factor Auth</p>
                 <p className="text-xs text-muted-foreground">Add extra security to accounts</p>
               </div>
             </Button>
-            <Button variant="outline" className="justify-start gap-3 h-auto py-4">
+            <Button variant="outline" className="justify-start gap-3 h-auto py-4" onClick={() => {
+              window.location.assign('/hr/employees');
+            }}>
               <Users className="w-5 h-5 text-muted-foreground" />
               <div className="text-left">
                 <p className="font-medium">Access Roles</p>
                 <p className="text-xs text-muted-foreground">Manage user permissions</p>
               </div>
             </Button>
-            <Button variant="outline" className="justify-start gap-3 h-auto py-4">
+            <Button variant="outline" className="justify-start gap-3 h-auto py-4" onClick={() => {
+              window.location.assign('/hr/reports');
+            }}>
               <FileText className="w-5 h-5 text-muted-foreground" />
               <div className="text-left">
                 <p className="font-medium">Audit Log</p>
