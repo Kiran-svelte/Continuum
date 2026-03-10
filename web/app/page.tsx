@@ -1,10 +1,12 @@
 import Link from 'next/link';
+import { Settings, Building2, Scale, Brain, Rocket, Check } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 
-const FEATURES = [
-  { title: 'Config-Driven', description: 'Define leave policies, rules, and workflows through configuration — no code changes needed.', icon: '⚙️' },
-  { title: 'Multi-Tenant', description: 'Serve multiple organizations from a single deployment with complete data isolation.', icon: '🏢' },
-  { title: 'India-Compliant', description: 'Built-in support for Indian labor laws, state holidays, and statutory leave types.', icon: '🇮🇳' },
-  { title: 'AI-Powered', description: 'Smart suggestions for leave planning, anomaly detection, and workforce analytics.', icon: '🤖' },
+const FEATURES: { title: string; description: string; icon: LucideIcon }[] = [
+  { title: 'Config-Driven', description: 'Define leave policies, rules, and workflows through configuration — no code changes needed.', icon: Settings },
+  { title: 'Multi-Tenant', description: 'Serve multiple organizations from a single deployment with complete data isolation.', icon: Building2 },
+  { title: 'India-Compliant', description: 'Built-in support for Indian labor laws, state holidays, and statutory leave types.', icon: Scale },
+  { title: 'AI-Powered', description: 'Smart suggestions for leave planning, anomaly detection, and workforce analytics.', icon: Brain },
 ];
 
 const PRICING_PLANS = [
@@ -36,7 +38,8 @@ export default function HomePage() {
       <section className="bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 text-white">
         <div className="max-w-7xl mx-auto px-6 py-24 text-center">
           <div className="inline-flex items-center gap-2 bg-primary/10 border border-primary/20 rounded-full px-4 py-1.5 mb-6">
-            <span className="text-xs font-medium text-blue-300">🚀 Now with AI-powered leave planning</span>
+            <Rocket className="w-3.5 h-3.5 text-blue-300" />
+            <span className="text-xs font-medium text-blue-300">Now with AI-powered leave planning</span>
           </div>
           <h1 className="text-5xl md:text-6xl font-bold mb-6 leading-tight">
             Enterprise Leave Management<br />
@@ -69,13 +72,18 @@ export default function HomePage() {
             </p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-            {FEATURES.map((feature) => (
-              <div key={feature.title} className="text-center p-6 rounded-xl border border-border hover:border-primary/30 hover:shadow-md transition-all bg-card">
-                <span className="text-4xl">{feature.icon}</span>
-                <h3 className="text-lg font-semibold text-foreground mt-4">{feature.title}</h3>
-                <p className="text-sm text-muted-foreground mt-2">{feature.description}</p>
-              </div>
-            ))}
+            {FEATURES.map((feature) => {
+              const Icon = feature.icon;
+              return (
+                <div key={feature.title} className="text-center p-6 rounded-xl border border-border hover:border-primary/30 hover:shadow-md transition-all bg-card">
+                  <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mx-auto">
+                    <Icon className="w-6 h-6 text-primary" />
+                  </div>
+                  <h3 className="text-lg font-semibold text-foreground mt-4">{feature.title}</h3>
+                  <p className="text-sm text-muted-foreground mt-2">{feature.description}</p>
+                </div>
+              );
+            })}
           </div>
         </div>
       </section>
@@ -114,7 +122,7 @@ export default function HomePage() {
                 <ul className="mt-6 space-y-2">
                   {plan.features.map((feature) => (
                     <li key={feature} className={`text-sm flex items-center gap-2 ${plan.highlighted ? 'text-primary-foreground/80' : 'text-muted-foreground'}`}>
-                      <span className={plan.highlighted ? 'text-primary-foreground/70' : 'text-green-500'}>✓</span>
+                      <Check className={`w-4 h-4 flex-shrink-0 ${plan.highlighted ? 'text-primary-foreground/70' : 'text-green-500'}`} />
                       {feature}
                     </li>
                   ))}

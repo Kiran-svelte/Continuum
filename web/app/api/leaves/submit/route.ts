@@ -7,6 +7,7 @@ import { checkApiRateLimit, getRateLimitHeaders } from '@/lib/api-rate-limit';
 import { createAuditLog, AUDIT_ACTIONS } from '@/lib/audit';
 import { sanitizeInput } from '@/lib/security';
 import { sendLeaveSubmissionEmail, sendLeaveAutoApprovedEmail } from '@/lib/email-service';
+import { sendNotification, sendPusherEvent } from '@/lib/notification-service';
 
 export const dynamic = 'force-dynamic';
 
@@ -325,6 +326,31 @@ export async function POST(request: NextRequest) {
         status: requestStatus,
       },
     });
+
+    // Notify the employee (real-time confirmation)
+    sendPusherEvent(`user-${employee.id}`, 'leave-request-submitted', {
+      id: leaveRequest.id,
+      leave_type: body.leave_type,
+      start_date: body.start_date,
+      end_date: body.end_date,
+      status: 'pending',
+    }).catch(() => {});
+
+    // Notify the manager if one exists
+    const empForNotif = await prisma.employee.findUnique({
+      where: { id: employee.id },
+      select: { manager_id: true },
+    });
+    if (empForNotif?.manager_id) {
+      sendNotification(
+        empForNotif.manager_id,
+        employee.org_id,
+        'leave_request',
+        'New Leave Request',
+        `${employee.first_name} ${employee.last_name} has requested ${body.leave_type} leave from ${body.start_date} to ${body.end_date}`,
+        'in_app',
+      ).catch(() => {});
+    }
 
     // Send email notifications (non-blocking)
     try {

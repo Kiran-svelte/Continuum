@@ -5,6 +5,16 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { SkeletonForm } from '@/components/ui/skeleton';
+import {
+  CheckCircle,
+  XCircle,
+  Ban,
+  Lightbulb,
+  AlertTriangle,
+  Sparkles,
+  CalendarDays,
+  Loader2,
+} from 'lucide-react';
 
 // Type definitions for constraint violations
 // NOTE: The Python constraint engine returns `name` (not `rule_name`), so we
@@ -330,7 +340,7 @@ export default function RequestLeavePage() {
           <CardContent className="pt-6">
             <div className="space-y-4">
               <div className="flex items-center gap-3">
-                <span className="text-2xl">{submitSuccess ? '✅' : '⏳'}</span>
+                {submitSuccess ? <CheckCircle className="w-6 h-6 text-green-500" /> : <Loader2 className="w-6 h-6 text-blue-500 animate-spin" />}
                 <div className="flex-1">
                   <div className={`font-medium ${submitSuccess ? 'text-green-600' : 'text-blue-600'}`}>
                     {currentSubmissionStep || 'Processing...'}
@@ -385,7 +395,7 @@ export default function RequestLeavePage() {
             {submitSuccess && success && (
               <div className="mb-4 rounded-lg bg-green-50 border border-green-200 px-4 py-3 text-sm text-green-700 dark:bg-green-900/20 dark:border-green-800 dark:text-green-300">
                 <div className="flex items-center gap-2">
-                  <span className="text-lg">✅</span>
+                  <CheckCircle className="w-5 h-5 text-green-600 shrink-0" />
                   {success}
                 </div>
               </div>
@@ -395,7 +405,7 @@ export default function RequestLeavePage() {
             {error && !constraintResult && (
               <div className="mb-4 rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700 dark:bg-red-900/20 dark:border-red-800 dark:text-red-300">
                 <div className="flex items-center gap-2">
-                  <span className="text-lg">❌</span>
+                  <XCircle className="w-5 h-5 text-red-600 shrink-0" />
                   {error}
                 </div>
               </div>
@@ -407,7 +417,7 @@ export default function RequestLeavePage() {
                 {constraintResult.violations && constraintResult.violations.length > 0 && (
                   <div className="rounded-lg bg-red-50 border border-red-200 px-4 py-4 dark:bg-red-900/20 dark:border-red-800">
                     <h4 className="font-semibold text-red-800 dark:text-red-300 mb-3 flex items-center gap-2">
-                      <span className="text-lg">🚫</span>
+                      <Ban className="w-5 h-5 text-red-600 dark:text-red-400 shrink-0" />
                       Constraint Violations — Request cannot be submitted
                     </h4>
                     <div className="space-y-3">
@@ -420,7 +430,7 @@ export default function RequestLeavePage() {
                             <div className="mt-1 text-red-700 dark:text-red-300 text-sm">{v.message}</div>
                             {suggestion && (
                               <div className="mt-2 flex items-start gap-2 rounded bg-red-200 dark:bg-red-800/50 px-3 py-2 text-red-900 dark:text-red-100">
-                                <span className="mt-0.5 text-lg">💡</span>
+                                <Lightbulb className="w-4 h-4 mt-0.5 text-red-700 dark:text-red-200 shrink-0" />
                                 <span className="text-sm italic">{suggestion}</span>
                               </div>
                             )}
@@ -435,7 +445,7 @@ export default function RequestLeavePage() {
                 {constraintResult.warnings && constraintResult.warnings.length > 0 && (
                   <div className="rounded-lg bg-yellow-50 border border-yellow-200 px-4 py-4 dark:bg-yellow-900/20 dark:border-yellow-800">
                     <h4 className="font-semibold text-yellow-800 dark:text-yellow-300 mb-3 flex items-center gap-2">
-                      <span className="text-lg">⚠️</span>
+                      <AlertTriangle className="w-5 h-5 text-yellow-600 dark:text-yellow-400 shrink-0" />
                       Warnings
                     </h4>
                     <div className="space-y-3">
@@ -448,7 +458,7 @@ export default function RequestLeavePage() {
                             <div className="mt-1">{w.message}</div>
                             {suggestion && (
                               <div className="mt-2 flex items-start gap-2 rounded bg-yellow-100 dark:bg-yellow-900/40 px-2 py-2 text-yellow-800 dark:text-yellow-100">
-                                <span className="mt-0.5">💡</span>
+                                <Lightbulb className="w-4 h-4 mt-0.5 text-yellow-700 dark:text-yellow-200 shrink-0" />
                                 <span className="italic">{suggestion}</span>
                               </div>
                             )}
@@ -463,7 +473,7 @@ export default function RequestLeavePage() {
                 {constraintResult.recommendation && (
                   <div className="rounded-lg bg-blue-50 border border-blue-200 px-4 py-4 dark:bg-blue-900/20 dark:border-blue-800">
                     <h4 className="font-semibold text-blue-800 dark:text-blue-300 mb-2 flex items-center gap-2">
-                      <span className="text-lg">🤖</span>
+                      <Sparkles className="w-5 h-5 text-blue-600 dark:text-blue-400 shrink-0" />
                       AI Recommendation
                     </h4>
                     <p className="text-sm text-blue-700 dark:text-blue-200">{constraintResult.recommendation}</p>
@@ -561,7 +571,7 @@ export default function RequestLeavePage() {
               {totalDays > 0 && (
                 <div className="flex items-center gap-4 rounded-lg bg-primary/5 border border-primary/10 px-4 py-3">
                   <div className="flex items-center gap-2 text-primary">
-                    <span className="text-lg">📅</span>
+                    <CalendarDays className="w-5 h-5 text-primary" />
                     <span className="text-sm font-medium">Total Duration:</span>
                   </div>
                   <span className="text-lg font-bold text-primary">

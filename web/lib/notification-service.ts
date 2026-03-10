@@ -70,7 +70,7 @@ export async function sendNotification(
 
   // Send real-time push if channel supports it
   if (channel === 'push' || channel === 'in_app') {
-    await sendPusherEvent(`employee-${empId}`, 'notification', {
+    await sendPusherEvent(`user-${empId}`, 'user-notification', {
       id: notification.id,
       type,
       title,

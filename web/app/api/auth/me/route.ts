@@ -33,7 +33,17 @@ export async function GET() {
       },
     });
 
-    return NextResponse.json({
+    // Build list of all roles (primary + secondary)
+    const allRoles: string[] = [employee.primary_role];
+    if (employee.secondary_roles && Array.isArray(employee.secondary_roles)) {
+      for (const r of employee.secondary_roles) {
+        if (typeof r === 'string' && !allRoles.includes(r)) {
+          allRoles.push(r);
+        }
+      }
+    }
+
+    const response = NextResponse.json({
       id: employee.id,
       email: employee.email,
       first_name: employee.first_name,
@@ -53,6 +63,20 @@ export async function GET() {
         timezone: company.timezone,
       } : null,
     });
+
+    // Set role cookies for middleware portal enforcement (readable by Edge Runtime)
+    const cookieOpts = {
+      path: '/',
+      sameSite: 'lax' as const,
+      secure: process.env.NODE_ENV === 'production',
+      maxAge: 60 * 60 * 24, // 24 hours
+      httpOnly: false, // middleware + client needs to read these
+    };
+
+    response.cookies.set('continuum-role', employee.primary_role, cookieOpts);
+    response.cookies.set('continuum-roles', allRoles.join(','), cookieOpts);
+
+    return response;
   } catch (error) {
     if (error instanceof AuthError) {
       return NextResponse.json({ error: error.message }, { status: error.status });

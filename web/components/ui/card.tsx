@@ -10,22 +10,14 @@ export function Card({ className, variant = 'default', interactive = false, glow
   return (
     <div
       className={cn(
-        'rounded-xl transition-all duration-300',
-        // Default - clean with subtle shadow
-        variant === 'default' && 'border border-border bg-card text-card-foreground shadow-sm',
-        // Elevated - more prominent shadow with hover effect
-        variant === 'elevated' && 'bg-card text-card-foreground shadow-lg hover:shadow-xl dark:shadow-black/20',
-        // Bordered - clear border emphasis
+        'rounded-xl transition-all duration-200',
+        variant === 'default' && 'border border-border/60 bg-card text-card-foreground shadow-sm dark:border-slate-800/50 dark:shadow-none',
+        variant === 'elevated' && 'bg-card text-card-foreground shadow-md dark:shadow-black/20 dark:border dark:border-slate-800/50',
         variant === 'bordered' && 'border-2 border-border bg-card text-card-foreground',
-        // Ghost - minimal styling
         variant === 'ghost' && 'bg-transparent',
-        // Glass - glassmorphism effect
         variant === 'glass' && 'glass-card text-card-foreground',
-        // Premium - gradient background
         variant === 'premium' && 'premium-card text-card-foreground',
-        // Interactive state
-        interactive && 'cursor-pointer hover:border-primary/50 hover:shadow-md active:scale-[0.99]',
-        // Glow effect for dark mode
+        interactive && 'cursor-pointer hover:border-primary/40 hover:shadow-md active:scale-[0.99]',
         glow && 'dark:glow-primary',
         className
       )}
@@ -38,7 +30,7 @@ export function Card({ className, variant = 'default', interactive = false, glow
 
 export function CardHeader({ className, children }: React.HTMLAttributes<HTMLDivElement>) {
   return (
-    <div className={cn('px-6 py-4 border-b border-border/50', className)}>
+    <div className={cn('px-6 py-4 border-b border-border/40 dark:border-slate-800/40', className)}>
       {children}
     </div>
   );
@@ -50,7 +42,7 @@ export function CardContent({ className, children }: React.HTMLAttributes<HTMLDi
 
 export function CardFooter({ className, children }: React.HTMLAttributes<HTMLDivElement>) {
   return (
-    <div className={cn('px-6 py-4 border-t border-border/50 bg-muted/30', className)}>
+    <div className={cn('px-6 py-4 border-t border-border/40 dark:border-slate-800/40 bg-muted/20', className)}>
       {children}
     </div>
   );

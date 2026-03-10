@@ -11,6 +11,18 @@ import { PageLoader } from '@/components/ui/progress';
 import { WelcomeModal, FloatingTutorialButton, StartTutorialButton, employeeTutorial } from '@/components/tutorial';
 import { ensureMe } from '@/lib/client-auth';
 import { getPusherClient, getUserChannelName, type PusherEventType } from '@/lib/pusher-client';
+import {
+  Plus,
+  FilePlus,
+  CalendarDays,
+  Clock,
+  FolderOpen,
+  ClipboardList,
+  CalendarCheck,
+  Inbox,
+  ChevronRight,
+  TrendingUp,
+} from 'lucide-react';
 
 interface LeaveBalance {
   leave_type: string;
@@ -61,6 +73,18 @@ const KNOWN_LEAVE_BG_COLORS: Record<string, string> = {
   BL: 'bg-gray-500/10',
 };
 
+const KNOWN_LEAVE_ICON_COLORS: Record<string, string> = {
+  CL: 'text-blue-500',
+  SL: 'text-emerald-500',
+  PL: 'text-purple-500',
+  EL: 'text-purple-500',
+  WFH: 'text-orange-500',
+  LWP: 'text-red-500',
+  ML: 'text-pink-500',
+  PTL: 'text-cyan-500',
+  BL: 'text-gray-500',
+};
+
 // Palette for dynamically assigned leave types not in the known map
 const DYNAMIC_GRADIENTS = [
   'from-indigo-500 to-blue-600',
@@ -84,7 +108,18 @@ const DYNAMIC_BG_COLORS = [
   'bg-violet-500/10',
 ];
 
-// Deterministic hash for a leave type code → index
+const DYNAMIC_ICON_COLORS = [
+  'text-indigo-500',
+  'text-teal-500',
+  'text-amber-500',
+  'text-fuchsia-500',
+  'text-lime-500',
+  'text-sky-500',
+  'text-rose-500',
+  'text-violet-500',
+];
+
+// Deterministic hash for a leave type code -> index
 function hashCode(str: string): number {
   let hash = 0;
   for (let i = 0; i < str.length; i++) {
@@ -99,6 +134,10 @@ function getLeaveColor(code: string): string {
 
 function getLeaveBgColor(code: string): string {
   return KNOWN_LEAVE_BG_COLORS[code] ?? DYNAMIC_BG_COLORS[hashCode(code) % DYNAMIC_BG_COLORS.length];
+}
+
+function getLeaveIconColor(code: string): string {
+  return KNOWN_LEAVE_ICON_COLORS[code] ?? DYNAMIC_ICON_COLORS[hashCode(code) % DYNAMIC_ICON_COLORS.length];
 }
 
 const containerVariants = {
@@ -137,7 +176,7 @@ export default function EmployeeDashboardPage() {
   const [loadingRequests, setLoadingRequests] = useState(true);
   const [pageReady, setPageReady] = useState(false);
   const [userName, setUserName] = useState('');
-  
+
   // Real-time state management
   const [userId, setUserId] = useState<string | null>(null);
   const [isLive, setIsLive] = useState(false);
@@ -202,13 +241,13 @@ export default function EmployeeDashboardPage() {
     const handleBalanceUpdate = (data: any) => {
       console.log('Balance updated:', data);
       setLastUpdated(new Date().toLocaleTimeString());
-      
-      setBalances(prev => 
-        prev.map(balance => 
-          balance.leave_type === data.leave_type 
+
+      setBalances(prev =>
+        prev.map(balance =>
+          balance.leave_type === data.leave_type
             ? { ...balance, remaining: data.new_remaining }
             : balance
-        )  
+        )
       );
     };
 
@@ -216,10 +255,10 @@ export default function EmployeeDashboardPage() {
     const handleLeaveStatusUpdate = (data: any) => {
       console.log('Leave request status updated:', data);
       setLastUpdated(new Date().toLocaleTimeString());
-      
-      setRecentRequests(prev => 
-        prev.map(req => 
-          req.id === data.id 
+
+      setRecentRequests(prev =>
+        prev.map(req =>
+          req.id === data.id
             ? { ...req, status: data.status }
             : req
         )
@@ -230,12 +269,12 @@ export default function EmployeeDashboardPage() {
     const handleLeaveRequestConfirmed = (data: any) => {
       console.log('Leave request confirmed:', data);
       setLastUpdated(new Date().toLocaleTimeString());
-      
+
       // Add to recent requests if not already there
       setRecentRequests(prev => {
         const exists = prev.find(r => r.id === data.id);
         if (exists) return prev;
-        
+
         const newRequest: LeaveRequestBrief = {
           id: data.id,
           leave_type: data.leave_type,
@@ -245,7 +284,7 @@ export default function EmployeeDashboardPage() {
           status: data.status || 'pending',
           created_at: data.created_at || new Date().toISOString(),
         };
-        
+
         return [newRequest, ...prev.slice(0, 2)];
       });
     };
@@ -363,11 +402,11 @@ export default function EmployeeDashboardPage() {
       animate="visible"
       variants={containerVariants}
     >
-      {/* Enhanced Header with Live Status */}
+      {/* Header with Live Status */}
       <motion.div className="flex items-center justify-between" variants={itemVariants}>
         <div>
           <h1 className="text-2xl font-bold text-foreground">
-            Welcome back, {userName} 👋
+            Welcome back, {userName}
           </h1>
           <div className="flex items-center gap-4 mt-1">
             <p className="text-muted-foreground">Here&apos;s your leave overview for this year</p>
@@ -379,7 +418,7 @@ export default function EmployeeDashboardPage() {
               </span>
               {lastUpdated && isLive && (
                 <span className="text-xs text-muted-foreground">
-                  • Updated {lastUpdated}
+                  Updated {lastUpdated}
                 </span>
               )}
             </div>
@@ -391,7 +430,8 @@ export default function EmployeeDashboardPage() {
             href="/employee/request-leave"
             className="inline-flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2.5 rounded-xl text-sm font-medium hover:bg-primary/90 transition-all shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/30 dark:shadow-primary/30 dark:hover:shadow-primary/40"
           >
-            📝 Apply Leave
+            <Plus className="w-4 h-4" />
+            Apply Leave
           </Link>
         </div>
       </motion.div>
@@ -422,6 +462,7 @@ export default function EmployeeDashboardPage() {
             {balances.map((balance, index) => {
               const gradient = getLeaveColor(balance.leave_type);
               const bgColor = getLeaveBgColor(balance.leave_type);
+              const iconColor = getLeaveIconColor(balance.leave_type);
               const percentage = balance.annual_entitlement > 0
                 ? Math.min(100, (balance.remaining / balance.annual_entitlement) * 100)
                 : 0;
@@ -438,8 +479,8 @@ export default function EmployeeDashboardPage() {
                     <CardContent className="pt-5 pb-4">
                       <div className="flex items-center justify-between mb-3">
                         <p className="text-sm font-medium text-muted-foreground">{balance.leave_type}</p>
-                        <div className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${bgColor}`}>
-                          {balance.leave_type}
+                        <div className={`w-10 h-10 rounded-xl ${bgColor} flex items-center justify-center`}>
+                          <TrendingUp className={`w-5 h-5 ${iconColor}`} />
                         </div>
                       </div>
                       <motion.p
@@ -468,7 +509,9 @@ export default function EmployeeDashboardPage() {
             })}
             {balances.length === 0 && (
               <div className="col-span-full text-center py-8">
-                <div className="text-4xl mb-3">📋</div>
+                <div className="w-12 h-12 rounded-xl bg-muted/50 flex items-center justify-center mx-auto mb-3">
+                  <ClipboardList className="w-6 h-6 text-muted-foreground" />
+                </div>
                 <p className="text-sm text-muted-foreground">No leave balances found. Contact your HR team.</p>
               </div>
             )}
@@ -485,10 +528,10 @@ export default function EmployeeDashboardPage() {
             </CardHeader>
             <CardContent className="p-4 space-y-2">
               {[
-                { href: '/employee/request-leave', icon: '📝', label: 'Apply for Leave', sub: 'Submit a new request', gradient: 'from-blue-500/10 to-cyan-500/10' },
-                { href: '/employee/leave-history', icon: '📅', label: 'Leave History', sub: 'Check past requests', gradient: 'from-purple-500/10 to-violet-500/10' },
-                { href: '/employee/attendance', icon: '🕐', label: 'My Attendance', sub: 'View attendance log', gradient: 'from-emerald-500/10 to-green-500/10' },
-                { href: '/employee/documents', icon: '📁', label: 'Documents', sub: 'Payslips & letters', gradient: 'from-amber-500/10 to-orange-500/10' },
+                { href: '/employee/request-leave', icon: FilePlus, label: 'Apply for Leave', sub: 'Submit a new request', gradient: 'from-blue-500/10 to-cyan-500/10', iconColor: 'text-blue-500' },
+                { href: '/employee/leave-history', icon: CalendarDays, label: 'Leave History', sub: 'Check past requests', gradient: 'from-purple-500/10 to-violet-500/10', iconColor: 'text-purple-500' },
+                { href: '/employee/attendance', icon: Clock, label: 'My Attendance', sub: 'View attendance log', gradient: 'from-emerald-500/10 to-green-500/10', iconColor: 'text-emerald-500' },
+                { href: '/employee/documents', icon: FolderOpen, label: 'Documents', sub: 'Payslips & letters', gradient: 'from-amber-500/10 to-orange-500/10', iconColor: 'text-amber-500' },
               ].map((item, index) => (
                 <motion.div
                   key={item.href}
@@ -500,14 +543,14 @@ export default function EmployeeDashboardPage() {
                     href={item.href}
                     className={`flex items-center gap-3 p-3 rounded-xl bg-gradient-to-r ${item.gradient} border border-border/30 hover:border-primary/30 hover:shadow-sm transition-all group`}
                   >
-                    <span className="text-lg group-hover:scale-110 transition-transform">{item.icon}</span>
+                    <div className="w-10 h-10 rounded-xl bg-white/60 dark:bg-slate-800/60 flex items-center justify-center group-hover:scale-110 transition-transform">
+                      <item.icon className={`w-5 h-5 ${item.iconColor}`} />
+                    </div>
                     <div className="flex-1">
                       <p className="text-sm font-medium text-foreground">{item.label}</p>
                       <p className="text-xs text-muted-foreground">{item.sub}</p>
                     </div>
-                    <svg className="w-4 h-4 text-muted-foreground group-hover:text-primary group-hover:translate-x-0.5 transition-all" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                    </svg>
+                    <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-primary group-hover:translate-x-0.5 transition-all" />
                   </Link>
                 </motion.div>
               ))}
@@ -524,7 +567,7 @@ export default function EmployeeDashboardPage() {
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-base">Recent Requests</CardTitle>
                   <Link href="/employee/leave-history" className="text-xs text-primary hover:text-primary/80 font-medium transition-colors">
-                    View all →
+                    View all
                   </Link>
                 </div>
               </CardHeader>
@@ -545,10 +588,12 @@ export default function EmployeeDashboardPage() {
                   </div>
                 ) : recentRequests.length === 0 ? (
                   <div className="py-10 text-center">
-                    <div className="text-3xl mb-2">📭</div>
+                    <div className="w-12 h-12 rounded-xl bg-muted/50 flex items-center justify-center mx-auto mb-3">
+                      <Inbox className="w-6 h-6 text-muted-foreground" />
+                    </div>
                     <p className="text-sm text-muted-foreground">No leave requests yet</p>
                     <Link href="/employee/request-leave" className="text-xs text-primary font-medium mt-1 inline-block hover:underline">
-                      Submit your first request →
+                      Submit your first request
                     </Link>
                   </div>
                 ) : (
@@ -560,12 +605,12 @@ export default function EmployeeDashboardPage() {
                             <div className="flex items-center gap-2">
                               <span className="text-sm font-medium text-foreground">{req.leave_type}</span>
                               <span className="text-xs text-muted-foreground">
-                                · {req.total_days} day{req.total_days !== 1 ? 's' : ''}
+                                {req.total_days} day{req.total_days !== 1 ? 's' : ''}
                               </span>
                             </div>
                             <p className="text-xs text-muted-foreground mt-0.5">
                               {formatDate(req.start_date)}
-                              {req.start_date !== req.end_date && ` – ${formatDate(req.end_date)}`}
+                              {req.start_date !== req.end_date && ` \u2013 ${formatDate(req.end_date)}`}
                             </p>
                           </div>
                           <Badge variant={STATUS_MAP[req.status] ?? 'default'}>{req.status}</Badge>
@@ -601,7 +646,9 @@ export default function EmployeeDashboardPage() {
                   </div>
                 ) : holidays.length === 0 ? (
                   <div className="py-10 text-center">
-                    <div className="text-3xl mb-2">🗓️</div>
+                    <div className="w-12 h-12 rounded-xl bg-muted/50 flex items-center justify-center mx-auto mb-3">
+                      <CalendarCheck className="w-6 h-6 text-muted-foreground" />
+                    </div>
                     <p className="text-sm text-muted-foreground">No upcoming holidays configured</p>
                     <p className="text-xs text-muted-foreground mt-1">Your HR team will add holidays during setup</p>
                   </div>

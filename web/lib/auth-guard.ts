@@ -4,6 +4,12 @@ import prisma from '@/lib/prisma';
 import { verifyIdToken } from '@/lib/firebase-admin';
 import { getSupabaseServerClient } from '@/lib/supabase-server';
 import {
+  verifyKeycloakToken,
+  isKeycloakEnabled,
+  KEYCLOAK_TOKEN_COOKIE,
+  KEYCLOAK_REFRESH_COOKIE,
+} from '@/lib/keycloak';
+import {
   getUserPermissions,
   hasPermission,
   type UserRole,
@@ -92,10 +98,19 @@ async function verifyFirebaseToken(token: string): Promise<DecodedUser> {
 }
 
 /**
- * Verifies a token by trying Firebase first, then falling back to Supabase.
+ * Verifies a token by trying Keycloak first (if enabled), then Firebase, then Supabase.
  */
 async function verifyToken(token: string): Promise<DecodedUser> {
-  // Try Firebase first
+  // Try Keycloak first if enabled
+  if (isKeycloakEnabled()) {
+    try {
+      return await verifyKeycloakToken(token);
+    } catch {
+      // Fall through to Firebase
+    }
+  }
+
+  // Try Firebase
   try {
     return await verifyFirebaseToken(token);
   } catch {
@@ -188,14 +203,28 @@ export async function getAuthEmployee(): Promise<AuthEmployee> {
 
   let decodedUser: DecodedUser | null = null;
 
-  // Try Firebase session cookie first
-  const firebaseCookie = cookieStore.get('firebase-auth-token');
-  if (firebaseCookie?.value) {
-    try {
-      const token = decodeURIComponent(firebaseCookie.value);
-      decodedUser = await verifyFirebaseToken(token);
-    } catch {
-      // Firebase cookie invalid, fall through to Supabase
+  // 1. Try Keycloak token first (if enabled)
+  if (isKeycloakEnabled()) {
+    const kcCookie = cookieStore.get(KEYCLOAK_TOKEN_COOKIE);
+    if (kcCookie?.value) {
+      try {
+        decodedUser = await verifyKeycloakToken(kcCookie.value);
+      } catch {
+        // Keycloak token invalid, fall through to other providers
+      }
+    }
+  }
+
+  // 2. Try Firebase session cookie
+  if (!decodedUser) {
+    const firebaseCookie = cookieStore.get('firebase-auth-token');
+    if (firebaseCookie?.value) {
+      try {
+        const token = decodeURIComponent(firebaseCookie.value);
+        decodedUser = await verifyFirebaseToken(token);
+      } catch {
+        // Firebase cookie invalid, fall through to Supabase
+      }
     }
   }
 

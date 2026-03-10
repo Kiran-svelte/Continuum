@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -22,6 +22,8 @@ import {
   MailX,
   FileText,
   AlertTriangle,
+  User,
+  Loader2,
 } from 'lucide-react';
 import { getFirebaseAuth, firebaseSendPasswordResetEmail } from '@/lib/firebase';
 
@@ -59,16 +61,43 @@ interface SettingsData {
   auto_approve: AutoApproveSettings;
 }
 
-function ToggleSwitch({ value, onChange }: { value: boolean; onChange: (v: boolean) => void }) {
+/** Shape returned / accepted by the personal notification preferences API */
+interface PersonalNotificationPreferences {
+  emailEnabled: boolean;
+  pushEnabled: boolean;
+  inAppEnabled: boolean;
+  reminderTiming: unknown;
+}
+
+const defaultPersonalPrefs: PersonalNotificationPreferences = {
+  emailEnabled: true,
+  pushEnabled: true,
+  inAppEnabled: true,
+  reminderTiming: null,
+};
+
+function ToggleSwitch({
+  value,
+  onChange,
+  label,
+  disabled,
+}: {
+  value: boolean;
+  onChange: (v: boolean) => void;
+  label?: string;
+  disabled?: boolean;
+}) {
   return (
     <button
       type="button"
       role="switch"
       aria-checked={value}
-      onClick={() => onChange(!value)}
+      aria-label={label}
+      disabled={disabled}
+      onClick={() => !disabled && onChange(!value)}
       className={`relative w-12 h-6 rounded-full transition-all duration-300 ${
-        value ? 'bg-primary' : 'bg-muted'
-      }`}
+        disabled ? 'opacity-50 cursor-not-allowed' : ''
+      } ${value ? 'bg-primary' : 'bg-muted'}`}
     >
       <span
         className={`absolute top-1 left-1 w-4 h-4 rounded-full bg-white shadow-md transition-transform duration-300 ${
@@ -167,18 +196,42 @@ export default function HRSettingsPage() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
-  useEffect(() => {
-    fetch('/api/hr/settings')
-      .then((r) => r.json())
-      .then((data: SettingsData) => {
+  // Personal notification preferences (DB-backed)
+  const [personalPrefs, setPersonalPrefs] = useState<PersonalNotificationPreferences>(defaultPersonalPrefs);
+  const [savingField, setSavingField] = useState<string | null>(null);
+  const [savedField, setSavedField] = useState<string | null>(null);
+  const savedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const loadAll = useCallback(async () => {
+    try {
+      const [settingsRes, prefsRes] = await Promise.all([
+        fetch('/api/hr/settings', { credentials: 'include' }),
+        fetch('/api/notifications/preferences', { credentials: 'include' }),
+      ]);
+
+      if (settingsRes.ok) {
+        const data: SettingsData = await settingsRes.json();
         setSettings(data);
-        setLoading(false);
-      })
-      .catch(() => {
+      } else {
         setError('Failed to load settings');
-        setLoading(false);
-      });
+      }
+
+      if (prefsRes.ok) {
+        const data = await prefsRes.json();
+        if (data.preferences) {
+          setPersonalPrefs(data.preferences);
+        }
+      }
+    } catch {
+      setError('Failed to load settings');
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    loadAll();
+  }, [loadAll]);
 
   async function save(patch: Record<string, unknown>) {
     setSaving(true);
@@ -187,6 +240,7 @@ export default function HRSettingsPage() {
     try {
       const res = await fetch('/api/hr/settings', {
         method: 'PATCH',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(patch),
       });
@@ -196,13 +250,61 @@ export default function HRSettingsPage() {
       } else {
         setSuccess('Settings saved successfully');
         setTimeout(() => setSuccess(''), 3000);
-        const updated = await fetch('/api/hr/settings').then((r) => r.json());
+        const updated = await fetch('/api/hr/settings', { credentials: 'include' }).then((r) => r.json());
         setSettings(updated);
       }
     } finally {
       setSaving(false);
     }
   }
+
+  /**
+   * Toggle a single personal notification preference and auto-save via PUT.
+   * Optimistic update with rollback on error.
+   */
+  const handlePersonalToggle = useCallback(
+    async (key: 'emailEnabled' | 'pushEnabled' | 'inAppEnabled', value: boolean) => {
+      const previous = personalPrefs[key];
+
+      // Optimistic update
+      setPersonalPrefs((prev) => ({ ...prev, [key]: value }));
+      setSavingField(key);
+      setSavedField(null);
+
+      try {
+        const res = await fetch('/api/notifications/preferences', {
+          method: 'PUT',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ [key]: value }),
+        });
+
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.error || `Save failed (${res.status})`);
+        }
+
+        const data = await res.json();
+        if (data.preferences) {
+          setPersonalPrefs(data.preferences);
+        }
+
+        setSavingField(null);
+        setSavedField(key);
+
+        if (savedTimerRef.current) clearTimeout(savedTimerRef.current);
+        savedTimerRef.current = setTimeout(() => {
+          setSavedField((prev) => (prev === key ? null : prev));
+        }, 2000);
+      } catch {
+        setPersonalPrefs((prev) => ({ ...prev, [key]: previous }));
+        setSavingField(null);
+        setError('Failed to save notification preference.');
+        setTimeout(() => setError(''), 5000);
+      }
+    },
+    [personalPrefs],
+  );
 
   if (loading) {
     return (
@@ -224,14 +326,51 @@ export default function HRSettingsPage() {
     return (
       <div className="max-w-3xl animate-fade-in">
         <div className="p-4 rounded-lg bg-destructive/10 border border-destructive/30 text-destructive flex items-center gap-3">
-          <AlertTriangle className="w-5 h-5" />
-          <p className="text-sm">{error || 'Failed to load settings'}</p>
+          <AlertTriangle className="w-5 h-5 shrink-0" />
+          <p className="text-sm flex-1">{error || 'Failed to load settings'}</p>
+          <button
+            type="button"
+            onClick={loadAll}
+            className="ml-2 text-sm underline hover:no-underline shrink-0"
+          >
+            Retry
+          </button>
         </div>
       </div>
     );
   }
 
   const { company, notifications, auto_approve } = settings;
+
+  const personalNotificationItems: Array<{
+    key: 'emailEnabled' | 'pushEnabled' | 'inAppEnabled';
+    label: string;
+    description: string;
+    iconOn: typeof Mail;
+    iconOff: typeof MailX;
+  }> = [
+    {
+      key: 'emailEnabled',
+      label: 'Email Notifications',
+      description: 'Receive personal updates and reminders via email',
+      iconOn: Mail,
+      iconOff: MailX,
+    },
+    {
+      key: 'pushEnabled',
+      label: 'Push Notifications',
+      description: 'Get notified about approvals and escalations',
+      iconOn: Bell,
+      iconOff: BellOff,
+    },
+    {
+      key: 'inAppEnabled',
+      label: 'In-App Notifications',
+      description: 'See notification alerts within the application',
+      iconOn: Smartphone,
+      iconOff: Smartphone,
+    },
+  ];
 
   return (
     <div className="animate-fade-in space-y-8">
@@ -392,6 +531,7 @@ export default function HRSettingsPage() {
                   <ToggleSwitch
                     value={company.negative_balance}
                     onChange={(v) => save({ negative_balance: v })}
+                    label="Negative Balance"
                   />
                 </div>
               </div>
@@ -426,6 +566,7 @@ export default function HRSettingsPage() {
             <ToggleSwitch
               value={auto_approve.enabled}
               onChange={(v) => save({ auto_approve: v })}
+              label="Auto-Approve Enabled"
             />
           </div>
           {auto_approve.enabled && (
@@ -464,7 +605,7 @@ export default function HRSettingsPage() {
         </CardContent>
       </Card>
 
-      {/* Notifications */}
+      {/* Organization Notifications (company-wide) */}
       <Card className="animate-slide-up bg-card border-border">
         <CardHeader>
           <div className="flex items-center gap-3">
@@ -472,7 +613,7 @@ export default function HRSettingsPage() {
               <Bell className="w-5 h-5 text-orange-500" />
             </div>
             <div>
-              <CardTitle>Notifications</CardTitle>
+              <CardTitle>Organization Notifications</CardTitle>
               <CardDescription>Configure notification preferences for your organization</CardDescription>
             </div>
           </div>
@@ -499,9 +640,70 @@ export default function HRSettingsPage() {
               <ToggleSwitch
                 value={notifications[key]}
                 onChange={(v) => save({ [key]: v })}
+                label={label}
               />
             </div>
           ))}
+        </CardContent>
+      </Card>
+
+      {/* Personal Notification Preferences (DB-backed per-employee) */}
+      <Card className="animate-slide-up bg-card border-border">
+        <CardHeader>
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-indigo-500/10 rounded-lg">
+              <User className="w-5 h-5 text-indigo-500" />
+            </div>
+            <div>
+              <CardTitle>My Notification Preferences</CardTitle>
+              <CardDescription>Configure how you personally receive notifications</CardDescription>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {personalNotificationItems.map(({ key, label, description, iconOn: IconOn, iconOff: IconOff }) => {
+            const value = personalPrefs[key];
+            const isSaving = savingField === key;
+            const isSaved = savedField === key;
+
+            return (
+              <div
+                key={key}
+                className="flex items-center justify-between p-3 rounded-lg border border-border hover:bg-muted/30 transition-colors"
+              >
+                <div className="flex items-center gap-3">
+                  {value ? (
+                    <IconOn className="w-5 h-5 text-primary" />
+                  ) : (
+                    <IconOff className="w-5 h-5 text-muted-foreground" />
+                  )}
+                  <div>
+                    <p className="text-sm font-medium text-foreground">{label}</p>
+                    <p className="text-xs text-muted-foreground">{description}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  {isSaving && (
+                    <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+                  )}
+                  {isSaved && !isSaving && (
+                    <span className="text-xs text-green-500 dark:text-green-400 font-medium animate-fade-in">
+                      Saved
+                    </span>
+                  )}
+                  <ToggleSwitch
+                    value={value}
+                    onChange={(v) => handlePersonalToggle(key, v)}
+                    label={label}
+                    disabled={isSaving}
+                  />
+                </div>
+              </div>
+            );
+          })}
+          <p className="text-xs text-muted-foreground pt-2">
+            Changes are saved automatically when you toggle a setting.
+          </p>
         </CardContent>
       </Card>
 
@@ -525,13 +727,16 @@ export default function HRSettingsPage() {
                 const auth = getFirebaseAuth();
                 const user = auth.currentUser;
                 if (!user?.email) {
-                  alert('Unable to determine your email address. Please sign in again.');
+                  setError('Unable to determine your email address. Please sign in again.');
+                  setTimeout(() => setError(''), 5000);
                   return;
                 }
                 await firebaseSendPasswordResetEmail(user.email);
-                alert('Password reset email sent! Check your inbox.');
+                setSuccess('Password reset email sent! Check your inbox.');
+                setTimeout(() => setSuccess(''), 5000);
               } catch {
-                alert('Failed to send password reset email. Please try again.');
+                setError('Failed to send password reset email. Please try again.');
+                setTimeout(() => setError(''), 5000);
               }
             }}>
               <Shield className="w-5 h-5 text-muted-foreground" />
@@ -541,7 +746,8 @@ export default function HRSettingsPage() {
               </div>
             </Button>
             <Button variant="outline" className="justify-start gap-3 h-auto py-4" onClick={() => {
-              alert('Two-factor authentication setup will be available in a future update.');
+              setSuccess('Two-factor authentication setup will be available in a future update.');
+              setTimeout(() => setSuccess(''), 5000);
             }}>
               <Smartphone className="w-5 h-5 text-muted-foreground" />
               <div className="text-left">

@@ -10,6 +10,11 @@ export const maxDuration = 60; // Allow up to 60 seconds for this test endpoint
  * Body: { email, password, first_name, last_name, company_name }
  */
 export async function POST(request: Request) {
+  // Block in production — this is a dev/test-only endpoint
+  if (process.env.NODE_ENV === 'production') {
+    return NextResponse.json({ error: 'This endpoint is disabled in production' }, { status: 403 });
+  }
+
   const startTime = Date.now();
   const steps: { step: string; status: string; duration: number; error?: string }[] = [];
   

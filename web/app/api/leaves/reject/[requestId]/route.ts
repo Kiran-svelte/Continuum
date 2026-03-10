@@ -3,6 +3,7 @@ import prisma from '@/lib/prisma';
 import { getAuthEmployee, requireRole, AuthError } from '@/lib/auth-guard';
 import { createAuditLog, AUDIT_ACTIONS } from '@/lib/audit';
 import { sendLeaveRejectionEmail } from '@/lib/email-service';
+import { sendNotification, sendPusherEvent } from '@/lib/notification-service';
 
 export const dynamic = 'force-dynamic';
 
@@ -117,6 +118,23 @@ export async function POST(
     } catch (emailError) {
       console.error('[LeaveReject] Email notification failed:', emailError);
     }
+
+    // Real-time: notify the employee their leave was rejected
+    sendPusherEvent(`user-${leaveRequest.emp_id}`, 'leave-request-rejected', {
+      id: leaveRequest.id,
+      leave_type: leaveRequest.leave_type,
+      status: 'rejected',
+    }).catch(() => {});
+
+    // DB notification for the employee
+    sendNotification(
+      leaveRequest.emp_id,
+      employee.org_id,
+      'leave_rejected',
+      'Leave Request Rejected',
+      `Your ${leaveRequest.leave_type} leave from ${leaveRequest.start_date.toISOString().split('T')[0]} to ${leaveRequest.end_date.toISOString().split('T')[0]} has been rejected`,
+      'in_app',
+    ).catch(() => {});
 
     return NextResponse.json(updatedRequest);
   } catch (error) {

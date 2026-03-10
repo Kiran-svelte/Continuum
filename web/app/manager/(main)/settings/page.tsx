@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -10,28 +10,67 @@ import {
   BellOff,
   CheckCircle,
   Palette,
-  Users,
-  Calendar,
   Volume2,
   VolumeX,
   Globe,
   Shield,
-  Smartphone,
   Mail,
   MailX,
+  Smartphone,
+  Loader2,
+  AlertCircle,
 } from 'lucide-react';
 import { getFirebaseAuth, firebaseSendPasswordResetEmail } from '@/lib/firebase';
 
-function ToggleSwitch({ value, onChange }: { value: boolean; onChange: (v: boolean) => void }) {
+interface Profile {
+  first_name: string;
+  last_name: string;
+  email: string;
+  department: string | null;
+  designation: string | null;
+  phone: string | null;
+  date_of_joining: string | null;
+  primary_role: string;
+  timezone?: string | null;
+}
+
+/** Shape returned / accepted by the notification preferences API */
+interface NotificationPreferences {
+  emailEnabled: boolean;
+  pushEnabled: boolean;
+  inAppEnabled: boolean;
+  reminderTiming: unknown;
+}
+
+const defaultPreferences: NotificationPreferences = {
+  emailEnabled: true,
+  pushEnabled: true,
+  inAppEnabled: true,
+  reminderTiming: null,
+};
+
+function ToggleSwitch({
+  value,
+  onChange,
+  label,
+  disabled,
+}: {
+  value: boolean;
+  onChange: (v: boolean) => void;
+  label?: string;
+  disabled?: boolean;
+}) {
   return (
     <button
       type="button"
       role="switch"
       aria-checked={value}
-      onClick={() => onChange(!value)}
+      aria-label={label}
+      disabled={disabled}
+      onClick={() => !disabled && onChange(!value)}
       className={`relative w-12 h-6 rounded-full transition-all duration-300 ${
-        value ? 'bg-primary' : 'bg-muted'
-      }`}
+        disabled ? 'opacity-50 cursor-not-allowed' : ''
+      } ${value ? 'bg-primary' : 'bg-muted'}`}
     >
       <span
         className={`absolute top-1 left-1 w-4 h-4 rounded-full bg-white shadow-md transition-transform duration-300 ${
@@ -43,54 +82,110 @@ function ToggleSwitch({ value, onChange }: { value: boolean; onChange: (v: boole
 }
 
 export default function ManagerSettingsPage() {
-  const [mounted, setMounted] = useState(false);
-  const [pushNotifications, setPushNotifications] = useState(true);
-  const [emailNotifications, setEmailNotifications] = useState(true);
-  const [teamAlerts, setTeamAlerts] = useState(true);
-  const [approvalReminders, setApprovalReminders] = useState(true);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+
+  // DB-backed notification preferences
+  const [prefs, setPrefs] = useState<NotificationPreferences>(defaultPreferences);
+  const [savingField, setSavingField] = useState<string | null>(null);
+  const [savedField, setSavedField] = useState<string | null>(null);
+  const savedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const feedbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Local-only preferences (not DB-backed)
   const [soundEnabled, setSoundEnabled] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [saveSuccess, setSaveSuccess] = useState('');
-  const [profile, setProfile] = useState<any>(null);
 
-  useEffect(() => {
-    setMounted(true);
-    const savedPush = localStorage.getItem('continuum-push-notifications');
-    const savedEmail = localStorage.getItem('continuum-email-notifications');
-    const savedTeamAlerts = localStorage.getItem('continuum-team-alerts');
-    const savedApprovalReminders = localStorage.getItem('continuum-approval-reminders');
-    const savedSound = localStorage.getItem('continuum-sound');
+  const showFeedback = useCallback((type: 'success' | 'error', message: string, durationMs = 4000) => {
+    setFeedback({ type, message });
+    if (feedbackTimerRef.current) clearTimeout(feedbackTimerRef.current);
+    feedbackTimerRef.current = setTimeout(() => setFeedback(null), durationMs);
+  }, []);
 
-    if (savedPush !== null) setPushNotifications(savedPush === 'true');
-    if (savedEmail !== null) setEmailNotifications(savedEmail === 'true');
-    if (savedTeamAlerts !== null) setTeamAlerts(savedTeamAlerts === 'true');
-    if (savedApprovalReminders !== null) setApprovalReminders(savedApprovalReminders === 'true');
-    if (savedSound !== null) setSoundEnabled(savedSound === 'true');
+  // Load profile + notification preferences on mount
+  const loadAll = useCallback(async () => {
+    setLoadError(null);
+    try {
+      const [profileRes, prefsRes] = await Promise.all([
+        fetch('/api/auth/me', { credentials: 'include' }),
+        fetch('/api/notifications/preferences', { credentials: 'include' }),
+      ]);
+
+      const profileData = await profileRes.json();
+      if (!profileData.error) setProfile(profileData);
+
+      if (prefsRes.ok) {
+        const data = await prefsRes.json();
+        if (data.preferences) {
+          setPrefs(data.preferences);
+        }
+      }
+    } catch {
+      setLoadError('Failed to load settings. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => {
-    fetch('/api/auth/me', { credentials: 'include' })
-      .then(res => res.json())
-      .then(data => {
-        if (!data.error) setProfile(data);
-      })
-      .catch(() => {});
+    loadAll();
+  }, [loadAll]);
+
+  useEffect(() => {
+    return () => {
+      if (feedbackTimerRef.current) clearTimeout(feedbackTimerRef.current);
+    };
   }, []);
 
-  const handleSavePreferences = async () => {
-    setSaving(true);
-    localStorage.setItem('continuum-push-notifications', String(pushNotifications));
-    localStorage.setItem('continuum-email-notifications', String(emailNotifications));
-    localStorage.setItem('continuum-team-alerts', String(teamAlerts));
-    localStorage.setItem('continuum-approval-reminders', String(approvalReminders));
-    localStorage.setItem('continuum-sound', String(soundEnabled));
+  /**
+   * Toggle a single notification preference and auto-save via PUT.
+   * Optimistic update with rollback on error.
+   */
+  const handleToggle = useCallback(
+    async (key: 'emailEnabled' | 'pushEnabled' | 'inAppEnabled', value: boolean) => {
+      const previous = prefs[key];
 
-    setSaving(false);
-    setSaveSuccess('Settings saved successfully!');
-    setTimeout(() => setSaveSuccess(''), 3000);
-  };
+      // Optimistic update
+      setPrefs((prev) => ({ ...prev, [key]: value }));
+      setSavingField(key);
+      setSavedField(null);
 
-  if (!mounted) {
+      try {
+        const res = await fetch('/api/notifications/preferences', {
+          method: 'PUT',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ [key]: value }),
+        });
+
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.error || `Save failed (${res.status})`);
+        }
+
+        const data = await res.json();
+        if (data.preferences) {
+          setPrefs(data.preferences);
+        }
+
+        setSavingField(null);
+        setSavedField(key);
+
+        if (savedTimerRef.current) clearTimeout(savedTimerRef.current);
+        savedTimerRef.current = setTimeout(() => {
+          setSavedField((prev) => (prev === key ? null : prev));
+        }, 2000);
+      } catch {
+        setPrefs((prev) => ({ ...prev, [key]: previous }));
+        setSavingField(null);
+        showFeedback('error', 'Failed to save preference. Please try again.');
+      }
+    },
+    [prefs, showFeedback],
+  );
+
+  if (loading) {
     return (
       <div className="space-y-6">
         <div>
@@ -106,6 +201,58 @@ export default function ManagerSettingsPage() {
     );
   }
 
+  if (loadError && !profile) {
+    return (
+      <div className="space-y-8">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">Manager Settings</h1>
+          <p className="text-muted-foreground mt-1">Customize your experience and team preferences</p>
+        </div>
+        <div className="rounded-xl px-4 py-3 text-sm font-medium bg-red-50 text-red-700 border border-red-200 dark:bg-red-500/10 dark:text-red-400 dark:border-red-500/20 flex items-center gap-2">
+          <AlertCircle className="w-4 h-4 shrink-0" />
+          <span className="flex-1">{loadError}</span>
+          <button
+            type="button"
+            onClick={loadAll}
+            className="ml-2 text-sm underline hover:no-underline shrink-0"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  const notificationItems: Array<{
+    key: 'emailEnabled' | 'pushEnabled' | 'inAppEnabled';
+    label: string;
+    description: string;
+    iconOn: typeof Mail;
+    iconOff: typeof MailX;
+  }> = [
+    {
+      key: 'emailEnabled',
+      label: 'Email Notifications',
+      description: 'Receive team updates via email',
+      iconOn: Mail,
+      iconOff: MailX,
+    },
+    {
+      key: 'pushEnabled',
+      label: 'Push Notifications',
+      description: 'Get notified about team activities',
+      iconOn: Bell,
+      iconOff: BellOff,
+    },
+    {
+      key: 'inAppEnabled',
+      label: 'In-App Notifications',
+      description: 'See alerts within the application',
+      iconOn: Smartphone,
+      iconOff: Smartphone,
+    },
+  ];
+
   return (
     <div className="animate-fade-in space-y-8">
       {/* Header */}
@@ -114,10 +261,20 @@ export default function ManagerSettingsPage() {
           <h1 className="text-2xl font-bold text-foreground">Manager Settings</h1>
           <p className="text-muted-foreground mt-1">Customize your experience and team preferences</p>
         </div>
-        {saveSuccess && (
-          <div className="flex items-center gap-2 px-4 py-2 bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 rounded-lg animate-fade-in">
-            <CheckCircle className="w-4 h-4" />
-            <span className="text-sm font-medium">{saveSuccess}</span>
+        {feedback && (
+          <div
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg animate-fade-in ${
+              feedback.type === 'success'
+                ? 'bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400'
+                : 'bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400'
+            }`}
+          >
+            {feedback.type === 'success' ? (
+              <CheckCircle className="w-4 h-4" />
+            ) : (
+              <AlertCircle className="w-4 h-4" />
+            )}
+            <span className="text-sm font-medium">{feedback.message}</span>
           </div>
         )}
       </div>
@@ -127,7 +284,7 @@ export default function ManagerSettingsPage() {
         <Card className="animate-slide-up bg-card border-border">
           <CardHeader>
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-primary/10 rounded-lg">
+              <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
                 <Palette className="w-5 h-5 text-primary" />
               </div>
               <div>
@@ -149,76 +306,63 @@ export default function ManagerSettingsPage() {
           </CardContent>
         </Card>
 
-        {/* Team Notifications */}
+        {/* Team Notifications -- DB-backed */}
         <Card className="animate-slide-up bg-card border-border">
           <CardHeader>
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-orange-500/10 rounded-lg">
-                <Users className="w-5 h-5 text-orange-500" />
+              <div className="w-10 h-10 rounded-xl bg-orange-50 dark:bg-orange-500/10 flex items-center justify-center">
+                <Bell className="w-5 h-5 text-orange-500" />
               </div>
               <div>
-                <CardTitle>Team Notifications</CardTitle>
-                <CardDescription>Manage alerts for your team</CardDescription>
+                <CardTitle>Notifications</CardTitle>
+                <CardDescription>Manage your notification preferences</CardDescription>
               </div>
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
-            {[
-              {
-                key: 'push',
-                label: 'Push Notifications',
-                description: 'Get notified about team activities',
-                value: pushNotifications,
-                onChange: setPushNotifications,
-                iconOn: Bell,
-                iconOff: BellOff,
-              },
-              {
-                key: 'email',
-                label: 'Email Notifications',
-                description: 'Receive team updates via email',
-                value: emailNotifications,
-                onChange: setEmailNotifications,
-                iconOn: Mail,
-                iconOff: MailX,
-              },
-              {
-                key: 'team',
-                label: 'Team Leave Alerts',
-                description: 'Alerts when team members take leave',
-                value: teamAlerts,
-                onChange: setTeamAlerts,
-                iconOn: Users,
-                iconOff: Users,
-              },
-              {
-                key: 'approval',
-                label: 'Approval Reminders',
-                description: 'Reminders for pending approvals',
-                value: approvalReminders,
-                onChange: setApprovalReminders,
-                iconOn: Calendar,
-                iconOff: Calendar,
-              },
-            ].map(({ key, label, description, value, onChange, iconOn: IconOn, iconOff: IconOff }) => (
-              <div
-                key={key}
-                className="flex items-center justify-between p-3 rounded-lg border border-border hover:bg-muted/30 transition-colors"
-              >
-                <div className="flex items-center gap-3">
-                  {value ? (
-                    <IconOn className="w-5 h-5 text-primary" />
-                  ) : (
-                    <IconOff className="w-5 h-5 text-muted-foreground" />
-                  )}
-                  <div>
-                    <p className="text-sm font-medium text-foreground">{label}</p>
-                    <p className="text-xs text-muted-foreground">{description}</p>
+            {notificationItems.map(({ key, label, description, iconOn: IconOn, iconOff: IconOff }) => {
+              const value = prefs[key];
+              const isSaving = savingField === key;
+              const isSaved = savedField === key;
+
+              return (
+                <div
+                  key={key}
+                  className="flex items-center justify-between p-3 rounded-lg border border-border hover:bg-muted/30 transition-colors"
+                >
+                  <div className="flex items-center gap-3">
+                    {value ? (
+                      <IconOn className="w-5 h-5 text-primary" />
+                    ) : (
+                      <IconOff className="w-5 h-5 text-muted-foreground" />
+                    )}
+                    <div>
+                      <p className="text-sm font-medium text-foreground">{label}</p>
+                      <p className="text-xs text-muted-foreground">{description}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {isSaving && (
+                      <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+                    )}
+                    {isSaved && !isSaving && (
+                      <span className="text-xs text-green-500 dark:text-green-400 font-medium animate-fade-in">
+                        Saved
+                      </span>
+                    )}
+                    <ToggleSwitch
+                      value={value}
+                      onChange={(v) => handleToggle(key, v)}
+                      label={label}
+                      disabled={isSaving}
+                    />
                   </div>
                 </div>
-                <ToggleSwitch value={value} onChange={onChange} />
-              </div>
-            ))}
+              );
+            })}
+            <p className="text-xs text-muted-foreground pt-2">
+              Changes are saved automatically when you toggle a setting.
+            </p>
           </CardContent>
         </Card>
 
@@ -226,7 +370,7 @@ export default function ManagerSettingsPage() {
         <Card className="animate-slide-up bg-card border-border">
           <CardHeader>
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-blue-500/10 rounded-lg">
+              <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-500/10 flex items-center justify-center">
                 <Volume2 className="w-5 h-5 text-blue-500" />
               </div>
               <div>
@@ -248,7 +392,7 @@ export default function ManagerSettingsPage() {
                   <p className="text-xs text-muted-foreground">Play sound for notifications</p>
                 </div>
               </div>
-              <ToggleSwitch value={soundEnabled} onChange={setSoundEnabled} />
+              <ToggleSwitch value={soundEnabled} onChange={setSoundEnabled} label="Sound Alerts" />
             </div>
             <div className="p-3 rounded-lg bg-muted/30 border border-border">
               <div className="flex items-center gap-3">
@@ -266,7 +410,7 @@ export default function ManagerSettingsPage() {
         <Card className="animate-slide-up bg-card border-border">
           <CardHeader>
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-red-500/10 rounded-lg">
+              <div className="w-10 h-10 rounded-xl bg-red-50 dark:bg-red-500/10 flex items-center justify-center">
                 <Shield className="w-5 h-5 text-red-500" />
               </div>
               <div>
@@ -282,14 +426,13 @@ export default function ManagerSettingsPage() {
                   const auth = getFirebaseAuth();
                   const user = auth.currentUser;
                   if (!user?.email) {
-                    alert('Unable to determine your email address. Please sign in again.');
+                    showFeedback('error', 'Unable to determine your email address. Please sign in again.');
                     return;
                   }
                   await firebaseSendPasswordResetEmail(user.email);
-                  setSaveSuccess('Password reset email sent! Check your inbox.');
-                  setTimeout(() => setSaveSuccess(''), 5000);
+                  showFeedback('success', 'Password reset email sent! Check your inbox.', 5000);
                 } catch {
-                  alert('Failed to send password reset email. Please try again.');
+                  showFeedback('error', 'Failed to send password reset email. Please try again.');
                 }
               }}>
                 <Shield className="w-5 h-5 text-muted-foreground" />
@@ -298,39 +441,9 @@ export default function ManagerSettingsPage() {
                   <p className="text-xs text-muted-foreground">Update your password</p>
                 </div>
               </Button>
-              <Button variant="outline" className="justify-start gap-3 h-auto py-4" onClick={() => {
-                alert('Two-factor authentication setup will be available in a future update.');
-              }}>
-                <Smartphone className="w-5 h-5 text-muted-foreground" />
-                <div className="text-left">
-                  <p className="font-medium">Two-Factor Auth</p>
-                  <p className="text-xs text-muted-foreground">Add extra security</p>
-                </div>
-              </Button>
             </div>
           </CardContent>
         </Card>
-      </div>
-
-      {/* Save Button */}
-      <div className="flex justify-end pt-4 animate-slide-up">
-        <Button
-          onClick={handleSavePreferences}
-          disabled={saving}
-          className="gap-2 px-6"
-        >
-          {saving ? (
-            <>
-              <div className="w-4 h-4 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin" />
-              Saving...
-            </>
-          ) : (
-            <>
-              <CheckCircle className="w-4 h-4" />
-              Save Preferences
-            </>
-          )}
-        </Button>
       </div>
     </div>
   );

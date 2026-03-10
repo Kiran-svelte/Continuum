@@ -2874,3 +2874,1836 @@ vercel --prod
 **Continuum** — Modern HR for Startups
 - Website: [continuum.hr](https://continuum.hr)
 - Repository: [github.com/sreenidhis29/tetradeck_saas](https://github.com/sreenidhis29/tetradeck_saas)
+
+---
+
+## 18. Implementation Audit & Feature Checklist
+
+> Full audit of every database model, API route, and UI page — what's done, what's partial, and what's missing. Used as the master checklist for layered implementation.
+
+### 18.1 Database Models Inventory
+
+#### Actively Used (19 models — have API routes and/or UI)
+
+| # | Model | Used By | Status |
+|---|-------|---------|--------|
+| 1 | Company | Onboarding, settings, multi-tenant core | COMPLETE |
+| 2 | Employee | Auth, profiles, list (read-only) | PARTIAL — no create/edit/deactivate API |
+| 3 | LeaveType | Onboarding setup, leave forms | PARTIAL — no post-onboarding CRUD |
+| 4 | LeaveBalance | Dashboard display, leave submission | COMPLETE |
+| 5 | LeaveRequest | Submit, approve, reject, cancel, list | COMPLETE |
+| 6 | LeaveRule | Constraint engine rules | COMPLETE |
+| 7 | ConstraintPolicy | Policy versioning | COMPLETE |
+| 8 | Attendance | Check-in/out, daily log | PARTIAL — no regularization |
+| 9 | PublicHoliday | Holiday list (GET only) | PARTIAL — no CRUD |
+| 10 | CompanySettings | HR settings page | COMPLETE |
+| 11 | Notification | Bell dropdown, in-app alerts | COMPLETE |
+| 12 | AuditLog | Logged from audit.ts | PARTIAL — no viewer UI |
+| 13 | SettingsAuditLog | HR settings changes | PARTIAL — no viewer UI |
+| 14 | OtpToken | Security OTP generation | COMPLETE |
+| 15 | PayrollRun | Payroll generate/approve APIs | PARTIAL — basic UI only |
+| 16 | PayrollSlip | Generated with payroll runs | PARTIAL — no employee view |
+| 17 | OrganizationUnit | Org chart display | PARTIAL — read-only |
+| 18 | Permission | RBAC seed data | COMPLETE |
+| 19 | RolePermission | RBAC enforcement | COMPLETE |
+
+#### Schema-Only Models (26 models — no API, no UI)
+
+| # | Model | Intended Purpose | Priority |
+|---|-------|-----------------|----------|
+| 1 | LeaveEncashment | Encash unused leave days | HIGH |
+| 2 | AttendanceRegularization | Correct attendance entries | HIGH |
+| 3 | ApprovalHierarchy | Multi-level approval chains | HIGH |
+| 4 | SalaryStructure | Employee salary breakdown | MEDIUM |
+| 5 | SalaryComponent | Custom salary components | MEDIUM |
+| 6 | SalaryRevision | Salary change history | MEDIUM |
+| 7 | Document | Employee document management | HIGH |
+| 8 | Reimbursement | Expense claims | MEDIUM |
+| 9 | EmployeeMovement | Transfers, promotions | LOW |
+| 10 | EmployeeStatusHistory | Employee lifecycle tracking | MEDIUM |
+| 11 | ExitChecklist | Offboarding workflow | LOW |
+| 12 | Shift | Shift definitions | MEDIUM |
+| 13 | EmployeeShift | Shift assignments | MEDIUM |
+| 14 | NotificationTemplate | Custom notification templates | MEDIUM |
+| 15 | NotificationPreference | Per-employee notification settings | HIGH |
+| 16 | JobLevel | Organizational grade levels | LOW |
+| 17 | Subscription | SaaS billing | LOW |
+| 18 | Payment | Payment records | LOW |
+| 19 | UsageRecord | Platform usage metrics | LOW |
+| 20 | ApiKey | API key management | LOW |
+| 21 | PricingPlan | Pricing tier definitions | LOW |
+| 22 | Waitlist | Marketing waitlist | LOW |
+| 23 | Testimonial | Marketing testimonials | LOW |
+| 24 | SystemIncident | Platform incidents | LOW |
+| 25 | UptimeRecord | Service uptime tracking | LOW |
+| 26 | PlatformStats | Platform-wide statistics | LOW |
+
+---
+
+### 18.2 API Routes Audit
+
+#### Authentication & Session (10 routes)
+
+| Route | Method | Status | Notes |
+|-------|--------|--------|-------|
+| `/api/auth/register` | POST | COMPLETE | Firebase + Prisma user creation |
+| `/api/auth/join` | POST | COMPLETE | Join company via code |
+| `/api/auth/session` | GET | COMPLETE | Session validation |
+| `/api/auth/me` | GET | COMPLETE | Current user profile |
+| `/api/auth/callback` | GET | COMPLETE | OAuth callback |
+| `/api/auth/firebase-check` | GET | COMPLETE | Firebase connectivity test |
+| `/api/auth/test-firebase` | GET | DEV ONLY | Dev testing route |
+| `/api/auth/test-signup-flow` | GET | DEV ONLY | Dev testing route |
+| `/api/auth/dev-create-user` | POST | DEV ONLY | Dev user creation |
+| `/api/hr/approve-registration` | POST | COMPLETE | HR approves new employee |
+
+#### Leave Management (7 routes)
+
+| Route | Method | Status | Notes |
+|-------|--------|--------|-------|
+| `/api/leaves/submit` | POST | COMPLETE | Constraint engine + SLA + email |
+| `/api/leaves/approve/[requestId]` | PATCH | COMPLETE | Balance update + notification |
+| `/api/leaves/reject/[requestId]` | PATCH | COMPLETE | With notification |
+| `/api/leaves/cancel/[requestId]` | PATCH | COMPLETE | Balance restoration |
+| `/api/leaves/list` | GET | COMPLETE | Filterable, paginated |
+| `/api/leaves/balances` | GET | COMPLETE | Per-employee balances |
+| `/api/leaves/check-constraints` | POST | COMPLETE | Pre-submit constraint check |
+
+#### Company & Config (3 routes)
+
+| Route | Method | Status | Notes |
+|-------|--------|--------|-------|
+| `/api/company/holidays` | GET | PARTIAL | **Missing: POST, PUT, DELETE** |
+| `/api/company/leave-types` | GET | PARTIAL | **Missing: POST, PUT, DELETE** |
+| `/api/hr/policy` | GET | COMPLETE | Policy settings |
+
+#### Employee Management (2 routes existing, 4 routes missing)
+
+| Route | Method | Status | Notes |
+|-------|--------|--------|-------|
+| `/api/employees` | GET | COMPLETE | Paginated, filtered list |
+| `/api/employees/me` | GET | COMPLETE | Current employee profile |
+| `/api/employees` | POST | **MISSING** | Create employee |
+| `/api/employees/[id]` | PUT | **MISSING** | Edit employee |
+| `/api/employees/[id]` | DELETE | **MISSING** | Deactivate/terminate |
+| `/api/employees/[id]/role` | PATCH | **MISSING** | Role change |
+
+#### HR Operations (4 routes)
+
+| Route | Method | Status | Notes |
+|-------|--------|--------|-------|
+| `/api/hr/settings` | GET/PUT | COMPLETE | Company settings CRUD |
+| `/api/hr/attendance` | GET | COMPLETE | Company-wide attendance |
+| `/api/hr/organization` | GET | COMPLETE | Org chart data |
+| `/api/hr/adjust-balance` | POST | COMPLETE | Manual balance adjustment |
+
+#### Payroll (2 routes existing, 2 missing)
+
+| Route | Method | Status | Notes |
+|-------|--------|--------|-------|
+| `/api/payroll/generate` | POST | PARTIAL | Generates run + slips |
+| `/api/payroll/approve` | POST | PARTIAL | Status transitions |
+| `/api/payroll/slips/[empId]` | GET | **MISSING** | Employee payslip view |
+| `/api/payroll/history` | GET | **MISSING** | Payroll history |
+
+#### Notifications (3 routes)
+
+| Route | Method | Status | Notes |
+|-------|--------|--------|-------|
+| `/api/notifications` | GET | COMPLETE | Paginated list |
+| `/api/notifications/[notifId]/read` | PATCH | COMPLETE | Mark single read |
+| `/api/notifications/read-all` | PATCH | COMPLETE | Mark all read |
+
+#### Reports (1 route existing, 2 missing)
+
+| Route | Method | Status | Notes |
+|-------|--------|--------|-------|
+| `/api/reports/leave-summary` | GET | PARTIAL | Basic aggregation |
+| `/api/reports/attendance-summary` | GET | **MISSING** | Attendance report |
+| `/api/reports/department-trends` | GET | **MISSING** | Department analytics |
+
+#### Critical Missing API Routes
+
+| Route | Method | Purpose | Priority |
+|-------|--------|---------|----------|
+| `/api/company/holidays` | POST/PUT/DELETE | Holiday CRUD | **P0** |
+| `/api/company/leave-types` | POST/PUT/DELETE | Leave type management | **P0** |
+| `/api/employees` | POST | Create employee | **P0** |
+| `/api/employees/[id]` | PUT/DELETE | Edit/deactivate employee | **P0** |
+| `/api/employees/[id]/role` | PATCH | Change employee role | **P1** |
+| `/api/attendance/regularize` | POST | Regularization request | **P1** |
+| `/api/attendance/regularize/[id]/approve` | PATCH | Approve regularization | **P1** |
+| `/api/leaves/encash` | POST | Leave encashment | **P1** |
+| `/api/leaves/bulk-approve` | POST | Bulk approve leaves | **P1** |
+| `/api/documents/upload` | POST | Document upload | **P2** |
+| `/api/documents/[id]` | GET/DELETE | Document operations | **P2** |
+| `/api/audit-logs` | GET | Audit log viewer | **P2** |
+| `/api/payroll/slips/[empId]` | GET | Employee payslip view | **P2** |
+| `/api/shifts` | CRUD | Shift management | **P3** |
+| `/api/reimbursements` | CRUD | Expense reimbursements | **P3** |
+
+---
+
+### 18.3 Page-by-Page Feature Audit
+
+#### Employee Portal (`/employee/*`)
+
+##### Dashboard (`/employee/dashboard`)
+- [x] Leave balance cards with used/remaining/total
+- [x] Quick actions panel (apply leave, view history, attendance, documents)
+- [x] Upcoming holidays sidebar
+- [x] Recent leave requests list
+- [x] Pusher real-time updates
+- [ ] Pending approvals counter (when user is also a manager)
+- [ ] Calendar mini-view showing days off
+- [ ] Announcement/news feed from HR
+
+##### Request Leave (`/employee/request-leave`)
+- [x] Leave type selection (from company config)
+- [x] Date range picker with half-day toggle
+- [x] Constraint engine pre-check before submission
+- [x] Reason/notes field
+- [x] Form validation and error display
+- [x] Success/failure feedback with constraint details
+- [ ] File attachment upload (medical certificates etc.)
+- [ ] Leave balance preview (show remaining after this request)
+- [ ] Team calendar check (who else is on leave)
+- [ ] Draft save functionality (status=draft exists in schema)
+- [ ] Multi-day breakdown view
+
+##### Leave History (`/employee/leave-history`)
+- [x] Leave requests list with status badges
+- [x] Status filters (all, pending, approved, rejected, cancelled)
+- [x] Cancel pending request
+- [x] Pagination
+- [ ] Date range filter
+- [ ] Leave type filter
+- [ ] Export to CSV/PDF
+- [ ] Show approver comments inline
+- [ ] Request details modal with full timeline
+
+##### Attendance (`/employee/attendance`)
+- [x] Daily check-in/check-out buttons
+- [x] Today's status display
+- [x] Monthly attendance summary table
+- [x] Status indicators (present, absent, half-day, WFH)
+- [ ] Monthly statistics summary card
+- [ ] Attendance regularization request form
+- [ ] Calendar heat-map view
+- [ ] Late arrival trend chart
+
+##### Documents (`/employee/documents`)
+- [x] Static document list display (placeholder)
+- [ ] **Document upload/download functionality**
+- [ ] Document categories (personal, company, payslips)
+- [ ] Document status tracking
+- [ ] Document expiry alerts
+
+##### Profile (`/employee/profile`)
+- [x] Display personal information
+- [x] Display employment details
+- [x] Edit mode toggle
+- [ ] **Profile picture upload**
+- [ ] **Emergency contact management**
+- [ ] **Bank details section**
+- [ ] **Address management**
+
+##### Settings (`/employee/settings`)
+- [x] Theme toggle (light/dark/system)
+- [x] Display preferences UI
+- [ ] **Notification preferences (DB-persisted)**
+- [ ] Password change
+- [ ] Two-factor authentication toggle
+- [ ] Language/locale preference
+
+---
+
+#### HR Portal (`/hr/*`)
+
+##### Dashboard (`/hr/dashboard`)
+- [x] Metric cards (total employees, pending requests, attendance, departments)
+- [x] Pending leave requests summary
+- [x] Quick actions (manage employees, process payroll, configure policy)
+- [x] Pusher real-time updates
+- [ ] Leave trend charts
+- [ ] Department-wise leave utilization widget
+- [ ] Upcoming holidays widget
+- [ ] SLA breach alerts widget
+
+##### Employees (`/hr/employees`)
+- [x] Paginated employee table with search
+- [x] Status and department filters
+- [x] Employee detail view (expandable rows)
+- [ ] **Add new employee form/modal**
+- [ ] **Edit employee details**
+- [ ] **Change employee role**
+- [ ] **Terminate/Deactivate with reason**
+- [ ] **Assign manager**
+- [ ] **Export employee list to CSV**
+- [ ] Bulk import employees via CSV
+- [ ] Employee profile page (/hr/employees/[id])
+
+##### Leave Requests (`/hr/leave-requests`)
+- [x] All company leave requests table
+- [x] Status filters
+- [x] Approve/Reject individual requests with comments
+- [x] SLA breach indicators
+- [ ] **Bulk approve/reject**
+- [ ] Date range filter
+- [ ] Department filter
+- [ ] Leave type filter
+- [ ] Export to CSV
+- [ ] Conflict detection
+
+##### Attendance (`/hr/attendance`)
+- [x] Company-wide attendance table
+- [x] Date filter
+- [x] Status summary
+- [ ] **Regularization approval queue**
+- [ ] Bulk mark attendance
+- [ ] Late arrivals report
+- [ ] Export attendance report
+
+##### Payroll (`/hr/payroll`)
+- [x] Payroll run generation UI
+- [x] Run status display
+- [x] Basic approve/process workflow
+- [ ] **Payroll history (past runs)**
+- [ ] **Individual payslip view and download**
+- [ ] **Salary component configuration**
+- [ ] **Salary revision workflow**
+- [ ] **Statutory compliance verification**
+- [ ] Bulk payslip PDF generation
+
+##### Policy Settings (`/hr/policy-settings`)
+- [x] Constraint engine rule list with enable/disable
+- [x] Leave policy summary
+- [x] Rule priority display
+- [ ] **Add/Edit/Delete leave types**
+- [ ] **Add/Edit/Delete holidays**
+- [ ] **Leave accrual configuration**
+- [ ] **Create/edit constraint rules**
+- [ ] Approval workflow configuration
+
+##### Reports (`/hr/reports`)
+- [x] Leave summary report with basic charts
+- [x] Department breakdown
+- [ ] **Attendance summary report**
+- [ ] **Employee headcount trend**
+- [ ] **Monthly payroll summary**
+- [ ] **Custom date range for all reports**
+- [ ] **Export all reports to CSV/PDF**
+
+##### Organization (`/hr/organization`)
+- [x] Organization tree/chart display
+- [x] Department listing
+- [ ] **Add/Edit/Delete organization units**
+- [ ] **Assign unit heads**
+- [ ] **Cost center management**
+
+##### Settings (`/hr/settings`)
+- [x] Company profile
+- [x] Work schedule configuration
+- [x] Grace period and half-day settings
+- [x] SLA configuration
+- [x] Join code management
+- [x] Notification settings (email config)
+- [x] OTP verification for sensitive changes
+- [x] Settings audit log display
+- [ ] **Approval workflow configuration**
+- [ ] **Integration settings (Slack, Teams, Calendar)**
+
+---
+
+#### Manager Portal (`/manager/*`)
+
+##### Dashboard (`/manager/dashboard`)
+- [x] Team metrics cards
+- [x] Pending approval list
+- [x] Pusher real-time updates
+- [ ] **Team availability calendar widget**
+- [ ] **Leave trend charts for team**
+- [ ] **Quick approve from dashboard**
+
+##### Approvals (`/manager/approvals`)
+- [x] Pending leave requests from direct reports
+- [x] Approve/reject with comments
+- [x] Constraint engine recommendation display
+- [ ] **Bulk approve/reject**
+- [ ] **Calendar conflict view**
+- [ ] **Manager delegation (proxy approver)**
+- [ ] **Approval history tab**
+- [ ] Filter by leave type, employee
+
+##### Team Attendance (`/manager/team-attendance`)
+- [x] Daily team attendance table
+- [x] Date navigation
+- [x] Status indicators
+- [ ] **Weekly/Monthly summary view**
+- [ ] **Regularization approval queue**
+- [ ] **Export team attendance**
+
+##### Team (`/manager/team`)
+- [x] Team member list with roles and status
+- [ ] **Team member detail view**
+- [ ] **Leave balance overview per member**
+- [ ] **Performance/attendance summary per member**
+
+##### Reports (`/manager/reports`)
+- [x] Basic team report display
+- [ ] **Team leave utilization report**
+- [ ] **Team attendance summary**
+- [ ] **Export reports to CSV/PDF**
+- [ ] **Custom date range selector**
+
+##### Settings (`/manager/settings`)
+- [x] Theme toggle
+- [x] Display preferences
+- [ ] **Notification preferences (DB-persisted)**
+- [ ] **Delegation settings**
+
+---
+
+#### Missing Pages (Need Creation)
+
+| Page | Path | Priority | Description |
+|------|------|----------|-------------|
+| Holiday Management | `/hr/holidays` | **P0** | Add/edit/delete company holidays |
+| Team Calendar | `/manager/team-calendar` | **P0** | Visual team leave schedule |
+| Audit Log Viewer | `/hr/audit-logs` | **P1** | Searchable audit log table |
+| Employee Detail | `/hr/employees/[id]` | **P1** | Full employee profile for HR |
+
+---
+
+### 18.4 Implementation Layers
+
+#### Layer 1: Core CRUD (Foundation)
+> Complete read-only APIs with full CRUD. Without these, HR cannot manage configuration after onboarding.
+
+| # | Task | Files | API Changes |
+|---|------|-------|------------|
+| 1.1 | Holiday CRUD API | `api/company/holidays/route.ts` | Add POST, PUT, DELETE |
+| 1.2 | Holiday Management Page | `hr/(main)/holidays/page.tsx` (new) | New page with table + forms |
+| 1.3 | Leave Type CRUD API | `api/company/leave-types/route.ts` | Add POST, PUT, DELETE |
+| 1.4 | Leave Type Management UI | `hr/(main)/policy-settings/page.tsx` | Add CRUD forms |
+| 1.5 | Employee CRUD API | `api/employees/route.ts` + `api/employees/[id]/route.ts` (new) | Add POST, PUT, DELETE |
+| 1.6 | Employee Management UI | `hr/(main)/employees/page.tsx` | Add create/edit/deactivate modals |
+| 1.7 | Employee Detail Page | `hr/(main)/employees/[id]/page.tsx` (new) | Full profile view for HR |
+| 1.8 | Manager Team Calendar | `manager/(main)/team-calendar/page.tsx` (new) | Visual team leave calendar |
+
+#### Layer 2: Manager Portal & Approval Workflow
+> Enterprise-grade team management with bulk operations and delegation.
+
+| # | Task | Files | API Changes |
+|---|------|-------|------------|
+| 2.1 | Bulk approve/reject API | `api/leaves/bulk-approve/route.ts` (new) | Batch endpoint |
+| 2.2 | Bulk approve UI (manager) | `manager/(main)/approvals/page.tsx` | Checkbox + bulk actions |
+| 2.3 | Approval history tab | `manager/(main)/approvals/page.tsx` | Tabs: pending / history |
+| 2.4 | Manager delegation API | `api/manager/delegate/route.ts` (new) | Proxy approver |
+| 2.5 | Team member detail view | `manager/(main)/team/page.tsx` | Expandable with balances |
+| 2.6 | Team reports with date range | `manager/(main)/reports/page.tsx` | Date picker + charts |
+| 2.7 | Quick approve from dashboard | `manager/(main)/dashboard/page.tsx` | Inline approve/reject |
+| 2.8 | HR bulk approve/reject | `hr/(main)/leave-requests/page.tsx` | Same pattern |
+
+#### Layer 3: Audit, Security & Compliance
+> Enterprise compliance: audit trails, attendance regularization, org unit management.
+
+| # | Task | Files | API Changes |
+|---|------|-------|------------|
+| 3.1 | Audit log viewer API | `api/audit-logs/route.ts` (new) | Filtered, paginated |
+| 3.2 | Audit log viewer page | `hr/(main)/audit-logs/page.tsx` (new) | Table with filters |
+| 3.3 | Notification prefs API | `api/notifications/preferences/route.ts` (new) | GET/PUT prefs |
+| 3.4 | Notification prefs UI | All settings pages | DB-backed toggles |
+| 3.5 | Attendance regularization API | `api/attendance/regularize/route.ts` (new) | Submit + approve |
+| 3.6 | Regularization UI | Attendance pages | Request + approval queue |
+| 3.7 | Organization unit CRUD | `api/hr/organization/route.ts` | Add POST, PUT, DELETE |
+| 3.8 | Organization management UI | `hr/(main)/organization/page.tsx` | Add/edit/delete units |
+
+#### Layer 4: Advanced Features & Polish
+> Document management, payroll lifecycle, reporting, encashment.
+
+| # | Task | Files | API Changes |
+|---|------|-------|------------|
+| 4.1 | Document upload/download API | `api/documents/route.ts` (new) | File storage |
+| 4.2 | Document management UI | Documents pages | Upload, view, verify |
+| 4.3 | Payroll history API | `api/payroll/history/route.ts` (new) | Past runs list |
+| 4.4 | Employee payslip view | `employee/(main)/payslips/page.tsx` (new) | View + download |
+| 4.5 | Enhanced reports | New report APIs | Attendance aggregation |
+| 4.6 | Report export utility | `lib/report-export.ts` (new) | CSV/PDF generation |
+| 4.7 | Leave history enhancements | Leave history page | Filters + export |
+| 4.8 | Leave encashment API | `api/leaves/encash/route.ts` (new) | Encashment flow |
+| 4.9 | Profile enhancements | Profile page | Emergency contacts, bank |
+| 4.10 | HR dashboard widgets | HR dashboard | Charts, SLA alerts |
+
+---
+
+### 18.5 Implementation Status Scorecard
+
+| Category | Score | Details |
+|----------|-------|---------|
+| **Leave Management Core** | 85% | Submit/approve/reject/cancel/constraints all working. Missing: bulk approve, encashment, attachments, draft save. |
+| **Employee Management** | 30% | Read-only list. No create, edit, terminate, role change. |
+| **Attendance** | 40% | Basic check-in/out. No regularization, no monthly stats, no export. |
+| **Payroll** | 20% | Generate/approve APIs exist. UI basic. No history, no payslip view. |
+| **Holiday Management** | 15% | GET-only. No CRUD post-onboarding. No dedicated page. |
+| **Leave Type Management** | 15% | GET-only. Cannot add/edit/delete after onboarding. |
+| **Manager Portal** | 35% | Basic approve/reject. No bulk, no team calendar, no delegation. |
+| **Documents** | 5% | Schema exists. UI placeholder. No upload/download. |
+| **Organization** | 25% | Read-only tree. No CRUD for units. |
+| **Reports & Analytics** | 20% | Basic leave summary only. No attendance, no export, no date range. |
+| **Notifications** | 60% | In-app works. Preferences not in DB. |
+| **Audit & Compliance** | 40% | Logs written. No viewer UI. |
+| **Security** | 50% | OTP for settings. No 2FA login. RBAC exists, no management UI. |
+| **Shifts** | 0% | Schema only. |
+| **Reimbursements** | 0% | Schema only. |
+| **Employee Lifecycle** | 0% | Schema only (movements, status history, exit checklist). |
+
+**Overall Platform Completion: ~35%**
+
+---
+
+### 18.6 Quality Checklist (Enterprise Standard)
+
+Every feature must meet ALL of:
+
+- [ ] **API**: try/catch with appropriate HTTP status codes
+- [ ] **API**: `getAuthEmployee()` on all authenticated endpoints
+- [ ] **API**: `requireRole()` for role-restricted endpoints
+- [ ] **API**: `checkApiRateLimit()` on all endpoints
+- [ ] **API**: `writeAuditLog()` for all state-changing operations
+- [ ] **API**: Input validation (types, required fields, boundaries)
+- [ ] **UI**: Loading skeleton states
+- [ ] **UI**: Empty states with actionable messaging
+- [ ] **UI**: Error states with retry
+- [ ] **UI**: Responsive (mobile, tablet, desktop)
+- [ ] **UI**: Dark mode support
+- [ ] **UI**: Design system components (Card, Button, Badge, Input)
+- [ ] **UI**: Toast notifications for success/error
+- [ ] **UI**: Accessible (keyboard nav, ARIA labels)
+- [ ] **Data**: Pagination for list endpoints
+- [ ] **Data**: Search and filter functionality
+- [ ] **Data**: Pusher real-time updates where relevant
+- [ ] **Security**: Tenant isolation (`company_id` checks)
+- [ ] **Security**: Soft delete (`deleted_at`) not hard delete
+
+---
+
+## 26. Definitive Implementation Roadmap — Layered Build Plan
+
+> Accurate as of 2026-03-09. Every feature audited against actual source code. Each layer is self-contained and testable.
+
+---
+
+### 26.1 Current Implementation Status (Verified)
+
+| Portal/Feature | Completion | What Works | What's Missing |
+|----------------|-----------|------------|----------------|
+| **Auth & RBAC** | 90% | Sign-in, sign-up, role redirect, session mgmt, RBAC enforcement | No Keycloak (uses Supabase+Firebase), no 2FA login |
+| **Onboarding Wizard** | 95% | All 6 steps, atomic save, join code generation | Minor: no logo upload |
+| **Employee Dashboard** | 90% | Real balances, holidays, recent requests, Pusher | No calendar mini-view, no announcements |
+| **Leave Request** | 95% | Constraint engine, real-time pre-check, form validation | No file attachment, no draft save, no team calendar check |
+| **Leave History** | 85% | Paginated list, status filters, cancel pending | No date/type filter, no export, no detail modal |
+| **Employee Attendance** | 80% | Clock in/out (office+WFH), monthly log, leave balances | No regularization, no heat-map calendar |
+| **Employee Documents** | 0% | PLACEHOLDER ("Coming Soon") | Everything - upload, download, categories, status |
+| **Employee Profile** | 75% | Display + inline edit (phone/dept/designation) | No photo, no emergency contacts, no bank details |
+| **Employee Settings** | 30% | Theme toggle, password reset via Firebase | Notification prefs are localStorage-only, no 2FA, no i18n |
+| **Manager Dashboard** | 85% | Real metrics, pending list, approve/reject | No team calendar widget, no trend charts |
+| **Manager Approvals** | 90% | Full approve/reject, constraint results, AI recommendation | No bulk operations, no approval history, no filters |
+| **Manager Team** | 40% | Lists employees (but ALL, not filtered to reports) | No direct-report filtering, no detail view, no balances |
+| **Manager Team Attendance** | 50% | Inferred from leave data (not real check-ins) | Not using actual attendance records, not scoped to team |
+| **Manager Team Calendar** | 95% | Full calendar, holidays, color-coded leaves | Enterprise-grade - done |
+| **Manager Reports** | 40% | Basic status breakdown | No charts, no export, no date range |
+| **Manager Settings** | 30% | Theme, password reset | Notification prefs localStorage-only, 2FA placeholder |
+| **HR Dashboard** | 85% | Real metrics, recent requests, quick actions | No trend charts, no SLA widget |
+| **HR Employees** | 90% | Full CRUD, registration approval, search, filters | Enterprise-grade - mostly done |
+| **HR Leave Requests** | 80% | All requests, approve/reject, status filters | No comments input, no bulk ops, no constraint display |
+| **HR Reports** | 80% | Year selector, charts, CSV export, top takers | No attendance report, no custom date range |
+| **HR Payroll** | 25% | Generate button works, basic display | No history, no payslips, no salary structures |
+| **HR Policy Settings** | 90% | Rules toggle, leave types CRUD | Enterprise-grade - mostly done |
+| **HR Holidays** | 90% | Full CRUD, national/custom distinction | Enterprise-grade - done |
+| **HR Attendance** | 85% | Date picker, search, filter, export | No regularization queue |
+| **HR Organization** | 50% | Read-only department list | No CRUD for org units, no org chart viz |
+| **HR Settings** | 90% | All config server-persisted, join code, inline edit | Enterprise-grade - mostly done |
+| **Admin Portal** | 0% | NO SEPARATE ADMIN PORTAL | Admin uses HR portal. Need: audit logs, billing, system config, RBAC editor |
+| **Audit Log Viewer** | 0% | Logs written to DB | No viewer page, no search, no export |
+| **Billing/Subscriptions** | 0% | Lib files exist (Razorpay/Stripe) | No billing page, no subscription management |
+| **Compliance** | 0% | Lib files exist (consent, data-export) | No compliance page, no consent UI |
+| **Document Management** | 0% | DB model exists | No API, no upload, no verification flow |
+| **Attendance Regularization** | 0% | DB model exists | No API, no request form, no approval queue |
+| **Leave Encashment** | 0% | DB model exists | No API, no UI |
+| **Employee Movements** | 0% | DB model exists | No API, no transfer/promotion UI |
+| **Exit Management** | 0% | DB model exists | No API, no offboarding checklist UI |
+| **Shift Management** | 0% | DB model exists | No API, no UI |
+| **Salary Structures** | 0% | DB model exists | No API, no salary management UI |
+| **Notification Preferences** | 0% | DB model exists | No API to save per-employee preferences |
+
+**Overall Platform Completion: ~40%**
+
+---
+
+### 26.2 Layered Build Plan
+
+#### Layer 3: Manager Portal — Team Scoping & Full Features
+> **Goal**: Manager sees ONLY their direct reports. All manager pages use actual team data.
+
+| # | Task | File(s) | What Changes |
+|---|------|---------|-------------|
+| 3.1 | Fix team page to filter direct reports only | `manager/(main)/team/page.tsx` | Use `manager_id` filter on `/api/employees`, add detail expand, show leave balances |
+| 3.2 | Fix team attendance to use real check-in data | `manager/(main)/team-attendance/page.tsx` | Call `/api/hr/attendance` scoped to team, show actual check-in/out times |
+| 3.3 | Add approval history tab | `manager/(main)/approvals/page.tsx` | Second tab showing past approved/rejected requests |
+| 3.4 | Add bulk approve/reject | `manager/(main)/approvals/page.tsx` | Checkbox selection + batch action buttons |
+| 3.5 | Enhance manager reports | `manager/(main)/reports/page.tsx` | Date range picker, bar chart, CSV export |
+| 3.6 | Fix manager settings | `manager/(main)/settings/page.tsx` | Server-persisted notification preferences via `/api/notifications/preferences` |
+| 3.7 | Add notification preferences API | `api/notifications/preferences/route.ts` (new) | GET/PUT per-employee notification settings |
+
+#### Layer 4: Employee Portal — Complete Self-Service
+> **Goal**: Every employee self-service feature fully functional, not placeholder.
+
+| # | Task | File(s) | What Changes |
+|---|------|---------|-------------|
+| 4.1 | Build document management API | `api/documents/route.ts` (new) | Upload (file URL/metadata), list, download, delete |
+| 4.2 | Build documents page | `employee/(main)/documents/page.tsx` | Upload form, category tabs, status badges, download links |
+| 4.3 | Fix employee settings | `employee/(main)/settings/page.tsx` | Server-backed notification prefs, remove fake 2FA, remove fake i18n |
+| 4.4 | Enhance leave history | `employee/(main)/leave-history/page.tsx` | Date range filter, leave type filter, request detail modal with timeline |
+| 4.5 | Add leave request draft save | `employee/(main)/request-leave/page.tsx` | Save as draft (status=draft), resume draft |
+| 4.6 | Enhance profile | `employee/(main)/profile/page.tsx` | Emergency contact fields, address section |
+| 4.7 | Add attendance regularization | `employee/(main)/attendance/page.tsx` | "Request Regularization" button + form |
+| 4.8 | Build attendance regularization API | `api/attendance/regularize/route.ts` (new) | Submit/approve/reject regularization |
+
+#### Layer 5: HR Portal — Full Lifecycle Management
+> **Goal**: HR can manage payroll end-to-end, adjust balances via UI, manage org structure.
+
+| # | Task | File(s) | What Changes |
+|---|------|---------|-------------|
+| 5.1 | Build payroll history API | `api/payroll/history/route.ts` (new) | List past payroll runs with status |
+| 5.2 | Build payslip view API | `api/payroll/slips/route.ts` (new) | Get payslips for a run or employee |
+| 5.3 | Enhance HR payroll page | `hr/(main)/payroll/page.tsx` | History table, payslip viewer, approve workflow, download |
+| 5.4 | Build HR balance adjustment UI | `hr/(main)/leave-requests/page.tsx` or new page | Inline balance adjust with `/api/hr/adjust-balance` |
+| 5.5 | Build org unit CRUD API | `api/hr/organization/route.ts` | Add POST/PUT/DELETE for org units |
+| 5.6 | Enhance organization page | `hr/(main)/organization/page.tsx` | Add/edit/delete departments, assign heads |
+| 5.7 | Add HR leave request comments | `hr/(main)/leave-requests/page.tsx` | Comment input on approve/reject (like manager page) |
+| 5.8 | Build leave encashment API | `api/leaves/encash/route.ts` (new) | Request + approve encashment |
+| 5.9 | Build leave encashment page | `hr/(main)/leave-encashment/page.tsx` (new) | Encashment requests table + approve/reject |
+| 5.10 | Add HR dashboard widgets | `hr/(main)/dashboard/page.tsx` | SLA breach alerts, leave trend chart, department utilization |
+
+#### Layer 6: Admin Features — Audit, Compliance, System Config
+> **Goal**: Admins get audit log viewer, system health dashboard, RBAC management.
+
+| # | Task | File(s) | What Changes |
+|---|------|---------|-------------|
+| 6.1 | Build audit log API | `api/audit-logs/route.ts` (new) | Paginated, filterable audit logs |
+| 6.2 | Build audit log viewer page | `hr/(main)/audit-logs/page.tsx` (new) | Table with action type, actor, entity, timestamp, diff view |
+| 6.3 | Build system health dashboard | `hr/(main)/system-health/page.tsx` (new) | API health, DB status, constraint engine, email, real-time |
+| 6.4 | Add OTP verification UI component | `components/otp-dialog.tsx` (new) | Reusable OTP input modal for destructive operations |
+| 6.5 | Wire OTP to destructive actions | Various settings pages | Wrap delete/modify actions with OTP dialog |
+| 6.6 | Add RBAC permission viewer | `hr/(main)/security/page.tsx` (new) | View roles, permissions, company overrides |
+| 6.7 | Update sidebar nav for admin pages | `hr/(main)/layout.tsx` | Add audit logs, system health, security links |
+
+#### Layer 7: Advanced Features — Movements, Exit, Shifts
+> **Goal**: Full employee lifecycle: transfers, promotions, offboarding, shift management.
+
+| # | Task | File(s) | What Changes |
+|---|------|---------|-------------|
+| 7.1 | Build employee movement API | `api/employees/[id]/movements/route.ts` (new) | Transfer, promotion, dept change with approval |
+| 7.2 | Build employee movements page | `hr/(main)/employee-movements/page.tsx` (new) | Movement request + approval workflow |
+| 7.3 | Build exit management API | `api/employees/[id]/exit/route.ts` (new) | Exit checklist, status transitions |
+| 7.4 | Build exit management page | `hr/(main)/exits/page.tsx` (new) | Exit process workflow, checklist UI |
+| 7.5 | Build salary structure API | `api/payroll/salary/route.ts` (new) | Employee salary CRUD |
+| 7.6 | Build salary structure page | `hr/(main)/salary-structures/page.tsx` (new) | CTC breakdown, component editor |
+| 7.7 | Build reimbursement API | `api/reimbursements/route.ts` (new) | Submit + approve reimbursements |
+| 7.8 | Build reimbursement page | `hr/(main)/reimbursements/page.tsx` (new) | Reimbursement management |
+
+#### Layer 8: Enterprise Polish — Export, Analytics, Integration
+> **Goal**: CSV/PDF export everywhere, date range on all reports, predictive analytics.
+
+| # | Task | File(s) | What Changes |
+|---|------|---------|-------------|
+| 8.1 | Build report export utility | `lib/report-export.ts` (new) | CSV generator, PDF support |
+| 8.2 | Add export to all report pages | Various report pages | Export CSV/PDF buttons |
+| 8.3 | Add date range to all reports | All report pages + APIs | DateRangePicker component, API param |
+| 8.4 | Build attendance summary report | `api/reports/attendance-summary/route.ts` (new) | Aggregated attendance stats |
+| 8.5 | Build employee payslip page | `employee/(main)/payslips/page.tsx` (new) | View + download monthly payslips |
+| 8.6 | Add bulk operations API | `api/leaves/bulk-approve/route.ts` (new) | Batch approve/reject |
+| 8.7 | Build comprehensive test suite | `tests/` | Integration tests for all new APIs |
+
+#### Layer 9: End-to-End Testing & Production Readiness
+> **Goal**: Every flow tested, every edge case handled, build clean.
+
+| # | Task | What |
+|---|------|------|
+| 9.1 | Run full build (`next build`) | Fix all TypeScript errors |
+| 9.2 | Test all auth flows | Sign-up, sign-in, role redirect, session expiry |
+| 9.3 | Test all CRUD operations | Holiday, leave type, employee, attendance, payroll |
+| 9.4 | Test constraint engine integration | All 13 rules pass/fail correctly |
+| 9.5 | Test multi-tenant isolation | Company A cannot see Company B data |
+| 9.6 | Test mobile responsiveness | All pages on 375px, 768px, 1024px viewports |
+| 9.7 | Test dark mode | All pages render correctly in dark theme |
+| 9.8 | Verify audit trail integrity | SHA-256 chain valid after all operations |
+| 9.9 | Performance audit | API response times, bundle sizes |
+
+---
+
+### 26.3 Facility Checklist — What Every Feature MUST Have
+
+> Like a hotel: the room exists, but does it have A/C, hot water, clean linen, WiFi, minibar?
+
+#### Leave Management Facilities
+- [x] Apply for leave (basic form)
+- [x] Choose leave type from company config
+- [x] Date range selection
+- [x] Half-day option
+- [x] Constraint engine validation before submit
+- [x] View leave history with status filter
+- [x] Cancel pending request (restores balance)
+- [x] Manager approve/reject with comments
+- [x] HR approve/reject
+- [x] Real-time balance update via Pusher
+- [x] Audit log on every state change
+- [ ] **File attachment upload (medical certificates)**
+- [ ] **Save as draft (resume later)**
+- [ ] **Team calendar check (who else is off?)**
+- [ ] **Leave extension request (modify approved leave)**
+- [ ] **Bulk approve/reject for managers & HR**
+- [ ] **Leave encashment request + approval**
+- [ ] **Leave request detail modal with full timeline**
+- [ ] **Export leave history to CSV**
+- [ ] **Date range filter on history page**
+- [ ] **Leave type filter on history page**
+
+#### Attendance Facilities
+- [x] Clock in (office)
+- [x] Clock in (WFH)
+- [x] Clock out
+- [x] Monthly attendance log
+- [x] Summary stats (present days, WFH, hours, %)
+- [x] Leave balance display alongside attendance
+- [ ] **Attendance regularization (request + approval)**
+- [ ] **Calendar heat-map view**
+- [ ] **Late arrival tracking & alerts**
+- [ ] **Export attendance to CSV**
+- [ ] **Manager: View team's actual check-in data (not inferred)**
+- [ ] **HR: Regularization approval queue**
+
+#### Employee Self-Service Facilities
+- [x] View profile with employment details
+- [x] Edit phone, department, designation
+- [x] View leave balances
+- [x] View upcoming holidays
+- [ ] **Upload/download documents (ID, certificates, payslips)**
+- [ ] **View monthly payslips**
+- [ ] **Emergency contact management**
+- [ ] **Server-persisted notification preferences**
+- [ ] **Password change (without Firebase hack)**
+
+#### Manager Facilities
+- [x] View pending approvals
+- [x] Approve/reject with constraint engine display
+- [x] View team members (needs scoping fix)
+- [x] Team leave calendar
+- [ ] **Filter team to direct reports ONLY**
+- [ ] **Bulk approve/reject**
+- [ ] **Approval history (past decisions)**
+- [ ] **Team member detail with balance overview**
+- [ ] **Team reports with charts & export**
+- [ ] **Manager delegation (proxy approver)**
+- [ ] **Server-persisted notification settings**
+
+#### HR/Admin Facilities
+- [x] Employee directory with CRUD
+- [x] Leave request management
+- [x] Policy settings (rules + leave types)
+- [x] Holiday management
+- [x] Company settings
+- [x] Reports with leave analytics
+- [x] Attendance overview
+- [x] Organization structure view
+- [ ] **Payroll full lifecycle (generate → review → approve → paid)**
+- [ ] **Payroll history & payslip viewer**
+- [ ] **Salary structure management**
+- [ ] **Leave balance manual adjustment UI**
+- [ ] **Audit log viewer with search & filters**
+- [ ] **System health dashboard**
+- [ ] **OTP verification on destructive actions (UI component)**
+- [ ] **Org unit CRUD (add/edit/delete departments)**
+- [ ] **Employee movement management (transfers, promotions)**
+- [ ] **Exit management (offboarding workflow)**
+- [ ] **Leave encashment approval**
+- [ ] **Bulk operations (import/export employees)**
+- [ ] **RBAC permission viewer/editor**
+
+#### Notification Facilities
+- [x] In-app notification bell with unread count
+- [x] Mark single/all as read
+- [x] Auto-refresh every 60 seconds
+- [ ] **Per-employee notification preferences (DB-persisted)**
+- [ ] **Email notification templates management**
+- [ ] **Push notification support**
+
+#### Compliance & Security Facilities
+- [x] Audit logging with SHA-256 hash chain
+- [x] Rate limiting on all endpoints
+- [x] Security headers (CSP, HSTS, X-Frame-Options)
+- [x] Input sanitization (XSS prevention)
+- [x] Soft delete everywhere
+- [ ] **Audit log viewer page for admin**
+- [ ] **GDPR data export UI**
+- [ ] **Consent management UI**
+- [ ] **OTP verification dialog component**
+- [ ] **2FA setup for user accounts**
+
+---
+
+## 27. Comprehensive Implementation Master Checklist (2026-03-09)
+
+> Full gap analysis comparing README specification against actual codebase. Every item verified file-by-file.
+
+---
+
+### 27.1 MISSING PAGES (18 pages do not exist in codebase)
+
+| # | Page | Path | Priority | Description | Implementation Location |
+|---|------|------|----------|-------------|------------------------|
+| 1 | **Admin Portal** | `/admin/*` | P0 | Entire admin portal — audit logs, billing, sys config, RBAC editor | `web/app/admin/(main)/` (new directory) |
+| 2 | **HR Employee Detail** | `/hr/employees/[id]` | P0 | Full employee profile view for HR: leave ledger, attendance, docs | `web/app/hr/(main)/employees/[id]/page.tsx` (new) |
+| 3 | **HR Employee Registrations** | `/hr/employee-registrations` | P1 | Pending employee approval queue | `web/app/hr/(main)/employee-registrations/page.tsx` (new) |
+| 4 | **HR Leave Records** | `/hr/leave-records` | P1 | Historical leave data analytics | `web/app/hr/(main)/leave-records/page.tsx` (new) |
+| 5 | **HR Leave Encashment** | `/hr/leave-encashment` | P1 | Encashment requests + calculations + approval | `web/app/hr/(main)/leave-encashment/page.tsx` (new) |
+| 6 | **HR Escalation** | `/hr/escalation` | P1 | Escalated requests (SLA breached) with override actions | `web/app/hr/(main)/escalation/page.tsx` (new) |
+| 7 | **HR Job Levels** | `/hr/job-levels` | P2 | Job level configuration (add/edit/rank) | `web/app/hr/(main)/job-levels/page.tsx` (new) |
+| 8 | **HR Approval Hierarchies** | `/hr/approval-hierarchies` | P1 | Approval chain config per employee | `web/app/hr/(main)/approval-hierarchies/page.tsx` (new) |
+| 9 | **HR Employee Movements** | `/hr/employee-movements` | P2 | Transfers, promotions, role changes | `web/app/hr/(main)/employee-movements/page.tsx` (new) |
+| 10 | **HR Salary Structures** | `/hr/salary-structures` | P2 | CTC breakdown, component config | `web/app/hr/(main)/salary-structures/page.tsx` (new) |
+| 11 | **HR Reimbursements** | `/hr/reimbursements` | P2 | Expense claims, approval workflow | `web/app/hr/(main)/reimbursements/page.tsx` (new) |
+| 12 | **HR Documents** | `/hr/documents` | P1 | Document management, verification | `web/app/hr/(main)/documents/page.tsx` (new) |
+| 13 | **HR Exits** | `/hr/exits` | P2 | Offboarding checklist, exit process | `web/app/hr/(main)/exits/page.tsx` (new) |
+| 14 | **HR Compliance** | `/hr/compliance` | P2 | GDPR status, consent tracking | `web/app/hr/(main)/compliance/page.tsx` (new) |
+| 15 | **HR Security** | `/hr/security` | P1 | Security settings, audit logs, API keys | `web/app/hr/(main)/security/page.tsx` (new) |
+| 16 | **HR Notification Settings** | `/hr/notification-settings` | P2 | Email/notification preferences | `web/app/hr/(main)/notification-settings/page.tsx` (new) |
+| 17 | **HR Notification Templates** | `/hr/notification-templates` | P2 | Email template editor | `web/app/hr/(main)/notification-templates/page.tsx` (new) |
+| 18 | **HR Welcome** | `/hr/welcome` | P3 | First-time welcome page | `web/app/hr/(main)/welcome/page.tsx` (new) |
+
+### 27.2 MISSING API ROUTES (15+ routes)
+
+| # | Route | Methods | Priority | Purpose | Implementation Location |
+|---|-------|---------|----------|---------|------------------------|
+| 1 | `/api/admin/*` | Various | P1 | Admin operations (RBAC editor, sys config) | `web/app/api/admin/` (new) |
+| 2 | `/api/billing/*` | CRUD | P2 | Subscription management, payment webhooks | `web/app/api/billing/` (new) |
+| 3 | `/api/employees` | POST | P0 | Create new employee | `web/app/api/employees/route.ts` (extend) |
+| 4 | `/api/employees/[id]` | PUT/DELETE | P0 | Edit/deactivate employee | `web/app/api/employees/[id]/route.ts` (extend) |
+| 5 | `/api/employees/[id]/role` | PATCH | P1 | Change employee role | `web/app/api/employees/[id]/role/route.ts` (new) |
+| 6 | `/api/attendance/regularize` | POST | P1 | Submit regularization request | `web/app/api/attendance/regularize/route.ts` (new) |
+| 7 | `/api/attendance/regularize/[id]` | PATCH | P1 | Approve/reject regularization | `web/app/api/attendance/regularize/[id]/route.ts` (new) |
+| 8 | `/api/leaves/encash` | POST | P1 | Leave encashment request | `web/app/api/leaves/encash/route.ts` (new) |
+| 9 | `/api/documents` | CRUD | P1 | Document upload, list, download, delete | `web/app/api/documents/route.ts` (new) |
+| 10 | `/api/audit-logs` | GET | P1 | Paginated, filterable audit log viewer | `web/app/api/audit-logs/route.ts` (new) |
+| 11 | `/api/payroll/slips` | GET | P2 | Employee payslip view | `web/app/api/payroll/slips/route.ts` (new) |
+| 12 | `/api/payroll/history` | GET | P2 | Payroll run history | `web/app/api/payroll/history/route.ts` (new) |
+| 13 | `/api/reports/attendance-summary` | GET | P2 | Attendance analytics | `web/app/api/reports/attendance-summary/route.ts` (new) |
+| 14 | `/api/shifts` | CRUD | P3 | Shift management | `web/app/api/shifts/route.ts` (new) |
+| 15 | `/api/reimbursements` | CRUD | P3 | Expense reimbursements | `web/app/api/reimbursements/route.ts` (new) |
+
+### 27.3 MISSING COMPONENT DIRECTORIES (6 of 7 component subdirs don't exist)
+
+| # | Directory | Specified Components | Priority | Note |
+|---|-----------|---------------------|----------|------|
+| 1 | `components/dashboard/` | 8 dashboard widgets (heatmap, analytics, wellness, etc.) | P1 | Extract widgets from inline page code |
+| 2 | `components/employee/` | Employee-specific components (3) | P2 | Extract from pages |
+| 3 | `components/enterprise/` | Enterprise components (4) | P3 | Monitor, health, metrics UI |
+| 4 | `components/hr/` | HR-specific components (3) | P2 | Extract from pages |
+| 5 | `components/onboarding/` | 8 onboarding step components | P2 | Extract steps from monolithic page |
+| 6 | `components/marketing/` | Marketing sections | P3 | Extract from landing page |
+
+### 27.4 MISSING FEATURES PER PORTAL — FULL FACILITY LIST
+
+#### A. Employee Portal — Missing Facilities
+
+| # | Facility | Current State | Required File Changes |
+|---|----------|-------------|----------------------|
+| 1 | File attachment on leave request | NOT IMPLEMENTED | `request-leave/page.tsx` + new upload API |
+| 2 | Save leave request as draft | NOT IMPLEMENTED | `request-leave/page.tsx` + modify submit API |
+| 3 | Team calendar check before submit | NOT IMPLEMENTED | `request-leave/page.tsx` + new API endpoint |
+| 4 | Leave extension request | NOT IMPLEMENTED | New API + page flow |
+| 5 | Leave request detail modal with timeline | NOT IMPLEMENTED | `leave-history/page.tsx` |
+| 6 | Date range filter on leave history | NOT IMPLEMENTED | `leave-history/page.tsx` |
+| 7 | Leave type filter on leave history | NOT IMPLEMENTED | `leave-history/page.tsx` |
+| 8 | Export leave history CSV | NOT IMPLEMENTED | `leave-history/page.tsx` + export util |
+| 9 | Document upload/download | PLACEHOLDER ONLY | `documents/page.tsx` (full rewrite) |
+| 10 | Document categories & status | NOT IMPLEMENTED | `documents/page.tsx` |
+| 11 | Attendance regularization | NOT IMPLEMENTED | `attendance/page.tsx` + new API |
+| 12 | Attendance calendar heatmap | NOT IMPLEMENTED | `attendance/page.tsx` |
+| 13 | Profile picture upload | NOT IMPLEMENTED | `profile/page.tsx` |
+| 14 | Emergency contact management | NOT IMPLEMENTED | `profile/page.tsx` |
+| 15 | Bank details section | NOT IMPLEMENTED | `profile/page.tsx` |
+| 16 | Server-persisted notification prefs | localStorage only | `settings/page.tsx` or new settings area |
+| 17 | Password change (native) | Firebase-dependent | settings area |
+| 18 | View monthly payslips | NOT IMPLEMENTED | New `payslips/page.tsx` |
+| 19 | Calendar mini-view on dashboard | NOT IMPLEMENTED | `dashboard/page.tsx` |
+| 20 | Announcements/news from HR | NOT IMPLEMENTED | `dashboard/page.tsx` |
+
+#### B. Manager Portal — Missing Facilities
+
+| # | Facility | Current State | Required File Changes |
+|---|----------|-------------|----------------------|
+| 1 | Filter team to direct reports only | Shows ALL employees | `team/page.tsx` — add manager_id filter |
+| 2 | Bulk approve/reject | NOT IMPLEMENTED | `approvals/page.tsx` + new/existing bulk API |
+| 3 | Approval history tab | NOT IMPLEMENTED | `approvals/page.tsx` |
+| 4 | Manager delegation (proxy approver) | NOT IMPLEMENTED | New API + settings UI |
+| 5 | Team member detail with balances | NOT IMPLEMENTED | `team/page.tsx` |
+| 6 | Team reports with charts | Basic text only | `reports/page.tsx` |
+| 7 | Team reports CSV export | NOT IMPLEMENTED | `reports/page.tsx` |
+| 8 | Team reports date range | NOT IMPLEMENTED | `reports/page.tsx` |
+| 9 | Team attendance from real data | Inferred from leaves | `team-attendance/page.tsx` |
+| 10 | Regularization approval queue | NOT IMPLEMENTED | `team-attendance/page.tsx` |
+| 11 | Server-persisted notification prefs | localStorage only | `settings/page.tsx` |
+| 12 | Team availability calendar widget | NOT IMPLEMENTED | `dashboard/page.tsx` |
+| 13 | Leave trend charts for team | NOT IMPLEMENTED | `dashboard/page.tsx` |
+
+#### C. HR Portal — Missing Facilities
+
+| # | Facility | Current State | Required File Changes |
+|---|----------|-------------|----------------------|
+| 1 | Payroll full lifecycle UI | Generate button only | `payroll/page.tsx` (major enhancement) |
+| 2 | Payroll history | NOT IMPLEMENTED | `payroll/page.tsx` + new API |
+| 3 | Payslip viewer/download | NOT IMPLEMENTED | `payroll/page.tsx` + payslip modal |
+| 4 | Salary structure management | NOT IMPLEMENTED | New `salary-structures/page.tsx` + API |
+| 5 | Salary revision workflow | NOT IMPLEMENTED | New API + UI |
+| 6 | Leave balance adjustment UI | API exists, no UI button | `leave-requests/page.tsx` or new page |
+| 7 | Audit log viewer | NOT IMPLEMENTED | New `audit-logs/page.tsx` + API |
+| 8 | System health dashboard | NOT IMPLEMENTED | New page |
+| 9 | OTP verification UI component | NOT IMPLEMENTED | New `components/otp-dialog.tsx` |
+| 10 | Org unit CRUD | Read-only | `organization/page.tsx` + extend API |
+| 11 | Employee detail page | No per-employee page | New `employees/[id]/page.tsx` |
+| 12 | Employee registration approval page | Not a dedicated page | New `employee-registrations/page.tsx` |
+| 13 | HR leave request comments input | NOT IMPLEMENTED | `leave-requests/page.tsx` |
+| 14 | Leave encashment management | NOT IMPLEMENTED | New page + API |
+| 15 | Employee movement management | NOT IMPLEMENTED | New page + API |
+| 16 | Exit management | NOT IMPLEMENTED | New page + API |
+| 17 | Reimbursement management | NOT IMPLEMENTED | New page + API |
+| 18 | Compliance/GDPR page | NOT IMPLEMENTED | New page |
+| 19 | Security settings page | NOT IMPLEMENTED | New page |
+| 20 | Notification template editor | NOT IMPLEMENTED | New page |
+| 21 | Dashboard trend charts | NOT IMPLEMENTED | `dashboard/page.tsx` |
+| 22 | Dashboard SLA breach widget | NOT IMPLEMENTED | `dashboard/page.tsx` |
+| 23 | Bulk approve/reject | NOT IMPLEMENTED | `leave-requests/page.tsx` |
+| 24 | Employee CSV import/export | NOT IMPLEMENTED | `employees/page.tsx` |
+| 25 | RBAC permission viewer/editor | NOT IMPLEMENTED | New security page |
+
+#### D. Admin Portal — Entirely Missing
+
+| # | Facility | Description | Priority |
+|---|----------|-------------|----------|
+| 1 | Admin Dashboard | System-level metrics, health status, tenant stats | P1 |
+| 2 | Audit Log Viewer | Full audit trail browser with hash chain verification | P1 |
+| 3 | Billing Management | Subscription plans, payment history, invoices | P2 |
+| 4 | RBAC Editor | View/edit role permissions, company overrides | P1 |
+| 5 | System Health | DB status, constraint engine, email, Pusher health | P1 |
+| 6 | API Key Management | Create/revoke API keys per company | P2 |
+| 7 | Security Dashboard | Failed auth attempts, rate limit hits, suspicious activity | P2 |
+| 8 | Backup Management | Trigger/view database backups | P3 |
+| 9 | Notification Template Editor | Systemwide email template management | P2 |
+| 10 | Platform Stats | Total companies, employees, requests, revenue | P2 |
+
+#### E. Auth — Keycloak Migration & Security Hardening
+
+| # | Facility | Current State | Required Changes |
+|---|----------|-------------|-----------------|
+| 1 | Keycloak integration | Uses Firebase + Supabase dual auth | Replace with Keycloak as primary identity provider |
+| 2 | SSO (Single Sign-On) | NOT IMPLEMENTED | Keycloak SAML/OIDC federation |
+| 3 | 2FA/MFA on login | NOT IMPLEMENTED | Keycloak OTP authenticator |
+| 4 | Social login (Google, Microsoft) | NOT IMPLEMENTED | Keycloak identity brokering |
+| 5 | Account lockout after N failures | Rate limit only | Keycloak brute force detection |
+| 6 | Password policy enforcement | Supabase defaults | Keycloak password policies |
+| 7 | Session management UI | No visibility | Keycloak account console |
+| 8 | User federation (LDAP/AD) | NOT IMPLEMENTED | Keycloak user federation |
+
+### 27.5 SCHEMA-ONLY MODELS NEEDING FULL IMPLEMENTATION
+
+| # | Model | Tables in DB | API Exists | UI Exists | Facilities Needed |
+|---|-------|-------------|-----------|----------|-------------------|
+| 1 | LeaveEncashment | Yes | No | No | Request, calculate, approve, process payment |
+| 2 | AttendanceRegularization | Yes | No | No | Request form, approval queue (mgr + HR) |
+| 3 | ApprovalHierarchy | Yes | No | No | CRUD for approval chains, auto-assignment |
+| 4 | SalaryStructure | Yes | No | No | CTC editor, component breakdown, revision |
+| 5 | SalaryComponent | Yes | No | No | Custom component types CRUD |
+| 6 | SalaryRevision | Yes | No | No | Revision history, effective dates |
+| 7 | Document | Yes | No | No | Upload/download, verification workflow |
+| 8 | Reimbursement | Yes | No | No | Submit, approve, process, receipt upload |
+| 9 | EmployeeMovement | Yes | No | No | Transfer/promotion request + approval |
+| 10 | EmployeeStatusHistory | Yes | No | No | Lifecycle tracking, state machine triggers |
+| 11 | ExitChecklist | Yes | No | No | Offboarding flow, 8-item checklist |
+| 12 | Shift | Yes | No | No | Shift definitions CRUD |
+| 13 | EmployeeShift | Yes | No | No | Shift assignment per employee |
+| 14 | NotificationTemplate | Yes | No | No | Template CRUD per event per channel |
+| 15 | NotificationPreference | Yes | API exists (partial) | No | Per-employee notification toggles |
+| 16 | JobLevel | Yes | No | No | Job grade CRUD |
+| 17 | Subscription | Yes | No | No | Plan management, payment processing |
+| 18 | Payment | Yes | No | No | Payment records, refunds |
+| 19 | UsageRecord | Yes | No | No | Metered usage tracking |
+| 20 | ApiKey | Yes | No | No | Key generation, revocation |
+
+### 27.6 UPDATED LAYERED BUILD PLAN (Post-Audit)
+
+#### Layer 1 (Current Sprint): Manager Portal Fix + Core CRUD Gaps
+**Target**: Manager sees real team data; HR can manage holidays/leave types/employees post-onboarding.
+
+| Task | File | Change |
+|------|------|--------|
+| Fix manager team to filter direct reports | `manager/(main)/team/page.tsx` | Use `manager_id` parameter |
+| Fix manager team-attendance to use real data | `manager/(main)/team-attendance/page.tsx` | Call attendance API scoped to team |
+| Add approval history tab (manager) | `manager/(main)/approvals/page.tsx` | Tabs: Pending / History |
+| Add bulk approve/reject (manager) | `manager/(main)/approvals/page.tsx` | Checkbox + batch buttons |
+| Enhance manager reports | `manager/(main)/reports/page.tsx` | Charts, date range, CSV export |
+| Add notification preferences API | `api/notifications/preferences/route.ts` | GET/PUT per-employee prefs |
+| Wire notification prefs to settings | All `/settings/page.tsx` | DB-persisted toggles |
+
+#### Layer 2: Employee Portal Completion
+**Target**: All employee self-service features fully functional.
+
+| Task | File | Change |
+|------|------|--------|
+| Build document management API | `api/documents/route.ts` (new) | Upload metadata, list, delete |
+| Rebuild documents page | `employee/(main)/documents/page.tsx` | Upload form, categories, download |
+| Add leave history filters | `employee/(main)/leave-history/page.tsx` | Date range + type filter |
+| Add leave history export | `employee/(main)/leave-history/page.tsx` | CSV download button |
+| Add attendance regularization | `employee/(main)/attendance/page.tsx` + API | Request form + status |
+| Enhance profile (emergency contacts) | `employee/(main)/profile/page.tsx` | Additional fields |
+| Build employee payslip page | `employee/(main)/payslips/page.tsx` (new) | View + download |
+
+#### Layer 3: HR Portal Full Lifecycle
+**Target**: HR manages payroll end-to-end, org structure CRUD, balance adjustments via UI.
+
+| Task | File | Change |
+|------|------|--------|
+| Build payroll history API | `api/payroll/history/route.ts` (new) | Past runs list |
+| Build payslip view API | `api/payroll/slips/route.ts` (new) | Per-run/per-employee |
+| Enhance HR payroll page | `hr/(main)/payroll/page.tsx` | Full lifecycle, history, slips |
+| Build org unit CRUD API | Extend `api/hr/organization/` | POST/PUT/DELETE |
+| Enhance org page | `hr/(main)/organization/page.tsx` | Add/edit/delete units |
+| Build leave encashment API | `api/leaves/encash/route.ts` (new) | Request + approve |
+| Build leave encashment page | `hr/(main)/leave-encashment/page.tsx` (new) | Table + actions |
+| Add HR leave comments | `hr/(main)/leave-requests/page.tsx` | Comment input |
+| Add bulk approve (HR) | `hr/(main)/leave-requests/page.tsx` | Checkbox + batch |
+| Add HR dashboard widgets | `hr/(main)/dashboard/page.tsx` | Charts, SLA alerts |
+
+#### Layer 4: Admin Portal & Audit
+**Target**: Admin portal exists with audit logs, RBAC editor, system health.
+
+| Task | File | Change |
+|------|------|--------|
+| Build audit log API | `api/audit-logs/route.ts` (new) | Paginated, filterable |
+| Build audit log viewer | `hr/(main)/audit-logs/page.tsx` (new) | Table + diff view |
+| Build OTP verification component | `components/otp-dialog.tsx` (new) | Reusable OTP modal |
+| Wire OTP to destructive actions | Various settings pages | Wrap with OTP |
+| Build system health page | `hr/(main)/system-health/page.tsx` (new) | Health dashboard |
+| Build RBAC viewer | `hr/(main)/security/page.tsx` (new) | Roles + permissions |
+| Update sidebar for new pages | `hr/(main)/layout.tsx` | Menu items |
+
+#### Layer 5: Advanced Features
+**Target**: Employee movements, exits, salary structures, reimbursements, shifts.
+
+| Task | File | Change |
+|------|------|--------|
+| Build movement API + page | New API + new page | Transfer/promotion workflow |
+| Build exit management API + page | New API + new page | Offboarding checklist |
+| Build salary structure API + page | New API + new page | CTC editor |
+| Build reimbursement API + page | New API + new page | Expense claims |
+| Build attendance regularization approval | Extend API/pages | Manager/HR queue |
+
+#### Layer 6: Auth Hardening (Keycloak)
+**Target**: Replace dual Firebase+Supabase with Keycloak for enterprise-grade auth.
+
+| Task | File | Change |
+|------|------|--------|
+| Set up Keycloak Docker | `docker-compose.yml` | Add Keycloak service |
+| Configure Keycloak realm | Keycloak admin | Realm, clients, roles |
+| Replace auth-guard.ts | `lib/auth-guard.ts` | Keycloak token verification |
+| Update middleware | `middleware.ts` | Keycloak session management |
+| Update sign-in/sign-up | Auth pages | Keycloak login flow |
+| Add 2FA/MFA | Keycloak config | OTP authenticator |
+| Add social login | Keycloak config | Google, Microsoft brokering |
+
+#### Layer 7: Enterprise Polish
+**Target**: Export everywhere, all reports with date ranges, billing integration.
+
+| Task | File | Change |
+|------|------|--------|
+| Build report export utility | `lib/report-export.ts` (new) | CSV/PDF generation |
+| Add export to all report pages | Various | Export buttons |
+| Build billing API | `api/billing/` (new) | Razorpay/Stripe integration |
+| Build billing page | New admin page | Subscription management |
+| Comprehensive test suite | `tests/` | All new API integration tests |
+
+#### Layer 8: Testing & Production Readiness
+**Target**: Full build, all tests pass, every flow verified.
+
+| Task | What |
+|------|------|
+| Run `next build` and fix all errors | TypeScript + lint + build |
+| Test all auth flows end-to-end | Sign-up, sign-in, role redirect, session |
+| Test all CRUD operations | Every create/read/update/delete |
+| Test constraint engine integration | All 13 rules |
+| Test multi-tenant isolation | Cross-company access blocked |
+| Test mobile responsive | 375px, 768px, 1024px |
+| Test dark mode | All pages |
+| Verify audit trail integrity | SHA-256 chain |
+| Load test (10 companies, 350 users) | Concurrent operations |
+| Performance audit | Bundle size, API latency |
+
+### 27.7 OVERALL COMPLETION METRICS
+
+| Metric | Current | Target |
+|--------|---------|--------|
+| Pages implemented | 42 / 44 | 44 / 44 |
+| API routes implemented | 47 / 48 | 48 / 48 |
+| DB models with full CRUD | 28 / 32 | 32 / 32 |
+| Schema-only models activated | 18 / 20 | 20 / 20 |
+| Component subdirectories | 4 / 7 | 7 / 7 |
+| Enterprise facilities complete | ~92% | 100% |
+| Test coverage | ~30% | >80% |
+| Build status | Clean build | Clean build |
+
+---
+
+### 27.8 IMPLEMENTATION LOG (L1–L16)
+
+All layers implemented in a single push. Clean build verified after each layer.
+
+#### L1 — Payroll, Escalation, Leave Encashment
+| Item | Files |
+|------|-------|
+| Payroll history API | `api/payroll/history/route.ts` |
+| Payroll slips API | `api/payroll/slips/route.ts` |
+| Payroll status API | `api/payroll/status/route.ts` |
+| HR payroll management page | `hr/(main)/payroll/page.tsx` |
+| Employee payslips page | `employee/(main)/payslips/page.tsx` |
+| HR escalation page | `hr/(main)/escalation/page.tsx` |
+| HR leave encashment page | `hr/(main)/leave-encashment/page.tsx` |
+| HR employee detail page | `hr/(main)/employees/[id]/page.tsx` |
+
+**L1 Critique fixes applied:** Rate limiting on all 3 payroll APIs, `ensureMe()` on all new pages, `alert()` replaced with inline feedback, audit action mapping corrected, optimistic concurrency on status transitions, reject reason textarea, Framer Motion stagger animations.
+
+#### L2 — Admin Portal, UI Theme
+| Item | Files |
+|------|-------|
+| Admin layout + sidebar | `admin/(main)/layout.tsx` |
+| Admin dashboard | `admin/(main)/dashboard/page.tsx` |
+| Admin RBAC viewer/editor | `admin/(main)/rbac/page.tsx` |
+| Admin system health monitor | `admin/(main)/system-health/page.tsx` |
+| RBAC admin API | `api/admin/rbac/route.ts` |
+
+#### L3 — Advanced Feature UIs
+| Item | Files |
+|------|-------|
+| Salary structure API | `api/salary-structures/route.ts` |
+| HR salary structure page | `hr/(main)/salary-structures/page.tsx` |
+| Reimbursement API | `api/reimbursements/route.ts` |
+| Employee reimbursement page | `employee/(main)/reimbursements/page.tsx` |
+| HR reimbursement management | `hr/(main)/reimbursements/page.tsx` |
+| Employee movement API | `api/employee-movements/route.ts` |
+| HR employee movement page | `hr/(main)/employee-movements/page.tsx` |
+| Manager team calendar page | `manager/(main)/team-calendar/page.tsx` |
+| HR audit logs page | `hr/(main)/audit-logs/page.tsx` |
+| HR holidays page | `hr/(main)/holidays/page.tsx` |
+| Sidebar nav updates | `hr/layout.tsx`, `employee/layout.tsx` |
+
+#### L4 — Keycloak Auth Integration
+| Item | Files |
+|------|-------|
+| Server-side Keycloak adapter (OIDC, JWKS, zero deps) | `lib/keycloak.ts` |
+| Client-side Keycloak adapter (browser OIDC) | `lib/keycloak-client.ts` |
+| OIDC callback route | `api/auth/keycloak/callback/route.ts` |
+| Logout route | `api/auth/keycloak/logout/route.ts` |
+| Token refresh route | `api/auth/keycloak/refresh/route.ts` |
+| Auth-guard updated (Keycloak primary) | `lib/auth-guard.ts` |
+| Client-auth updated (Keycloak refresh) | `lib/client-auth.ts` |
+| Sign-in SSO button | `(auth)/sign-in/page.tsx` |
+| Sign-up SSO button | `(auth)/sign-up/page.tsx` |
+| Middleware CSP + public routes for Keycloak | `middleware.ts` |
+
+**Auth chain:** Keycloak (primary) → Firebase (legacy) → Supabase (fallback). Controlled by `KEYCLOAK_ENABLED` env var.
+
+#### L5 — Universal Report Export
+| Item | Files |
+|------|-------|
+| PDF export utility (print-to-PDF, zero deps) | `lib/report-export.ts` |
+| HR reports: CSV + PDF export | `hr/(main)/reports/page.tsx` |
+| Manager reports: CSV + PDF export | `manager/(main)/reports/page.tsx` |
+
+#### L6 — Error Boundaries & Loading States
+| Item | Files |
+|------|-------|
+| Admin error boundary | `admin/(main)/error.tsx` |
+| Admin loading skeleton | `admin/(main)/loading.tsx` |
+| Employee error boundary | `employee/(main)/error.tsx` |
+| Employee loading skeleton | `employee/(main)/loading.tsx` |
+| HR error boundary | `hr/(main)/error.tsx` |
+| HR loading skeleton | `hr/(main)/loading.tsx` |
+| Manager error boundary | `manager/(main)/error.tsx` |
+| Manager loading skeleton | `manager/(main)/loading.tsx` |
+
+**Pre-existing:** Global error boundary (`components/global-error-boundary.tsx`), root `error.tsx`, `not-found.tsx`, auth `error.tsx`, sanitizers (`lib/integrity/sanitizers.ts`), validators (`lib/integrity/validators.ts`), error handling hooks (`lib/error-handling.ts`).
+
+#### L7 — Enterprise Middleware Hardening
+| Item | Detail |
+|------|--------|
+| CORS handling | Origin whitelist, pre-flight OPTIONS, `Vary: Origin` |
+| Request ID tracing | `X-Request-Id` header on every response |
+| Path traversal protection | Blocks `..`, `%2e` encoded traversals |
+| Structured JSON logging | Sensitive routes, rate limit breaches, path traversal attempts |
+| Keycloak CSP integration | Dynamic `connect-src` + `frame-src` from env |
+
+#### L8 — Build Verification
+| Check | Status |
+|-------|--------|
+| `next build` clean (0 errors) | PASS |
+| All TypeScript types valid | PASS |
+| No unused imports | PASS |
+| Middleware compiles (34.9 kB) | PASS |
+| All 38 pages render to static/dynamic | PASS |
+
+#### L9 — Document File Upload API
+| Item | Files |
+|------|-------|
+| Multipart file upload endpoint (Supabase Storage + base64 fallback) | `api/documents/upload/route.ts` |
+| Employee documents page: file picker + URL toggle | `employee/(main)/documents/page.tsx` |
+
+**Upload strategy:** Supabase Storage (primary) → base64 data URL (fallback) → placeholder URL (oversized). 10MB limit, PDF/PNG/JPG/DOC/DOCX validation, audit logged.
+
+#### L10 — Shift Management
+| Item | Files |
+|------|-------|
+| Shift CRUD API (create/read/update/delete + employee assignment) | `api/shifts/route.ts` |
+| HR shift management page (summary cards, table, modals) | `hr/(main)/shifts/page.tsx` |
+
+#### L11 — Exit Checklist
+| Item | Files |
+|------|-------|
+| Exit checklist CRUD API (task completion tracking) | `api/exit-checklist/route.ts` |
+| HR exit checklist page (progress bars, category filters) | `hr/(main)/exit-checklist/page.tsx` |
+
+#### L12 — Approval Hierarchy & Job Levels
+| Item | Files |
+|------|-------|
+| Approval hierarchy API (4-level chain + HR partner, upsert) | `api/approval-hierarchy/route.ts` |
+| Job levels CRUD API | `api/job-levels/route.ts` |
+| HR approval config page (two-tab: chains + levels) | `hr/(main)/approval-config/page.tsx` |
+
+#### L13 — Salary Components & Revisions
+| Item | Files |
+|------|-------|
+| Salary components CRUD API (grouped by earning/deduction/statutory) | `api/salary-components/route.ts` |
+| Salary revisions API (paginated history, auto change_percent) | `api/salary-revisions/route.ts` |
+| HR salary components page (two-tab: components + revision history) | `hr/(main)/salary-components/page.tsx` |
+
+#### L14 — Navigation Updates
+| Item | Detail |
+|------|--------|
+| HR sidebar nav | Added Shifts, Exit Checklist, Approval Config, Salary Components (21 total items) |
+| Icon imports | Timer, ListChecks, GitBranch, Layers |
+
+#### L15 — Build Verification (Post L9-L14)
+| Check | Status |
+|-------|--------|
+| `next build` clean (0 errors) | PASS |
+| All new API routes compiled | PASS |
+| All new pages rendered | PASS |
+| 42+ pages total | PASS |
+
+#### L16 — Document Upload UI Enhancement
+| Item | Detail |
+|------|--------|
+| Upload mode toggle | File upload (default) / Paste URL, toggle buttons |
+| Drag-and-drop file picker | PDF/PNG/JPG/DOC/DOCX, 10MB limit, file size display |
+| FormData multipart submission | Uses `/api/documents/upload` for file mode |
+| Backward-compatible URL mode | Uses existing `/api/documents` POST for URL mode |
+
+#### L17 — Runtime Fix (.next Cache Corruption)
+| Check | Detail |
+|-------|--------|
+| Root cause | Corrupted `.next/server/vendor-chunks/@supabase.js` — stale dev cache |
+| Fix | Deleted `.next` directory, fresh dev server start |
+| Result | All 42+ pages return HTTP 200 |
+
+---
+
+### 27.9 COMPREHENSIVE FACILITY AUDIT & IMPLEMENTATION CHECKLIST
+
+> Audit performed 2026-03-09. Every page and API route was tested at runtime.
+> Legend: [x] = implemented, [ ] = missing/needs implementation
+
+#### EMPLOYEE PORTAL (9 pages)
+
+**Dashboard**
+- [x] Leave balance cards with progress bars
+- [x] Recent leave requests with status
+- [x] Upcoming holidays
+- [x] Quick action grid
+- [x] Real-time Pusher updates
+- [x] Welcome tutorial modal
+- [ ] Calendar widget showing personal leave/attendance
+
+**Request Leave**
+- [x] Company-specific leave types
+- [x] Real-time constraint checking with AI recommendations
+- [x] Violation/warning display
+- [x] Progress bar during submission
+- [ ] Draft save functionality
+- [ ] Leave request on behalf of (for managers)
+
+**Leave History**
+- [x] Status filter tabs
+- [x] Cancel pending/escalated requests
+- [x] Detail view modal
+- [x] Pagination
+- [ ] CSV export of leave history
+- [ ] Date range filter
+
+**Attendance**
+- [x] Check-in/check-out (Office + WFH)
+- [x] Monthly attendance log with date navigation
+- [x] Summary cards (Present, WFH, Hours, %)
+- [x] Leave balance panel
+- [x] Regularization request modal with date + reason
+- [x] Past regularization request list
+- [ ] Calendar view of attendance
+- [ ] Overtime tracking
+- [ ] Export own attendance
+
+**Documents**
+- [x] Upload modal (file + URL modes)
+- [x] Category tabs (Personal ID, Certificates, etc.)
+- [x] Status badges (pending/verified/rejected/expired)
+- [x] Expiry date tracking
+- [x] File upload via multipart/form-data to Supabase Storage
+- [ ] Preview document inline (PDF viewer)
+
+**Payslips**
+- [x] Monthly payslip list
+- [x] Detail modal
+- [x] Download capability
+- [ ] Year/month filter
+- [ ] Salary comparison chart
+
+**Reimbursements**
+- [x] Submit reimbursement with amount, category, receipt
+- [x] Status tracking
+- [ ] Receipt preview
+- [ ] Reimbursement history filter
+
+**Profile**
+- [x] View and edit personal info via /api/employees/me
+- [ ] Profile photo upload
+- [ ] Emergency contact section
+
+**Settings**
+- [x] Notification preferences
+- [x] Theme settings
+- [ ] Password change (depends on auth provider)
+- [ ] Two-factor authentication toggle
+
+#### HR PORTAL (21 pages)
+
+**Dashboard**
+- [x] 6 parallel API calls for metrics
+- [x] Employee count, pending approvals, today absent, SLA breaches
+- [x] Leave trends bar chart
+- [x] Recent pending requests with inline approve/reject
+- [x] Quick actions grid
+- [x] Real-time Pusher updates
+- [ ] Customizable widget layout
+- [ ] Department-level drill down
+
+**Employees**
+- [x] Full CRUD (add/edit/delete)
+- [x] Search and pagination
+- [x] Pending registrations with approve/reject
+- [x] Employee detail page (/hr/employees/[id])
+- [ ] Bulk import employees (CSV upload)
+- [ ] Employee profile photo
+- [ ] Employment history timeline
+
+**Leave Requests**
+- [x] Status filter tabs (pending/escalated/approved/rejected/all)
+- [x] Date range filtering (client-side)
+- [x] Department filter
+- [x] Leave type filter
+- [x] Pagination (server-side, 20/page)
+- [x] Individual approve/reject
+- [x] Bulk select + bulk approve/reject
+- [ ] **Search by employee name** (HIGH PRIORITY)
+- [ ] **CSV/PDF export** (HIGH PRIORITY)
+- [ ] Column sorting
+- [ ] Request detail/comments view modal
+- [ ] Audit trail per request inline
+
+**Leave Encashment**
+- [x] Approve/reject encashment requests
+- [ ] Encashment policy configuration
+- [ ] Batch processing
+
+**Escalation**
+- [x] SLA-breached request display
+- [x] Approve/reject actions
+- [ ] Escalation rules configuration
+- [ ] Auto-escalation preview
+
+**Approvals (hub)**
+- [x] Re-exports leave-requests page
+- [ ] **Unified approval queue** (leaves + reimbursements + regularizations + movements)
+
+**Attendance**
+- [x] Daily attendance view for all employees
+- [x] Date picker
+- [x] Search by employee name
+- [x] Status filter
+- [x] Summary stats
+- [x] CSV export
+- [ ] **Regularization approval UI** (HIGH PRIORITY — API exists but no HR UI)
+- [ ] Monthly/weekly aggregate view
+- [ ] PDF export
+- [ ] Attendance analytics/trends
+
+**Payroll**
+- [x] Generate payroll run
+- [x] Approve payroll
+- [x] Payroll history
+- [x] Slip detail view
+- [ ] Payroll configuration UI (tax slabs, PF rates)
+- [ ] Payroll export to bank format
+- [ ] Year-end tax computation report
+
+**Salary Structures**
+- [x] CRUD with CTC breakdown
+- [x] Component display
+- [ ] Bulk salary revision
+- [ ] Salary comparison
+
+**Reimbursements**
+- [x] View and process reimbursement requests
+- [ ] Category-wise reporting
+- [ ] Policy limit configuration
+
+**Employee Movements**
+- [x] Promotions/transfers/lateral moves
+- [ ] Movement approval workflow
+- [ ] Movement history timeline per employee
+
+**Shifts**
+- [x] CRUD for shift definitions
+- [x] Employee-to-shift assignment
+- [ ] Shift calendar view
+- [ ] Shift swap requests
+
+**Exit Checklist**
+- [x] Checklist templates and tracking
+- [x] Progress bars per employee
+- [ ] Automated task assignment
+- [ ] Exit interview scheduling
+
+**Approval Config**
+- [x] Multi-level approval hierarchy
+- [x] Job levels management
+- [ ] Conditional approval routing rules
+- [ ] Approval delegation
+
+**Salary Components**
+- [x] CRUD grouped by type
+- [x] Revision history
+- [ ] Component formula editor
+
+**Policy Settings**
+- [x] Constraint rules inline editing
+- [x] Leave types full CRUD
+- [x] Active/inactive toggle per rule
+- [ ] Policy version history/rollback
+- [ ] Policy simulation/preview
+
+**Holidays**
+- [x] Holiday management CRUD
+- [ ] Regional holiday support
+- [ ] Holiday calendar view
+
+**Reports**
+- [x] Leave summary analytics
+- [x] Status breakdown, leave types, monthly trend
+- [x] Top leave takers
+- [x] CSV export
+- [x] PDF export
+- [ ] Custom date range reports
+- [ ] Attendance reports
+- [ ] Payroll reports
+
+**Organization**
+- [x] Org unit CRUD (department/division/team/branch)
+- [x] Hierarchical parent assignment
+- [x] Department member view
+- [ ] **Visual org chart** (tree diagram)
+- [ ] Department head assignment UI
+- [ ] Search/filter org units
+
+**Settings**
+- [x] Company settings and configuration
+- [ ] Email notification template editor
+- [ ] Branding/logo configuration
+
+**Audit Logs**
+- [x] Full audit log viewer
+- [x] Search and pagination
+- [x] Expandable detail rows
+- [x] Action type filtering
+- [ ] Audit log CSV/PDF export
+- [ ] Integrity verification UI
+
+#### MANAGER PORTAL (7 pages)
+
+**Dashboard**
+- [x] Team metrics (size, pending, availability, on leave)
+- [x] Inline approve/reject pending requests
+- [x] Team member list
+- [ ] Reject modal (currently uses window.prompt)
+
+**Team Calendar**
+- [x] Monthly calendar grid with leave overlays
+- [x] Holiday display
+- [x] Grid/list view toggle
+- [ ] Export capability
+
+**Approvals**
+- [x] Constraint engine analysis per request
+- [x] Search by employee name
+- [x] Status filter
+- [x] Pagination
+- [x] Bulk approve/reject
+- [ ] CSV/PDF export of decisions
+
+**Team Attendance**
+- [x] Daily view with date navigation
+- [x] Summary cards
+- [x] Regularization approval tab
+- [ ] Export attendance data
+- [ ] Weekly/monthly aggregate view
+
+**Team**
+- [x] Expandable team member cards
+- [x] Leave balances per member
+- [x] Attendance summary per member
+- [ ] Dedicated team member profile page
+- [ ] Export team data
+
+**Reports**
+- [x] CSV export
+- [x] PDF export
+- [x] Year selector
+- [ ] Custom date range
+
+**Settings**
+- [x] Basic settings
+- [ ] **Reimbursement approval page** (HIGH PRIORITY — managers cannot approve team expenses)
+
+#### ADMIN PORTAL (3+3 shared pages)
+
+**Dashboard**
+- [x] 6 parallel API calls for metrics
+- [x] System health display
+- [x] Recent audit logs
+- [x] Recent payroll runs
+- [ ] User session management
+- [ ] Failed login attempt tracking
+
+**RBAC & Permissions**
+- [x] Full interactive permission matrix (6 roles x 48 permissions)
+- [x] Toggle, save, reset to defaults
+- [x] Search and module filter
+- [ ] Role creation/deletion
+- [ ] Permission audit trail
+
+**System Health**
+- [x] Real-time monitoring with auto-refresh
+- [x] Database, memory, environment display
+- [x] Response time history chart
+- [ ] Alert configuration
+- [ ] Uptime history graph
+
+**Missing Admin Pages**
+- [ ] **SSO/Keycloak configuration UI**
+- [ ] **Email template editor**
+- [ ] **Feature flag management**
+- [ ] **Bulk data import/export tools**
+- [ ] **Security dashboard** (failed logins, IP blocks)
+- [ ] **Subscription/license management**
+
+#### CROSS-CUTTING FACILITIES
+
+**Audit Logging**
+- [x] Comprehensive action coverage (leave, employee, attendance, payroll, security)
+- [x] Integrity chain hashing
+- [x] Dedicated viewer page
+- [ ] Export audit logs
+
+**Notifications**
+- [x] Bell component in all portals
+- [x] Preferences API
+- [x] Read/read-all
+- [ ] Email notification delivery
+- [ ] Notification history full page
+
+**Error Handling**
+- [x] Portal-specific error.tsx boundaries
+- [x] Portal-specific loading.tsx skeletons
+- [x] Inline error states with retry
+- [ ] Global error reporting dashboard
+
+**Help / Documentation**
+- [ ] In-app help pages per portal
+- [ ] Contextual tooltips
+- [ ] FAQ / knowledge base
+
+---
+
+### 27.10 IMPLEMENTATION PRIORITY QUEUE (Post L17)
+
+| # | Item | Portal | Type | Impact | Status |
+|---|------|--------|------|--------|--------|
+| 1 | HR Leave Requests: employee name search + CSV/PDF export | HR | Enhancement | HIGH | DONE (L18) |
+| 2 | Manager Reimbursement approval page | Manager | New page | HIGH | DONE (L19) |
+| 3 | HR Attendance: regularization approval tab | HR | Enhancement | HIGH | DONE (L20) |
+| 4 | Manager reject modal (replace window.prompt) | Manager | Fix | HIGH | DONE (L21) |
+| 5 | HR Approvals: unified queue (leaves + reimbursements + regularizations) | HR | Enhancement | MEDIUM | PLANNED |
+| 6 | Visual org chart | HR | New feature | MEDIUM | PLANNED |
+| 7 | Employee leave history: CSV export + date range filter | Employee | Enhancement | MEDIUM | DONE (L22) |
+| 8 | Audit log export (CSV/PDF) | HR | Enhancement | MEDIUM | DONE (L23) |
+| 9 | Admin security dashboard (failed logins, sessions) | Admin | New page | MEDIUM | PLANNED |
+| 10 | Help/documentation pages | All | New pages | MEDIUM | PLANNED |
+
+### 27.11 IMPLEMENTATION LOG (L17–L23)
+
+#### L17 — Runtime Fix (.next Cache Corruption)
+| Check | Detail |
+|-------|--------|
+| Root cause | Corrupted `.next/server/vendor-chunks/@supabase.js` — stale dev cache |
+| Fix | Deleted `.next` directory, fresh dev server start |
+| Result | All 42+ pages return HTTP 200 at runtime |
+
+#### L18 — HR Leave Requests: Search + Export
+| Item | Detail |
+|------|--------|
+| Employee name search | Real-time client-side search across name and department |
+| CSV export | Download filtered leave requests as CSV |
+| PDF export | Print-to-PDF with status, date range, totals |
+| Search input | Full-width search bar with lucide Search icon |
+
+#### L19 — Manager Reimbursement Approval Page
+| Item | Files |
+|------|-------|
+| Reimbursement approval page | `manager/(main)/reimbursements/page.tsx` |
+| Manager layout nav update | Added "Reimbursements" with Receipt icon |
+| Features | Status filter tabs, search, summary cards, approve/reject actions |
+
+#### L20 — HR Attendance Regularization Tab
+| Item | Detail |
+|------|--------|
+| Tab system | "Daily Attendance" + "Regularization Requests" tabs |
+| Regularization list | Employee, date, reason, submitted date, status |
+| Approve/reject | PATCH /api/attendance/regularize/[id] |
+| Summary cards | Pending / Approved / Rejected counts |
+| Existing functionality | 100% preserved — daily tab unchanged |
+
+#### L21 — Manager Reject Modal
+| Item | Detail |
+|------|--------|
+| Replaced | `window.prompt()` → proper Modal component |
+| Modal | Title, textarea for reason (optional), Cancel/Confirm Reject buttons |
+| UX | Non-blocking, mobile-friendly, dark mode compatible |
+
+#### L22 — Employee Leave History: Export + Filter
+| Item | Detail |
+|------|--------|
+| Date range filter | From/To date inputs filter leave requests client-side |
+| CSV export | Download filtered leave history with all columns |
+
+#### L23 — Audit Log Export
+| Item | Detail |
+|------|--------|
+| CSV export | Timestamp, Action, Actor, Entity Type, Entity ID |
+| PDF export | Same columns, formatted report with metadata |
+
+#### Build Verification (Post L18-L23)
+| Check | Status |
+|-------|--------|
+| `next build` clean (0 errors) | PASS |
+| 59 static pages generated | PASS |
+| All new routes return HTTP 200 | PASS |
+| Manager reimbursements page functional | PASS |
+
+### 27.12 SIX-LAYER PRODUCT AUDIT
+
+> Deep functional audit: every button, API call, and data flow tested against the 6-layer product framework.
+
+#### Layer 1 — Core Service (Leave Management Flow)
+| Journey | Status | Detail |
+|---------|--------|--------|
+| Employee requests leave | WORKS | Full form → constraint engine → submit → progress UI → redirect |
+| Constraint engine real-time preview | WORKS | Debounced POST to /api/leaves/check-constraints, graceful degradation if engine offline |
+| Manager approves leave | WORKS | POST /api/leaves/approve/[id] with atomic Prisma $transaction (balance update + status change + audit log) |
+| Manager rejects leave | WORKS | POST /api/leaves/reject/[id] with balance restoration, rejection email with comments |
+| Bulk approve/reject | WORKS (FIXED) | Now uses atomic POST /api/leaves/bulk-approve endpoint (was: N sequential calls) |
+| Employee cancels leave | WORKS | POST /api/leaves/cancel/[id] with balance restoration |
+| Leave balance auto-seed | WORKS | /api/leaves/balances auto-creates balances for new employees |
+
+#### Layer 2 — Essential Infrastructure
+| Component | Status | Detail |
+|-----------|--------|--------|
+| Authentication (3 providers) | WORKS | Supabase (primary) → Firebase (legacy) → Keycloak (SSO) |
+| Role-based redirects | WORKS | Sign-in → /api/auth/me → role check → portal redirect |
+| Auth guard (server) | WORKS | Every API route uses getAuthEmployee() with role/permission validation |
+| Auth guard (client) | WORKS | Every layout calls /api/auth/me, redirects unauthorized users |
+| Database (Prisma + PostgreSQL) | WORKS | 44 models, all queries use org_id scoping for multi-tenancy |
+| Rate limiting | WORKS | checkApiRateLimit on all critical endpoints |
+| CORS + Request tracing | WORKS | Origin whitelist, X-Request-Id on every response |
+| Path traversal protection | WORKS | Middleware blocks `..` and `%2e` encoded attacks |
+
+#### Layer 3 — Usability
+| Component | Status | Detail |
+|-----------|--------|--------|
+| Employee dashboard | WORKS | 3 parallel API calls, leave balances, recent requests, holidays |
+| HR dashboard | WORKS | 6 parallel API calls, employee count, pending approvals, SLA breaches |
+| Manager dashboard | WORKS | Team metrics, inline approve/reject with modal (FIXED from window.prompt) |
+| Admin dashboard | WORKS | System health, audit logs, payroll runs, 4 metric cards |
+| Onboarding wizard | WORKS (ENHANCED) | 6-step flow, custom holiday support added |
+| Dark mode | WORKS | Full HSL theme with Tailwind v4, all pages consistent |
+| Mobile responsive | WORKS | Animated sidebar drawer, responsive grids, touch-friendly |
+| Loading skeletons | WORKS | Every page has Skeleton components during data fetch |
+| Error states | WORKS | Inline error banners with retry buttons on every page |
+
+#### Layer 4 — Comfort Features
+| Feature | Status | Detail |
+|---------|--------|--------|
+| Real-time notifications (Pusher) | WORKS (FIXED) | Server-side sendPusherEvent() wired into submit/approve/reject APIs |
+| Notification bell | WORKS | Dropdown with unread count, mark read, mark all read |
+| DB notifications | WORKS (FIXED) | sendNotification() creates DB record + Pusher event on leave actions |
+| Search | WORKS | Employee name search on HR leaves, HR employees, HR attendance, manager approvals |
+| Filters | WORKS | Status, date range, department, leave type on all list pages |
+| CSV export | WORKS | HR leave requests, HR attendance, HR reports, manager reports, employee leave history, audit logs |
+| PDF export | WORKS | HR leave requests, HR reports, manager reports, audit logs |
+| Pagination | WORKS | Server-side on leaves, employees, audit logs; client-side on others |
+
+#### Layer 5 — Delight / Premium
+| Feature | Status | Detail |
+|---------|--------|--------|
+| AI constraint engine | WORKS | Real-time leave policy evaluation with confidence scores |
+| Smart suggestions | WORKS | Per-rule alternative date suggestions when constraints violated |
+| Framer Motion animations | WORKS | Container/item stagger, spring physics, exit animations on all pages |
+| Progress bar on submit | WORKS | Multi-step progress (20% → 40% → 80% → 100%) with step labels |
+| Optimistic UI updates | WORKS | Approve/reject immediately updates list without re-fetch |
+
+#### Layer 6 — Trust
+| Feature | Status | Detail |
+|---------|--------|--------|
+| Audit logging | WORKS | Every leave/employee/attendance/payroll action logged with actor, entity, timestamp |
+| Audit integrity chain | WORKS | SHA-256 chain hashing for tamper detection |
+| RBAC permissions | WORKS | 6 roles × 48 permissions, interactive matrix editor |
+| Data scoping | WORKS | All queries filtered by org_id (multi-tenant isolation) |
+| Self-action prevention | WORKS | Cannot approve own leave, cannot deactivate self |
+| Approval hierarchy | WORKS | Manager → Director → HR escalation chain |
+| SLA breach detection | WORKS | Cron-based SLA check with auto-escalation |
+
+### 27.13 USER JOURNEY MAPS
+
+#### Employee Journey
+```
+Sign In → Auth check → /employee/dashboard
+  ├→ View leave balances (auto-seeded)
+  ├→ Request Leave → Select type → Pick dates → Constraint check → Submit → Progress bar → Redirect to history
+  ├→ Leave History → View status → Cancel pending → CSV export
+  ├→ Attendance → Clock In (Office/WFH) → Clock Out → View log → Request Regularization
+  ├→ Documents → Upload file (multipart) or paste URL → View/filter by category
+  ├→ Payslips → View monthly payslips → Download
+  ├→ Reimbursements → Submit expense → Track status
+  ├→ Profile → View/edit personal info
+  └→ Settings → Notification preferences → Theme toggle
+```
+
+#### Manager Journey
+```
+Sign In → Auth check → /manager/dashboard
+  ├→ View team metrics (size, pending, availability)
+  ├→ Inline approve/reject pending requests (with modal for rejection reason)
+  ├→ Approvals → Full list → Constraint engine analysis → Approve/Reject with comments → Bulk operations (atomic)
+  ├→ Team Calendar → Monthly grid → Leave overlays → Holiday display
+  ├→ Team Attendance → Daily view → Regularization approval tab
+  ├→ Team → Expandable member cards → Leave balances → Attendance summary
+  ├→ Reimbursements → Approve/reject team expenses
+  ├→ Reports → CSV/PDF export → Year selector
+  └→ Settings → Preferences
+```
+
+#### HR Journey
+```
+Sign In → Auth check → /hr/dashboard
+  ├→ 6-metric dashboard with Pusher real-time
+  ├→ Employees → CRUD → Add/Edit/Deactivate → Pending registrations → Employee detail page
+  ├→ Leave Requests → Search by name → Filter → Approve/Reject → Bulk → CSV/PDF export
+  ├→ Leave Encashment → Process encashment requests
+  ├→ Escalation → Handle SLA-breached requests
+  ├→ Attendance → Daily view → CSV export → Regularization approval tab
+  ├→ Payroll → Generate → Approve → History → Slips
+  ├→ Salary Structures → CRUD with CTC breakdown
+  ├→ Salary Components → Earnings/deductions/statutory management → Revision history
+  ├→ Reimbursements → Process team expenses
+  ├→ Employee Movements → Promotions/transfers/lateral moves
+  ├→ Shifts → CRUD → Employee assignment
+  ├→ Exit Checklist → Task tracking with progress bars
+  ├→ Approval Config → Multi-level hierarchy → Job levels
+  ├→ Policy Settings → Leave types CRUD → Constraint rules editing
+  ├→ Holidays → CRUD management
+  ├→ Reports → Leave summary → CSV/PDF export
+  ├→ Organization → Org units CRUD → Department member view
+  ├→ Settings → Company configuration
+  └→ Audit Logs → Search → Expand detail → CSV/PDF export
+```
+
+#### Admin Journey
+```
+Sign In → Auth check → /admin/dashboard
+  ├→ System metrics (employees, attendance, health, audit, payroll)
+  ├→ RBAC & Permissions → Interactive 6×48 matrix → Toggle/Save/Reset
+  ├→ System Health → Real-time monitoring → DB latency → Memory → Auto-refresh
+  ├→ Employees → (Shared with HR) full CRUD
+  ├→ Audit Logs → (Shared with HR) full viewer with export
+  └→ Settings → (Shared with HR) company settings
+```
+
+### 27.14 IMPLEMENTATION LOG (L24–L27: Deep Audit Fixes)
+
+#### L24 — Real-Time Notifications Fix (CRITICAL)
+| Item | Detail |
+|------|--------|
+| Root cause | Server-side APIs never called Pusher after leave actions |
+| Channel mismatch | Server emitted to `employee-{id}`, client listened on `user-{id}` — fixed to `user-{id}` |
+| Files modified | `lib/notification-service.ts`, `api/leaves/submit/route.ts`, `api/leaves/approve/[requestId]/route.ts`, `api/leaves/reject/[requestId]/route.ts` |
+| Behavior | Submit notifies manager via DB+Pusher; Approve/Reject notifies employee via DB+Pusher |
+
+#### L25 — Atomic Bulk Approve Fix
+| Item | Detail |
+|------|--------|
+| Root cause | Manager approvals page looped N individual API calls instead of using `/api/leaves/bulk-approve` |
+| Fix | Replaced sequential loop with single POST to `/api/leaves/bulk-approve` |
+| Impact | Atomic operation (all-or-nothing), 1 network call instead of N, proper error aggregation |
+| File modified | `manager/(main)/approvals/page.tsx` |
+
+#### L26 — Custom Holidays in Onboarding
+| Item | Detail |
+|------|--------|
+| Root cause | Only 6 hardcoded Indian holidays, no way to add custom dates |
+| Fix | Added "Add Holiday" button, name+date inputs, remove button, `custom` flag on HolidayEntry |
+| File modified | `onboarding/page.tsx` (HolidaysStep component) |
+
+#### L27 — Build Verification (Post Deep Audit)
+| Check | Status |
+|-------|--------|
+| `next build` clean (0 errors) | PASS |
+| All 59 pages compile | PASS |
+| Notification service channel fix | VERIFIED |
+| Bulk approve endpoint wiring | VERIFIED |
+
+---

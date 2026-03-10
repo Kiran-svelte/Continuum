@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
         { status: 429, headers: getRateLimitHeaders(rateLimit) }
       );
     }
-    requireRole(employee, 'admin', 'hr', 'director');
+    requireRole(employee, 'admin', 'hr', 'director', 'manager');
 
     const { searchParams } = new URL(request.url);
     const dateStr = searchParams.get('date');

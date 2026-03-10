@@ -62,6 +62,7 @@ enum EncashmentStatus {
   pending
   approved
   processed
+  rejected
 }
 
 enum RuleCategory {
@@ -275,6 +276,19 @@ model Employee {
   created_at         DateTime       @default(now())
   updated_at         DateTime       @updatedAt
   deleted_at         DateTime?
+
+  // Emergency contact
+  emergency_contact_name         String?
+  emergency_contact_phone        String?
+  emergency_contact_relationship String?
+
+  // Bank details
+  bank_name            String?
+  bank_account_number  String?
+  ifsc_code            String?
+
+  // Address
+  current_address      String?
 
   direct_reports     Employee[]     @relation("ManagerReports")
 

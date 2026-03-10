@@ -2,7 +2,7 @@
 
 import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X } from 'lucide-react';
+import { X, AlertTriangle, AlertCircle, Info } from 'lucide-react';
 import { useEffect, useCallback } from 'react';
 
 interface ModalProps {
@@ -194,19 +194,13 @@ export function ConfirmDialog({
           )}
         >
           {variant === 'danger' && (
-            <svg className="w-6 h-6 text-red-600 dark:text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-            </svg>
+            <AlertTriangle className="w-6 h-6 text-red-600 dark:text-red-400" />
           )}
           {variant === 'warning' && (
-            <svg className="w-6 h-6 text-yellow-600 dark:text-yellow-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
+            <AlertCircle className="w-6 h-6 text-yellow-600 dark:text-yellow-400" />
           )}
           {variant === 'info' && (
-            <svg className="w-6 h-6 text-blue-600 dark:text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
+            <Info className="w-6 h-6 text-blue-600 dark:text-blue-400" />
           )}
         </div>
         <h3 className="text-lg font-semibold text-foreground mb-2">{title}</h3>

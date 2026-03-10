@@ -5,6 +5,15 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { getPusherClient, getUserChannelName, type PusherEventType } from '@/lib/pusher-client';
 import { ensureMe } from '@/lib/client-auth';
 import { SkeletonNotification } from '@/components/ui/skeleton';
+import {
+  Bell,
+  BellOff,
+  FileText,
+  CheckCircle2,
+  XCircle,
+  Wallet,
+  AlertTriangle,
+} from 'lucide-react';
 
 interface Notification {
   id: string;
@@ -23,6 +32,16 @@ interface PusherNotificationData {
   message: string;
   data?: Record<string, any>;
 }
+
+const notificationIconMap: Record<string, React.ReactNode> = {
+  'leave-request-submitted': <FileText className="w-5 h-5 text-blue-500" />,
+  'leave-request-approved': <CheckCircle2 className="w-5 h-5 text-green-500" />,
+  'leave-request-rejected': <XCircle className="w-5 h-5 text-red-500" />,
+  'leave-balance-updated': <Wallet className="w-5 h-5 text-amber-500" />,
+  'sla-breach-warning': <AlertTriangle className="w-5 h-5 text-red-600" />,
+  'user-notification': <Bell className="w-5 h-5 text-primary" />,
+  'default': <Bell className="w-5 h-5 text-primary" />,
+};
 
 export function NotificationBell() {
   const [open, setOpen] = useState(false);
@@ -69,7 +88,7 @@ export function NotificationBell() {
 
     setConnecting(true);
     const pusher = getPusherClient();
-    
+
     if (!pusher) {
       console.warn('Pusher not available. Real-time notifications disabled.');
       setConnecting(false);
@@ -106,7 +125,7 @@ export function NotificationBell() {
 
       setNotifications(prev => [newNotification, ...prev.slice(0, 19)]);
       setHasNewNotification(true);
-      
+
       // Auto-hide the new notification indicator after 3 seconds
       setTimeout(() => setHasNewNotification(false), 3000);
 
@@ -122,7 +141,7 @@ export function NotificationBell() {
     // Bind to all notification event types
     const eventTypes: PusherEventType[] = [
       'leave-request-submitted',
-      'leave-request-approved', 
+      'leave-request-approved',
       'leave-request-rejected',
       'leave-balance-updated',
       'sla-breach-warning',
@@ -199,16 +218,7 @@ export function NotificationBell() {
   }
 
   function getNotificationIcon(type: string) {
-    const iconMap: Record<string, string> = {
-      'leave-request-submitted': '📝',
-      'leave-request-approved': '✅',
-      'leave-request-rejected': '❌',
-      'leave-balance-updated': '💰',
-      'sla-breach-warning': '🚨',
-      'user-notification': '🔔',
-      'default': '🔔'
-    };
-    return iconMap[type] || iconMap.default;
+    return notificationIconMap[type] || notificationIconMap.default;
   }
 
   return (
@@ -221,21 +231,21 @@ export function NotificationBell() {
         whileHover={{ scale: 1.05 }}
         whileTap={{ scale: 0.95 }}
       >
-        <motion.span 
-          className="text-xl"
+        <motion.span
+          className="flex items-center justify-center"
           animate={hasNewNotification ? { rotate: [0, 15, -15, 0] } : {}}
           transition={{ duration: 0.5 }}
         >
-          🔔
+          <Bell className="w-5 h-5 text-foreground" />
         </motion.span>
-        
+
         {/* Connection status indicator */}
         {connecting && (
           <div className="absolute -top-1 -left-1 w-3 h-3">
             <div className="w-3 h-3 border-2 border-yellow-500 border-t-transparent rounded-full animate-spin"></div>
           </div>
         )}
-        
+
         {/* Unread count badge with animation */}
         <AnimatePresence>
           {unreadCount > 0 && (
@@ -264,12 +274,12 @@ export function NotificationBell() {
             {/* Header with better styling */}
             <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-muted/30">
               <div className="flex items-center gap-2">
-                <span className="text-lg">🔔</span>
+                <Bell className="w-4 h-4 text-foreground" />
                 <p className="text-sm font-semibold text-foreground">
                   Notifications
                 </p>
                 {unreadCount > 0 && (
-                  <motion.span 
+                  <motion.span
                     initial={{ scale: 0 }}
                     animate={{ scale: 1 }}
                     className="bg-red-500 text-white text-xs px-1.5 py-0.5 rounded-full font-medium"
@@ -283,7 +293,7 @@ export function NotificationBell() {
                   </span>
                 )}
               </div>
-              
+
               {unreadCount > 0 && (
                 <button
                   onClick={markAllRead}
@@ -303,14 +313,14 @@ export function NotificationBell() {
                   ))}
                 </div>
               )}
-              
+
               {!loading && notifications.length === 0 && (
                 <div className="px-4 py-8 text-center">
                   <motion.div
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                   >
-                    <span className="text-3xl mb-2 block">🔕</span>
+                    <BellOff className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
                     <p className="text-sm text-muted-foreground">No notifications yet</p>
                     <p className="text-xs text-muted-foreground mt-1">
                       Real-time notifications are {connecting ? 'connecting' : 'active'}
@@ -318,7 +328,7 @@ export function NotificationBell() {
                   </motion.div>
                 </div>
               )}
-              
+
               {!loading && notifications.map((notification, index) => (
                 <motion.div
                   key={notification.id}
@@ -332,10 +342,10 @@ export function NotificationBell() {
                 >
                   <div className="flex items-start gap-3">
                     {/* Notification type icon */}
-                    <span className="text-lg mt-0.5 shrink-0">
+                    <span className="mt-0.5 shrink-0">
                       {getNotificationIcon(notification.type)}
                     </span>
-                    
+
                     {/* Notification content */}
                     <div className="flex-1 min-w-0">
                       <p className={`text-sm font-medium ${!notification.is_read ? 'text-foreground' : 'text-muted-foreground'}`}>
@@ -349,7 +359,7 @@ export function NotificationBell() {
                           {timeAgo(notification.created_at)}
                         </p>
                         {!notification.is_read && (
-                          <span className="w-2 h-2 rounded-full bg-primary shrink-0" 
+                          <span className="w-2 h-2 rounded-full bg-primary shrink-0"
                                 title="Unread" />
                         )}
                       </div>

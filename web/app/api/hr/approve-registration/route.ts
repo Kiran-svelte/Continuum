@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import prisma from '@/lib/prisma';
-import { getAuthUserFromRequest, getAuthEmployee } from '@/lib/auth-guard';
+import { getAuthEmployee, requireRole } from '@/lib/auth-guard';
 import { checkApiRateLimit, getRateLimitHeaders } from '@/lib/api-rate-limit';
 import { createAuditLog, AUDIT_ACTIONS } from '@/lib/audit';
 import { sendRegistrationApprovedEmail, sendRegistrationRejectedEmail } from '@/lib/email-service';
@@ -33,26 +33,8 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const { user, error: authError } = await getAuthUserFromRequest(request);
-    
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
-    }
-
-    // Get the authenticated employee
-    const employee = await prisma.employee.findUnique({
-      where: { auth_id: user.uid },
-    });
-
-    if (!employee) {
-      return NextResponse.json({ error: 'Employee profile not found' }, { status: 404 });
-    }
-
-    // Only HR and admin can approve registrations
-    const allowedRoles = ['admin', 'hr'];
-    if (!allowedRoles.includes(employee.primary_role)) {
-      return NextResponse.json({ error: 'Forbidden: requires admin or hr role' }, { status: 403 });
-    }
+    const employee = await getAuthEmployee();
+    requireRole(employee, 'admin', 'hr');
 
     const body = await request.json();
     const parsed = approveSchema.safeParse(body);
@@ -199,26 +181,8 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const { user, error: authError } = await getAuthUserFromRequest(request);
-    
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
-    }
-
-    // Get the authenticated employee
-    const employee = await prisma.employee.findUnique({
-      where: { auth_id: user.uid },
-    });
-
-    if (!employee) {
-      return NextResponse.json({ error: 'Employee profile not found' }, { status: 404 });
-    }
-
-    // Only HR and admin can view pending registrations
-    const allowedRoles = ['admin', 'hr'];
-    if (!allowedRoles.includes(employee.primary_role)) {
-      return NextResponse.json({ error: 'Forbidden: requires admin or hr role' }, { status: 403 });
-    }
+    const employee = await getAuthEmployee();
+    requireRole(employee, 'admin', 'hr');
 
     const pending = await prisma.employee.findMany({
       where: {

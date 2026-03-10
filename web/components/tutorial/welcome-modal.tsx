@@ -98,7 +98,7 @@ export function WelcomeModal({ tutorial, userName, roleName = 'Employee' }: Welc
                 {/* Welcome text */}
                 <div className="relative text-center">
                   <h2 className="text-2xl font-bold text-foreground mb-2">
-                    Welcome{userName ? `, ${userName}` : ''}! 🎉
+                    Welcome{userName ? `, ${userName}` : ''}!
                   </h2>
                   <p className="text-muted-foreground">
                     You&apos;re now part of the <span className="font-semibold text-primary">{roleName}</span> portal

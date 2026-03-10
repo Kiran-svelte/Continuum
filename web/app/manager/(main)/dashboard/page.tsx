@@ -6,11 +6,24 @@ import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Modal, ModalFooter } from '@/components/ui/modal';
 import { Skeleton } from '@/components/ui/skeleton';
 import { SkeletonDashboard } from '@/components/ui/skeleton';
 import { PageLoader } from '@/components/ui/progress';
 import { StartTutorialButton, managerTutorial } from '@/components/tutorial';
 import { ensureMe } from '@/lib/client-auth';
+import {
+  Users,
+  Clock,
+  BarChart3,
+  Home,
+  CheckSquare,
+  CheckCircle,
+  Check,
+  X,
+  type LucideIcon,
+} from 'lucide-react';
 
 interface LeaveRequestRow {
   id: string;
@@ -69,6 +82,11 @@ export default function ManagerDashboardPage() {
   const [todayOnLeave, setTodayOnLeave] = useState(0);
   const [approvingId, setApprovingId] = useState<string | null>(null);
   const [rejectingId, setRejectingId] = useState<string | null>(null);
+  const [actionSuccess, setActionSuccess] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [rejectModalOpen, setRejectModalOpen] = useState(false);
+  const [rejectModalId, setRejectModalId] = useState<string | null>(null);
+  const [rejectReason, setRejectReason] = useState('');
 
   useEffect(() => {
     let cancelled = false;
@@ -149,41 +167,76 @@ export default function ManagerDashboardPage() {
     }
   }, [authChecked, fetchPendingRequests, fetchTeam, fetchTodayOnLeave]);
 
+  function showSuccess(msg: string) {
+    setActionSuccess(msg);
+    setActionError(null);
+    setTimeout(() => setActionSuccess(null), 4000);
+  }
+
+  function showError(msg: string) {
+    setActionError(msg);
+    setActionSuccess(null);
+    setTimeout(() => setActionError(null), 5000);
+  }
+
   async function handleApprove(requestId: string) {
     setApprovingId(requestId);
     try {
       const res = await fetch(`/api/leaves/approve/${requestId}`, {
-        method: 'PATCH',
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ comments: 'Approved' }),
+        body: JSON.stringify({ comments: '' }),
       });
       if (res.ok) {
+        const req = pendingRequests.find(r => r.id === requestId);
         setPendingRequests(prev => prev.filter(r => r.id !== requestId));
         setPendingCount(c => Math.max(0, c - 1));
+        showSuccess(`Approved leave request for ${req?.employee.first_name ?? 'employee'}`);
+      } else {
+        const data = await res.json().catch(() => ({}));
+        showError(data.error ?? 'Failed to approve request');
       }
+    } catch {
+      showError('Network error while approving request');
     } finally {
       setApprovingId(null);
     }
   }
 
   async function handleReject(requestId: string) {
-    const reason = prompt('Reason for rejection:');
-    if (!reason) return;
+    setRejectModalId(requestId);
+    setRejectReason('');
+    setRejectModalOpen(true);
+  }
+
+  async function confirmReject() {
+    const requestId = rejectModalId;
+    if (!requestId) return;
+    setRejectModalOpen(false);
     setRejectingId(requestId);
     try {
       const res = await fetch(`/api/leaves/reject/${requestId}`, {
-        method: 'PATCH',
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ comments: reason }),
+        body: JSON.stringify({ comments: rejectReason }),
       });
       if (res.ok) {
+        const req = pendingRequests.find(r => r.id === requestId);
         setPendingRequests(prev => prev.filter(r => r.id !== requestId));
         setPendingCount(c => Math.max(0, c - 1));
+        showSuccess(`Rejected leave request for ${req?.employee.first_name ?? 'employee'}`);
+      } else {
+        const data = await res.json().catch(() => ({}));
+        showError(data.error ?? 'Failed to reject request');
       }
+    } catch {
+      showError('Network error while rejecting request');
     } finally {
       setRejectingId(null);
+      setRejectModalId(null);
+      setRejectReason('');
     }
   }
 
@@ -209,6 +262,13 @@ export default function ManagerDashboardPage() {
     );
   }
 
+  const metrics: { label: string; value: number; detail: string; icon: LucideIcon; color: string; bgColor: string; textColor: string }[] = [
+    { label: 'Team Size', value: teamSize, detail: `${teamSize} members`, icon: Users, color: 'from-blue-500 to-blue-600', bgColor: 'bg-blue-500/10', textColor: 'text-blue-600 dark:text-blue-400' },
+    { label: 'Pending Approvals', value: pendingCount, detail: pendingCount > 0 ? `${Math.min(pendingCount, 3)} need attention` : 'All clear', icon: Clock, color: 'from-amber-500 to-orange-500', bgColor: 'bg-amber-500/10', textColor: 'text-amber-600 dark:text-amber-400' },
+    { label: 'Team Available', value: teamSize - todayOnLeave, detail: `${teamSize > 0 ? (((teamSize - todayOnLeave) / teamSize) * 100).toFixed(0) : 0}% available`, icon: BarChart3, color: 'from-emerald-500 to-green-600', bgColor: 'bg-emerald-500/10', textColor: 'text-emerald-600 dark:text-emerald-400' },
+    { label: 'On Leave Today', value: todayOnLeave, detail: todayOnLeave > 0 ? `${todayOnLeave} away` : 'Full team present', icon: Home, color: 'from-purple-500 to-violet-600', bgColor: 'bg-purple-500/10', textColor: 'text-purple-600 dark:text-purple-400' },
+  ];
+
   return (
     <motion.div
       className="space-y-8"
@@ -230,59 +290,58 @@ export default function ManagerDashboardPage() {
             href="/manager/approvals"
             className="inline-flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2.5 rounded-xl text-sm font-medium hover:bg-primary/90 transition-all shadow-lg shadow-primary/20"
           >
-            ✅ Review All
+            <CheckSquare className="w-4 h-4" />
+            Review All
           </Link>
         </div>
       </motion.div>
 
       {/* Metrics */}
       <motion.div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6" variants={containerVariants}>
-        {[
-          { label: 'Team Size', value: teamSize, detail: `${teamSize} members`, icon: '👥', color: 'from-blue-500 to-blue-600', bgColor: 'bg-blue-500/10', textColor: 'text-blue-600 dark:text-blue-400' },
-          { label: 'Pending Approvals', value: pendingCount, detail: pendingCount > 0 ? `${Math.min(pendingCount, 3)} need attention` : 'All clear', icon: '⏳', color: 'from-amber-500 to-orange-500', bgColor: 'bg-amber-500/10', textColor: 'text-amber-600 dark:text-amber-400' },
-          { label: 'Team Available', value: teamSize - todayOnLeave, detail: `${teamSize > 0 ? (((teamSize - todayOnLeave) / teamSize) * 100).toFixed(0) : 0}% available`, icon: '📊', color: 'from-emerald-500 to-green-600', bgColor: 'bg-emerald-500/10', textColor: 'text-emerald-600 dark:text-emerald-400' },
-          { label: 'On Leave Today', value: todayOnLeave, detail: todayOnLeave > 0 ? `${todayOnLeave} away` : 'Full team present', icon: '🏠', color: 'from-purple-500 to-violet-600', bgColor: 'bg-purple-500/10', textColor: 'text-purple-600 dark:text-purple-400' },
-        ].map((metric, index) => (
-          <motion.div
-            key={metric.label}
-            variants={itemVariants}
-            whileHover={{ y: -4, boxShadow: '0 20px 40px -12px rgba(0,0,0,0.15)' }}
-          >
-            <Card className="relative overflow-hidden border-0 shadow-md">
-              <div className={`absolute top-0 left-0 right-0 h-1 bg-gradient-to-r ${metric.color}`} />
-              <CardContent className="pt-6 pb-5">
-                {(loadingRequests || loadingTeam) ? (
-                  <div className="space-y-3 animate-pulse">
-                    <div className="flex items-center justify-between">
-                      <Skeleton className="h-4 w-24" />
-                      <Skeleton className="h-10 w-10 rounded-xl" />
-                    </div>
-                    <Skeleton className="h-8 w-12" />
-                    <Skeleton className="h-3 w-28" />
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <p className="text-sm font-medium text-muted-foreground">{metric.label}</p>
-                      <div className={`h-10 w-10 rounded-xl ${metric.bgColor} flex items-center justify-center text-lg`}>
-                        {metric.icon}
+        {metrics.map((metric, index) => {
+          const Icon = metric.icon;
+          return (
+            <motion.div
+              key={metric.label}
+              variants={itemVariants}
+              whileHover={{ y: -4, boxShadow: '0 20px 40px -12px rgba(0,0,0,0.15)' }}
+            >
+              <Card className="relative overflow-hidden border-0 shadow-md">
+                <div className={`absolute top-0 left-0 right-0 h-1 bg-gradient-to-r ${metric.color}`} />
+                <CardContent className="pt-6 pb-5">
+                  {(loadingRequests || loadingTeam) ? (
+                    <div className="space-y-3 animate-pulse">
+                      <div className="flex items-center justify-between">
+                        <Skeleton className="h-4 w-24" />
+                        <Skeleton className="h-10 w-10 rounded-xl" />
                       </div>
+                      <Skeleton className="h-8 w-12" />
+                      <Skeleton className="h-3 w-28" />
                     </div>
-                    <motion.p
-                      className={`text-3xl font-bold ${metric.textColor}`}
-                      initial={{ opacity: 0, scale: 0.5 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      transition={{ type: 'spring', delay: index * 0.1 + 0.3 }}
-                    >
-                      {metric.value}
-                    </motion.p>
-                    <p className="text-xs text-muted-foreground">{metric.detail}</p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </motion.div>
-        ))}
+                  ) : (
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <p className="text-sm font-medium text-muted-foreground">{metric.label}</p>
+                        <div className={`w-10 h-10 rounded-xl ${metric.bgColor} flex items-center justify-center`}>
+                          <Icon className={`w-5 h-5 ${metric.textColor}`} />
+                        </div>
+                      </div>
+                      <motion.p
+                        className={`text-3xl font-bold ${metric.textColor}`}
+                        initial={{ opacity: 0, scale: 0.5 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        transition={{ type: 'spring', delay: index * 0.1 + 0.3 }}
+                      >
+                        {metric.value}
+                      </motion.p>
+                      <p className="text-xs text-muted-foreground">{metric.detail}</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </motion.div>
+          );
+        })}
       </motion.div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -298,6 +357,29 @@ export default function ManagerDashboardPage() {
               </div>
             </CardHeader>
             <CardContent className="p-0">
+              {/* Success / Error messages */}
+              {actionSuccess && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="mx-6 mt-4 rounded-lg bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-800 px-4 py-3 text-sm text-emerald-700 dark:text-emerald-400 flex items-center gap-2"
+                >
+                  <CheckCircle className="w-4 h-4 shrink-0" />
+                  {actionSuccess}
+                </motion.div>
+              )}
+              {actionError && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="mx-6 mt-4 rounded-lg bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-800 px-4 py-3 text-sm text-red-700 dark:text-red-400 flex items-center gap-2"
+                >
+                  <X className="w-4 h-4 shrink-0" />
+                  {actionError}
+                </motion.div>
+              )}
               {loadingRequests ? (
                 <div className="divide-y divide-border/50">
                   {[1, 2, 3, 4].map((i) => (
@@ -318,7 +400,9 @@ export default function ManagerDashboardPage() {
                 </div>
               ) : pendingRequests.length === 0 ? (
                 <div className="py-16 text-center">
-                  <div className="text-4xl mb-3">✅</div>
+                  <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center mx-auto mb-3">
+                    <CheckCircle className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+                  </div>
                   <p className="text-sm text-muted-foreground">No pending approvals</p>
                   <p className="text-xs text-muted-foreground mt-1">You&apos;re all caught up!</p>
                 </div>
@@ -349,20 +433,26 @@ export default function ManagerDashboardPage() {
                           </p>
                         </div>
                         <div className="flex gap-2 shrink-0">
-                          <button
+                          <Button
+                            variant="success"
+                            size="sm"
+                            loading={approvingId === req.id}
+                            disabled={approvingId === req.id || rejectingId === req.id}
                             onClick={() => handleApprove(req.id)}
-                            disabled={approvingId === req.id}
-                            className="px-3 py-1.5 text-xs font-medium text-emerald-700 bg-emerald-50 rounded-lg hover:bg-emerald-100 transition-colors dark:text-emerald-400 dark:bg-emerald-500/10 dark:hover:bg-emerald-500/20 disabled:opacity-50"
                           >
-                            {approvingId === req.id ? '...' : 'Approve'}
-                          </button>
-                          <button
+                            <Check className="w-3.5 h-3.5" />
+                            Approve
+                          </Button>
+                          <Button
+                            variant="danger"
+                            size="sm"
+                            loading={rejectingId === req.id}
+                            disabled={rejectingId === req.id || approvingId === req.id}
                             onClick={() => handleReject(req.id)}
-                            disabled={rejectingId === req.id}
-                            className="px-3 py-1.5 text-xs font-medium text-red-700 bg-red-50 rounded-lg hover:bg-red-100 transition-colors dark:text-red-400 dark:bg-red-500/10 dark:hover:bg-red-500/20 disabled:opacity-50"
                           >
-                            {rejectingId === req.id ? '...' : 'Reject'}
-                          </button>
+                            <X className="w-3.5 h-3.5" />
+                            Reject
+                          </Button>
                         </div>
                       </div>
                     </motion.div>
@@ -401,7 +491,9 @@ export default function ManagerDashboardPage() {
                 </div>
               ) : teamMembers.length === 0 ? (
                 <div className="py-12 text-center">
-                  <div className="text-3xl mb-2">👥</div>
+                  <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center mx-auto mb-3">
+                    <Users className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                  </div>
                   <p className="text-sm text-muted-foreground">No team members found</p>
                 </div>
               ) : (
@@ -438,6 +530,38 @@ export default function ManagerDashboardPage() {
           </Card>
         </motion.div>
       </div>
+
+      {/* Reject Leave Request Modal */}
+      <Modal
+        isOpen={rejectModalOpen}
+        onClose={() => setRejectModalOpen(false)}
+        title="Reject Leave Request"
+        size="sm"
+      >
+        <textarea
+          className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 resize-none"
+          rows={3}
+          placeholder="Reason for rejection (optional)"
+          value={rejectReason}
+          onChange={(e) => setRejectReason(e.target.value)}
+        />
+        <ModalFooter>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setRejectModalOpen(false)}
+          >
+            Cancel
+          </Button>
+          <Button
+            variant="danger"
+            size="sm"
+            onClick={confirmReject}
+          >
+            Confirm Reject
+          </Button>
+        </ModalFooter>
+      </Modal>
     </motion.div>
   );
 }

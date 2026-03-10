@@ -72,14 +72,15 @@ function createTransport(): nodemailer.Transporter {
     });
   }
 
-  // SMTP fallback — Gmail App Password
+  // SMTP fallback — supports SendGrid, Gmail App Password, or any SMTP provider
   const smtpHost = process.env.SMTP_HOST?.trim() || 'smtp.gmail.com';
   const smtpPort = parseInt(process.env.SMTP_PORT || '587', 10);
-  const gmailUser = process.env.GMAIL_USER?.trim() || '';
-  const gmailPass = process.env.GMAIL_APP_PASSWORD?.trim() || '';
+  // SMTP_USER/SMTP_PASS take priority over legacy GMAIL_* vars
+  const smtpUser = process.env.SMTP_USER?.trim() || process.env.GMAIL_USER?.trim() || '';
+  const smtpPass = process.env.SMTP_PASS?.trim() || process.env.GMAIL_APP_PASSWORD?.trim() || '';
 
-  if (!gmailUser || !gmailPass) {
-    console.warn('[EmailService] GMAIL_USER or GMAIL_APP_PASSWORD not set — emails will fail');
+  if (!smtpUser || !smtpPass) {
+    console.warn('[EmailService] SMTP credentials not set — emails will fail');
   }
 
   return nodemailer.createTransport({
@@ -87,8 +88,8 @@ function createTransport(): nodemailer.Transporter {
     port: smtpPort,
     secure: smtpPort === 465,
     auth: {
-      user: gmailUser,
-      pass: gmailPass,
+      user: smtpUser,
+      pass: smtpPass,
     },
     tls: {
       rejectUnauthorized: false,
@@ -118,7 +119,7 @@ export async function sendEmail(
     }
 
     const transporter = createTransport();
-    const from = `Continuum HR <${process.env.GMAIL_USER || 'noreply@continuum.hr'}>`;
+    const from = `Continuum HR <${process.env.SMTP_FROM || process.env.GMAIL_USER || 'noreply@continuum.hr'}>`;
 
     const mailOptions: nodemailer.SendMailOptions = {
       from,

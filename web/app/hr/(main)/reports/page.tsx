@@ -3,6 +3,8 @@
 import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Download, FileText } from 'lucide-react';
+import { downloadCSVLegacy, downloadPDF } from '@/lib/report-export';
 
 interface LeaveSummary {
   year: number;
@@ -74,48 +76,84 @@ export default function ReportsPage() {
           <button
             onClick={() => {
               if (!data) return;
-              const rows: string[] = [];
+              const sections: { headers: string[]; rows: (string | number)[][] }[] = [];
 
               // Status breakdown
-              rows.push('--- Status Breakdown ---');
-              rows.push('Status,Count');
-              data.by_status.forEach((s) => rows.push(`${s.status},${s.count}`));
-              rows.push('');
+              sections.push({
+                headers: ['Status', 'Count'],
+                rows: data.by_status.map((s) => [s.status, s.count]),
+              });
 
               // Leave type breakdown
-              rows.push('--- Leave Type Breakdown ---');
-              rows.push('Leave Type,Count,Total Days');
-              data.by_leave_type.forEach((lt) => rows.push(`${lt.leave_type},${lt.count},${lt.total_days}`));
-              rows.push('');
+              sections.push({
+                headers: ['Leave Type', 'Count', 'Total Days'],
+                rows: data.by_leave_type.map((lt) => [lt.leave_type, lt.count, lt.total_days]),
+              });
 
               // Monthly trend
-              rows.push('--- Monthly Trend ---');
-              rows.push('Month,Requests,Days');
-              data.monthly.forEach((m) => rows.push(`${MONTHS[m.month - 1]},${m.requests},${m.days}`));
-              rows.push('');
+              sections.push({
+                headers: ['Month', 'Requests', 'Days'],
+                rows: data.monthly.map((m) => [MONTHS[m.month - 1], m.requests, m.days]),
+              });
 
               // Top takers
-              rows.push('--- Top Leave Takers ---');
-              rows.push('Employee ID,Name,Department,Days Used');
-              data.top_takers.forEach((t) =>
-                rows.push(`${t.emp_id},"${t.name}",${t.department ?? ''},${t.days_used}`)
-              );
+              sections.push({
+                headers: ['Employee ID', 'Name', 'Department', 'Days Used'],
+                rows: data.top_takers.map((t) => [t.emp_id, t.name, t.department ?? '', t.days_used]),
+              });
 
-              const csv = rows.join('\n');
-              const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-              const url = URL.createObjectURL(blob);
-              const a = document.createElement('a');
-              a.href = url;
-              a.download = `leave-report-${year}.csv`;
-              document.body.appendChild(a);
-              a.click();
-              document.body.removeChild(a);
-              URL.revokeObjectURL(url);
+              // Flatten all sections into a single CSV with section headers
+              const allHeaders = ['Status', 'Count'];
+              const allRows: (string | number)[][] = [];
+              for (const s of sections) {
+                allRows.push(s.headers as (string | number)[]);
+                allRows.push(...s.rows);
+                allRows.push([]);
+              }
+              downloadCSVLegacy(allHeaders, allRows, `leave-report-${year}.csv`);
             }}
             disabled={!data}
             className="inline-flex items-center gap-2 border border-border text-foreground px-4 py-2 rounded-lg text-sm font-medium hover:bg-muted/50 transition-colors disabled:opacity-50"
           >
-            📥 Export CSV
+            <Download className="w-4 h-4" />
+            Export CSV
+          </button>
+          <button
+            onClick={() => {
+              if (!data) return;
+              downloadPDF(
+                `Leave Report — ${year}`,
+                [
+                  {
+                    title: 'Status Breakdown',
+                    columns: ['Status', 'Count'],
+                    rows: data.by_status.map((s) => [s.status, s.count]),
+                  },
+                  {
+                    title: 'Leave Types Used',
+                    columns: ['Leave Type', 'Count', 'Total Days'],
+                    rows: data.by_leave_type.map((lt) => [lt.leave_type, lt.count, lt.total_days]),
+                  },
+                  {
+                    title: 'Monthly Trend',
+                    columns: ['Month', 'Requests', 'Days'],
+                    rows: data.monthly.map((m) => [MONTHS[m.month - 1], m.requests, m.days]),
+                  },
+                  {
+                    title: 'Top Leave Takers',
+                    columns: ['Employee ID', 'Name', 'Department', 'Days Used'],
+                    rows: data.top_takers.map((t) => [t.emp_id, t.name, t.department ?? '', t.days_used]),
+                  },
+                ],
+                `leave-report-${year}`,
+                [`Year: ${year}`, `Total Employees: ${data.total_employees}`, `Total Requests: ${totalRequests}`],
+              );
+            }}
+            disabled={!data}
+            className="inline-flex items-center gap-2 border border-border text-foreground px-4 py-2 rounded-lg text-sm font-medium hover:bg-muted/50 transition-colors disabled:opacity-50"
+          >
+            <FileText className="w-4 h-4" />
+            Export PDF
           </button>
         </div>
       </div>

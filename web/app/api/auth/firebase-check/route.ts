@@ -9,6 +9,11 @@ export const dynamic = 'force-dynamic';
  * Diagnoses Firebase configuration issues
  */
 export async function GET() {
+  // Block in production — dev/test-only endpoint
+  if (process.env.NODE_ENV === 'production') {
+    return NextResponse.json({ error: 'This endpoint is disabled in production' }, { status: 403 });
+  }
+
   const checks: Record<string, unknown> = {};
   
   // Check raw env vars (before trim)

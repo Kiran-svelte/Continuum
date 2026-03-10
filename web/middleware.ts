@@ -2,6 +2,13 @@ import { NextResponse, type NextRequest } from 'next/server';
 
 // ─── Configuration ──────────────────────────────────────────────────────────
 
+// Allowed CORS origins (extend for production)
+const ALLOWED_ORIGINS = new Set([
+  process.env.NEXT_PUBLIC_APP_URL || '',
+  'http://localhost:3000',
+  'http://localhost:3001',
+].filter(Boolean));
+
 // Public routes that don't require authentication
 const PUBLIC_ROUTES = [
   '/',
@@ -27,16 +34,13 @@ const PUBLIC_ROUTES = [
 const PUBLIC_API_PATTERNS = [
   '/api/health',
   '/api/enterprise/metrics',
-  '/api/security/env-check',
   '/api/auth/session',
-  '/api/auth/dev-create-user',
   '/api/auth/register',
   '/api/auth/join',
   '/api/auth/callback',
-  '/api/auth/test-firebase',
-  '/api/auth/firebase-check',
-  '/api/auth/test-signup-flow',
-  '/api/email/test',
+  '/api/auth/keycloak/callback',
+  '/api/auth/keycloak/logout',
+  '/api/auth/keycloak/refresh',
 ];
 
 // Cron routes that use CRON_SECRET instead of user auth
@@ -58,9 +62,9 @@ const SENSITIVE_ROUTES = [
 
 // Role-based portal access
 const PORTAL_ROLE_MAP: Record<string, string[]> = {
-  '/hr': ['admin', 'hr'],
   '/admin': ['admin'],
-  '/manager': ['admin', 'hr', 'director', 'manager'],
+  '/hr': ['admin', 'hr'],
+  '/manager': ['admin', 'hr', 'director', 'manager', 'team_lead'],
   '/employee': ['admin', 'hr', 'director', 'manager', 'team_lead', 'employee'],
 };
 
@@ -130,10 +134,66 @@ function addSecurityHeaders(response: NextResponse): void {
   );
   response.headers.set(
     'Content-Security-Policy',
-    "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com https://*.firebaseapp.com https://*.supabase.co wss://*.pusher.com https://*.pusher.com;"
+    [
+      "default-src 'self'",
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+      "style-src 'self' 'unsafe-inline'",
+      "img-src 'self' data: https:",
+      "font-src 'self' data:",
+      "connect-src 'self' https://*.googleapis.com https://*.firebaseio.com https://*.firebaseapp.com https://*.supabase.co wss://*.pusher.com https://*.pusher.com" +
+        (process.env.NEXT_PUBLIC_KEYCLOAK_URL ? ` ${process.env.NEXT_PUBLIC_KEYCLOAK_URL}` : ''),
+      "frame-src 'self'" +
+        (process.env.NEXT_PUBLIC_KEYCLOAK_URL ? ` ${process.env.NEXT_PUBLIC_KEYCLOAK_URL}` : ''),
+    ].join('; ')
   );
   response.headers.set('X-DNS-Prefetch-Control', 'on');
   response.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+}
+
+// ─── Request ID Generator ───────────────────────────────────────────────────
+
+let requestCounter = 0;
+
+function generateRequestId(): string {
+  requestCounter = (requestCounter + 1) % 1_000_000;
+  const ts = Date.now().toString(36);
+  const seq = requestCounter.toString(36).padStart(4, '0');
+  return `req_${ts}_${seq}`;
+}
+
+// ─── CORS Handler ───────────────────────────────────────────────────────────
+
+function handleCORS(request: NextRequest, response: NextResponse): NextResponse | null {
+  const origin = request.headers.get('origin');
+
+  // Pre-flight OPTIONS
+  if (request.method === 'OPTIONS') {
+    const preflight = new NextResponse(null, { status: 204 });
+    if (origin && ALLOWED_ORIGINS.has(origin)) {
+      preflight.headers.set('Access-Control-Allow-Origin', origin);
+      preflight.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
+      preflight.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Request-Id, X-Cron-Secret');
+      preflight.headers.set('Access-Control-Allow-Credentials', 'true');
+      preflight.headers.set('Access-Control-Max-Age', '86400');
+    }
+    return preflight;
+  }
+
+  // Actual request — set CORS headers if origin is allowed
+  if (origin && ALLOWED_ORIGINS.has(origin)) {
+    response.headers.set('Access-Control-Allow-Origin', origin);
+    response.headers.set('Access-Control-Allow-Credentials', 'true');
+    response.headers.set('Vary', 'Origin');
+  }
+
+  return null;
+}
+
+// ─── Path Traversal Protection ──────────────────────────────────────────────
+
+function hasPathTraversal(pathname: string): boolean {
+  const decoded = decodeURIComponent(pathname);
+  return decoded.includes('..') || decoded.includes('%2e') || decoded.includes('%2E');
 }
 
 // ─── Helper Functions ───────────────────────────────────────────────────────
@@ -168,7 +228,8 @@ function getClientIP(request: NextRequest): string {
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  
+  const requestId = generateRequestId();
+
   // 1. Skip static files and Next.js internals
   if (
     pathname.startsWith('/_next/') ||
@@ -178,45 +239,82 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // 2. Security headers on all responses
+  // 2. Path traversal protection
+  if (hasPathTraversal(pathname)) {
+    console.warn(
+      JSON.stringify({
+        level: 'WARN',
+        event: 'path_traversal_blocked',
+        requestId,
+        method: request.method,
+        pathname,
+        ip: getClientIP(request),
+        ts: new Date().toISOString(),
+      })
+    );
+    return NextResponse.json({ error: 'Bad request' }, { status: 400 });
+  }
+
+  // 3. Security headers on all responses
   const response = NextResponse.next({
     request: { headers: request.headers },
   });
   addSecurityHeaders(response);
 
-  // 3. Rate limiting for API routes
+  // 4. Request tracing header
+  response.headers.set('X-Request-Id', requestId);
+
+  // 5. CORS handling for API routes
+  if (isApiRoute(pathname)) {
+    const corsResponse = handleCORS(request, response);
+    if (corsResponse) return corsResponse; // OPTIONS pre-flight handled
+  }
+
+  // 6. Rate limiting for API routes
   if (isApiRoute(pathname)) {
     const clientIP = getClientIP(request);
     const { allowed, remaining } = checkRateLimit(clientIP, pathname);
-    
+
     response.headers.set('X-RateLimit-Remaining', String(remaining));
-    
+
     if (!allowed) {
+      console.warn(
+        JSON.stringify({
+          level: 'WARN',
+          event: 'rate_limit_exceeded',
+          requestId,
+          method: request.method,
+          pathname,
+          ip: clientIP,
+          ts: new Date().toISOString(),
+        })
+      );
       return NextResponse.json(
         { error: 'Too many requests. Please try again later.' },
-        { 
+        {
           status: 429,
           headers: {
             'X-Frame-Options': 'DENY',
             'X-Content-Type-Options': 'nosniff',
             'Retry-After': '60',
+            'X-Request-Id': requestId,
           }
         }
       );
     }
   }
 
-  // 4. Public routes — allow through
+  // 7. Public routes — allow through
   if (isPublicRoute(pathname) || isPublicApiRoute(pathname)) {
     return response;
   }
 
-  // 5. Cron routes — verify CRON_SECRET
+  // 8. Cron routes — verify CRON_SECRET
   if (isCronRoute(pathname)) {
-    const cronSecret = request.headers.get('x-cron-secret') || 
+    const cronSecret = request.headers.get('x-cron-secret') ||
                        request.nextUrl.searchParams.get('cron_secret');
     const expectedSecret = process.env.CRON_SECRET;
-    
+
     if (!expectedSecret || cronSecret !== expectedSecret) {
       if (isApiRoute(pathname)) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -225,14 +323,71 @@ export async function middleware(request: NextRequest) {
     return response;
   }
 
-  // 6. Firebase auth — client-side managed; individual API routes verify tokens via auth-guard.
-  //    Middleware lets requests through; protected API routes call verifyAuth() themselves.
+  // 9. Portal role enforcement — read continuum-roles cookie, check PORTAL_ROLE_MAP
+  //    Only applies to portal page routes, NOT API routes (those use requireRole server-side)
+  if (!isApiRoute(pathname)) {
+    const portalPrefix = Object.keys(PORTAL_ROLE_MAP).find((prefix) => pathname.startsWith(prefix + '/') || pathname === prefix);
 
-  // 7. Sensitive route logging
+    if (portalPrefix) {
+      const rolesCookie = request.cookies.get('continuum-roles')?.value;
+
+      if (!rolesCookie) {
+        // No role cookie → not authenticated, redirect to sign-in
+        const signInUrl = request.nextUrl.clone();
+        signInUrl.pathname = '/sign-in';
+        signInUrl.searchParams.set('redirect', pathname);
+        signInUrl.searchParams.set('error', 'auth_required');
+        return NextResponse.redirect(signInUrl);
+      }
+
+      const userRoles = rolesCookie.split(',').map((r) => r.trim().toLowerCase());
+      const allowedRoles = PORTAL_ROLE_MAP[portalPrefix];
+
+      const hasAccess = userRoles.some((role) => allowedRoles.includes(role));
+
+      if (!hasAccess) {
+        // Authenticated but wrong role → redirect to their correct portal
+        console.warn(
+          JSON.stringify({
+            level: 'WARN',
+            event: 'portal_access_denied',
+            requestId,
+            pathname,
+            userRoles,
+            requiredRoles: allowedRoles,
+            ip: getClientIP(request),
+            ts: new Date().toISOString(),
+          })
+        );
+
+        // Determine the correct portal for this user
+        const primaryRole = request.cookies.get('continuum-role')?.value?.toLowerCase() || userRoles[0];
+        let correctPortal = '/employee/dashboard';
+        if (primaryRole === 'admin') correctPortal = '/admin/dashboard';
+        else if (primaryRole === 'hr') correctPortal = '/hr/dashboard';
+        else if (['manager', 'director', 'team_lead'].includes(primaryRole)) correctPortal = '/manager/dashboard';
+
+        const redirectUrl = request.nextUrl.clone();
+        redirectUrl.pathname = correctPortal;
+        redirectUrl.searchParams.set('error', 'access_denied');
+        return NextResponse.redirect(redirectUrl);
+      }
+    }
+  }
+
+  // 10. Sensitive route structured logging
   if (isSensitiveRoute(pathname)) {
-    const clientIP = getClientIP(request);
     console.log(
-      `[SECURITY] Sensitive route access: ${request.method} ${pathname} from ${clientIP} at ${new Date().toISOString()}`
+      JSON.stringify({
+        level: 'INFO',
+        event: 'sensitive_route_access',
+        requestId,
+        method: request.method,
+        pathname,
+        ip: getClientIP(request),
+        userAgent: request.headers.get('user-agent')?.slice(0, 120) || 'unknown',
+        ts: new Date().toISOString(),
+      })
     );
   }
 

@@ -2,6 +2,7 @@
 
 import { cn } from '@/lib/utils';
 import { useEffect, useState } from 'react';
+import { Check } from 'lucide-react';
 
 interface ProgressBarProps {
   value?: number;
@@ -206,9 +207,7 @@ export function ProgressSteps({ steps, currentStep, className }: ProgressStepsPr
               )}
             >
               {index < currentStep ? (
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
+                <Check className="w-5 h-5" />
               ) : (
                 index + 1
               )}

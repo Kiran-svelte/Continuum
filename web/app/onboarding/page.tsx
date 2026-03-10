@@ -7,14 +7,24 @@ import { Card, CardContent } from '@/components/ui/card';
 import { getSupabaseBrowserClient } from '@/lib/supabase';
 import { syncUser, createCompanyAndEmployee, joinCompanyAsEmployee } from '@/app/actions/auth';
 import { LEAVE_TYPE_CATALOG } from '@/lib/leave-types-config';
+import {
+  Building2,
+  ClipboardList,
+  Settings,
+  CalendarDays,
+  Bell,
+  CheckCircle,
+  Sparkles,
+} from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 
-const STEPS = [
-  { id: 1, label: 'Company Setup', icon: '🏢' },
-  { id: 2, label: 'Leave Types', icon: '📋' },
-  { id: 3, label: 'Constraint Rules', icon: '⚙️' },
-  { id: 4, label: 'Holidays', icon: '🎉' },
-  { id: 5, label: 'Notifications', icon: '🔔' },
-  { id: 6, label: 'Complete', icon: '✅' },
+const STEPS: { id: number; label: string; icon: LucideIcon }[] = [
+  { id: 1, label: 'Company Setup', icon: Building2 },
+  { id: 2, label: 'Leave Types', icon: ClipboardList },
+  { id: 3, label: 'Constraint Rules', icon: Settings },
+  { id: 4, label: 'Holidays', icon: CalendarDays },
+  { id: 5, label: 'Notifications', icon: Bell },
+  { id: 6, label: 'Complete', icon: CheckCircle },
 ];
 
 // ─── Step data types ────────────────────────────────────────────────────────
@@ -23,6 +33,7 @@ interface CompanyData {
   companyName: string;
   industry: string;
   employeeCount: string;
+  country: string;
   timezone: string;
   slaHours: number;
   negativeBal: boolean;
@@ -59,6 +70,7 @@ interface HolidayEntry {
   name: string;
   date: string;
   enabled: boolean;
+  custom?: boolean;
 }
 
 interface NotifData {
@@ -123,7 +135,42 @@ function CompanySetupStep({
         </select>
       </div>
       <div>
-        <label htmlFor="timezone" className="block text-sm font-medium text-foreground mb-1">Timezone</label>
+        <label htmlFor="country" className="block text-sm font-medium text-foreground mb-1">Country</label>
+        <select
+          id="country"
+          value={data.country}
+          onChange={(e) => onChange({ ...data, country: e.target.value })}
+          className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground focus:border-primary focus:ring-2 focus:ring-primary focus:outline-none"
+        >
+          <option value="">Select country</option>
+          <option value="IN">India</option>
+          <option value="US">United States</option>
+          <option value="GB">United Kingdom</option>
+          <option value="CA">Canada</option>
+          <option value="AU">Australia</option>
+          <option value="DE">Germany</option>
+          <option value="FR">France</option>
+          <option value="JP">Japan</option>
+          <option value="SG">Singapore</option>
+          <option value="AE">United Arab Emirates</option>
+          <option value="CN">China</option>
+          <option value="BR">Brazil</option>
+          <option value="ZA">South Africa</option>
+          <option value="NL">Netherlands</option>
+          <option value="SE">Sweden</option>
+          <option value="MY">Malaysia</option>
+          <option value="PH">Philippines</option>
+          <option value="ID">Indonesia</option>
+          <option value="KR">South Korea</option>
+          <option value="MX">Mexico</option>
+          <option value="IT">Italy</option>
+          <option value="ES">Spain</option>
+          <option value="NZ">New Zealand</option>
+          <option value="IE">Ireland</option>
+          <option value="SA">Saudi Arabia</option>
+        </select>
+      </div>
+      <div>
         <select
           id="timezone"
           value={data.timezone}
@@ -450,16 +497,91 @@ function ConstraintRulesStep({
 function HolidaysStep({
   data,
   onChange,
+  country,
 }: {
   data: HolidayEntry[];
   onChange: (d: HolidayEntry[]) => void;
+  country: string;
 }) {
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [newHoliday, setNewHoliday] = useState({ name: '', date: '' });
+  const [fetchingHolidays, setFetchingHolidays] = useState(false);
+  const [fetchError, setFetchError] = useState('');
+  const [fetchedCountry, setFetchedCountry] = useState('');
+
+  // Auto-fetch holidays from API Ninjas when country changes
+  useEffect(() => {
+    if (!country || country === fetchedCountry) return;
+
+    async function fetchHolidays() {
+      setFetchingHolidays(true);
+      setFetchError('');
+      try {
+        const res = await fetch(`/api/holidays/fetch?country=${encodeURIComponent(country)}`);
+        const json = await res.json();
+
+        if (res.ok && json.holidays && json.holidays.length > 0) {
+          const fetched: HolidayEntry[] = json.holidays.map((h: { name: string; date: string }) => ({
+            name: h.name,
+            date: h.date,
+            enabled: true,
+            custom: false,
+          }));
+          // Preserve any custom holidays the user already added
+          const customHolidays = data.filter((h) => h.custom);
+          onChange([...fetched, ...customHolidays]);
+          setFetchedCountry(country);
+        } else {
+          setFetchError(json.error || 'No holidays found for this country');
+        }
+      } catch {
+        setFetchError('Failed to fetch holidays');
+      } finally {
+        setFetchingHolidays(false);
+      }
+    }
+
+    fetchHolidays();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [country]);
+
+  function addCustomHoliday() {
+    if (!newHoliday.name.trim() || !newHoliday.date) return;
+    onChange([...data, { name: newHoliday.name.trim(), date: newHoliday.date, enabled: true, custom: true }]);
+    setNewHoliday({ name: '', date: '' });
+    setShowAddForm(false);
+  }
+
+  function removeCustomHoliday(idx: number) {
+    const updated = [...data];
+    updated.splice(idx, 1);
+    onChange(updated);
+  }
+
   return (
     <div className="space-y-4">
-      <p className="text-sm text-muted-foreground">Select the holidays to include in your company calendar.</p>
+      <p className="text-sm text-muted-foreground">
+        {country
+          ? 'Holidays loaded automatically for your country. Toggle or add custom ones.'
+          : 'Select a country in Company Setup to auto-load holidays, or add them manually.'}
+      </p>
+
+      {fetchingHolidays && (
+        <div className="flex items-center gap-2 p-3 rounded-lg bg-primary/5 border border-primary/20">
+          <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+          <span className="text-sm text-primary">Fetching holidays for {country}...</span>
+        </div>
+      )}
+
+      {fetchError && (
+        <div className="rounded-lg bg-yellow-50 border border-yellow-200 px-3 py-2 text-sm text-yellow-700 dark:bg-yellow-900/20 dark:border-yellow-800 dark:text-yellow-300">
+          {fetchError} — You can still add holidays manually.
+        </div>
+      )}
+
       <div className="space-y-2 mt-4">
         {data.map((holiday, idx) => (
-          <div key={holiday.name} className="flex items-center justify-between py-2 px-3 rounded-lg border border-border">
+          <div key={`${holiday.name}-${holiday.date}`} className="flex items-center justify-between py-2 px-3 rounded-lg border border-border">
             <div className="flex items-center gap-3">
               <input
                 type="checkbox"
@@ -473,11 +595,74 @@ function HolidaysStep({
                 aria-label={`Enable ${holiday.name}`}
               />
               <span className="text-sm text-foreground">{holiday.name}</span>
+              {holiday.custom && (
+                <span className="text-[10px] uppercase tracking-wide font-medium text-primary bg-primary/10 px-1.5 py-0.5 rounded">Custom</span>
+              )}
             </div>
-            <span className="text-xs text-muted-foreground">{holiday.date}</span>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground">{holiday.date}</span>
+              {holiday.custom && (
+                <button
+                  type="button"
+                  onClick={() => removeCustomHoliday(idx)}
+                  className="text-red-500 hover:text-red-700 ml-1"
+                  aria-label={`Remove ${holiday.name}`}
+                >
+                  ✕
+                </button>
+              )}
+            </div>
           </div>
         ))}
       </div>
+
+      {/* Add Custom Holiday */}
+      {showAddForm ? (
+        <div className="p-4 rounded-lg border border-border space-y-3">
+          <p className="text-sm font-medium text-foreground">Add Custom Holiday</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <input
+              type="text"
+              placeholder="Holiday name"
+              value={newHoliday.name}
+              onChange={(e) => setNewHoliday({ ...newHoliday, name: e.target.value })}
+              className="rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground focus:border-primary focus:ring-2 focus:ring-primary focus:outline-none"
+            />
+            <input
+              type="date"
+              value={newHoliday.date}
+              onChange={(e) => setNewHoliday({ ...newHoliday, date: e.target.value })}
+              className="rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground focus:border-primary focus:ring-2 focus:ring-primary focus:outline-none"
+              aria-label="Holiday date"
+            />
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={addCustomHoliday}
+              disabled={!newHoliday.name.trim() || !newHoliday.date}
+              className="text-xs bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed px-3 py-1.5 rounded transition-colors"
+            >
+              Add
+            </button>
+            <button
+              type="button"
+              onClick={() => { setShowAddForm(false); setNewHoliday({ name: '', date: '' }); }}
+              className="text-xs bg-muted hover:bg-muted/80 text-muted-foreground px-3 py-1.5 rounded transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={() => setShowAddForm(true)}
+          className="text-xs bg-muted hover:bg-muted/80 text-muted-foreground px-3 py-1.5 rounded transition-colors"
+        >
+          + Add Holiday
+        </button>
+      )}
     </div>
   );
 }
@@ -520,7 +705,9 @@ function NotificationsStep({
 function CompleteStep({ joinCode }: { joinCode: string }) {
   return (
     <div className="text-center py-8">
-      <span className="text-6xl">🎉</span>
+      <div className="w-20 h-20 mx-auto rounded-full bg-primary/10 flex items-center justify-center">
+        <Sparkles className="w-10 h-10 text-primary" />
+      </div>
       <h2 className="text-2xl font-bold text-foreground mt-4">Setup Complete!</h2>
       <p className="text-muted-foreground mt-2 max-w-md mx-auto">
         Your organization is now configured and ready to use.
@@ -587,6 +774,7 @@ function OnboardingPageInner() {
     companyName: '',
     industry: '',
     employeeCount: '',
+    country: '',
     timezone: '',
     slaHours: 48,
     negativeBal: false,
@@ -835,7 +1023,7 @@ function OnboardingPageInner() {
       case 2:
         return <ConstraintRulesStep data={constraintConfig} onChange={setConstraintConfig} />;
       case 3:
-        return <HolidaysStep data={holidays} onChange={setHolidays} />;
+        return <HolidaysStep data={holidays} onChange={setHolidays} country={companyData.country} />;
       case 4:
         return <NotificationsStep data={notifData} onChange={setNotifData} />;
       case 5:
@@ -867,25 +1055,28 @@ function OnboardingPageInner() {
 
         {/* Step Indicators */}
         <div className="flex items-center justify-center gap-2 mb-8">
-          {STEPS.map((step, index) => (
-            <div key={step.id} className="flex items-center">
-              <div
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
-                  index === currentStep
-                    ? 'bg-primary text-primary-foreground'
-                    : index < currentStep
-                      ? 'bg-primary/10 text-primary'
-                      : 'bg-muted text-muted-foreground'
-                }`}
-              >
-                <span>{step.icon}</span>
-                <span className="hidden sm:inline">{step.label}</span>
+          {STEPS.map((step, index) => {
+            const StepIcon = step.icon;
+            return (
+              <div key={step.id} className="flex items-center">
+                <div
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
+                    index === currentStep
+                      ? 'bg-primary text-primary-foreground'
+                      : index < currentStep
+                        ? 'bg-primary/10 text-primary'
+                        : 'bg-muted text-muted-foreground'
+                  }`}
+                >
+                  <StepIcon className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">{step.label}</span>
+                </div>
+                {index < STEPS.length - 1 && (
+                  <div className={`w-6 h-0.5 mx-1 ${index < currentStep ? 'bg-primary' : 'bg-border'}`} />
+                )}
               </div>
-              {index < STEPS.length - 1 && (
-                <div className={`w-6 h-0.5 mx-1 ${index < currentStep ? 'bg-primary' : 'bg-border'}`} />
-              )}
-            </div>
-          ))}
+            );
+          })}
         </div>
 
         {/* Step Content */}
