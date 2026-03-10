@@ -7,5 +7,19 @@
     "app/**/*.ts": {
       "maxDuration": 60
     }
-  }
+  },
+  "crons": [
+    {
+      "path": "/api/cron/sla-check",
+      "schedule": "0 * * * *"
+    },
+    {
+      "path": "/api/cron/leave-accrual",
+      "schedule": "0 0 1 * *"
+    },
+    {
+      "path": "/api/cron/year-end-carry-forward",
+      "schedule": "0 1 1 1 *"
+    }
+  ]
 }

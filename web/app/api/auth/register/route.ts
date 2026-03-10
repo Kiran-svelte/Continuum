@@ -129,6 +129,22 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    // Create a free-tier trial subscription for the new company so billing
+    // and plan-gating logic always has a record to work with.
+    console.log('[REGISTER] Creating free trial subscription...');
+    const now = new Date();
+    const trialEnd = new Date(now);
+    trialEnd.setDate(trialEnd.getDate() + 30); // 30-day free trial
+    await prisma.subscription.create({
+      data: {
+        company_id: company.id,
+        plan: 'free',
+        status: 'trial',
+        current_period_start: now,
+        current_period_end: trialEnd,
+      },
+    });
+
     // Audit log
     console.log('[REGISTER] Writing audit log...');
     await createAuditLog({
