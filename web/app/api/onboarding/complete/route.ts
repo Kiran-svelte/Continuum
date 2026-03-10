@@ -8,6 +8,7 @@ import { sanitizeInput } from '@/lib/security';
 import type { Prisma } from '@prisma/client';
 import { generateConstraintRules } from '@/lib/constraint-rules-config';
 import type { LeaveTypeConfig } from '@/lib/leave-types-config';
+import { DEFAULT_NOTIFICATION_TEMPLATES } from '@/lib/notification-templates-config';
 
 export const dynamic = 'force-dynamic';
 
@@ -213,6 +214,26 @@ export async function POST(request: NextRequest) {
           where: { company_id: companyId },
           create: settingsCreate as Parameters<typeof tx.companySettings.upsert>[0]['create'],
           update: settingsUpdate as Parameters<typeof tx.companySettings.upsert>[0]['update'],
+        });
+      }
+
+      // 4b. Seed default notification templates (skip if already seeded).
+      //     Templates can be customised via the HR notification-templates page.
+      const existingTemplateCount = await tx.notificationTemplate.count({
+        where: { company_id: companyId },
+      });
+
+      if (existingTemplateCount === 0) {
+        await tx.notificationTemplate.createMany({
+          data: DEFAULT_NOTIFICATION_TEMPLATES.map((t) => ({
+            company_id: companyId,
+            event: t.event,
+            channel: t.channel as 'email' | 'push' | 'in_app',
+            subject: t.subject,
+            body: t.body,
+            is_active: true,
+          })),
+          skipDuplicates: true,
         });
       }
 

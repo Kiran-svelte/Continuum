@@ -20,13 +20,57 @@ const joinSchema = z.object({
 });
 
 /**
+ * Calculate pro-rated leave entitlement for a mid-year join.
+ *
+ * Employees who join part-way through the leave year receive a proportional
+ * balance: `annual_quota × (months_remaining_in_year / 12)`, rounded up to
+ * the nearest half-day so employees are never penalised for joining on an
+ * awkward date.
+ *
+ * Leave types that do NOT accrue (e.g. LWP / unpaid) always receive the
+ * full quota regardless of join date.
+ *
+ * @param annualQuota  Full-year entitlement in days.
+ * @param joinDate     Date the employee is joining.
+ * @param paid         Whether this is a paid leave type (unpaid types skip proration).
+ * @returns            Pro-rated balance, minimum 1 if quota > 0.
+ */
+function computeProRatedQuota(annualQuota: number, joinDate: Date, paid: boolean): number {
+  // Unpaid leave-without-pay types are never pro-rated — the full quota
+  // is always available because they represent balance-agnostic days off.
+  if (!paid || annualQuota === 0) return annualQuota;
+
+  const year = joinDate.getFullYear();
+  // Normalize to midnight to avoid time-of-day effects
+  const joinDay = new Date(year, joinDate.getMonth(), joinDate.getDate());
+  // Dec 31 at midnight (inclusive last day of year)
+  const yearEnd = new Date(year, 11, 31);
+  const totalDaysInYear = 365 + (isLeapYear(year) ? 1 : 0);
+  // +1 to count both endpoints (Jan 1 → Dec 31 = 365 days inclusive in a non-leap year)
+  const remainingDays =
+    Math.round((yearEnd.getTime() - joinDay.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+
+  const ratio = remainingDays / totalDaysInYear;
+  const raw = annualQuota * ratio;
+
+  // Round to nearest 0.5 (half-day granularity), minimum 1 if quota > 0
+  const rounded = Math.ceil(raw * 2) / 2;
+  return Math.max(1, rounded);
+}
+
+function isLeapYear(year: number): boolean {
+  return (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
+}
+
+/**
  * POST /api/auth/join
  *
  * Employee join flow via company code:
  * 1. Authenticates via Firebase token (client must call Firebase signUp first)
  * 2. Validates the company_code against Company.join_code
  * 3. Creates an Employee record linked to the company
- * 4. Seeds leave balances based on the company's active leave types
+ * 4. Seeds leave balances (pro-rated for mid-year joins) based on the
+ *    company's active leave types
  * 5. Creates an audit log entry
  */
 export async function POST(request: NextRequest) {
@@ -72,14 +116,19 @@ export async function POST(request: NextRequest) {
     // Look up company by join code
     const company = await prisma.company.findUnique({
       where: { join_code: companyCode },
-      select: { id: true, name: true, leave_types: { where: { is_active: true } } },
+      select: {
+        id: true,
+        name: true,
+        leave_types: {
+          where: { is_active: true, deleted_at: null },
+          select: { code: true, default_quota: true, gender_specific: true, paid: true },
+        },
+      },
     });
 
     if (!company) {
       return NextResponse.json({ error: 'Invalid company code' }, { status: 404 });
     }
-
-    const year = new Date().getFullYear();
 
     // Transactionally create employee and seed leave balances
     const result = await prisma.$transaction(async (tx) => {
@@ -98,29 +147,35 @@ export async function POST(request: NextRequest) {
         },
       });
 
+      const joinDate = new Date();
+      const year = joinDate.getFullYear();
+
       // Seed leave balances from company's active leave types only.
+      // Balances are pro-rated for mid-year joins: employees who start
+      // part-way through the year receive a proportional entitlement.
       // No catalog fallback — the system is config-driven; leave types must
       // be configured during company onboarding.
       const leaveTypesToSeed = company.leave_types
         .filter((lt) => {
           // Filter gender-specific leave types
-          const genderFilter = (lt as { gender_specific?: string }).gender_specific;
+          const genderFilter = lt.gender_specific;
           if (!genderFilter || genderFilter === 'all') return true;
           if (data.gender === 'other') return true;
           return genderFilter === data.gender;
         })
         .map((lt) => ({
           code: lt.code,
-          quota: lt.default_quota,
+          annualQuota: lt.default_quota,
+          proRatedQuota: computeProRatedQuota(lt.default_quota, joinDate, lt.paid ?? true),
         }));
 
-      const balanceInserts = leaveTypesToSeed.map(({ code, quota }) => ({
+      const balanceInserts = leaveTypesToSeed.map(({ code, annualQuota, proRatedQuota }) => ({
         emp_id: employee.id,
         company_id: company.id,
         leave_type: code,
         year,
-        annual_entitlement: quota,
-        remaining: quota,
+        annual_entitlement: annualQuota,
+        remaining: proRatedQuota,
       }));
       await tx.leaveBalance.createMany({ data: balanceInserts });
 
@@ -134,7 +189,12 @@ export async function POST(request: NextRequest) {
       action: AUDIT_ACTIONS.EMPLOYEE_JOIN,
       entityType: 'Employee',
       entityId: result.id,
-      newState: { company_id: company.id, role: data.role },
+      newState: {
+        company_id: company.id,
+        role: data.role,
+        date_of_joining: result.date_of_joining,
+        balances_pro_rated: true,
+      },
     });
 
     // Send welcome email (non-blocking)
