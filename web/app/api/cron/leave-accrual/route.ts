@@ -96,7 +96,7 @@ export async function GET(request: NextRequest) {
         await createAuditLog({
           companyId: balance.company_id,
           actorId: null,
-          action: AUDIT_ACTIONS.LEAVE_BALANCE_ADJUSTED,
+          action: AUDIT_ACTIONS.LEAVE_BALANCE_ADJUST,
           entityType: 'LeaveBalance',
           entityId: balance.id,
           previousState: {
