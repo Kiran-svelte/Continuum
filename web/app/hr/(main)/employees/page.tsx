@@ -18,6 +18,7 @@ interface Employee {
   email: string;
   phone: string | null;
   primary_role: string;
+  secondary_roles: string[] | null;
   department: string | null;
   designation: string | null;
   status: string;
@@ -172,6 +173,14 @@ export default function EmployeesPage() {
   const [deactivatingEmployee, setDeactivatingEmployee] = useState<Employee | null>(null);
   const [formError, setFormError] = useState('');
   const [formSubmitting, setFormSubmitting] = useState(false);
+
+  // Invite modal states
+  const [showInviteModal, setShowInviteModal] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [inviteRole, setInviteRole] = useState('employee');
+  const [inviteDepartment, setInviteDepartment] = useState('');
+  const [inviteSubmitting, setInviteSubmitting] = useState(false);
+  const [inviteSuccess, setInviteSuccess] = useState('');
 
   // ── Auth ─────────────────────────────────────────────────────────────────
 
@@ -507,6 +516,9 @@ export default function EmployeesPage() {
             <UserPlus className="w-4 h-4" />
             Add Employee
           </Button>
+          <Button variant="outline" onClick={() => setShowInviteModal(true)}>
+            Invite by Email
+          </Button>
           <Button
             variant="outline"
             onClick={() => showJoinCode ? setShowJoinCode(false) : fetchJoinCode()}
@@ -673,9 +685,16 @@ export default function EmployeesPage() {
                             </div>
                           </td>
                           <td className="py-3 px-2">
-                            <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${ROLE_COLORS[emp.primary_role] ?? 'bg-muted text-foreground'}`}>
-                              {emp.primary_role}
-                            </span>
+                            <div className="flex flex-wrap gap-1">
+                              <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${ROLE_COLORS[emp.primary_role] ?? 'bg-muted text-foreground'}`}>
+                                {emp.primary_role}
+                              </span>
+                              {emp.secondary_roles?.map((r) => (
+                                <span key={r} className="inline-flex px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-muted/60 text-muted-foreground border border-border/50">
+                                  {r}
+                                </span>
+                              ))}
+                            </div>
                           </td>
                           <td className="py-3 px-2 text-muted-foreground hidden md:table-cell">
                             {emp.department ?? <span className="text-muted-foreground">--</span>}
@@ -1204,6 +1223,128 @@ export default function EmployeesPage() {
                   {formSubmitting ? 'Deactivating...' : 'Deactivate'}
                 </Button>
               </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ── Invite by Email Modal ───────────────────────────────────────── */}
+      <AnimatePresence>
+        {showInviteModal && (
+          <motion.div
+            key="invite-overlay"
+            variants={overlayVariants}
+            initial="hidden"
+            animate="visible"
+            exit="exit"
+            className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+            onClick={() => setShowInviteModal(false)}
+          >
+            <motion.div
+              key="invite-modal"
+              variants={modalVariants}
+              initial="hidden"
+              animate="visible"
+              exit="exit"
+              className="bg-card border border-border rounded-xl shadow-2xl w-full max-w-md p-6"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-semibold text-foreground">Invite Employee by Email</h2>
+                <button onClick={() => setShowInviteModal(false)} className="p-1 hover:bg-muted rounded-md">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              {inviteSuccess && (
+                <div className="mb-4 px-3 py-2 rounded-lg bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400 text-sm flex items-center gap-2">
+                  <CheckCircle className="w-4 h-4" />
+                  {inviteSuccess}
+                </div>
+              )}
+
+              <form
+                onSubmit={async (e) => {
+                  e.preventDefault();
+                  setInviteSubmitting(true);
+                  setFormError('');
+                  setInviteSuccess('');
+                  try {
+                    const res = await fetch('/api/hr/invites', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      credentials: 'include',
+                      body: JSON.stringify({
+                        email: inviteEmail,
+                        role: inviteRole,
+                        department: inviteDepartment || undefined,
+                      }),
+                    });
+                    const data = await res.json();
+                    if (!res.ok) {
+                      setFormError(data.error || 'Failed to send invite');
+                      return;
+                    }
+                    setInviteSuccess(`Invite sent to ${inviteEmail}`);
+                    setInviteEmail('');
+                    setInviteRole('employee');
+                    setInviteDepartment('');
+                  } catch {
+                    setFormError('Failed to send invite');
+                  } finally {
+                    setInviteSubmitting(false);
+                  }
+                }}
+                className="space-y-4"
+              >
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-1">Email Address</label>
+                  <Input
+                    type="email"
+                    value={inviteEmail}
+                    onChange={(e) => setInviteEmail(e.target.value)}
+                    placeholder="employee@example.com"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-1">Role</label>
+                  <select
+                    value={inviteRole}
+                    onChange={(e) => setInviteRole(e.target.value)}
+                    className="w-full px-3 py-2 bg-background border border-border rounded-lg text-foreground text-sm"
+                  >
+                    {ROLE_OPTIONS.map((opt) => (
+                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-1">Department (optional)</label>
+                  <Input
+                    type="text"
+                    value={inviteDepartment}
+                    onChange={(e) => setInviteDepartment(e.target.value)}
+                    placeholder="Engineering, Sales, etc."
+                  />
+                </div>
+
+                {formError && (
+                  <div className="px-3 py-2 rounded-lg bg-red-50 text-red-700 dark:bg-red-500/10 dark:text-red-400 text-sm">
+                    {formError}
+                  </div>
+                )}
+
+                <div className="flex justify-end gap-2 pt-2">
+                  <Button variant="outline" type="button" onClick={() => setShowInviteModal(false)}>
+                    Cancel
+                  </Button>
+                  <Button type="submit" disabled={inviteSubmitting}>
+                    {inviteSubmitting && <Loader2 className="w-4 h-4 animate-spin mr-1" />}
+                    {inviteSubmitting ? 'Sending...' : 'Send Invite'}
+                  </Button>
+                </div>
+              </form>
             </motion.div>
           </motion.div>
         )}

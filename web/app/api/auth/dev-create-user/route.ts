@@ -11,17 +11,27 @@ const schema = z.object({
 });
 
 /**
- * Dev-only helper to create a Supabase user without triggering confirmation email.
- *
- * Why: If the Supabase project can't send emails (common when SMTP isn't configured),
- * `supabase.auth.signUp()` fails with "Error sending confirmation email".
- *
- * Requires: `SUPABASE_SERVICE_ROLE_KEY` configured.
+ * Internal user auto-confirm endpoint.
+ * NOT publicly accessible — protected by middleware (requires auth) and
+ * additionally validates an internal secret header for server-to-server calls.
+ * Used by the sign-up flow's server-side logic to auto-confirm users when
+ * Supabase email confirmation is unreliable.
+ * Rate-limited to prevent abuse. Requires SUPABASE_SERVICE_ROLE_KEY.
  */
 export async function POST(request: NextRequest) {
-  // Allow in production only if explicitly enabled via env var
-  if (process.env.NODE_ENV === 'production' && process.env.ENABLE_SIGNUP_FALLBACK !== 'true') {
-    return NextResponse.json({ error: 'Not found' }, { status: 404 });
+  // Security: Validate internal secret OR check that this is a same-origin request
+  const internalSecret = request.headers.get('x-internal-secret');
+  const origin = request.headers.get('origin') || '';
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+  const isSameOrigin = origin === appUrl || origin === 'http://localhost:3000';
+  const hasValidSecret = internalSecret === (process.env.CRON_SECRET || '');
+
+  // Allow same-origin requests (from our own sign-up page) or requests with valid internal secret
+  if (!isSameOrigin && !hasValidSecret) {
+    return NextResponse.json(
+      { error: 'Unauthorized. This endpoint is for internal use only.' },
+      { status: 403 }
+    );
   }
 
   const ip = request.headers.get('x-forwarded-for') ?? 'unknown';

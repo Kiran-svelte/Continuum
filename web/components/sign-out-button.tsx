@@ -14,9 +14,20 @@ export function SignOutButton({ variant = 'sidebar' }: SignOutButtonProps) {
   const router = useRouter();
 
   async function handleSignOut() {
-    // Clear role cookies immediately
+    // 1. Call server-side sign-out API first (creates audit log while cookies still exist)
+    try {
+      await fetch('/api/auth/sign-out', { method: 'POST' });
+    } catch {
+      // Continue with sign-out even if audit fails
+    }
+
+    // 2. Clear all auth/role cookies client-side (backup for API response cookies)
     document.cookie = 'continuum-role=; path=/; max-age=0';
     document.cookie = 'continuum-roles=; path=/; max-age=0';
+    document.cookie = 'firebase-auth-token=; path=/; max-age=0';
+    document.cookie = 'kc-access-token=; path=/; max-age=0';
+    document.cookie = 'kc-refresh-token=; path=/; max-age=0';
+    document.cookie = 'kc-token-exp=; path=/; max-age=0';
     localStorage.removeItem('preferred_portal');
 
     // If Keycloak is active, use its logout flow (clears cookies + SSO session)
@@ -46,7 +57,8 @@ export function SignOutButton({ variant = 'sidebar' }: SignOutButtonProps) {
       // ignore
     }
 
-    router.push('/sign-in');
+    // Use replace so back button doesn't re-authenticate
+    router.replace('/sign-in');
   }
 
   if (variant === 'compact') {

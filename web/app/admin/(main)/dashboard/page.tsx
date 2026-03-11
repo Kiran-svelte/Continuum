@@ -187,7 +187,7 @@ export default function AdminDashboardPage() {
   const quickActions = [
     { label: 'RBAC Settings', href: '/admin/rbac', icon: ShieldCheck, color: 'text-indigo-500' },
     { label: 'System Health', href: '/admin/system-health', icon: Activity, color: 'text-violet-500' },
-    { label: 'Audit Logs', href: '/hr/audit-logs', icon: Shield, color: 'text-amber-500' },
+    { label: 'Audit Logs', href: '/admin/audit-logs', icon: Shield, color: 'text-amber-500' },
     { label: 'Employees', href: '/hr/employees', icon: Users, color: 'text-blue-500' },
     { label: 'Payroll', href: '/hr/payroll', icon: Wallet, color: 'text-emerald-500' },
     { label: 'Settings', href: '/hr/settings', icon: Settings, color: 'text-slate-500' },
@@ -330,7 +330,7 @@ export default function AdminDashboardPage() {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="text-base">Recent Audit Logs</CardTitle>
-              <Link href="/hr/audit-logs">
+              <Link href="/admin/audit-logs">
                 <Button variant="ghost" size="sm">
                   View All <ChevronRight className="w-4 h-4 ml-1" />
                 </Button>

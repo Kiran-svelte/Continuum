@@ -67,19 +67,8 @@ export function PortalSwitcher({ compact = false }: PortalSwitcherProps) {
 
   // Determine which portals the user can access
   useEffect(() => {
-    // Read from cookie first (instant, no network)
-    const rolesCookie = document.cookie
-      .split('; ')
-      .find((c) => c.startsWith('continuum-roles='));
-    if (rolesCookie) {
-      const roles = rolesCookie.split('=')[1].split(',').map((r) => r.trim().toLowerCase());
-      setUserRoles(roles);
-      setLoading(false);
-      return;
-    }
-
-    // Fallback: fetch from API
-    fetch('/api/employees/me', { credentials: 'include' })
+    // Fetch roles from API (cookies are HttpOnly for security)
+    fetch('/api/auth/me', { credentials: 'include' })
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
         if (data) {

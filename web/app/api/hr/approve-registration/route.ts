@@ -117,11 +117,11 @@ export async function POST(request: NextRequest) {
         new_status: statusToSet,
       });
     } else {
-      // Reject: Mark as 'terminated' with reason (or could delete)
+      // Reject: Mark as 'suspended' (registration rejected, not a real termination)
       await prisma.$transaction(async (tx) => {
         await tx.employee.update({
           where: { id: employee_id },
-          data: { status: 'terminated' },
+          data: { status: 'suspended' },
         });
 
         await tx.employeeStatusHistory.create({
@@ -129,7 +129,7 @@ export async function POST(request: NextRequest) {
             emp_id: employee_id,
             company_id: employee.org_id,
             from_status: 'onboarding',
-            to_status: 'terminated',
+            to_status: 'suspended',
             changed_by: employee.id,
             reason: rejection_reason || 'Registration rejected by HR',
           },
@@ -144,7 +144,7 @@ export async function POST(request: NextRequest) {
         entityType: 'Employee',
         entityId: employee_id,
         previousState: { status: 'onboarding' },
-        newState: { status: 'terminated', rejected_by: employee.id, reason: rejection_reason },
+        newState: { status: 'suspended', rejected_by: employee.id, reason: rejection_reason },
       });
 
       // Send rejection email (non-blocking)

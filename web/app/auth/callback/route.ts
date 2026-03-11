@@ -5,7 +5,12 @@ import { NextResponse } from 'next/server';
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get('code');
-  const next = searchParams.get('next') ?? '/onboarding';
+  let next = searchParams.get('next') ?? '/onboarding';
+
+  // Security: prevent open redirect attacks (e.g., next=//evil.com or next=/../secret)
+  if (!next.startsWith('/') || next.startsWith('//') || next.includes('..')) {
+    next = '/onboarding';
+  }
 
   // Use the explicit app URL for redirects to avoid origin issues behind proxies/CDNs
   const redirectBase = process.env.NEXT_PUBLIC_APP_URL || origin;

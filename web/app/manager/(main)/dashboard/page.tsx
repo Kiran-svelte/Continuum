@@ -87,6 +87,7 @@ export default function ManagerDashboardPage() {
   const [rejectModalOpen, setRejectModalOpen] = useState(false);
   const [rejectModalId, setRejectModalId] = useState<string | null>(null);
   const [rejectReason, setRejectReason] = useState('');
+  const [managerId, setManagerId] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -106,6 +107,7 @@ export default function ManagerDashboardPage() {
       }
 
       setUserName(me.first_name || 'Manager');
+      setManagerId(me.id);
       setAuthChecked(true);
       setLoading(false);
     })();
@@ -128,9 +130,10 @@ export default function ManagerDashboardPage() {
   }, []);
 
   const fetchTeam = useCallback(async () => {
+    if (!managerId) return;
     setLoadingTeam(true);
     try {
-      const res = await fetch('/api/employees?limit=20', { credentials: 'include' });
+      const res = await fetch(`/api/employees?manager_id=${managerId}&limit=20`, { credentials: 'include' });
       if (res.ok) {
         const data = await res.json();
         setTeamMembers(data.employees ?? []);
@@ -139,7 +142,7 @@ export default function ManagerDashboardPage() {
     } finally {
       setLoadingTeam(false);
     }
-  }, []);
+  }, [managerId]);
 
   const fetchTodayOnLeave = useCallback(async () => {
     try {
@@ -160,12 +163,12 @@ export default function ManagerDashboardPage() {
   }, []);
 
   useEffect(() => {
-    if (authChecked) {
+    if (authChecked && managerId) {
       fetchPendingRequests();
       fetchTeam();
       fetchTodayOnLeave();
     }
-  }, [authChecked, fetchPendingRequests, fetchTeam, fetchTodayOnLeave]);
+  }, [authChecked, managerId, fetchPendingRequests, fetchTeam, fetchTodayOnLeave]);
 
   function showSuccess(msg: string) {
     setActionSuccess(msg);

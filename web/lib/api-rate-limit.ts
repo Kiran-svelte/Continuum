@@ -1,3 +1,5 @@
+import { redisRateLimit } from '@/lib/redis';
+
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 export interface RateLimitOptions {
@@ -25,16 +27,17 @@ const DEFAULT_LIMITS: Record<string, RateLimitOptions> = {
   'leaves/approve': { maxRequests: 10, windowMs: 60_000 },
   'leaves/reject': { maxRequests: 10, windowMs: 60_000 },
   auth: { maxRequests: 10, windowMs: 60_000 },
+  hr: { maxRequests: 20, windowMs: 60_000 },
   'security/otp': { maxRequests: 5, windowMs: 60_000 },
   export: { maxRequests: 3, windowMs: 60_000 },
   payroll: { maxRequests: 5, windowMs: 60_000 },
 };
 
-// ─── In-Memory Store ─────────────────────────────────────────────────────────
+// ─── In-Memory Store (fallback when Redis unavailable) ──────────────────────
 
 const store = new Map<string, RateLimitEntry>();
 
-const CLEANUP_INTERVAL_MS = 60_000; // 1 minute
+const CLEANUP_INTERVAL_MS = 60_000;
 let lastCleanup = Date.now();
 
 function cleanupExpired(): void {
@@ -49,23 +52,12 @@ function cleanupExpired(): void {
   }
 }
 
-// ─── Core Functions ──────────────────────────────────────────────────────────
-
-/**
- * Checks rate limit for an identifier + endpoint combination.
- * Uses in-memory Map with TTL-based cleanup.
- */
-export function checkApiRateLimit(
+function checkInMemory(
   identifier: string,
   endpoint: string,
-  options?: Partial<RateLimitOptions>
+  limits: RateLimitOptions
 ): RateLimitResult {
   cleanupExpired();
-
-  const limits = {
-    ...(DEFAULT_LIMITS[endpoint] || DEFAULT_LIMITS.general),
-    ...options,
-  };
 
   const key = `${identifier}:${endpoint}`;
   const now = Date.now();
@@ -73,10 +65,7 @@ export function checkApiRateLimit(
   let entry = store.get(key);
 
   if (!entry || entry.resetAt <= now) {
-    entry = {
-      count: 0,
-      resetAt: now + limits.windowMs,
-    };
+    entry = { count: 0, resetAt: now + limits.windowMs };
     store.set(key, entry);
   }
 
@@ -89,6 +78,65 @@ export function checkApiRateLimit(
     allowed,
     remaining,
     resetAt: new Date(entry.resetAt),
+    limit: limits.maxRequests,
+  };
+}
+
+// ─── Core Functions ──────────────────────────────────────────────────────────
+
+/**
+ * Checks rate limit for an identifier + endpoint combination.
+ * Uses Redis (Upstash) when configured, in-memory Map as fallback.
+ * This function is synchronous for backward compatibility — it kicks off
+ * Redis check async and returns in-memory result immediately.
+ * For fully async Redis checking, use `checkApiRateLimitAsync()`.
+ */
+export function checkApiRateLimit(
+  identifier: string,
+  endpoint: string,
+  options?: Partial<RateLimitOptions>
+): RateLimitResult {
+  const limits = {
+    ...(DEFAULT_LIMITS[endpoint] || DEFAULT_LIMITS.general),
+    ...options,
+  };
+
+  // Always do in-memory check (fast, synchronous)
+  const memResult = checkInMemory(identifier, endpoint, limits);
+
+  // Fire-and-forget Redis check for distributed state tracking
+  // The Redis result is used on NEXT request (eventual consistency)
+  const windowSec = Math.ceil(limits.windowMs / 1000);
+  void redisRateLimit(`rl:api:${identifier}:${endpoint}`, limits.maxRequests, windowSec).catch(() => {});
+
+  return memResult;
+}
+
+/**
+ * Async rate limit check — uses Redis when available, in-memory fallback.
+ * Prefer this in new API routes for accurate distributed limiting.
+ */
+export async function checkApiRateLimitAsync(
+  identifier: string,
+  endpoint: string,
+  options?: Partial<RateLimitOptions>
+): Promise<RateLimitResult> {
+  const limits = {
+    ...(DEFAULT_LIMITS[endpoint] || DEFAULT_LIMITS.general),
+    ...options,
+  };
+
+  const windowSec = Math.ceil(limits.windowMs / 1000);
+  const redisResult = await redisRateLimit(
+    `rl:api:${identifier}:${endpoint}`,
+    limits.maxRequests,
+    windowSec
+  );
+
+  return {
+    allowed: redisResult.allowed,
+    remaining: redisResult.remaining,
+    resetAt: new Date(redisResult.resetAt),
     limit: limits.maxRequests,
   };
 }

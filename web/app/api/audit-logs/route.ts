@@ -110,6 +110,7 @@ export async function GET(request: NextRequest) {
           new_state: true,
           integrity_hash: true,
           prev_hash: true,
+          ip_address: true,
           created_at: true,
           actor: {
             select: {
@@ -149,6 +150,7 @@ export async function GET(request: NextRequest) {
       newState: log.new_state,
       integrityHash: log.integrity_hash,
       prevHash: log.prev_hash,
+      ipAddress: log.ip_address ?? null,
       createdAt: log.created_at.toISOString(),
     }));
 

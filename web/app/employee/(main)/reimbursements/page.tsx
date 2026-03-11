@@ -125,6 +125,8 @@ export default function EmployeeReimbursementsPage() {
   const [formAmount, setFormAmount] = useState('');
   const [formDescription, setFormDescription] = useState('');
   const [formReceiptUrl, setFormReceiptUrl] = useState('');
+  const [formReceiptFile, setFormReceiptFile] = useState<File | null>(null);
+  const [receiptPreview, setReceiptPreview] = useState<string | null>(null);
 
   // Success message
   const [successMsg, setSuccessMsg] = useState('');
@@ -198,7 +200,19 @@ export default function EmployeeReimbursementsPage() {
         amount,
       };
       if (formDescription.trim()) body.description = formDescription.trim();
-      if (formReceiptUrl.trim()) body.receipt_url = formReceiptUrl.trim();
+
+      // Handle receipt: file upload takes priority over URL
+      if (formReceiptFile) {
+        const reader = new FileReader();
+        const dataUrl = await new Promise<string>((resolve, reject) => {
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = reject;
+          reader.readAsDataURL(formReceiptFile);
+        });
+        body.receipt_url = dataUrl;
+      } else if (formReceiptUrl.trim()) {
+        body.receipt_url = formReceiptUrl.trim();
+      }
 
       const res = await fetch('/api/reimbursements', {
         method: 'POST',
@@ -231,6 +245,8 @@ export default function EmployeeReimbursementsPage() {
     setFormAmount('');
     setFormDescription('');
     setFormReceiptUrl('');
+    setFormReceiptFile(null);
+    setReceiptPreview(null);
     setSubmitError('');
   }
 
@@ -498,15 +514,26 @@ export default function EmployeeReimbursementsPage() {
                           </span>
                         )}
                         {r.receipt_url && (
-                          <a
-                            href={r.receipt_url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1 text-primary hover:text-primary/80 transition-colors"
-                          >
-                            <ExternalLink className="w-3 h-3" />
-                            Receipt
-                          </a>
+                          r.receipt_url.startsWith('data:image/') ? (
+                            <button
+                              type="button"
+                              onClick={() => window.open(r.receipt_url!, '_blank')}
+                              className="inline-flex items-center gap-1 text-primary hover:text-primary/80 transition-colors"
+                            >
+                              <img src={r.receipt_url} alt="Receipt" className="w-8 h-8 rounded object-cover border border-border" />
+                              <span>Receipt</span>
+                            </button>
+                          ) : (
+                            <a
+                              href={r.receipt_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 text-primary hover:text-primary/80 transition-colors"
+                            >
+                              <ExternalLink className="w-3 h-3" />
+                              Receipt
+                            </a>
+                          )
                         )}
                       </div>
                     </div>
@@ -613,18 +640,44 @@ export default function EmployeeReimbursementsPage() {
             </p>
           </div>
 
-          {/* Receipt URL */}
+          {/* Receipt Upload */}
           <div>
             <label className="block text-sm font-medium text-foreground mb-1.5">
-              Receipt URL
+              Receipt (image or PDF)
             </label>
             <input
-              type="url"
-              value={formReceiptUrl}
-              onChange={(e) => setFormReceiptUrl(e.target.value)}
-              placeholder="https://..."
-              className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors"
+              type="file"
+              accept="image/*,.pdf"
+              onChange={(e) => {
+                const file = e.target.files?.[0] || null;
+                setFormReceiptFile(file);
+                if (file && file.type.startsWith('image/')) {
+                  const url = URL.createObjectURL(file);
+                  setReceiptPreview(url);
+                } else {
+                  setReceiptPreview(null);
+                }
+              }}
+              className="w-full text-sm text-foreground file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-primary/10 file:text-primary hover:file:bg-primary/20 cursor-pointer"
             />
+            {receiptPreview && (
+              <img src={receiptPreview} alt="Receipt preview" className="mt-2 max-h-32 rounded-lg border border-border object-contain" />
+            )}
+            {formReceiptFile && !receiptPreview && (
+              <p className="mt-1 text-xs text-muted-foreground">{formReceiptFile.name}</p>
+            )}
+            {!formReceiptFile && (
+              <div className="mt-2">
+                <p className="text-xs text-muted-foreground mb-1">Or paste a receipt URL:</p>
+                <input
+                  type="url"
+                  value={formReceiptUrl}
+                  onChange={(e) => setFormReceiptUrl(e.target.value)}
+                  placeholder="https://..."
+                  className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors"
+                />
+              </div>
+            )}
           </div>
 
           {/* Submit Error */}

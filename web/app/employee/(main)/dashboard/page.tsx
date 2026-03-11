@@ -174,6 +174,8 @@ export default function EmployeeDashboardPage() {
   const [loadingBalances, setLoadingBalances] = useState(true);
   const [loadingHolidays, setLoadingHolidays] = useState(true);
   const [loadingRequests, setLoadingRequests] = useState(true);
+  const [exitItems, setExitItems] = useState<{ id: string; task: string; status: string; due_date: string | null }[]>([]);
+  const [loadingExitItems, setLoadingExitItems] = useState(true);
   const [pageReady, setPageReady] = useState(false);
   const [userName, setUserName] = useState('');
 
@@ -345,13 +347,30 @@ export default function EmployeeDashboardPage() {
     }
   }, []);
 
+  const loadExitChecklist = useCallback(async () => {
+    setLoadingExitItems(true);
+    try {
+      const res = await fetch('/api/exit-checklist', { credentials: 'include' });
+      if (res.ok) {
+        const json = await res.json();
+        const items = json.items ?? [];
+        setExitItems(items);
+      }
+    } catch {
+      // ignore - widget is optional
+    } finally {
+      setLoadingExitItems(false);
+    }
+  }, []);
+
   useEffect(() => {
     if (pageReady) {
       loadBalances();
       loadHolidays();
       loadRecentRequests();
+      loadExitChecklist();
     }
-  }, [pageReady, loadBalances, loadHolidays, loadRecentRequests]);
+  }, [pageReady, loadBalances, loadHolidays, loadRecentRequests, loadExitChecklist]);
 
   function formatHolidayDate(dateStr: string) {
     const d = new Date(dateStr);
@@ -560,6 +579,55 @@ export default function EmployeeDashboardPage() {
 
         {/* Recent Requests + Upcoming Holidays */}
         <motion.div className="lg:col-span-2 space-y-6" variants={containerVariants}>
+          {/* Exit Checklist Widget - only shown if employee has exit items */}
+          {!loadingExitItems && exitItems.length > 0 && (
+            <motion.div variants={itemVariants}>
+              <Card className="border-0 shadow-md dark:shadow-lg dark:shadow-black/20 dark:bg-slate-900/80 dark:border dark:border-slate-800/50 overflow-hidden border-l-4 border-l-amber-500">
+                <CardHeader className="border-b border-border/50 bg-amber-50/50 dark:bg-amber-900/10">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <ClipboardList className="w-5 h-5 text-amber-600" />
+                      <CardTitle className="text-base">Exit Checklist</CardTitle>
+                      <Badge variant="warning" className="text-xs">
+                        {exitItems.filter(i => i.status !== 'completed').length} pending
+                      </Badge>
+                    </div>
+                    <Link href="/employee/exit-checklist" className="text-xs text-primary hover:text-primary/80 font-medium transition-colors">
+                      View all
+                    </Link>
+                  </div>
+                </CardHeader>
+                <CardContent className="p-0">
+                  <div className="divide-y divide-border/50">
+                    {exitItems.slice(0, 4).map((item) => {
+                      const isOverdue = item.due_date && new Date(item.due_date) < new Date() && item.status !== 'completed';
+                      return (
+                        <div key={item.id} className="px-6 py-3 flex items-center justify-between hover:bg-muted/30 transition-colors">
+                          <div className="flex items-center gap-3">
+                            <div className={`w-2 h-2 rounded-full ${item.status === 'completed' ? 'bg-green-500' : isOverdue ? 'bg-red-500' : 'bg-amber-500'}`} />
+                            <span className={`text-sm ${item.status === 'completed' ? 'text-muted-foreground line-through' : 'text-foreground'}`}>
+                              {item.task}
+                            </span>
+                          </div>
+                          <Badge variant={item.status === 'completed' ? 'success' : isOverdue ? 'danger' : 'warning'} className="text-xs">
+                            {item.status === 'completed' ? 'Done' : isOverdue ? 'Overdue' : 'Pending'}
+                          </Badge>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  {exitItems.length > 4 && (
+                    <div className="px-6 py-2 text-center border-t border-border/50">
+                      <Link href="/employee/exit-checklist" className="text-xs text-primary hover:underline">
+                        +{exitItems.length - 4} more items
+                      </Link>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </motion.div>
+          )}
+
           {/* Recent Leave Requests */}
           <motion.div variants={itemVariants}>
             <Card className="border-0 shadow-md dark:shadow-lg dark:shadow-black/20 dark:bg-slate-900/80 dark:border dark:border-slate-800/50 overflow-hidden">

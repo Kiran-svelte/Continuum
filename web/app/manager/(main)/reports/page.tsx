@@ -221,6 +221,7 @@ export default function ManagerReportsPage() {
   const [data, setData] = useState<LeaveSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [activeReportTab, setActiveReportTab] = useState<'leave' | 'attendance'>('leave');
 
   // Team-level data (manager-accessible APIs)
   const [team, setTeam] = useState<Employee[]>([]);
@@ -229,6 +230,19 @@ export default function ManagerReportsPage() {
     new Map()
   );
   const [teamLoading, setTeamLoading] = useState(true);
+
+  // Attendance tab state
+  const [attendanceRecords, setAttendanceRecords] = useState<{
+    employee_id: string; employee_name: string; department: string;
+    date: string; check_in: string | null; check_out: string | null;
+    total_hours: number | null; status: string; is_wfh: boolean;
+  }[]>([]);
+  const [attendanceLoading, setAttendanceLoading] = useState(false);
+  const [attendanceDateFrom, setAttendanceDateFrom] = useState(() => {
+    const d = new Date(); d.setDate(d.getDate() - 7);
+    return d.toISOString().slice(0, 10);
+  });
+  const [attendanceDateTo, setAttendanceDateTo] = useState(() => new Date().toISOString().slice(0, 10));
 
   // Date range selector - defaults to current month
   const now = new Date();
@@ -522,6 +536,99 @@ export default function ManagerReportsPage() {
   /* ---- Combined loading state ---- */
   const isLoading = loading && teamLoading;
 
+  /* ---- Attendance tab: fetch data for team members ---- */
+  const fetchAttendanceData = useCallback(async () => {
+    if (team.length === 0) return;
+    setAttendanceLoading(true);
+    try {
+      // Fetch attendance from the HR API for the date range
+      const allRecords: typeof attendanceRecords = [];
+      // Fetch day by day between attendanceDateFrom and attendanceDateTo
+      const start = new Date(attendanceDateFrom);
+      const end = new Date(attendanceDateTo);
+      const teamIds = new Set(team.map(e => e.id));
+
+      // Use the HR attendance endpoint for each date (max 31 days to avoid overload)
+      const days: string[] = [];
+      const d = new Date(start);
+      while (d <= end && days.length < 31) {
+        days.push(d.toISOString().slice(0, 10));
+        d.setDate(d.getDate() + 1);
+      }
+
+      // Batch fetch (max 5 concurrent)
+      for (let i = 0; i < days.length; i += 5) {
+        const batch = days.slice(i, i + 5);
+        const results = await Promise.all(
+          batch.map(async (date) => {
+            try {
+              const res = await fetch(`/api/hr/attendance?date=${date}`, { credentials: 'include' });
+              if (!res.ok) return [];
+              const data = await res.json();
+              return (data.records ?? []).filter((r: { employee_id: string }) => teamIds.has(r.employee_id));
+            } catch { return []; }
+          })
+        );
+        for (const recs of results) {
+          allRecords.push(...recs);
+        }
+      }
+      setAttendanceRecords(allRecords);
+    } catch {
+      setAttendanceRecords([]);
+    } finally {
+      setAttendanceLoading(false);
+    }
+  }, [team, attendanceDateFrom, attendanceDateTo]);
+
+  useEffect(() => {
+    if (activeReportTab === 'attendance' && team.length > 0) {
+      fetchAttendanceData();
+    }
+  }, [activeReportTab, fetchAttendanceData, team.length]);
+
+  // Attendance per-employee summary
+  const attendancePerEmployee = useMemo(() => {
+    const map = new Map<string, { name: string; dept: string; present: number; halfDay: number; late: number; absent: number; wfh: number; totalHours: number }>();
+    for (const rec of attendanceRecords) {
+      let entry = map.get(rec.employee_id);
+      if (!entry) {
+        entry = { name: rec.employee_name, dept: rec.department, present: 0, halfDay: 0, late: 0, absent: 0, wfh: 0, totalHours: 0 };
+        map.set(rec.employee_id, entry);
+      }
+      if (rec.status === 'present') entry.present++;
+      else if (rec.status === 'half_day') entry.halfDay++;
+      else if (rec.status === 'late') { entry.present++; entry.late++; }
+      else if (rec.status === 'absent') entry.absent++;
+      if (rec.is_wfh) entry.wfh++;
+      entry.totalHours += rec.total_hours ?? 0;
+    }
+    return Array.from(map.entries()).map(([id, e]) => ({ id, ...e }));
+  }, [attendanceRecords]);
+
+  const exportAttendanceCSV = useCallback(() => {
+    if (attendanceRecords.length === 0) return;
+    const headers = ['Employee', 'Department', 'Date', 'Check In', 'Check Out', 'Hours', 'Status', 'Location'];
+    const rows = attendanceRecords.map(r => [
+      r.employee_name,
+      r.department,
+      r.date,
+      r.check_in ? new Date(r.check_in).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }) : '',
+      r.check_out ? new Date(r.check_out).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }) : '',
+      r.total_hours !== null ? r.total_hours.toFixed(1) : '',
+      r.status,
+      r.is_wfh ? 'Remote' : 'Office',
+    ]);
+    const csv = [headers, ...rows].map(row => row.map(cell => `"${cell}"`).join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `team-attendance-${attendanceDateFrom}-to-${attendanceDateTo}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }, [attendanceRecords, attendanceDateFrom, attendanceDateTo]);
+
   /* ---- Render --------------------------------------------------- */
 
   return (
@@ -601,6 +708,191 @@ export default function ManagerReportsPage() {
           </div>
         </div>
       </div>
+
+      {/* Tab Bar */}
+      <div className="flex gap-1 border-b border-border">
+        <button
+          onClick={() => setActiveReportTab('leave')}
+          className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
+            activeReportTab === 'leave'
+              ? 'border-primary text-primary'
+              : 'border-transparent text-muted-foreground hover:text-foreground'
+          }`}
+        >
+          <CalendarDays className="w-4 h-4" />
+          Leave Reports
+        </button>
+        <button
+          onClick={() => setActiveReportTab('attendance')}
+          className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
+            activeReportTab === 'attendance'
+              ? 'border-primary text-primary'
+              : 'border-transparent text-muted-foreground hover:text-foreground'
+          }`}
+        >
+          <Clock className="w-4 h-4" />
+          Attendance
+        </button>
+      </div>
+
+      {/* ================================================================ */}
+      {/* ATTENDANCE TAB                                                    */}
+      {/* ================================================================ */}
+      {activeReportTab === 'attendance' && (
+        <div className="space-y-6">
+          {/* Attendance Controls */}
+          <div className="flex flex-wrap items-center gap-3 p-3 rounded-lg border border-border/60 bg-card/50">
+            <Calendar className="w-4 h-4 text-muted-foreground shrink-0" />
+            <span className="text-xs font-medium text-muted-foreground">Date Range:</span>
+            <div className="flex items-center gap-2">
+              <label className="text-xs text-muted-foreground">From</label>
+              <input
+                type="date"
+                value={attendanceDateFrom}
+                onChange={(e) => setAttendanceDateFrom(e.target.value)}
+                className="px-3 py-1.5 text-sm rounded-lg border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary transition-colors"
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <label className="text-xs text-muted-foreground">To</label>
+              <input
+                type="date"
+                value={attendanceDateTo}
+                onChange={(e) => setAttendanceDateTo(e.target.value)}
+                className="px-3 py-1.5 text-sm rounded-lg border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary transition-colors"
+              />
+            </div>
+            <Button variant="outline" size="sm" onClick={exportAttendanceCSV} disabled={attendanceRecords.length === 0}>
+              <Download className="w-4 h-4" />
+              Export CSV
+            </Button>
+          </div>
+
+          {attendanceLoading ? (
+            <div className="py-16 text-center">
+              <Loader2 className="w-8 h-8 text-primary mx-auto animate-spin" />
+              <p className="text-sm text-muted-foreground mt-3">Loading attendance data...</p>
+            </div>
+          ) : team.length === 0 ? (
+            <div className="py-16 text-center">
+              <Users className="w-12 h-12 mx-auto text-muted-foreground/30 mb-4" />
+              <p className="text-lg font-medium text-foreground">No team members found</p>
+              <p className="text-sm text-muted-foreground mt-1">Attendance data requires direct reports.</p>
+            </div>
+          ) : (
+            <>
+              {/* Per-Employee Attendance Summary */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Users className="w-5 h-5" />
+                    Per-Employee Summary
+                    <span className="text-sm font-normal text-muted-foreground">
+                      ({attendanceDateFrom} to {attendanceDateTo})
+                    </span>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {attendancePerEmployee.length === 0 ? (
+                    <p className="text-sm text-muted-foreground text-center py-8">No attendance records found for this period.</p>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="w-full">
+                        <thead>
+                          <tr className="border-b">
+                            <th className="text-left py-3 px-3 font-medium text-sm">Employee</th>
+                            <th className="text-center py-3 px-3 font-medium text-sm">Present</th>
+                            <th className="text-center py-3 px-3 font-medium text-sm">Half Days</th>
+                            <th className="text-center py-3 px-3 font-medium text-sm">Late</th>
+                            <th className="text-center py-3 px-3 font-medium text-sm">Absent</th>
+                            <th className="text-center py-3 px-3 font-medium text-sm">WFH</th>
+                            <th className="text-right py-3 px-3 font-medium text-sm">Total Hours</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {attendancePerEmployee.map((emp) => (
+                            <tr key={emp.id} className="border-b hover:bg-muted/50 transition-colors">
+                              <td className="py-3 px-3">
+                                <p className="font-medium text-sm">{emp.name}</p>
+                                <p className="text-xs text-muted-foreground">{emp.dept}</p>
+                              </td>
+                              <td className="text-center py-3 px-3 text-sm font-medium text-green-600 dark:text-green-400">{emp.present}</td>
+                              <td className="text-center py-3 px-3 text-sm font-medium text-orange-600 dark:text-orange-400">{emp.halfDay}</td>
+                              <td className="text-center py-3 px-3 text-sm font-medium text-yellow-600 dark:text-yellow-400">{emp.late}</td>
+                              <td className="text-center py-3 px-3 text-sm font-medium text-red-600 dark:text-red-400">{emp.absent}</td>
+                              <td className="text-center py-3 px-3 text-sm">{emp.wfh}</td>
+                              <td className="text-right py-3 px-3 text-sm font-mono">{emp.totalHours.toFixed(1)}h</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Detailed Records Table */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <ClipboardList className="w-5 h-5" />
+                    Detailed Records
+                    <span className="text-sm font-normal text-muted-foreground">
+                      ({attendanceRecords.length} records)
+                    </span>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {attendanceRecords.length === 0 ? (
+                    <p className="text-sm text-muted-foreground text-center py-8">No records for this period.</p>
+                  ) : (
+                    <div className="overflow-x-auto max-h-[500px] overflow-y-auto">
+                      <table className="w-full">
+                        <thead className="sticky top-0 bg-card z-10">
+                          <tr className="border-b">
+                            <th className="text-left py-3 px-3 font-medium text-sm">Employee</th>
+                            <th className="text-left py-3 px-3 font-medium text-sm">Date</th>
+                            <th className="text-left py-3 px-3 font-medium text-sm">Check In</th>
+                            <th className="text-left py-3 px-3 font-medium text-sm">Check Out</th>
+                            <th className="text-right py-3 px-3 font-medium text-sm">Hours</th>
+                            <th className="text-left py-3 px-3 font-medium text-sm">Status</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {attendanceRecords.map((rec, idx) => (
+                            <tr key={`${rec.employee_id}-${rec.date}-${idx}`} className="border-b hover:bg-muted/50 transition-colors">
+                              <td className="py-2.5 px-3 text-sm">{rec.employee_name}</td>
+                              <td className="py-2.5 px-3 text-sm">{new Date(rec.date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}</td>
+                              <td className="py-2.5 px-3 text-sm font-mono">{rec.check_in ? new Date(rec.check_in).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }) : '--'}</td>
+                              <td className="py-2.5 px-3 text-sm font-mono">{rec.check_out ? new Date(rec.check_out).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }) : '--'}</td>
+                              <td className="py-2.5 px-3 text-sm font-mono text-right">{rec.total_hours !== null ? `${rec.total_hours.toFixed(1)}h` : '--'}</td>
+                              <td className="py-2.5 px-3">
+                                <Badge variant={
+                                  rec.status === 'present' ? 'success' :
+                                  rec.status === 'late' ? 'warning' :
+                                  rec.status === 'absent' ? 'danger' :
+                                  rec.status === 'half_day' ? 'info' : 'default'
+                                } className="text-xs">
+                                  {rec.status.replace('_', ' ')}
+                                </Badge>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* ================================================================ */}
+      {/* LEAVE TAB - Original content below                               */}
+      {/* ================================================================ */}
+      {activeReportTab === 'leave' && (<>
 
       {/* Loading State */}
       <AnimatePresence mode="wait">
@@ -1267,6 +1559,8 @@ export default function ManagerReportsPage() {
           </Card>
         </motion.div>
       )}
+
+      </>)}
     </div>
   );
 }

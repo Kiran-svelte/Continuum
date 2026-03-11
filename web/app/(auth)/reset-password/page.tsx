@@ -15,6 +15,7 @@ function ResetPasswordContent() {
   const [success, setSuccess] = useState(false);
   const [validCode, setValidCode] = useState<boolean | null>(null);
   const [oobCode, setOobCode] = useState<string | null>(null);
+  const [userEmail, setUserEmail] = useState<string | null>(null);
 
   useEffect(() => {
     async function verifyCode() {
@@ -24,8 +25,10 @@ function ResetPasswordContent() {
         return;
       }
       try {
-        await firebaseVerifyPasswordResetCode(code);
+        // firebaseVerifyPasswordResetCode returns the email associated with the reset code
+        const email = await firebaseVerifyPasswordResetCode(code);
         setOobCode(code);
+        setUserEmail(email);
         setValidCode(true);
       } catch {
         setValidCode(false);
@@ -54,6 +57,16 @@ function ResetPasswordContent() {
     setLoading(true);
     try {
       await firebaseConfirmPasswordReset(oobCode, password);
+
+      // Log password change to audit trail (non-blocking)
+      if (userEmail) {
+        void fetch('/api/auth/password-change', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: userEmail, type: 'reset' }),
+        }).catch(() => {});
+      }
+
       setSuccess(true);
       setTimeout(() => router.push('/sign-in'), 2500);
     } catch (err) {

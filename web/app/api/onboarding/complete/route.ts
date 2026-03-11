@@ -344,6 +344,13 @@ export async function POST(request: NextRequest) {
         where: { id: companyId },
         data: { onboarding_completed: true },
       });
+
+      // 7. Set the admin employee (the one completing onboarding) to 'active'
+      // Other 'onboarding' employees remain in 'onboarding' status for HR approval
+      await tx.employee.update({
+        where: { id: employee.id },
+        data: { status: 'active' },
+      });
     });
 
     // Fetch join_code to return to the client

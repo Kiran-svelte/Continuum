@@ -269,7 +269,7 @@ export async function getAuthEmployee(): Promise<AuthEmployee> {
     throw new AuthError('Employee record not found', 401);
   }
 
-  if (employee.status === 'terminated' || employee.status === 'exited') {
+  if (employee.status === 'terminated' || employee.status === 'exited' || employee.status === 'suspended') {
     throw new AuthError('Account is no longer active', 403);
   }
 

@@ -111,8 +111,23 @@ export default function SignInPage() {
     return true;
   }
 
-  // Check if user is already logged in
+  // Check if user is already logged in and handle URL error params
   useEffect(() => {
+    // Check for error in URL params (from auth callback failures)
+    const params = new URLSearchParams(window.location.search);
+    const urlError = params.get('error');
+    if (urlError) {
+      const errorMessages: Record<string, string> = {
+        auth_callback_failed: 'Authentication failed. Please try again.',
+        auth_required: 'Please sign in to continue.',
+        access_denied: "You don't have access to that portal.",
+        session_expired: 'Your session has expired. Please sign in again.',
+      };
+      setError(errorMessages[urlError] || 'An error occurred. Please try again.');
+      // Clean up the URL
+      window.history.replaceState({}, '', '/sign-in');
+    }
+
     (async () => {
       try {
         const redirected = await redirectByMe();
@@ -163,24 +178,39 @@ export default function SignInPage() {
     } catch (err) {
       const authErr = err as { code?: string; message?: string };
       let message = 'Sign in failed. Please try again.';
+      let reason = 'Unknown error';
 
       if (err instanceof Error && err.name === 'AbortError') {
         message = 'Request timed out. Please try again.';
+        reason = 'Request timeout';
       }
 
       if (authErr.code === 'auth/invalid-credential' || authErr.code === 'auth/invalid-email') {
         message = 'Invalid email or password.';
+        reason = 'Invalid credentials';
       } else if (authErr.code === 'auth/user-not-found') {
         message = 'No account found with this email. Please sign up.';
+        reason = 'User not found';
       } else if (authErr.code === 'auth/wrong-password') {
         message = 'Incorrect password. Please try again.';
+        reason = 'Wrong password';
       } else if (authErr.code === 'auth/too-many-requests') {
         message = 'Too many failed attempts. Please try again later.';
+        reason = 'Rate limited';
       } else if (authErr.code === 'auth/user-disabled') {
         message = 'This account has been disabled. Contact support.';
+        reason = 'Account disabled';
       } else if (authErr.code === 'auth/network-request-failed') {
         message = 'Network error. Please check your connection.';
+        reason = 'Network error';
       }
+
+      // Log failed login attempt (non-blocking)
+      void fetch('/api/auth/failed-login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, reason }),
+      }).catch(() => {});
 
       setError(message);
     } finally {

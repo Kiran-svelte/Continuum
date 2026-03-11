@@ -4,6 +4,7 @@ import { getAuthEmployee, AuthError } from '@/lib/auth-guard';
 import { checkApiRateLimit, getRateLimitHeaders } from '@/lib/api-rate-limit';
 import { createAuditLog, AUDIT_ACTIONS } from '@/lib/audit';
 import { sanitizeInput } from '@/lib/security';
+import { sendNotification } from '@/lib/notification-service';
 
 export const dynamic = 'force-dynamic';
 
@@ -129,6 +130,21 @@ export async function POST(request: NextRequest) {
         attendance_id: attendanceRecord?.id ?? null,
       },
     });
+
+    // Notify the employee's manager about the regularization request
+    const empRecord = await prisma.employee.findUnique({
+      where: { id: employee.id },
+      select: { manager_id: true },
+    });
+    if (empRecord?.manager_id) {
+      void sendNotification(
+        empRecord.manager_id,
+        employee.org_id,
+        'attendance',
+        'Regularization Request',
+        `${employee.first_name} ${employee.last_name} submitted an attendance regularization for ${date}.`
+      ).catch(() => {});
+    }
 
     return NextResponse.json(regularization, { status: 201 });
   } catch (error) {

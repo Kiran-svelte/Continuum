@@ -136,6 +136,7 @@ export default function EmployeeDetailPage() {
     designation: '',
     status: '',
     role: '',
+    secondaryRoles: [] as string[],
   });
 
   // Save feedback
@@ -158,6 +159,7 @@ export default function EmployeeDetailPage() {
         designation: emp.designation || '',
         status: emp.status || 'active',
         role: emp.primary_role || 'employee',
+        secondaryRoles: emp.secondary_roles || [],
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load employee');
@@ -179,23 +181,48 @@ export default function EmployeeDetailPage() {
       if (editForm.department !== (employee.department || '')) body.department = editForm.department;
       if (editForm.designation !== (employee.designation || '')) body.designation = editForm.designation;
       if (editForm.status !== employee.status) body.status = editForm.status;
-      if (editForm.role !== employee.primary_role) body.role = editForm.role;
 
-      if (Object.keys(body).length === 0) {
-        setEditing(false);
-        return;
+      // Check if roles changed — use dedicated role API
+      const roleChanged = editForm.role !== employee.primary_role;
+      const secondaryChanged = JSON.stringify(editForm.secondaryRoles.sort()) !== JSON.stringify((employee.secondary_roles || []).sort());
+
+      // Save non-role changes via the general endpoint
+      if (Object.keys(body).length > 0) {
+        const res = await fetch(`/api/employees/${employeeId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify(body),
+        });
+
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          throw new Error(data.error || 'Save failed');
+        }
       }
 
-      const res = await fetch(`/api/employees/${employeeId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify(body),
-      });
+      // Save role changes via the dedicated role API
+      if (roleChanged || secondaryChanged) {
+        const roleBody: Record<string, unknown> = {};
+        if (roleChanged) roleBody.primary_role = editForm.role;
+        if (secondaryChanged) roleBody.secondary_roles = editForm.secondaryRoles.filter(r => r !== editForm.role);
 
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || 'Save failed');
+        const roleRes = await fetch(`/api/employees/${employeeId}/role`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify(roleBody),
+        });
+
+        if (!roleRes.ok) {
+          const data = await roleRes.json().catch(() => ({}));
+          throw new Error(data.error || 'Role update failed');
+        }
+      }
+
+      if (Object.keys(body).length === 0 && !roleChanged && !secondaryChanged) {
+        setEditing(false);
+        return;
       }
 
       setEditing(false);
@@ -320,6 +347,38 @@ export default function EmployeeDetailPage() {
                       ))}
                     </select>
                   </div>
+                  <div>
+                    <label className="text-xs text-muted-foreground">Secondary Roles</label>
+                    <div className="flex flex-wrap gap-2 mt-1">
+                      {['admin', 'hr', 'director', 'manager', 'team_lead', 'employee']
+                        .filter(r => r !== editForm.role)
+                        .map((r) => {
+                          const isSelected = editForm.secondaryRoles.includes(r);
+                          return (
+                            <button
+                              key={r}
+                              type="button"
+                              onClick={() => {
+                                setEditForm(prev => ({
+                                  ...prev,
+                                  secondaryRoles: isSelected
+                                    ? prev.secondaryRoles.filter(sr => sr !== r)
+                                    : [...prev.secondaryRoles, r],
+                                }));
+                              }}
+                              className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${
+                                isSelected
+                                  ? 'bg-primary text-primary-foreground border-primary'
+                                  : 'bg-background text-muted-foreground border-border hover:border-primary/50'
+                              }`}
+                            >
+                              {r.replace('_', ' ')}
+                            </button>
+                          );
+                        })}
+                    </div>
+                    <p className="text-[10px] text-muted-foreground mt-1">Click to toggle secondary roles</p>
+                  </div>
                   <Button variant="primary" size="sm" className="w-full mt-2" onClick={handleSave} disabled={saving}>
                     {saving ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : null}
                     Save Changes
@@ -332,6 +391,21 @@ export default function EmployeeDetailPage() {
                   <InfoRow icon={Building2} label="Department" value={employee.department || '--'} />
                   <InfoRow icon={Briefcase} label="Designation" value={employee.designation || '--'} />
                   <InfoRow icon={Shield} label="Role" value={employee.primary_role.replace('_', ' ')} />
+                  {employee.secondary_roles && employee.secondary_roles.length > 0 && (
+                    <div className="flex items-start gap-3 py-2.5">
+                      <Shield className="w-4 h-4 text-muted-foreground mt-0.5 shrink-0" />
+                      <div>
+                        <span className="text-xs text-muted-foreground">Secondary Roles</span>
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {employee.secondary_roles.map((r: string) => (
+                            <span key={r} className="px-2 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary">
+                              {r.replace('_', ' ')}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  )}
                   <InfoRow icon={Calendar} label="Joined" value={employee.date_of_joining ? new Date(employee.date_of_joining).toLocaleDateString('en-IN', { year: 'numeric', month: 'short', day: 'numeric' }) : '--'} />
                   <InfoRow icon={UserCheck} label="Manager" value={employee.manager ? `${employee.manager.first_name} ${employee.manager.last_name}` : '--'} />
                   <InfoRow icon={Clock} label="Gender" value={employee.gender || '--'} />

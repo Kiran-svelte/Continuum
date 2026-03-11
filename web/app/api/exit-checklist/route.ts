@@ -3,6 +3,7 @@ import prisma from '@/lib/prisma';
 import { getAuthEmployee, requireRole, AuthError } from '@/lib/auth-guard';
 import { checkApiRateLimit, getRateLimitHeaders } from '@/lib/api-rate-limit';
 import { createAuditLog } from '@/lib/audit';
+import { sendNotification } from '@/lib/notification-service';
 
 export const dynamic = 'force-dynamic';
 
@@ -162,6 +163,16 @@ export async function POST(request: NextRequest) {
         status: checklist.status,
       },
     }).catch((err) => console.error('[Audit log error]', err));
+
+    // Notify the assigned employee about their exit checklist
+    const itemCount = Array.isArray(items) ? items.length : 0;
+    void sendNotification(
+      emp_id,
+      employee.org_id,
+      'exit_checklist',
+      'Exit Checklist Assigned',
+      `${itemCount} exit checklist item${itemCount !== 1 ? 's have' : ' has'} been assigned to you. Please review and complete them.`
+    ).catch(() => {});
 
     return NextResponse.json({ checklist }, { status: 201 });
   } catch (error) {

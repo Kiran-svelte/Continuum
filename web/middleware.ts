@@ -41,6 +41,7 @@ const PUBLIC_API_PATTERNS = [
   '/api/auth/keycloak/callback',
   '/api/auth/keycloak/logout',
   '/api/auth/keycloak/refresh',
+  '/api/company/validate-code',
 ];
 
 // Cron routes that use CRON_SECRET instead of user auth

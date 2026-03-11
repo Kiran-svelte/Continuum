@@ -336,14 +336,53 @@ export default function EmployeePayslipsPage() {
             </div>
 
             <Button variant="outline" className="w-full gap-2" onClick={() => {
-              const text = `Payslip - ${MONTHS[selectedSlip.month - 1]} ${selectedSlip.year}\n\nGross: ${formatCurrency(selectedSlip.gross)}\nDeductions: ${formatCurrency(selectedSlip.total_deductions)}\nNet Pay: ${formatCurrency(selectedSlip.net_pay)}`;
-              const blob = new Blob([text], { type: 'text/plain' });
-              const url = URL.createObjectURL(blob);
-              const link = document.createElement('a');
-              link.href = url;
-              link.download = `payslip-${selectedSlip.year}-${String(selectedSlip.month).padStart(2, '0')}.txt`;
-              link.click();
-              URL.revokeObjectURL(url);
+              const slip = selectedSlip;
+              const monthName = MONTHS[slip.month - 1];
+              const html = `<!DOCTYPE html>
+<html><head><title>Payslip - ${monthName} ${slip.year}</title>
+<style>
+body{font-family:Arial,sans-serif;margin:40px;color:#222;max-width:700px;margin:40px auto}
+h1{font-size:20px;margin-bottom:4px}
+.subtitle{color:#666;font-size:13px;margin-bottom:20px}
+table{width:100%;border-collapse:collapse;margin-bottom:16px}
+th,td{padding:8px 12px;text-align:left;border-bottom:1px solid #e0e0e0;font-size:13px}
+th{background:#f5f5f5;font-weight:600}
+.right{text-align:right}
+.total-row{font-weight:700;background:#f0f4ff}
+.net-row{font-weight:700;font-size:15px;background:#e8f5e9;border-top:2px solid #4caf50}
+.section{margin-top:16px;font-weight:600;font-size:14px;padding-bottom:6px;border-bottom:2px solid #333}
+.footer{margin-top:24px;font-size:11px;color:#888;text-align:center}
+@media print{body{margin:20px}button{display:none}}
+</style></head><body>
+<h1>Payslip</h1>
+<p class="subtitle">${monthName} ${slip.year} &bull; Working Days: ${slip.working_days} &bull; Present: ${slip.present_days} &bull; Leave: ${slip.leave_days} &bull; Absent: ${slip.absent_days}</p>
+<p class="section">Earnings</p>
+<table><tr><th>Component</th><th class="right">Amount</th></tr>
+<tr><td>Basic Salary</td><td class="right">${formatCurrency(slip.basic)}</td></tr>
+<tr><td>HRA</td><td class="right">${formatCurrency(slip.hra)}</td></tr>
+<tr><td>DA</td><td class="right">${formatCurrency(slip.da)}</td></tr>
+<tr><td>Special Allowance</td><td class="right">${formatCurrency(slip.special_allowance)}</td></tr>
+<tr class="total-row"><td>Gross Salary</td><td class="right">${formatCurrency(slip.gross)}</td></tr>
+</table>
+<p class="section">Deductions</p>
+<table><tr><th>Component</th><th class="right">Amount</th></tr>
+<tr><td>PF (Employee)</td><td class="right">${formatCurrency(slip.pf_employee)}</td></tr>
+<tr><td>ESI (Employee)</td><td class="right">${formatCurrency(slip.esi_employee)}</td></tr>
+<tr><td>Professional Tax</td><td class="right">${formatCurrency(slip.professional_tax)}</td></tr>
+<tr><td>TDS (Income Tax)</td><td class="right">${formatCurrency(slip.tds)}</td></tr>
+<tr><td>LOP Deduction</td><td class="right">${formatCurrency(slip.lop_deduction)}</td></tr>
+<tr class="total-row"><td>Total Deductions</td><td class="right">${formatCurrency(slip.total_deductions)}</td></tr>
+</table>
+<table><tr class="net-row"><td>Net Pay</td><td class="right">${formatCurrency(slip.net_pay)}</td></tr></table>
+<p style="font-size:11px;color:#888;margin-top:8px">Employer PF: ${formatCurrency(slip.pf_employer)} &bull; Employer ESI: ${formatCurrency(slip.esi_employer)}</p>
+<div class="footer">This is a system-generated payslip. For questions, contact HR.</div>
+<script>window.onload=function(){window.print()}</script>
+</body></html>`;
+              const printWindow = window.open('', '_blank');
+              if (printWindow) {
+                printWindow.document.write(html);
+                printWindow.document.close();
+              }
             }}>
               <Download className="w-4 h-4" /> Download Payslip
             </Button>

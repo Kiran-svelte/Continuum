@@ -1,5 +1,6 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { getAuthEmployee, AuthError } from '@/lib/auth-guard';
+import { createAuditLog, AUDIT_ACTIONS } from '@/lib/audit';
 import prisma from '@/lib/prisma';
 
 export const dynamic = 'force-dynamic';
@@ -10,8 +11,9 @@ export const dynamic = 'force-dynamic';
  * Returns the authenticated employee's basic profile, role, and company info.
  * Used by the client to perform role-based dashboard redirect after sign-in.
  * Includes onboarding_completed flag to gate access.
+ * Logs successful sign-in to audit trail.
  */
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     const employee = await getAuthEmployee();
 
@@ -64,17 +66,44 @@ export async function GET() {
       } : null,
     });
 
-    // Set role cookies for middleware portal enforcement (readable by Edge Runtime)
+    // Set role cookies for middleware portal enforcement (HttpOnly for security)
     const cookieOpts = {
       path: '/',
       sameSite: 'lax' as const,
       secure: process.env.NODE_ENV === 'production',
       maxAge: 60 * 60 * 24, // 24 hours
-      httpOnly: false, // middleware + client needs to read these
+      httpOnly: true, // Secure: middleware reads server-side, client uses /api/auth/me
     };
 
     response.cookies.set('continuum-role', employee.primary_role, cookieOpts);
     response.cookies.set('continuum-roles', allRoles.join(','), cookieOpts);
+
+    // Log successful sign-in to audit trail (best effort, non-blocking)
+    const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
+      request.headers.get('x-real-ip') ||
+      'unknown';
+    const userAgent = request.headers.get('user-agent') || undefined;
+    const referrer = request.headers.get('referer') || undefined;
+
+    // Only log if coming from sign-in page (avoid logging on page refreshes)
+    if (referrer && (referrer.includes('/sign-in') || referrer.includes('/sign-up'))) {
+      void createAuditLog({
+        companyId: employee.org_id,
+        actorId: employee.id,
+        action: AUDIT_ACTIONS.LOGIN,
+        entityType: 'Employee',
+        entityId: employee.id,
+        ipAddress: ip,
+        userAgent,
+        newState: {
+          email: employee.email,
+          primary_role: employee.primary_role,
+          signed_in_at: new Date().toISOString(),
+        },
+      }).catch(() => {
+        // Ignore audit failures - login should still succeed
+      });
+    }
 
     return response;
   } catch (error) {

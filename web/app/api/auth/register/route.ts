@@ -37,7 +37,6 @@ function generateJoinCode(): string {
  * 5. Creates an audit log entry
  */
 export async function POST(request: NextRequest) {
-  console.log('[REGISTER] Started');
 
   // Rate limit by IP
   const ip = request.headers.get('x-forwarded-for') ?? 'unknown';
@@ -50,36 +49,28 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    console.log('[REGISTER] Verifying auth...');
     // Resolve the authenticated Firebase user from Bearer token or session cookie
     const { user, error: authError } = await getAuthUserFromRequest(request);
-    console.log('[REGISTER] Auth result:', user?.uid, authError?.message);
 
     if (authError || !user) {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     }
 
-    console.log('[REGISTER] Checking existing employee...');
     // Ensure this auth_id is not already linked to an employee
     const existing = await prisma.employee.findUnique({ where: { auth_id: user.uid } });
-    console.log('[REGISTER] Existing employee:', existing?.id);
 
     if (existing) {
       return NextResponse.json({ error: 'Account already registered' }, { status: 409 });
     }
 
-    console.log('[REGISTER] Parsing request body...');
     const body = await request.json();
-    console.log('[REGISTER] Body received:', JSON.stringify(body));
     const parsed = registerSchema.safeParse(body);
     if (!parsed.success) {
-      console.log('[REGISTER] Validation failed:', JSON.stringify(parsed.error.flatten()));
       return NextResponse.json(
         { error: 'Validation failed', details: parsed.error.flatten() },
         { status: 400 }
       );
     }
-    console.log('[REGISTER] Validation passed');
 
     const data = parsed.data;
     const firstName = sanitizeInput(data.first_name);
@@ -89,71 +80,66 @@ export async function POST(request: NextRequest) {
     const size = data.size ? sanitizeInput(data.size) : undefined;
     const timezone = data.timezone ? sanitizeInput(data.timezone) : undefined;
 
-    // Generate a unique join code for this company
+    // Generate a unique join code for this company with collision detection
     let joinCode = generateJoinCode();
     let attempts = 0;
-    while (attempts < 5) {
+    const MAX_ATTEMPTS = 5;
+    while (attempts < MAX_ATTEMPTS) {
       const conflict = await prisma.company.findUnique({ where: { join_code: joinCode } });
       if (!conflict) break;
       joinCode = generateJoinCode();
       attempts++;
     }
 
+    // If all attempts failed, return error instead of trying with collided code
+    if (attempts >= MAX_ATTEMPTS) {
+      return NextResponse.json(
+        { error: 'Unable to generate unique company code. Please try again.' },
+        { status: 500 }
+      );
+    }
+
     // Create company with onboarding_completed = false.
     // Leave types, balances, and constraint rules will be configured during
     // the onboarding wizard — the system is fully config-driven.
-    console.log('[REGISTER] Creating company...');
-    const company = await prisma.company.create({
-      data: {
-        name: companyName,
-        industry,
-        size,
-        timezone,
-        join_code: joinCode,
-        onboarding_completed: false,
-      },
+    // Wrap in transaction to prevent orphan Company records on failure.
+    const result = await prisma.$transaction(async (tx) => {
+      const company = await tx.company.create({
+        data: {
+          name: companyName,
+          industry,
+          size,
+          timezone,
+          join_code: joinCode,
+          onboarding_completed: false,
+        },
+      });
+
+      const employee = await tx.employee.create({
+        data: {
+          auth_id: user.uid,
+          email: user.email!,
+          first_name: firstName,
+          last_name: lastName,
+          org_id: company.id,
+          primary_role: 'admin',
+          date_of_joining: new Date(),
+          gender: 'other',
+          status: 'onboarding',
+        },
+      });
+
+      return { company, employee };
     });
 
-    console.log('[REGISTER] Creating employee...');
-    const employee = await prisma.employee.create({
-      data: {
-        auth_id: user.uid,
-        email: user.email!,
-        first_name: firstName,
-        last_name: lastName,
-        org_id: company.id,
-        primary_role: 'admin',
-        date_of_joining: new Date(),
-        gender: 'other',
-        status: 'onboarding',
-      },
-    });
-
-    // Create a free-tier trial subscription for the new company so billing
-    // and plan-gating logic always has a record to work with.
-    console.log('[REGISTER] Creating free trial subscription...');
-    const now = new Date();
-    const trialEnd = new Date(now);
-    trialEnd.setDate(trialEnd.getDate() + 30); // 30-day free trial
-    await prisma.subscription.create({
-      data: {
-        company_id: company.id,
-        plan: 'free',
-        status: 'trial',
-        current_period_start: now,
-        current_period_end: trialEnd,
-      },
-    });
-
-    // Audit log
-    console.log('[REGISTER] Writing audit log...');
+    // Audit log (outside transaction - best effort)
     await createAuditLog({
-      companyId: company.id,
-      actorId: employee.id,
+      companyId: result.company.id,
+      actorId: result.employee.id,
       action: AUDIT_ACTIONS.COMPANY_REGISTER,
       entityType: 'Company',
-      entityId: company.id,
-      newState: { company_name: companyName, admin_id: employee.id },
+      entityId: result.company.id,
+      newState: { company_name: companyName, admin_id: result.employee.id },
     });
 
     // Send welcome email (non-blocking)
@@ -163,11 +149,10 @@ export async function POST(request: NextRequest) {
       }
     );
 
-    console.log('[REGISTER] Completed');
     return NextResponse.json({
       success: true,
-      company_id: company.id,
-      employee_id: employee.id,
+      company_id: result.company.id,
+      employee_id: result.employee.id,
       join_code: joinCode,
       onboarding_required: true,
     });

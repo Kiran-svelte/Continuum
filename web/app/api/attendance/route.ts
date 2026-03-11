@@ -50,22 +50,26 @@ export async function GET(request: NextRequest) {
 
     // Calculate summary stats
     const presentDays = records.filter(r => r.status === 'present' || r.status === 'late').length;
+    const halfDayDays = records.filter(r => r.status === 'half_day').length;
     const wfhDays = records.filter(r => r.is_wfh).length;
     const absentDays = records.filter(r => r.status === 'absent').length;
     const onLeaveDays = records.filter(r => r.status === 'on_leave').length;
+    const lateDays = records.filter(r => r.status === 'late').length;
     const totalHours = records.reduce((sum, r) => sum + (r.total_hours ?? 0), 0);
     const workingDays = records.filter(r => r.status !== 'weekend' && r.status !== 'holiday').length;
     const attendancePercent = workingDays > 0
-      ? (((presentDays + wfhDays) / workingDays) * 100).toFixed(1)
+      ? (((presentDays + wfhDays + halfDayDays) / workingDays) * 100).toFixed(1)
       : '0.0';
 
     return NextResponse.json({
       records,
       summary: {
         presentDays,
+        halfDayDays,
         wfhDays,
         absentDays,
         onLeaveDays,
+        lateDays,
         totalHours: totalHours.toFixed(1),
         attendancePercent,
         workingDays,

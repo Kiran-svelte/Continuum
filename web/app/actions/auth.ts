@@ -188,9 +188,31 @@ export async function createCompanyAndEmployee(input: CreateCompanyInput) {
   }
 
   try {
-    // Generate a random join code for the company
-    const joinCode = Math.random().toString(36).substring(2, 8).toUpperCase();
-    
+    // Generate a cryptographically random 8-char uppercase alphanumeric join code
+    // with collision detection and retry
+    const { randomBytes } = await import('crypto');
+
+    const generateJoinCode = () => randomBytes(4).toString('hex').toUpperCase();
+
+    // Check for collision and retry up to 5 times
+    let joinCode = generateJoinCode();
+    let attempts = 0;
+    const MAX_ATTEMPTS = 5;
+
+    while (attempts < MAX_ATTEMPTS) {
+      const existing = await prisma.company.findUnique({ where: { join_code: joinCode } });
+      if (!existing) break;
+      joinCode = generateJoinCode();
+      attempts++;
+    }
+
+    if (attempts >= MAX_ATTEMPTS) {
+      return {
+        success: false,
+        error: 'Unable to generate unique company code. Please try again.',
+      };
+    }
+
     // Get name from user metadata or email
     const fullName = user.user_metadata?.full_name || email.split('@')[0];
     const nameParts = fullName.split(' ');
@@ -293,7 +315,7 @@ export async function joinCompanyAsEmployee(companyCode: string) {
 
     const company = await prisma.company.findUnique({
       where: { join_code: code },
-      select: { id: true, onboarding_completed: true },
+      select: { id: true, onboarding_completed: true, leave_types: { where: { is_active: true } } },
     });
 
     if (!company) {
@@ -327,6 +349,28 @@ export async function joinCompanyAsEmployee(companyCode: string) {
         status: company.onboarding_completed ? 'active' : 'onboarding',
       },
     });
+
+    // Seed leave balances from company's active leave types
+    if (company.leave_types && company.leave_types.length > 0) {
+      const year = new Date().getFullYear();
+      const balanceInserts = company.leave_types
+        .filter((lt) => {
+          const genderFilter = (lt as { gender_specific?: string }).gender_specific;
+          if (!genderFilter || genderFilter === 'all') return true;
+          return true; // Default gender 'other' gets all leave types
+        })
+        .map((lt) => ({
+          emp_id: employee.id,
+          company_id: company.id,
+          leave_type: lt.code,
+          year,
+          annual_entitlement: lt.default_quota,
+          remaining: lt.default_quota,
+        }));
+      if (balanceInserts.length > 0) {
+        await prisma.leaveBalance.createMany({ data: balanceInserts });
+      }
+    }
 
     return { success: true, employeeId: employee.id, orgId: employee.org_id };
   } catch (error: unknown) {

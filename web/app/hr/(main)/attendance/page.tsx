@@ -332,7 +332,7 @@ export default function AttendancePage() {
           </div>
 
           {/* Summary Stats */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
             <Card>
               <CardContent className="p-6">
                 <div className="flex items-center gap-4">
@@ -355,6 +355,19 @@ export default function AttendancePage() {
                   <div>
                     <p className="text-sm font-medium text-muted-foreground">Absent</p>
                     <p className="text-2xl font-bold">{loading ? '...' : summary.absent}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 bg-orange-100 dark:bg-orange-900/20 rounded-lg flex items-center justify-center">
+                    <Clock className="w-6 h-6 text-orange-600 dark:text-orange-400" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Half Day</p>
+                    <p className="text-2xl font-bold">{loading ? '...' : summary.halfDay}</p>
                   </div>
                 </div>
               </CardContent>

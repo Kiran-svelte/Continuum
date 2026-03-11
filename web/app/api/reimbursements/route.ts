@@ -4,6 +4,7 @@ import prisma from '@/lib/prisma';
 import { getAuthEmployee, requireRole, AuthError } from '@/lib/auth-guard';
 import { checkApiRateLimit, getRateLimitHeaders } from '@/lib/api-rate-limit';
 import { createAuditLog, AUDIT_ACTIONS } from '@/lib/audit';
+import { sendNotification } from '@/lib/notification-service';
 
 export const dynamic = 'force-dynamic';
 
@@ -13,7 +14,10 @@ const submitSchema = z.object({
   category: z.enum(['travel', 'medical', 'equipment', 'food', 'other']),
   amount: z.number().positive('Amount must be a positive number'),
   description: z.string().max(500, 'Description must be 500 characters or less').optional(),
-  receipt_url: z.string().url('Must be a valid URL').optional(),
+  receipt_url: z.string().max(5_000_000).refine(
+    (val) => val.startsWith('data:') || /^https?:\/\/.+/.test(val),
+    'Must be a valid URL or file upload'
+  ).optional(),
 });
 
 const actionSchema = z.object({
@@ -183,6 +187,26 @@ export async function POST(request: NextRequest) {
       },
     }).catch((err) => console.error('[Audit log error]', err));
 
+    // Notify HR about the new reimbursement request
+    const hrEmployees = await prisma.employee.findMany({
+      where: {
+        org_id: employee.org_id,
+        primary_role: { in: ['hr', 'admin'] },
+        deleted_at: null,
+        status: 'active',
+      },
+      select: { id: true },
+    });
+    for (const hr of hrEmployees) {
+      void sendNotification(
+        hr.id,
+        employee.org_id,
+        'reimbursement',
+        'New Reimbursement Request',
+        `${employee.first_name} ${employee.last_name} submitted a ${category} reimbursement of ₹${amount}.`
+      ).catch(() => {});
+    }
+
     return NextResponse.json({ reimbursement }, { status: 201 });
   } catch (error) {
     if (error instanceof AuthError) {
@@ -316,6 +340,15 @@ export async function PATCH(request: NextRequest) {
         reason: reason || null,
       },
     }).catch((err) => console.error('[Audit log error]', err));
+
+    // Notify the employee about the reimbursement decision
+    void sendNotification(
+      reimbursement.emp_id,
+      employee.org_id,
+      'reimbursement',
+      `Reimbursement ${targetStatus.charAt(0).toUpperCase() + targetStatus.slice(1)}`,
+      `Your ${reimbursement.category} reimbursement of ₹${reimbursement.amount} has been ${targetStatus} by ${employee.first_name} ${employee.last_name}.`
+    ).catch(() => {});
 
     return NextResponse.json({ reimbursement: updated });
   } catch (error) {

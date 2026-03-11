@@ -21,6 +21,8 @@ import {
   Calendar,
   Clock,
   RefreshCw,
+  Trash2,
+  Pencil,
 } from 'lucide-react';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -215,6 +217,21 @@ export default function DocumentsPage() {
   const [formDescription, setFormDescription] = useState('');
   const [formExpiryDate, setFormExpiryDate] = useState('');
 
+  // Delete confirmation state
+  const [deleteTarget, setDeleteTarget] = useState<ParsedDocument | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+
+  // Edit modal state
+  const [editTarget, setEditTarget] = useState<ParsedDocument | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editCategory, setEditCategory] = useState('personal_id');
+  const [editExpiryDate, setEditExpiryDate] = useState('');
+  const [editLoading, setEditLoading] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
+
+  // Success/error message
+  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
   const loadDocuments = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -333,6 +350,79 @@ export default function DocumentsPage() {
       setUploadError(err instanceof Error ? err.message : 'Upload failed');
     } finally {
       setUploading(false);
+    }
+  }
+
+  function showMsg(type: 'success' | 'error', text: string) {
+    setMessage({ type, text });
+    setTimeout(() => setMessage(null), 4000);
+  }
+
+  async function handleDelete() {
+    if (!deleteTarget) return;
+    setDeleteLoading(true);
+    try {
+      const res = await fetch('/api/documents', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ id: deleteTarget.id }),
+      });
+      if (res.ok) {
+        setDocuments((prev) => prev.filter((d) => d.id !== deleteTarget.id));
+        showMsg('success', `"${deleteTarget.displayName}" deleted successfully.`);
+      } else {
+        const data = await res.json().catch(() => ({}));
+        showMsg('error', data.error ?? 'Failed to delete document.');
+      }
+    } catch {
+      showMsg('error', 'Network error while deleting document.');
+    } finally {
+      setDeleteLoading(false);
+      setDeleteTarget(null);
+    }
+  }
+
+  function openEditModal(doc: ParsedDocument) {
+    setEditTarget(doc);
+    setEditName(doc.displayName);
+    setEditCategory(doc.type);
+    setEditExpiryDate(doc.expiryDate ? doc.expiryDate.split('T')[0] : '');
+    setEditError(null);
+  }
+
+  async function handleEdit() {
+    if (!editTarget) return;
+    if (!editName.trim()) {
+      setEditError('Document name is required.');
+      return;
+    }
+    setEditLoading(true);
+    setEditError(null);
+    try {
+      const res = await fetch('/api/documents', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          id: editTarget.id,
+          name: editName.trim(),
+          category: editCategory,
+          expiryDate: editExpiryDate || null,
+        }),
+      });
+      if (res.ok) {
+        showMsg('success', `"${editName.trim()}" updated successfully.`);
+        setEditTarget(null);
+        loadDocuments();
+      } else {
+        const data = await res.json().catch(() => ({}));
+        setEditError(data.error ?? 'Failed to update document.');
+      }
+    } catch {
+      setEditError('Network error while updating document.');
+    } finally {
+      setEditLoading(false);
     }
   }
 
@@ -611,8 +701,8 @@ export default function DocumentsPage() {
                         </div>
                       )}
 
-                      {/* View Link */}
-                      <div className="mt-3 pt-3 border-t border-border/50">
+                      {/* View Link + Actions */}
+                      <div className="mt-3 pt-3 border-t border-border/50 flex items-center justify-between">
                         <a
                           href={doc.url}
                           target="_blank"
@@ -622,6 +712,22 @@ export default function DocumentsPage() {
                           <ExternalLink className="w-3.5 h-3.5" />
                           View Document
                         </a>
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={() => openEditModal(doc)}
+                            className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                            title="Edit document"
+                          >
+                            <Pencil className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={() => setDeleteTarget(doc)}
+                            className="p-1.5 rounded-md text-muted-foreground hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                            title="Delete document"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
                       </div>
                     </CardContent>
                   </Card>
@@ -850,6 +956,136 @@ export default function DocumentsPage() {
           >
             <Upload className="w-4 h-4" />
             Upload
+          </Button>
+        </ModalFooter>
+      </Modal>
+
+      {/* Success/Error Message */}
+      <AnimatePresence>
+        {message && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 20 }}
+            className={`fixed bottom-6 right-6 z-50 px-4 py-3 rounded-lg shadow-lg text-sm font-medium ${
+              message.type === 'success'
+                ? 'bg-green-600 text-white'
+                : 'bg-red-600 text-white'
+            }`}
+          >
+            {message.text}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Delete Confirmation Modal */}
+      <Modal
+        isOpen={!!deleteTarget}
+        onClose={() => !deleteLoading && setDeleteTarget(null)}
+        title="Delete Document"
+        description="This action cannot be undone."
+        size="sm"
+      >
+        <p className="text-sm text-muted-foreground">
+          Are you sure you want to delete <strong className="text-foreground">&quot;{deleteTarget?.displayName}&quot;</strong>?
+        </p>
+        <ModalFooter>
+          <Button
+            variant="outline"
+            onClick={() => setDeleteTarget(null)}
+            disabled={deleteLoading}
+          >
+            Cancel
+          </Button>
+          <Button
+            variant="danger"
+            onClick={handleDelete}
+            loading={deleteLoading}
+          >
+            <Trash2 className="w-4 h-4 mr-1" />
+            Delete
+          </Button>
+        </ModalFooter>
+      </Modal>
+
+      {/* Edit Document Modal */}
+      <Modal
+        isOpen={!!editTarget}
+        onClose={() => !editLoading && setEditTarget(null)}
+        title="Edit Document"
+        description="Update document name, category, or expiry date"
+        size="md"
+      >
+        <div className="space-y-4">
+          {editError && (
+            <div className="rounded-lg px-3 py-2 text-sm bg-red-50 text-red-700 border border-red-200 dark:bg-red-500/10 dark:text-red-400 dark:border-red-500/20 flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 shrink-0" />
+              {editError}
+            </div>
+          )}
+
+          <div>
+            <label htmlFor="edit-name" className="block text-sm font-medium text-foreground mb-1.5">
+              Document Name <span className="text-red-500">*</span>
+            </label>
+            <input
+              id="edit-name"
+              type="text"
+              value={editName}
+              onChange={(e) => setEditName(e.target.value)}
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500 transition-colors"
+              disabled={editLoading}
+            />
+          </div>
+
+          <div>
+            <label htmlFor="edit-category" className="block text-sm font-medium text-foreground mb-1.5">
+              Category
+            </label>
+            <select
+              id="edit-category"
+              value={editCategory}
+              onChange={(e) => setEditCategory(e.target.value)}
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500 transition-colors"
+              disabled={editLoading}
+            >
+              {CATEGORIES.filter((c) => c.key !== 'all').map((cat) => (
+                <option key={cat.key} value={cat.key}>
+                  {cat.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label htmlFor="edit-expiry" className="block text-sm font-medium text-foreground mb-1.5">
+              Expiry Date
+            </label>
+            <input
+              id="edit-expiry"
+              type="date"
+              value={editExpiryDate}
+              onChange={(e) => setEditExpiryDate(e.target.value)}
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500 transition-colors"
+              disabled={editLoading}
+            />
+          </div>
+        </div>
+
+        <ModalFooter>
+          <Button
+            variant="outline"
+            onClick={() => setEditTarget(null)}
+            disabled={editLoading}
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={handleEdit}
+            loading={editLoading}
+            className="bg-blue-600 hover:bg-blue-700 text-white"
+          >
+            Save Changes
           </Button>
         </ModalFooter>
       </Modal>

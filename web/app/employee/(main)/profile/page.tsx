@@ -148,8 +148,6 @@ export default function ProfilePage() {
         credentials: 'include',
         body: JSON.stringify({
           phone: phone || null,
-          department: department || null,
-          designation: designation || null,
           emergency_contact_name: emergencyName || null,
           emergency_contact_phone: emergencyPhone || null,
           emergency_contact_relationship: emergencyRelationship || null,
@@ -253,23 +251,17 @@ export default function ProfilePage() {
                       </div>
                       <div>
                         <label className="block text-xs font-medium text-muted-foreground mb-1">Department</label>
-                        <input
-                          type="text"
-                          value={department}
-                          onChange={(e) => setDepartment(e.target.value)}
-                          className={inputClass}
-                          placeholder="Engineering"
-                        />
+                        <div className="px-3 py-2 rounded-lg border border-border bg-muted/30 text-sm text-muted-foreground">
+                          {department || 'Not assigned'}
+                        </div>
+                        <p className="text-[10px] text-muted-foreground mt-1">Contact HR to update</p>
                       </div>
                       <div className="col-span-2">
                         <label className="block text-xs font-medium text-muted-foreground mb-1">Designation</label>
-                        <input
-                          type="text"
-                          value={designation}
-                          onChange={(e) => setDesignation(e.target.value)}
-                          className={inputClass}
-                          placeholder="Senior Software Engineer"
-                        />
+                        <div className="px-3 py-2 rounded-lg border border-border bg-muted/30 text-sm text-muted-foreground">
+                          {designation || 'Not assigned'}
+                        </div>
+                        <p className="text-[10px] text-muted-foreground mt-1">Contact HR to update</p>
                       </div>
                     </div>
                   </div>

@@ -260,7 +260,7 @@ export default function TeamCalendarPage() {
 
       try {
         const [leavesRes, holidaysRes] = await Promise.all([
-          fetch('/api/leaves/list?status=approved&limit=200', {
+          fetch('/api/leaves/list?status=approved,pending&limit=200', {
             credentials: 'include',
           }),
           fetch('/api/company/holidays', {
@@ -466,6 +466,23 @@ export default function TeamCalendarPage() {
     return count;
   }, [leaves, currentYear, currentMonth]);
 
+  /* ---- Pending leaves this month ---- */
+  const pendingLeavesThisMonth = useMemo(() => {
+    let count = 0;
+    for (const leave of leaves) {
+      if (leave.status !== 'pending') continue;
+      const start = parseDate(leave.start_date);
+      const end = parseDate(leave.end_date);
+      const monthStart = new Date(currentYear, currentMonth, 1);
+      const monthEnd = new Date(currentYear, currentMonth + 1, 0);
+
+      if (start <= monthEnd && end >= monthStart) {
+        count += 1;
+      }
+    }
+    return count;
+  }, [leaves, currentYear, currentMonth]);
+
   /* ---- Get leave type color ---- */
   function getLeaveColor(leaveType: string) {
     return LEAVE_TYPE_COLORS[leaveType] ?? DEFAULT_LEAVE_COLOR;
@@ -475,15 +492,20 @@ export default function TeamCalendarPage() {
   function renderLeavePill(leave: LeaveRequest, compact: boolean = false) {
     const color = getLeaveColor(leave.leave_type);
     const name = getShortName(leave.employee.first_name, leave.employee.last_name);
+    const isPending = leave.status === 'pending';
+
+    const pendingStyles = isPending
+      ? 'border border-dashed border-current opacity-70'
+      : '';
 
     if (compact) {
       return (
         <div
           key={`${leave.id}-pill`}
-          className={`w-full px-1.5 py-0.5 rounded text-[10px] font-medium truncate ${color.bg} ${color.text}`}
-          title={`${leave.employee.first_name} ${leave.employee.last_name} - ${leave.leave_type}`}
+          className={`w-full px-1.5 py-0.5 rounded text-[10px] font-medium truncate ${color.bg} ${color.text} ${pendingStyles}`}
+          title={`${leave.employee.first_name} ${leave.employee.last_name} - ${leave.leave_type}${isPending ? ' (Pending)' : ''}`}
         >
-          {name}
+          {name}{isPending ? ' *' : ''}
         </div>
       );
     }
@@ -491,10 +513,10 @@ export default function TeamCalendarPage() {
     return (
       <div
         key={`${leave.id}-pill`}
-        className={`w-full px-2 py-0.5 rounded-md text-[11px] font-medium truncate ${color.bg} ${color.text}`}
-        title={`${leave.employee.first_name} ${leave.employee.last_name} - ${leave.leave_type}`}
+        className={`w-full px-2 py-0.5 rounded-md text-[11px] font-medium truncate ${color.bg} ${color.text} ${pendingStyles}`}
+        title={`${leave.employee.first_name} ${leave.employee.last_name} - ${leave.leave_type}${isPending ? ' (Pending)' : ''}`}
       >
-        {name}
+        {name}{isPending ? ' *' : ''}
       </div>
     );
   }
@@ -801,18 +823,24 @@ export default function TeamCalendarPage() {
                           ))}
                           {dayData.leaves.map((leave) => {
                             const color = getLeaveColor(leave.leave_type);
+                            const isPending = leave.status === 'pending';
                             return (
                               <div
                                 key={leave.id}
-                                className={`flex items-center gap-2 mb-1 px-2 py-1 rounded ${color.bg}`}
+                                className={`flex items-center gap-2 mb-1 px-2 py-1 rounded ${color.bg} ${isPending ? 'border border-dashed border-current opacity-70' : ''}`}
                               >
-                                <div className={`w-2 h-2 rounded-full shrink-0 ${color.dot}`} />
+                                <div className={`w-2 h-2 rounded-full shrink-0 ${color.dot} ${isPending ? 'opacity-50' : ''}`} />
                                 <span className={`text-xs font-medium ${color.text}`}>
                                   {leave.employee.first_name} {leave.employee.last_name}
                                 </span>
                                 <Badge variant="default" size="sm" className="ml-auto">
                                   {leave.leave_type}
                                 </Badge>
+                                {isPending && (
+                                  <Badge variant="warning" size="sm">
+                                    Pending
+                                  </Badge>
+                                )}
                               </div>
                             );
                           })}
@@ -903,6 +931,18 @@ export default function TeamCalendarPage() {
                           {totalLeavesThisMonth}
                         </span>
                       </div>
+                      <div className="flex items-center justify-between pl-3">
+                        <span className="text-xs text-muted-foreground">Approved</span>
+                        <span className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">
+                          {totalLeavesThisMonth - pendingLeavesThisMonth}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between pl-3">
+                        <span className="text-xs text-muted-foreground">Pending</span>
+                        <span className="text-sm font-semibold text-amber-600 dark:text-amber-400">
+                          {pendingLeavesThisMonth}
+                        </span>
+                      </div>
                       <div className="flex items-center justify-between">
                         <span className="text-xs text-muted-foreground">Team members on leave</span>
                         <span className="text-sm font-semibold text-foreground">
@@ -936,6 +976,25 @@ export default function TeamCalendarPage() {
                           ))}
                         </div>
                       )}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Leave Status Legend */}
+                <Card className="border-0 shadow-md overflow-hidden">
+                  <CardHeader className="border-b border-border/50 bg-muted/30 py-3">
+                    <CardTitle className="text-sm">Leave Status</CardTitle>
+                  </CardHeader>
+                  <CardContent className="py-3">
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <div className="w-8 h-4 rounded-sm bg-blue-100 dark:bg-blue-500/20" />
+                        <span className="text-[11px] text-muted-foreground">Approved</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className="w-8 h-4 rounded-sm bg-blue-100/60 dark:bg-blue-500/10 border border-dashed border-blue-400 dark:border-blue-500" />
+                        <span className="text-[11px] text-muted-foreground">Pending *</span>
+                      </div>
                     </div>
                   </CardContent>
                 </Card>

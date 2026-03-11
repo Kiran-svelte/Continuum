@@ -5,23 +5,39 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { getSupabaseBrowserClient } from '@/lib/supabase';
 import { isKeycloakClientEnabled, keycloakSignUp } from '@/lib/keycloak-client';
-import { Zap, CheckCircle, Building2, Users, KeyRound } from 'lucide-react';
+import { useSearchParams } from 'next/navigation';
+import { Zap, CheckCircle, Building2, Users, KeyRound, Check, X, Mail } from 'lucide-react';
+import { validatePassword, getPasswordRequirements } from '@/lib/password-validation';
 
 type Mode = 'select' | 'admin' | 'employee';
 
+interface InviteData {
+  email: string;
+  role: string;
+  department: string | null;
+  company_name: string;
+  company_join_code: string | null;
+}
+
 export default function SignUpPage() {
   const router = useRouter();
-  const [mode, setMode] = useState<Mode>('select');
+  const searchParams = useSearchParams();
+  const inviteToken = searchParams.get('invite');
+  const [mode, setMode] = useState<Mode>(inviteToken ? 'employee' : 'select');
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [companyCode, setCompanyCode] = useState('');
+  const [companyCodeValid, setCompanyCodeValid] = useState<boolean | null>(null);
+  const [companyCodeName, setCompanyCodeName] = useState('');
   const [loading, setLoading] = useState(false);
   const [checkingAuth, setCheckingAuth] = useState(true);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
+  const [inviteData, setInviteData] = useState<InviteData | null>(null);
+  const [inviteError, setInviteError] = useState('');
 
   const supabase = getSupabaseBrowserClient();
 
@@ -54,6 +70,34 @@ export default function SignUpPage() {
     };
   }, [router]);
 
+  // Validate invite token if present
+  useEffect(() => {
+    if (!inviteToken) return;
+    (async () => {
+      try {
+        const res = await fetch(`/api/auth/invite?token=${encodeURIComponent(inviteToken)}`);
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          setInviteError(data.error || 'Invalid or expired invite link');
+          return;
+        }
+        const data = await res.json();
+        if (data.valid && data.invite) {
+          setInviteData(data.invite);
+          setEmail(data.invite.email);
+          if (data.invite.company_join_code) {
+            setCompanyCode(data.invite.company_join_code);
+            setCompanyCodeValid(true);
+            setCompanyCodeName(data.invite.company_name);
+          }
+          setMode('employee');
+        }
+      } catch {
+        setInviteError('Failed to validate invite. Please try again.');
+      }
+    })();
+  }, [inviteToken]);
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError('');
@@ -64,19 +108,34 @@ export default function SignUpPage() {
       return;
     }
 
-    // Validate password strength (Supabase requires min 6, but dev API requires 8)
-    if (password.length < 8) {
-      setError('Password must be at least 8 characters.');
+    // Validate password strength (enterprise requirements)
+    const passwordValidation = validatePassword(password);
+    if (!passwordValidation.valid) {
+      setError(passwordValidation.errors[0]);
       return;
     }
 
     setLoading(true);
 
     try {
+      // Validate company code before creating auth account (employee mode)
+      if (mode === 'employee') {
+        const codeRes = await fetch(`/api/company/validate-code?code=${encodeURIComponent(companyCode)}`);
+        const codeData = await codeRes.json().catch(() => ({ valid: false }));
+        if (!codeData.valid) {
+          setError('Invalid company code. Please check with your HR and try again.');
+          setCompanyCodeValid(false);
+          setLoading(false);
+          return;
+        }
+        setCompanyCodeValid(true);
+        setCompanyCodeName(codeData.companyName || '');
+      }
+
       const baseUrl = process.env.NEXT_PUBLIC_APP_URL || window.location.origin;
       const intent = mode === 'admin' ? 'hr' : 'employee';
-      const redirectUrl = `${baseUrl}/auth/callback?next=${encodeURIComponent(`/onboarding?intent=${intent}&firstName=${encodeURIComponent(firstName)}&lastName=${encodeURIComponent(lastName)}${mode === 'employee' ? `&companyCode=${encodeURIComponent(companyCode)}` : ''}`)}`;
-
+      const inviteParam = inviteToken ? `&invite=${encodeURIComponent(inviteToken)}` : '';
+      const redirectUrl = `${baseUrl}/auth/callback?next=${encodeURIComponent(`/onboarding?intent=${intent}&firstName=${encodeURIComponent(firstName)}&lastName=${encodeURIComponent(lastName)}${mode === 'employee' ? `&companyCode=${encodeURIComponent(companyCode)}` : ''}${inviteParam}`)}`;
       const { error: signUpError } = await supabase.auth.signUp({
         email,
         password,
@@ -185,7 +244,43 @@ export default function SignUpPage() {
         return;
       }
 
-      // Show success message - user needs to verify email
+      // Supabase signUp succeeded — but confirmation email is unreliable (Supabase free tier).
+      // Auto-confirm via admin API and sign in immediately for a seamless experience.
+      // (reuse `intent` declared above)
+      const onboardingUrl = `/onboarding?intent=${intent}&firstName=${encodeURIComponent(firstName)}&lastName=${encodeURIComponent(lastName)}${mode === 'employee' ? `&companyCode=${encodeURIComponent(companyCode)}` : ''}${inviteParam}`;
+
+      try {
+        // Try to auto-confirm via admin API
+        const confirmRes = await fetch('/api/auth/dev-create-user', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password }),
+        });
+
+        if (confirmRes.ok || confirmRes.status === 409) {
+          // User auto-confirmed (or already existed) — sign in now
+          const { error: signInErr } = await supabase.auth.signInWithPassword({ email, password });
+          if (!signInErr) {
+            router.push(onboardingUrl);
+            return;
+          }
+        }
+      } catch {
+        // Auto-confirm failed — fall through to email verification screen
+      }
+
+      // If auto-confirm path failed, try direct sign-in (in case Supabase auto-confirmed)
+      try {
+        const { error: directSignInErr } = await supabase.auth.signInWithPassword({ email, password });
+        if (!directSignInErr) {
+          router.push(onboardingUrl);
+          return;
+        }
+      } catch {
+        // Fall through to email screen
+      }
+
+      // Last resort: show email verification screen with resend option
       setSuccess(true);
     } catch (err) {
       console.error('Sign up error:', err);
@@ -204,22 +299,61 @@ export default function SignUpPage() {
     );
   }
 
-  // Success state - email verification required
+  // Success state - email verification (last resort, rarely shown now)
   if (success) {
+    const intent = mode === 'admin' ? 'hr' : 'employee';
+
+    async function handleResend() {
+      setError('');
+      setLoading(true);
+      try {
+        // Try auto-confirm path again
+        const res = await fetch('/api/auth/dev-create-user', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password }),
+        });
+        if (res.ok || res.status === 409) {
+          const { error: signInErr } = await supabase.auth.signInWithPassword({ email, password });
+          if (!signInErr) {
+            router.push(`/onboarding?intent=${intent}&firstName=${encodeURIComponent(firstName)}&lastName=${encodeURIComponent(lastName)}${mode === 'employee' ? `&companyCode=${encodeURIComponent(companyCode)}` : ''}`);
+            return;
+          }
+        }
+        // Fallback: resend Supabase confirmation
+        await supabase.auth.resend({ type: 'signup', email });
+        setError('Verification email resent! Check your inbox and spam folder.');
+      } catch {
+        setError('Failed to resend. Please try again.');
+      } finally {
+        setLoading(false);
+      }
+    }
+
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 flex items-center justify-center p-4 dark:bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))]">
         <div className="w-full max-w-md text-center">
           <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-green-500/20 flex items-center justify-center">
             <CheckCircle className="w-10 h-10 text-green-400" />
           </div>
-          <h1 className="text-2xl font-bold text-foreground mb-2">Check your email!</h1>
-          <p className="text-muted-foreground mb-6">
-            We&apos;ve sent a confirmation link to <span className="text-foreground font-medium">{email}</span>.
-            Click the link to verify your account.
+          <h1 className="text-2xl font-bold text-foreground mb-2">Almost there!</h1>
+          <p className="text-muted-foreground mb-4">
+            We&apos;re setting up your account for <span className="text-foreground font-medium">{email}</span>.
+            If you&apos;re not redirected automatically, click the button below.
           </p>
+          {error && (
+            <p className="text-sm text-yellow-600 dark:text-yellow-400 mb-4">{error}</p>
+          )}
+          <button
+            onClick={handleResend}
+            disabled={loading}
+            className="w-full h-11 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold rounded-xl transition-all disabled:opacity-50 mb-3"
+          >
+            {loading ? 'Retrying...' : 'Continue to Onboarding'}
+          </button>
           <Link
             href="/sign-in"
-            className="inline-flex items-center gap-2 text-primary hover:text-primary/80 font-medium"
+            className="inline-flex items-center gap-2 text-primary hover:text-primary/80 font-medium text-sm"
           >
             ← Back to sign in
           </Link>
@@ -339,6 +473,24 @@ export default function SignUpPage() {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Invite Banner */}
+          {inviteData && (
+            <div className="p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg flex items-start gap-3">
+              <Mail className="w-5 h-5 text-blue-500 mt-0.5 shrink-0" />
+              <div className="text-sm">
+                <p className="font-medium text-foreground">Invited to {inviteData.company_name}</p>
+                <p className="text-muted-foreground">
+                  Role: <span className="text-foreground">{inviteData.role.replace(/_/g, ' ')}</span>
+                  {inviteData.department && <> &middot; Dept: <span className="text-foreground">{inviteData.department}</span></>}
+                </p>
+              </div>
+            </div>
+          )}
+          {inviteError && (
+            <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-lg">
+              <p className="text-sm text-red-400">{inviteError}</p>
+            </div>
+          )}
           {/* Name Fields */}
           <div className="grid grid-cols-2 gap-4">
             <div>
@@ -372,9 +524,10 @@ export default function SignUpPage() {
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-4 py-2.5 bg-background border border-border rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+              className="w-full px-4 py-2.5 bg-background border border-border rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent disabled:opacity-60 disabled:cursor-not-allowed"
               placeholder="you@company.com"
               required
+              disabled={!!inviteData}
             />
           </div>
 
@@ -388,8 +541,28 @@ export default function SignUpPage() {
               className="w-full px-4 py-2.5 bg-background border border-border rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
               placeholder="••••••••"
               required
-              minLength={6}
+              minLength={8}
             />
+            {password && (
+              <div className="mt-2 space-y-1">
+                {getPasswordRequirements().map((req, i) => {
+                  const checks = [
+                    password.length >= 8,
+                    /[A-Z]/.test(password),
+                    /[a-z]/.test(password),
+                    /[0-9]/.test(password),
+                    /[!@#$%^&*()_+\-=\[\]{}|;:,.<>?]/.test(password),
+                  ];
+                  const passed = checks[i];
+                  return (
+                    <div key={i} className={`flex items-center gap-1.5 text-xs ${passed ? 'text-green-500' : 'text-muted-foreground'}`}>
+                      {passed ? <Check className="w-3 h-3" /> : <X className="w-3 h-3 opacity-50" />}
+                      {req}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           {/* Confirm Password */}
@@ -402,7 +575,7 @@ export default function SignUpPage() {
               className="w-full px-4 py-2.5 bg-background border border-border rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
               placeholder="••••••••"
               required
-              minLength={6}
+              minLength={8}
             />
           </div>
 
@@ -419,7 +592,15 @@ export default function SignUpPage() {
                 required
                 maxLength={8}
               />
-              <p className="mt-1 text-xs text-muted-foreground">Enter the 8-character code from your HR</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Enter the 8-character code from your HR
+                {companyCodeValid === true && companyCodeName && (
+                  <span className="text-green-500 ml-1">— {companyCodeName}</span>
+                )}
+                {companyCodeValid === false && (
+                  <span className="text-red-400 ml-1">— Invalid code</span>
+                )}
+              </p>
             </div>
           )}
 

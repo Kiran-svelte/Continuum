@@ -245,6 +245,7 @@ model Company {
   api_keys             ApiKey[]
   otp_tokens           OtpToken[]
   role_permissions     RolePermission[]
+  employee_invites     EmployeeInvite[]
 
   @@index([deleted_at])
 }
@@ -1100,6 +1101,26 @@ model PlatformStats {
   total_leaves_processed Int      @default(0)
   uptime_percentage      Float    @default(99.9)
   updated_at             DateTime @updatedAt
+}
+
+// ─── Employee Invites ───────────────────────────────────────────────────────
+
+model EmployeeInvite {
+  id          String    @id @default(uuid())
+  company_id  String
+  company     Company   @relation(fields: [company_id], references: [id], onDelete: Cascade)
+  email       String
+  token       String    @unique
+  role        Role      @default(employee)
+  department  String?
+  invited_by  String
+  expires_at  DateTime
+  used_at     DateTime?
+  created_at  DateTime  @default(now())
+
+  @@index([company_id])
+  @@index([token])
+  @@index([email])
 }
 
 // ─── RBAC ────────────────────────────────────────────────────────────────────

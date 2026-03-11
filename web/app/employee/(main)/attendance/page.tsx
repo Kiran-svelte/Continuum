@@ -20,6 +20,8 @@ import {
   AlertCircle,
   ChevronLeft,
   ChevronRight,
+  TimerOff,
+  AlarmClock,
 } from 'lucide-react';
 
 interface AttendanceRecord {
@@ -34,9 +36,11 @@ interface AttendanceRecord {
 
 interface AttendanceSummary {
   presentDays: number;
+  halfDayDays: number;
   wfhDays: number;
   absentDays: number;
   onLeaveDays: number;
+  lateDays: number;
   totalHours: string;
   attendancePercent: string;
   workingDays: number;
@@ -394,9 +398,11 @@ export default function AttendancePage() {
       )}
 
       {/* Summary Cards */}
-      <motion.div className="grid grid-cols-2 md:grid-cols-4 gap-4" variants={containerVariants}>
+      <motion.div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4" variants={containerVariants}>
         {[
           { label: 'Present Days', value: summary?.presentDays ?? 0, icon: <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />, color: 'from-emerald-500 to-green-600', bgColor: 'bg-emerald-500/10', textColor: 'text-emerald-600 dark:text-emerald-400' },
+          { label: 'Half Days', value: summary?.halfDayDays ?? 0, icon: <TimerOff className="w-4 h-4 text-orange-600 dark:text-orange-400" />, color: 'from-orange-500 to-red-500', bgColor: 'bg-orange-500/10', textColor: 'text-orange-600 dark:text-orange-400' },
+          { label: 'Late Arrivals', value: summary?.lateDays ?? 0, icon: <AlarmClock className="w-4 h-4 text-rose-600 dark:text-rose-400" />, color: 'from-rose-500 to-pink-600', bgColor: 'bg-rose-500/10', textColor: 'text-rose-600 dark:text-rose-400' },
           { label: 'WFH Days', value: summary?.wfhDays ?? 0, icon: <Home className="w-4 h-4 text-blue-600 dark:text-blue-400" />, color: 'from-blue-500 to-cyan-600', bgColor: 'bg-blue-500/10', textColor: 'text-blue-600 dark:text-blue-400' },
           { label: 'Total Hours', value: summary?.totalHours ?? '0', icon: <Clock className="w-4 h-4 text-purple-600 dark:text-purple-400" />, color: 'from-purple-500 to-violet-600', bgColor: 'bg-purple-500/10', textColor: 'text-purple-600 dark:text-purple-400' },
           { label: 'Attendance %', value: summary ? `${summary.attendancePercent}%` : '\u2014', icon: <BarChart3 className="w-4 h-4 text-amber-600 dark:text-amber-400" />, color: 'from-amber-500 to-orange-600', bgColor: 'bg-amber-500/10', textColor: 'text-amber-600 dark:text-amber-400' },

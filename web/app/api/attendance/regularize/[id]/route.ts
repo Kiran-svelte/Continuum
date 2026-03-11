@@ -3,6 +3,7 @@ import prisma from '@/lib/prisma';
 import { getAuthEmployee, requireRole, AuthError } from '@/lib/auth-guard';
 import { checkApiRateLimit, getRateLimitHeaders } from '@/lib/api-rate-limit';
 import { createAuditLog, AUDIT_ACTIONS } from '@/lib/audit';
+import { sendNotification } from '@/lib/notification-service';
 
 export const dynamic = 'force-dynamic';
 
@@ -174,6 +175,15 @@ export async function PATCH(
         approved_by: employee.id,
       },
     });
+
+    // Notify the requesting employee about the decision
+    void sendNotification(
+      regularization.emp_id,
+      employee.org_id,
+      'attendance',
+      `Regularization ${action === 'approve' ? 'Approved' : 'Rejected'}`,
+      `Your attendance regularization request for ${regularization.date.toISOString().split('T')[0]} has been ${newStatus} by ${employee.first_name} ${employee.last_name}.`
+    ).catch(() => {});
 
     return NextResponse.json(updated);
   } catch (error) {
