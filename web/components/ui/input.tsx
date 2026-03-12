@@ -10,13 +10,13 @@ export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> 
 export const Input = forwardRef<HTMLInputElement, InputProps>(
   ({ className, label, error, helperText, id, ...props }, ref) => {
     const inputId = id || label?.toLowerCase().replace(/\s/g, '-');
-    
+
     return (
       <div className="w-full">
         {label && (
           <label
             htmlFor={inputId}
-            className="block text-sm font-medium text-foreground mb-1.5"
+            className="block text-sm font-medium text-foreground dark:text-white/90 mb-1.5"
           >
             {label}
           </label>
@@ -25,14 +25,17 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
           id={inputId}
           ref={ref}
           className={cn(
-            'w-full rounded-lg border bg-background px-3 py-2 text-sm text-foreground',
-            'placeholder:text-muted-foreground',
+            'w-full rounded-xl border px-3.5 py-2.5 text-sm',
+            'bg-white dark:bg-white/5',
+            'text-foreground dark:text-white',
+            'placeholder:text-muted-foreground dark:placeholder:text-white/40',
             'transition-all duration-200',
-            'focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-background',
+            'focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary/50',
+            'dark:focus:shadow-[0_0_15px_rgba(var(--primary-rgb),0.15)]',
             'disabled:cursor-not-allowed disabled:opacity-50',
             error
-              ? 'border-red-500 focus:ring-red-500'
-              : 'border-border hover:border-primary/50',
+              ? 'border-red-500/80 focus:ring-red-500/40 dark:border-red-400/50'
+              : 'border-gray-200 dark:border-white/10 hover:border-primary/30 dark:hover:border-white/20',
             className
           )}
           {...props}
@@ -41,7 +44,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
           <p
             className={cn(
               'mt-1.5 text-sm',
-              error ? 'text-red-600 dark:text-red-400' : 'text-muted-foreground'
+              error ? 'text-red-500 dark:text-red-400' : 'text-muted-foreground dark:text-white/50'
             )}
           >
             {error || helperText}
@@ -54,7 +57,6 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
 
 Input.displayName = 'Input';
 
-// Textarea component
 export interface TextareaProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
   label?: string;
   error?: string;
@@ -64,13 +66,13 @@ export interface TextareaProps extends React.TextareaHTMLAttributes<HTMLTextArea
 export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
   ({ className, label, error, helperText, id, ...props }, ref) => {
     const inputId = id || label?.toLowerCase().replace(/\s/g, '-');
-    
+
     return (
       <div className="w-full">
         {label && (
           <label
             htmlFor={inputId}
-            className="block text-sm font-medium text-foreground mb-1.5"
+            className="block text-sm font-medium text-foreground dark:text-white/90 mb-1.5"
           >
             {label}
           </label>
@@ -79,14 +81,17 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
           id={inputId}
           ref={ref}
           className={cn(
-            'w-full rounded-lg border bg-background px-3 py-2 text-sm text-foreground',
-            'placeholder:text-muted-foreground',
+            'w-full rounded-xl border px-3.5 py-2.5 text-sm',
+            'bg-white dark:bg-white/5',
+            'text-foreground dark:text-white',
+            'placeholder:text-muted-foreground dark:placeholder:text-white/40',
             'transition-all duration-200 resize-y min-h-[100px]',
-            'focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-background',
+            'focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary/50',
+            'dark:focus:shadow-[0_0_15px_rgba(var(--primary-rgb),0.15)]',
             'disabled:cursor-not-allowed disabled:opacity-50',
             error
-              ? 'border-red-500 focus:ring-red-500'
-              : 'border-border hover:border-primary/50',
+              ? 'border-red-500/80 focus:ring-red-500/40 dark:border-red-400/50'
+              : 'border-gray-200 dark:border-white/10 hover:border-primary/30 dark:hover:border-white/20',
             className
           )}
           {...props}
@@ -95,7 +100,7 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
           <p
             className={cn(
               'mt-1.5 text-sm',
-              error ? 'text-red-600 dark:text-red-400' : 'text-muted-foreground'
+              error ? 'text-red-500 dark:text-red-400' : 'text-muted-foreground dark:text-white/50'
             )}
           >
             {error || helperText}
@@ -108,7 +113,6 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
 
 Textarea.displayName = 'Textarea';
 
-// Select component
 export interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> {
   label?: string;
   error?: string;
@@ -119,13 +123,13 @@ export interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElemen
 export const Select = forwardRef<HTMLSelectElement, SelectProps>(
   ({ className, label, error, helperText, options, id, ...props }, ref) => {
     const inputId = id || label?.toLowerCase().replace(/\s/g, '-');
-    
+
     return (
       <div className="w-full">
         {label && (
           <label
             htmlFor={inputId}
-            className="block text-sm font-medium text-foreground mb-1.5"
+            className="block text-sm font-medium text-foreground dark:text-white/90 mb-1.5"
           >
             {label}
           </label>
@@ -134,13 +138,16 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
           id={inputId}
           ref={ref}
           className={cn(
-            'w-full rounded-lg border bg-background px-3 py-2 text-sm text-foreground',
+            'w-full rounded-xl border px-3.5 py-2.5 text-sm',
+            'bg-white dark:bg-white/5',
+            'text-foreground dark:text-white',
             'transition-all duration-200',
-            'focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-background',
+            'focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary/50',
+            'dark:focus:shadow-[0_0_15px_rgba(var(--primary-rgb),0.15)]',
             'disabled:cursor-not-allowed disabled:opacity-50',
             error
-              ? 'border-red-500 focus:ring-red-500'
-              : 'border-border hover:border-primary/50',
+              ? 'border-red-500/80 focus:ring-red-500/40 dark:border-red-400/50'
+              : 'border-gray-200 dark:border-white/10 hover:border-primary/30 dark:hover:border-white/20',
             className
           )}
           {...props}
@@ -155,7 +162,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
           <p
             className={cn(
               'mt-1.5 text-sm',
-              error ? 'text-red-600 dark:text-red-400' : 'text-muted-foreground'
+              error ? 'text-red-500 dark:text-red-400' : 'text-muted-foreground dark:text-white/50'
             )}
           >
             {error || helperText}
@@ -168,7 +175,6 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
 
 Select.displayName = 'Select';
 
-// Checkbox component
 export interface CheckboxProps extends React.InputHTMLAttributes<HTMLInputElement> {
   label?: string;
   description?: string;
@@ -177,7 +183,7 @@ export interface CheckboxProps extends React.InputHTMLAttributes<HTMLInputElemen
 export const Checkbox = forwardRef<HTMLInputElement, CheckboxProps>(
   ({ className, label, description, id, ...props }, ref) => {
     const inputId = id || label?.toLowerCase().replace(/\s/g, '-');
-    
+
     return (
       <div className="flex items-start gap-3">
         <input
@@ -185,10 +191,11 @@ export const Checkbox = forwardRef<HTMLInputElement, CheckboxProps>(
           id={inputId}
           ref={ref}
           className={cn(
-            'h-4 w-4 rounded border-border bg-background text-primary',
-            'focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-background',
+            'h-4 w-4 rounded border-white/20 bg-white/5 text-primary',
+            'focus:ring-2 focus:ring-primary/40',
             'disabled:cursor-not-allowed disabled:opacity-50',
-            'transition-colors',
+            'transition-colors duration-200',
+            'accent-primary',
             className
           )}
           {...props}
@@ -198,13 +205,13 @@ export const Checkbox = forwardRef<HTMLInputElement, CheckboxProps>(
             {label && (
               <label
                 htmlFor={inputId}
-                className="text-sm font-medium text-foreground cursor-pointer"
+                className="text-sm font-medium text-foreground dark:text-white/90 cursor-pointer"
               >
                 {label}
               </label>
             )}
             {description && (
-              <p className="text-sm text-muted-foreground">{description}</p>
+              <p className="text-sm text-muted-foreground dark:text-white/50">{description}</p>
             )}
           </div>
         )}

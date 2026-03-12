@@ -2,8 +2,11 @@
 
 import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { TiltCard, FadeIn, StaggerContainer } from '@/components/motion';
+import { GlassPanel } from '@/components/glass-panel';
+import { PageHeader } from '@/components/page-header';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { ProgressBar } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -18,6 +21,7 @@ import {
   Briefcase,
   AlertCircle,
   ClipboardList,
+  Loader2,
 } from 'lucide-react';
 
 /* ------------------------------------------------------------------ */
@@ -210,58 +214,52 @@ function computeMonthlyAttendance(leaveRequests: LeaveRequest[]) {
 }
 
 /* ------------------------------------------------------------------ */
-/*  Skeleton loaders                                                   */
+/*  Loading Skeleton                                                   */
 /* ------------------------------------------------------------------ */
 
 function TeamSkeleton() {
   return (
-    <div className="space-y-6">
-      {/* Header skeleton */}
-      <div className="space-y-2">
-        <Skeleton className="h-8 w-40" />
-        <Skeleton className="h-4 w-56" />
-      </div>
+    <div className="p-4 sm:p-6 pb-32">
+      <div className="space-y-8">
+        {/* Header skeleton */}
+        <div className="space-y-2">
+          <Skeleton className="h-8 w-48 bg-white/10" />
+          <Skeleton className="h-4 w-64 bg-white/10" />
+        </div>
 
-      {/* Summary cards skeleton */}
-      <div className="grid grid-cols-3 gap-4">
-        {Array.from({ length: 3 }).map((_, i) => (
-          <div
-            key={i}
-            className="rounded-xl border border-border bg-card p-4 space-y-3"
-          >
-            <Skeleton className="h-3 w-16" />
-            <div className="flex items-center gap-3">
-              <Skeleton variant="circular" className="w-10 h-10" />
-              <Skeleton className="h-7 w-10" />
-            </div>
+        {/* Metric cards skeleton */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+          {[...Array(3)].map((_, i) => (
+            <GlassPanel key={i} className="p-6 space-y-3">
+              <Skeleton className="h-5 w-24 bg-white/10" />
+              <Skeleton className="h-8 w-16 bg-white/10" />
+            </GlassPanel>
+          ))}
+        </div>
+
+        {/* Search and list skeleton */}
+        <GlassPanel className="p-6 space-y-4">
+          <div className="flex justify-between items-center">
+            <Skeleton className="h-6 w-40 bg-white/10" />
+            <Skeleton className="h-10 w-64 bg-white/10 rounded-lg" />
           </div>
-        ))}
-      </div>
-
-      {/* Search skeleton */}
-      <Skeleton className="h-10 w-full" />
-
-      {/* Member cards skeleton */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {Array.from({ length: 6 }).map((_, i) => (
-          <div
-            key={i}
-            className="rounded-xl border border-border bg-card p-4"
-          >
-            <div className="flex items-center gap-3">
-              <Skeleton variant="circular" className="w-11 h-11" />
-              <div className="flex-1 space-y-2">
-                <Skeleton className="h-4 w-32" />
-                <Skeleton className="h-3 w-24" />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {[...Array(6)].map((_, i) => (
+              <div key={i} className="flex items-center gap-4 p-4 bg-white/5 rounded-lg">
+                <Skeleton className="h-12 w-12 rounded-full bg-white/10" />
+                <div className="space-y-1.5 flex-1">
+                  <Skeleton className="h-4 w-3/4 bg-white/10" />
+                  <Skeleton className="h-3 w-1/2 bg-white/10" />
+                </div>
               </div>
-              <Skeleton variant="badge" className="w-14" />
-            </div>
+            ))}
           </div>
-        ))}
+        </GlassPanel>
       </div>
     </div>
   );
 }
+
 
 /* ------------------------------------------------------------------ */
 /*  Expandable detail section                                          */
@@ -320,16 +318,17 @@ function MemberDetail({
 
   if (loading) {
     return (
-      <div className="pt-4 space-y-3">
+      <div className="pt-4 space-y-4">
         <div className="grid grid-cols-2 gap-3">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="rounded-lg bg-muted/50 p-3 space-y-2">
-              <Skeleton className="h-3 w-16" />
-              <Skeleton className="h-5 w-10" />
-              <Skeleton className="h-1.5 w-full" />
+          {[...Array(4)].map((_, i) => (
+            <div key={i} className="rounded-lg bg-white/5 p-3 space-y-2">
+              <Skeleton className="h-3 w-16 bg-white/10" />
+              <Skeleton className="h-5 w-10 bg-white/10" />
+              <Skeleton className="h-1.5 w-full bg-white/10" />
             </div>
           ))}
         </div>
+        <Skeleton className="h-20 w-full bg-white/5 rounded-lg" />
       </div>
     );
   }
@@ -337,7 +336,7 @@ function MemberDetail({
   if (error) {
     return (
       <div className="pt-4">
-        <div className="rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 px-3 py-2 text-xs text-red-700 dark:text-red-300 flex items-center gap-2">
+        <div className="rounded-lg bg-red-500/10 border border-red-500/30 px-3 py-2 text-xs text-red-300 flex items-center gap-2">
           <AlertCircle className="w-3.5 h-3.5 shrink-0" />
           {error}
         </div>
@@ -348,16 +347,16 @@ function MemberDetail({
   if (!detail) return null;
 
   return (
-    <div className="pt-4 space-y-4">
+    <div className="pt-4 space-y-6">
       {/* Contact info */}
-      <div className="flex flex-wrap gap-x-5 gap-y-2 text-xs text-muted-foreground">
-        <span className="inline-flex items-center gap-1.5">
-          <Mail className="w-3.5 h-3.5" />
+      <div className="flex flex-wrap gap-x-5 gap-y-2 text-sm text-white/70">
+        <span className="inline-flex items-center gap-2">
+          <Mail className="w-4 h-4" />
           {detail.email}
         </span>
         {detail.phone && (
-          <span className="inline-flex items-center gap-1.5">
-            <Phone className="w-3.5 h-3.5" />
+          <span className="inline-flex items-center gap-2">
+            <Phone className="w-4 h-4" />
             {detail.phone}
           </span>
         )}
@@ -366,31 +365,28 @@ function MemberDetail({
       {/* Leave balances */}
       {detail.leave_balances.length > 0 && (
         <div>
-          <p className="text-xs font-semibold text-foreground mb-2">Leave Balances</p>
-          <div className="grid grid-cols-2 gap-2">
+          <h4 className="text-sm font-semibold text-white/90 mb-2">Leave Balances</h4>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
             {detail.leave_balances.map((bal) => {
               const total = bal.annual_entitlement + bal.carried_forward;
               const usedPct = total > 0 ? Math.round((bal.used_days / total) * 100) : 0;
-              const variant = usedPct >= 80 ? 'danger' : usedPct >= 50 ? 'warning' : 'success';
               return (
-                <div
-                  key={bal.id}
-                  className="rounded-lg bg-muted/50 dark:bg-muted/30 p-2.5"
-                >
-                  <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">
+                <div key={bal.id} className="rounded-lg bg-white/5 p-3 border border-white/10">
+                  <p className="text-xs font-medium text-white/60 capitalize">
                     {bal.leave_type.replace(/_/g, ' ')}
                   </p>
-                  <div className="flex items-baseline gap-1 mt-1">
-                    <span className="text-sm font-bold text-foreground">{bal.remaining}</span>
-                    <span className="text-[10px] text-muted-foreground">/ {total}</span>
+                  <div className="flex items-baseline gap-1.5 mt-1">
+                    <span className="text-xl font-bold text-white">{bal.remaining}</span>
+                    <span className="text-xs text-white/50">/ {total}</span>
                   </div>
-                  <ProgressBar
-                    value={bal.used_days}
-                    max={total || 1}
-                    variant={variant}
-                    size="sm"
-                    className="mt-1.5"
-                  />
+                  <div className="w-full bg-white/10 rounded-full h-1.5 mt-2 shadow-inner">
+                    <motion.div
+                      className={`h-1.5 rounded-full ${getUtilizationBarColor(usedPct)}`}
+                      initial={{ width: 0 }}
+                      animate={{ width: `${usedPct}%` }}
+                      transition={{ duration: 0.8, ease: 'easeOut' }}
+                    />
+                  </div>
                 </div>
               );
             })}
@@ -398,76 +394,56 @@ function MemberDetail({
         </div>
       )}
 
-      {detail.leave_balances.length === 0 && (
-        <p className="text-xs text-muted-foreground italic">No leave balances configured.</p>
-      )}
+      {/* Attendance summary */}
+      <div>
+        <h4 className="text-sm font-semibold text-white/90 mb-2 flex items-center gap-2">
+          <ClipboardList className="w-4 h-4" />
+          Attendance This Month
+        </h4>
+        {(() => {
+          const stats = computeMonthlyAttendance(detail.leave_requests);
+          return (
+            <div className="grid grid-cols-3 gap-3">
+              <div className="rounded-lg bg-green-500/10 p-3 text-center border border-green-500/20">
+                <p className="text-2xl font-bold text-green-400">{stats.presentDays}</p>
+                <p className="text-xs text-white/60 uppercase tracking-wide">Present</p>
+              </div>
+              <div className="rounded-lg bg-amber-500/10 p-3 text-center border border-amber-500/20">
+                <p className="text-2xl font-bold text-amber-400">{stats.leaveDays}</p>
+                <p className="text-xs text-white/60 uppercase tracking-wide">On Leave</p>
+              </div>
+              <div className="rounded-lg bg-blue-500/10 p-3 text-center border border-blue-500/20">
+                <p className="text-2xl font-bold text-blue-400">{stats.workingDays}</p>
+                <p className="text-xs text-white/60 uppercase tracking-wide">Working Days</p>
+              </div>
+            </div>
+          );
+        })()}
+      </div>
 
       {/* Recent leave requests */}
       {detail.leave_requests.length > 0 && (
         <div>
-          <p className="text-xs font-semibold text-foreground mb-2">Recent Leave Requests</p>
-          <div className="space-y-1.5">
-            {detail.leave_requests.slice(0, 5).map((req) => (
-              <div
-                key={req.id}
-                className="flex items-center justify-between rounded-lg bg-muted/30 dark:bg-muted/20 px-2.5 py-2 text-xs"
-              >
-                <div className="flex items-center gap-2 min-w-0">
-                  <Calendar className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-                  <span className="text-foreground font-medium capitalize truncate">
-                    {req.leave_type.replace(/_/g, ' ')}
-                  </span>
-                  <span className="text-muted-foreground shrink-0">
-                    {formatDate(req.start_date)} - {formatDate(req.end_date)}
-                  </span>
+          <h4 className="text-sm font-semibold text-white/90 mb-2">Recent Leave Requests</h4>
+          <div className="space-y-2">
+            {detail.leave_requests.slice(0, 3).map((req) => (
+              <div key={req.id} className="flex items-center justify-between rounded-lg bg-white/5 px-3 py-2 text-sm border border-white/10">
+                <div className="flex items-center gap-3 min-w-0">
+                  <Calendar className="w-4 h-4 text-white/50 shrink-0" />
+                  <div className="truncate">
+                    <p className="text-white font-medium capitalize truncate">{req.leave_type.replace(/_/g, ' ')}</p>
+                    <p className="text-xs text-white/60">{formatDate(req.start_date)} - {formatDate(req.end_date)}</p>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2 shrink-0 ml-2">
-                  <span className="text-muted-foreground">{req.total_days}d</span>
-                  <Badge
-                    variant={LEAVE_STATUS_BADGE[req.status] ?? 'default'}
-                    size="sm"
-                  >
-                    {req.status}
-                  </Badge>
+                <div className="flex items-center gap-3 shrink-0 ml-2">
+                  <span className="text-white/70 font-medium">{req.total_days}d</span>
+                  <Badge variant={LEAVE_STATUS_BADGE[req.status] ?? 'default'} size="sm" className="capitalize">{req.status}</Badge>
                 </div>
               </div>
             ))}
           </div>
         </div>
       )}
-
-      {/* Attendance summary (this month) */}
-      <div>
-        <p className="text-xs font-semibold text-foreground mb-2 flex items-center gap-1.5">
-          <ClipboardList className="w-3.5 h-3.5" />
-          Attendance This Month
-        </p>
-        {(() => {
-          const stats = computeMonthlyAttendance(detail.leave_requests);
-          return (
-            <div className="grid grid-cols-3 gap-2">
-              <div className="rounded-lg bg-green-50 dark:bg-green-500/10 p-2.5 text-center">
-                <p className="text-lg font-bold text-green-600 dark:text-green-400">
-                  {stats.presentDays}
-                </p>
-                <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Present</p>
-              </div>
-              <div className="rounded-lg bg-amber-50 dark:bg-amber-500/10 p-2.5 text-center">
-                <p className="text-lg font-bold text-amber-600 dark:text-amber-400">
-                  {stats.leaveDays}
-                </p>
-                <p className="text-[10px] text-muted-foreground uppercase tracking-wide">On Leave</p>
-              </div>
-              <div className="rounded-lg bg-blue-50 dark:bg-blue-500/10 p-2.5 text-center">
-                <p className="text-lg font-bold text-blue-600 dark:text-blue-400">
-                  {stats.workingDays}
-                </p>
-                <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Working Days</p>
-              </div>
-            </div>
-          );
-        })()}
-      </div>
     </div>
   );
 }
@@ -573,28 +549,31 @@ export default function ManagerTeamPage() {
   /* ---- Error state ---- */
   if (error) {
     return (
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">My Team</h1>
-          <p className="text-muted-foreground mt-1">Manage your direct reports</p>
-        </div>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="text-center py-12">
-              <div className="w-12 h-12 rounded-xl bg-red-50 dark:bg-red-500/10 flex items-center justify-center mx-auto">
-                <AlertCircle className="w-6 h-6 text-red-500" />
+      <div className="p-4 sm:p-6">
+        <PageHeader
+          title="My Team"
+          description="Manage your direct reports"
+          icon={<Users className="w-6 h-6 text-primary" />}
+        />
+        <FadeIn>
+          <TiltCard>
+            <GlassPanel className="border-red-500/30 p-12 text-center">
+              <div className="w-16 h-16 rounded-full bg-red-500/10 flex items-center justify-center mx-auto ring-4 ring-red-500/20">
+                <AlertCircle className="w-8 h-8 text-red-400" />
               </div>
-              <p className="text-foreground font-medium mt-4">Unable to load team</p>
-              <p className="text-muted-foreground text-sm mt-1 max-w-sm mx-auto">{error}</p>
-              <button
+              <p className="text-white font-semibold mt-6 text-xl">Unable to load team</p>
+              <p className="text-white/60 text-sm mt-2 max-w-sm mx-auto">{error}</p>
+              <Button
+                variant="outline"
+                className="mt-6"
                 onClick={() => window.location.reload()}
-                className="mt-4 px-4 py-2 text-sm font-medium rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
               >
-                Try again
-              </button>
-            </div>
-          </CardContent>
-        </Card>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Try Again
+              </Button>
+            </GlassPanel>
+          </TiltCard>
+        </FadeIn>
       </div>
     );
   }
@@ -602,134 +581,79 @@ export default function ManagerTeamPage() {
   /* ---- Empty state ---- */
   if (team.length === 0) {
     return (
-      <div className="space-y-6">
-        <motion.div
-          initial={{ opacity: 0, y: -8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ type: 'spring' as const, stiffness: 300, damping: 24 }}
-        >
-          <h1 className="text-2xl font-bold text-foreground">My Team</h1>
-          <p className="text-muted-foreground mt-1">Manage your direct reports</p>
-        </motion.div>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="text-center py-12">
-              <div className="w-12 h-12 rounded-xl bg-blue-50 dark:bg-blue-500/10 flex items-center justify-center mx-auto">
-                <Users className="w-6 h-6 text-blue-500" />
+      <div className="p-4 sm:p-6">
+        <PageHeader
+          title="My Team"
+          description="Manage your direct reports"
+          icon={<Users className="w-6 h-6 text-primary" />}
+        />
+        <FadeIn>
+          <TiltCard>
+            <GlassPanel className="p-12 text-center">
+              <div className="w-20 h-20 rounded-full bg-white/5 flex items-center justify-center mx-auto border-2 border-white/10">
+                <Users className="w-10 h-10 text-white/30" />
               </div>
-              <p className="text-foreground font-medium mt-4">No direct reports found</p>
-              <p className="text-muted-foreground text-sm mt-1 max-w-sm mx-auto">
+              <p className="text-white font-semibold mt-5 text-lg">No direct reports found</p>
+              <p className="text-white/60 text-sm mt-2 max-w-sm mx-auto">
                 Team members assigned to you will appear here. Contact HR to update reporting structure.
               </p>
-            </div>
-          </CardContent>
-        </Card>
+            </GlassPanel>
+          </TiltCard>
+        </FadeIn>
       </div>
     );
   }
 
   /* ---- Summary cards data ---- */
   const summaryCards = [
-    {
-      label: 'Present',
-      value: String(presentCount),
-      icon: CheckCircle,
-      iconColor: 'text-green-500',
-      bgColor: 'bg-green-50 dark:bg-green-500/10',
-    },
-    {
-      label: 'On Leave',
-      value: String(onLeaveCount),
-      icon: UserX,
-      iconColor: 'text-amber-500',
-      bgColor: 'bg-amber-50 dark:bg-amber-500/10',
-    },
-    {
-      label: 'Total',
-      value: String(totalCount),
-      icon: Users,
-      iconColor: 'text-blue-500',
-      bgColor: 'bg-blue-50 dark:bg-blue-500/10',
-    },
+    { label: 'Present', value: String(presentCount), icon: CheckCircle, color: 'green' },
+    { label: 'On Leave', value: String(onLeaveCount), icon: UserX, color: 'amber' },
+    { label: 'Total', value: String(totalCount), icon: Users, color: 'blue' },
   ];
 
   /* ---- Render ---- */
   return (
-    <div className="space-y-6">
-      {/* Page header */}
-      <motion.div
-        initial={{ opacity: 0, y: -8 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ type: 'spring' as const, stiffness: 300, damping: 24 }}
-      >
-        <h1 className="text-2xl font-bold text-foreground">My Team</h1>
-        <p className="text-muted-foreground mt-1">
-          {totalCount} team member{totalCount !== 1 ? 's' : ''} reporting to you
-        </p>
-      </motion.div>
+    <div className="p-4 sm:p-6 pb-32">
+      <StaggerContainer>
+        {/* Page header */}
+        <PageHeader
+          title="My Team"
+          description={`${totalCount} team member${totalCount !== 1 ? 's' : ''} reporting to you`}
+          icon={<Users className="w-6 h-6 text-primary" />}
+        />
 
-      {/* Summary cards */}
-      <motion.div
-        className="grid grid-cols-3 gap-4"
-        variants={containerVariants}
-        initial="hidden"
-        animate="visible"
-      >
-        {summaryCards.map((item) => {
-          const Icon = item.icon;
-          return (
-            <motion.div key={item.label} variants={cardVariants}>
-              <Card>
-                <CardContent className="pt-4 pb-4">
-                  <p className="text-xs text-muted-foreground">{item.label}</p>
-                  <div className="flex items-center gap-3 mt-2">
-                    <div
-                      className={`w-10 h-10 rounded-xl ${item.bgColor} flex items-center justify-center`}
-                    >
-                      <Icon className={`w-5 h-5 ${item.iconColor}`} />
-                    </div>
-                    <span className="text-2xl font-bold text-foreground">{item.value}</span>
-                  </div>
-                </CardContent>
-              </Card>
-            </motion.div>
-          );
-        })}
-      </motion.div>
+        {/* Summary cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mt-8">
+          {summaryCards.map((item) => (
+            <MetricCard key={item.label} icon={item.icon} label={item.label} value={item.value} color={item.color} />
+          ))}
+        </div>
 
-      {/* Search + Team list */}
-      <motion.div
-        initial={{ opacity: 0, y: 16 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ type: 'spring' as const, stiffness: 260, damping: 22, delay: 0.15 }}
-      >
-        <Card>
-          <CardHeader>
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-              <CardTitle>Team Members</CardTitle>
-              <div className="relative w-full sm:w-64">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+        {/* Search + Team list */}
+        <FadeIn>
+          <GlassPanel className="mt-8 p-4 sm:p-6">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+              <h3 className="text-xl font-bold text-white">Team Members</h3>
+              <div className="relative w-full sm:w-72">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/40 pointer-events-none" />
                 <input
                   type="text"
-                  placeholder="Search by name, role, department..."
+                  placeholder="Search by name, role..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-9 pr-3 py-2 text-sm rounded-lg border border-border bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary transition-colors"
+                  className="w-full h-12 pl-12 pr-4 bg-white/5 border border-white/10 rounded-lg text-white placeholder:text-white/40 focus:ring-2 focus:ring-primary/50 focus:outline-none"
                 />
               </div>
             </div>
-          </CardHeader>
-          <CardContent>
+
             {/* No search results */}
             {filteredTeam.length === 0 && searchQuery.trim() && (
-              <div className="text-center py-10">
-                <div className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center mx-auto">
-                  <Search className="w-5 h-5 text-muted-foreground" />
+              <div className="py-16 text-center">
+                <div className="w-20 h-20 rounded-full bg-white/5 flex items-center justify-center mx-auto border-2 border-white/10">
+                  <Search className="w-10 h-10 text-white/30" />
                 </div>
-                <p className="text-foreground font-medium mt-3">No results found</p>
-                <p className="text-muted-foreground text-sm mt-1">
-                  No team members match &quot;{searchQuery}&quot;
-                </p>
+                <p className="text-white font-semibold mt-5 text-lg">No results found</p>
+                <p className="text-white/60 text-sm mt-1">No team members match &quot;{searchQuery}&quot;</p>
               </div>
             )}
 
@@ -741,111 +665,126 @@ export default function ManagerTeamPage() {
                 initial="hidden"
                 animate="visible"
               >
-                {filteredTeam.map((member) => {
-                  const isExpanded = expandedId === member.id;
-                  const isOnLeave = onLeaveIds.has(member.id);
-                  const attendance = isOnLeave ? 'On Leave' : 'Present';
-
-                  return (
-                    <motion.div
-                      key={member.id}
-                      variants={itemVariants}
-                      layout
-                      className="rounded-lg border border-border bg-card hover:border-primary/30 transition-colors overflow-hidden"
-                    >
-                      {/* Clickable header */}
-                      <button
-                        type="button"
-                        onClick={() => toggleExpand(member.id)}
-                        className="w-full text-left p-4 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 rounded-lg"
-                      >
-                        <div className="flex items-center gap-3">
-                          {/* Avatar */}
-                          <div
-                            className={`w-11 h-11 rounded-full flex items-center justify-center text-sm font-bold shrink-0 ${
-                              isOnLeave
-                                ? 'bg-amber-100 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400'
-                                : 'bg-blue-100 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400'
-                            }`}
-                          >
-                            {getInitials(member.first_name, member.last_name)}
-                          </div>
-
-                          {/* Name + meta */}
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-semibold text-foreground truncate">
-                              {member.first_name} {member.last_name}
-                            </p>
-                            <div className="flex items-center gap-1.5 mt-0.5">
-                              {member.designation && (
-                                <span className="text-xs text-muted-foreground truncate">
-                                  {member.designation}
-                                </span>
-                              )}
-                              {member.designation && member.department && (
-                                <span className="text-muted-foreground text-xs">·</span>
-                              )}
-                              {member.department && (
-                                <span className="text-xs text-muted-foreground truncate">
-                                  {member.department}
-                                </span>
-                              )}
-                            </div>
-                          </div>
-
-                          {/* Status badge + expand chevron */}
-                          <div className="flex items-center gap-2 shrink-0">
-                            <Badge variant={isOnLeave ? 'warning' : 'success'} size="sm">
-                              {attendance}
-                            </Badge>
-                            <motion.div
-                              animate={{ rotate: isExpanded ? 180 : 0 }}
-                              transition={{ duration: 0.2 }}
-                            >
-                              <ChevronDown className="w-4 h-4 text-muted-foreground" />
-                            </motion.div>
-                          </div>
-                        </div>
-
-                        {/* Employee status badge (if not 'active') */}
-                        {member.status !== 'active' && (
-                          <div className="mt-2 flex items-center gap-2">
-                            <Briefcase className="w-3 h-3 text-muted-foreground" />
-                            <Badge
-                              variant={STATUS_BADGE[member.status] ?? 'default'}
-                              size="sm"
-                            >
-                              {member.status.replace(/_/g, ' ')}
-                            </Badge>
-                          </div>
-                        )}
-                      </button>
-
-                      {/* Expandable detail section */}
-                      <AnimatePresence initial={false}>
-                        {isExpanded && (
-                          <motion.div
-                            key="detail"
-                            initial="collapsed"
-                            animate="expanded"
-                            exit="collapsed"
-                            variants={expandVariants}
-                            className="overflow-hidden"
-                          >
-                            <div className="px-4 pb-4 border-t border-border/50">
-                              <MemberDetail memberId={member.id} cache={detailCacheRef} />
-                            </div>
-                          </motion.div>
-                        )}
-                      </AnimatePresence>
-                    </motion.div>
-                  );
-                })}
+                {filteredTeam.map((member) => (
+                  <TeamMemberCard
+                    key={member.id}
+                    member={member}
+                    isExpanded={expandedId === member.id}
+                    isOnLeave={onLeaveIds.has(member.id)}
+                    onToggleExpand={toggleExpand}
+                    detailCacheRef={detailCacheRef}
+                  />
+                ))}
               </motion.div>
             )}
-          </CardContent>
-        </Card>
-      </motion.div>
+          </GlassPanel>
+        </FadeIn>
+      </StaggerContainer>
     </div>
   );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Sub-components                                                     */
+/* ------------------------------------------------------------------ */
+
+function MetricCard({ icon: Icon, label, value, color }: { icon: React.ElementType, label: string, value: string, color: string }) {
+  const colorClasses: Record<string, string> = {
+    green: 'text-green-400 bg-green-500/10 shadow-green-500/10',
+    amber: 'text-amber-400 bg-amber-500/10 shadow-amber-500/10',
+    blue: 'text-blue-400 bg-blue-500/10 shadow-blue-500/10',
+  };
+
+  return (
+    <FadeIn>
+      <TiltCard>
+        <GlassPanel className="p-5 h-full">
+          <div className="flex items-center gap-4">
+            <div className={`p-3 rounded-lg shadow-lg ${colorClasses[color]}`}>
+              <Icon className="w-6 h-6" />
+            </div>
+            <div>
+              <p className="text-sm text-white/70">{label}</p>
+              <p className="text-3xl font-bold text-white">{value}</p>
+            </div>
+          </div>
+        </GlassPanel>
+      </TiltCard>
+    </FadeIn>
+  );
+}
+
+function TeamMemberCard({ member, isExpanded, isOnLeave, onToggleExpand, detailCacheRef }: {
+  member: Employee;
+  isExpanded: boolean;
+  isOnLeave: boolean;
+  onToggleExpand: (id: string) => void;
+  detailCacheRef: React.MutableRefObject<Map<string, EmployeeDetail>>;
+}) {
+  const attendance = isOnLeave ? 'On Leave' : 'Present';
+
+  return (
+    <motion.div
+      variants={itemVariants}
+      layout
+      className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden transition-all duration-300 hover:border-primary/30 hover:shadow-2xl hover:shadow-primary/10"
+    >
+      <button
+        type="button"
+        onClick={() => onToggleExpand(member.id)}
+        className="w-full text-left p-4 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 rounded-lg"
+      >
+        <div className="flex items-center gap-4">
+          {/* Avatar */}
+          <div className={`relative w-14 h-14 rounded-full flex items-center justify-center text-xl font-bold shrink-0 shadow-lg ${
+            isOnLeave
+              ? 'bg-gradient-to-br from-amber-500 to-orange-600 text-white shadow-amber-500/20'
+              : 'bg-gradient-to-br from-blue-500 to-violet-600 text-white shadow-blue-500/20'
+          }`}>
+            {getInitials(member.first_name, member.last_name)}
+            <div className={`absolute bottom-0 right-0 w-4 h-4 rounded-full border-2 border-white/10 ${isOnLeave ? 'bg-amber-400' : 'bg-green-400'}`} />
+          </div>
+
+          {/* Name + meta */}
+          <div className="flex-1 min-w-0">
+            <p className="text-base font-semibold text-white truncate">{member.first_name} {member.last_name}</p>
+            <p className="text-sm text-white/60 truncate">{member.designation || 'N/A'}</p>
+            {member.status !== 'active' && (
+              <Badge variant={STATUS_BADGE[member.status] ?? 'default'} size="sm" className="mt-1 capitalize">{member.status.replace(/_/g, ' ')}</Badge>
+            )}
+          </div>
+
+          {/* Expand chevron */}
+          <motion.div animate={{ rotate: isExpanded ? 180 : 0 }} transition={{ duration: 0.2 }}>
+            <ChevronDown className="w-5 h-5 text-white/50" />
+          </motion.div>
+        </div>
+      </button>
+
+      {/* Expandable detail section */}
+      <AnimatePresence initial={false}>
+        {isExpanded && (
+          <motion.div
+            key="detail"
+            initial="collapsed"
+            animate="expanded"
+            exit="collapsed"
+            variants={expandVariants}
+            className="overflow-hidden"
+          >
+            <div className="px-4 pb-4 border-t-2 border-white/10">
+              <MemberDetail memberId={member.id} cache={detailCacheRef} />
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.div>
+  );
+}
+
+// Helper to get bar color for utilization
+function getUtilizationBarColor(percentage: number): string {
+  if (percentage > 80) return 'bg-red-500';
+  if (percentage > 50) return 'bg-amber-500';
+  return 'bg-green-500';
 }

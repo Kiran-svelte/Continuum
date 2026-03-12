@@ -2,7 +2,9 @@
 
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { StaggerContainer, FadeIn, TiltCard, AmbientBackground } from '@/components/motion';
+import { PageHeader } from '@/components/page-header';
+import { GlassPanel } from '@/components/glass-panel';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Modal, ModalFooter } from '@/components/ui/modal';
@@ -84,25 +86,6 @@ const CATEGORY_COLORS: Record<string, string> = {
   equipment: 'bg-purple-500/10 text-purple-600 dark:text-purple-400',
   food: 'bg-orange-500/10 text-orange-600 dark:text-orange-400',
   other: 'bg-slate-500/10 text-slate-600 dark:text-slate-400',
-};
-
-// ─── Animation Variants ──────────────────────────────────────────────────────
-
-const containerVariants = {
-  hidden: { opacity: 0 },
-  visible: {
-    opacity: 1,
-    transition: { staggerChildren: 0.08, delayChildren: 0.1 },
-  },
-};
-
-const itemVariants = {
-  hidden: { opacity: 0, y: 20 },
-  visible: {
-    opacity: 1,
-    y: 0,
-    transition: { type: 'spring' as const, stiffness: 300, damping: 24 },
-  },
 };
 
 // ─── Component ───────────────────────────────────────────────────────────────
@@ -275,435 +258,409 @@ export default function EmployeeReimbursementsPage() {
 
   if (loading && reimbursements.length === 0) {
     return (
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div className="space-y-2">
-            <Skeleton className="h-8 w-48" />
-            <Skeleton className="h-4 w-64" />
-          </div>
-          <Skeleton className="h-10 w-36" />
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="rounded-xl border border-border bg-card p-6 space-y-3">
-              <Skeleton className="h-4 w-24" />
-              <Skeleton className="h-8 w-16" />
-              <Skeleton className="h-3 w-20" />
-            </div>
-          ))}
-        </div>
-        <Card>
-          <CardContent className="py-6">
-            {Array.from({ length: 5 }).map((_, i) => (
-              <div key={i} className="flex items-center gap-4 py-4 border-b border-border last:border-0">
-                <Skeleton className="w-10 h-10 rounded-lg" />
-                <div className="flex-1 space-y-2">
-                  <Skeleton className="h-4 w-3/4" />
-                  <Skeleton className="h-3 w-1/2" />
+      <div className="p-4 sm:p-8 pb-32 max-w-7xl mx-auto">
+        <AmbientBackground />
+        <StaggerContainer className="space-y-6">
+          <PageHeader
+            title="Reimbursements"
+            description="Submit and track expense reimbursements"
+            icon={<Receipt className="w-6 h-6 text-primary" />}
+            action={
+              <Button
+                onClick={openModal}
+                className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg shadow-primary/30 gap-2 transition-all duration-300 transform hover:scale-105"
+              >
+                <Plus className="w-4 h-4" />
+                New Request
+              </Button>
+            }
+          />
+
+          <AnimatePresence>
+            {successMsg && (
+              <motion.div
+                initial={{ opacity: 0, y: -20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                className="p-4 rounded-lg text-white font-medium bg-green-500/80 border border-green-400/50"
+              >
+                <div className="flex items-center gap-3">
+                  <CheckCircle2 className="w-5 h-5" />
+                  <span>{successMsg}</span>
                 </div>
-                <Skeleton className="h-6 w-16" />
-              </div>
-            ))}
-          </CardContent>
-        </Card>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          <FadeIn>
+            <div className="grid grid-cols-1 sm:grid-cols-4 gap-6">
+              {[1,2,3,4].map(i => (
+                <GlassPanel key={i} className="p-6 animate-pulse">
+                  <div className="h-4 bg-white/10 rounded w-24 mb-3" />
+                  <div className="h-8 bg-white/10 rounded w-16" />
+                </GlassPanel>
+              ))}
+            </div>
+          </FadeIn>
+        </StaggerContainer>
       </div>
     );
   }
 
   return (
-    <motion.div
-      className="space-y-6"
-      variants={containerVariants}
-      initial="hidden"
-      animate="visible"
-    >
-      {/* Header */}
-      <motion.div className="flex items-center justify-between flex-wrap gap-4" variants={itemVariants}>
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Reimbursements</h1>
-          <p className="text-muted-foreground mt-1">
-            Submit and track your expense reimbursements
-          </p>
-        </div>
-        <Button onClick={openModal}>
-          <Plus className="w-4 h-4" />
-          New Request
-        </Button>
-      </motion.div>
-
-      {/* Success Message */}
-      <AnimatePresence>
-        {successMsg && (
-          <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            className="rounded-lg px-4 py-3 text-sm flex items-center gap-2 bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-400"
-          >
-            <CheckCircle2 className="w-4 h-4 shrink-0" />
-            {successMsg}
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Summary Cards */}
-      <motion.div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4" variants={itemVariants}>
-        <Card>
-          <CardContent className="pt-6 pb-6">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-blue-500/10 flex items-center justify-center">
-                <Receipt className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Total Submitted</p>
-                <p className="text-2xl font-bold text-foreground">{summary.totalSubmitted}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="pt-6 pb-6">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-emerald-500/10 flex items-center justify-center">
-                <CheckCircle2 className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Total Approved</p>
-                <p className="text-2xl font-bold text-foreground">{summary.totalApproved}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="pt-6 pb-6">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-amber-500/10 flex items-center justify-center">
-                <Clock className="w-5 h-5 text-amber-600 dark:text-amber-400" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Total Pending</p>
-                <p className="text-2xl font-bold text-foreground">{summary.totalPending}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="pt-6 pb-6">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-purple-500/10 flex items-center justify-center">
-                <IndianRupee className="w-5 h-5 text-purple-600 dark:text-purple-400" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Approved This Year</p>
-                <p className="text-2xl font-bold text-foreground">{formatCurrency(summary.totalAmountApproved)}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </motion.div>
-
-      {/* Status Filters */}
-      <motion.div className="flex items-center gap-2 flex-wrap" variants={itemVariants}>
-        {[
-          { value: '', label: 'All' },
-          { value: 'pending', label: 'Pending' },
-          { value: 'approved', label: 'Approved' },
-          { value: 'rejected', label: 'Rejected' },
-          { value: 'processed', label: 'Processed' },
-        ].map((f) => (
-          <button
-            key={f.value}
-            onClick={() => {
-              setStatusFilter(f.value);
-              setPage(1);
-            }}
-            className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
-              statusFilter === f.value
-                ? 'bg-primary text-primary-foreground'
-                : 'bg-muted text-muted-foreground hover:bg-muted/50'
-            }`}
-          >
-            {f.label}
-          </button>
-        ))}
-      </motion.div>
-
-      {/* Error State */}
-      {error && (
-        <motion.div variants={itemVariants}>
-          <div className="rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 px-4 py-3 text-sm text-red-700 dark:text-red-400 flex items-center gap-2">
-            <AlertCircle className="w-4 h-4 shrink-0" />
-            {error}
-          </div>
-        </motion.div>
-      )}
-
-      {/* Reimbursements List */}
-      <motion.div variants={itemVariants}>
-        <Card>
-          <CardHeader>
-            <CardTitle>Your Reimbursements</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {!loading && !error && reimbursements.length === 0 && (
-              <div className="py-12 text-center">
-                <div className="w-12 h-12 rounded-xl bg-slate-50 dark:bg-slate-500/10 flex items-center justify-center mx-auto">
-                  <Inbox className="w-6 h-6 text-slate-400" />
-                </div>
-                <p className="text-muted-foreground mt-3 text-sm">
-                  No reimbursements found.
-                </p>
-                <p className="text-muted-foreground text-xs mt-1">
-                  Submit your first reimbursement request to get started.
-                </p>
-                <Button onClick={openModal} variant="outline" size="sm" className="mt-4">
-                  <Plus className="w-4 h-4" />
-                  New Request
-                </Button>
-              </div>
-            )}
-
-            {reimbursements.length > 0 && (
-              <div className="space-y-3">
-                {reimbursements.map((r) => (
-                  <motion.div
-                    key={r.id}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="flex items-start gap-4 p-4 rounded-lg border border-border hover:bg-muted/30 transition-colors"
-                  >
-                    {/* Category Icon */}
-                    <div
-                      className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${
-                        CATEGORY_COLORS[r.category] || CATEGORY_COLORS.other
-                      }`}
-                    >
-                      {CATEGORY_ICONS[r.category] || CATEGORY_ICONS.other}
-                    </div>
-
-                    {/* Details */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-start justify-between gap-2">
-                        <div>
-                          <p className="font-medium text-foreground">
-                            {CATEGORY_LABELS[r.category] || r.category}
-                          </p>
-                          {r.description && (
-                            <p className="text-sm text-muted-foreground mt-0.5 line-clamp-1">
-                              {r.description}
-                            </p>
-                          )}
-                        </div>
-                        <Badge variant={STATUS_BADGE[r.status] ?? 'default'}>
-                          {r.status}
-                        </Badge>
-                      </div>
-
-                      <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground flex-wrap">
-                        <span className="font-semibold text-foreground text-sm">
-                          {formatCurrency(r.amount)}
-                        </span>
-                        <span>{formatDate(r.created_at)}</span>
-                        {r.approver && (
-                          <span>
-                            {r.status === 'rejected' ? 'Rejected' : 'Approved'} by{' '}
-                            {r.approver.first_name} {r.approver.last_name}
-                          </span>
-                        )}
-                        {r.receipt_url && (
-                          r.receipt_url.startsWith('data:image/') ? (
-                            <button
-                              type="button"
-                              onClick={() => window.open(r.receipt_url!, '_blank')}
-                              className="inline-flex items-center gap-1 text-primary hover:text-primary/80 transition-colors"
-                            >
-                              <img src={r.receipt_url} alt="Receipt" className="w-8 h-8 rounded object-cover border border-border" />
-                              <span>Receipt</span>
-                            </button>
-                          ) : (
-                            <a
-                              href={r.receipt_url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="inline-flex items-center gap-1 text-primary hover:text-primary/80 transition-colors"
-                            >
-                              <ExternalLink className="w-3 h-3" />
-                              Receipt
-                            </a>
-                          )
-                        )}
-                      </div>
-                    </div>
-                  </motion.div>
-                ))}
-              </div>
-            )}
-
-            {/* Pagination */}
-            {pagination && pagination.pages > 1 && (
-              <div className="flex items-center justify-between mt-6 pt-4 border-t border-border">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setPage((p) => Math.max(1, p - 1))}
-                  disabled={page <= 1}
-                >
-                  <ChevronLeft className="w-4 h-4" />
-                  Previous
-                </Button>
-                <span className="text-sm text-muted-foreground">
-                  Page {page} of {pagination.pages}
-                </span>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setPage((p) => Math.min(pagination!.pages, p + 1))}
-                  disabled={page >= pagination.pages}
-                >
-                  Next
-                  <ChevronRight className="w-4 h-4" />
-                </Button>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </motion.div>
-
-      {/* New Reimbursement Modal */}
-      <Modal
-        isOpen={showModal}
-        onClose={() => setShowModal(false)}
-        title="New Reimbursement Request"
-        description="Submit a new expense reimbursement"
-        size="md"
-      >
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Category */}
-          <div>
-            <label className="block text-sm font-medium text-foreground mb-1.5">
-              Category <span className="text-red-500">*</span>
-            </label>
-            <select
-              value={formCategory}
-              onChange={(e) => setFormCategory(e.target.value)}
-              className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors"
-              required
+    <div className="p-4 sm:p-8 pb-32 max-w-7xl mx-auto">
+      <AmbientBackground />
+      <StaggerContainer className="space-y-6">
+        <PageHeader
+          title="Reimbursements"
+          description="Submit and track expense reimbursements"
+          icon={<Receipt className="w-6 h-6 text-primary" />}
+          action={
+            <Button
+              onClick={openModal}
+              className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg shadow-primary/30 gap-2 transition-all duration-300 transform hover:scale-105"
             >
-              <option value="travel">Travel</option>
-              <option value="medical">Medical</option>
-              <option value="equipment">Equipment</option>
-              <option value="food">Food</option>
-              <option value="other">Other</option>
-            </select>
-          </div>
+              <Plus className="w-4 h-4" />
+              New Request
+            </Button>
+          }
+        />
 
-          {/* Amount */}
-          <div>
-            <label className="block text-sm font-medium text-foreground mb-1.5">
-              Amount (INR) <span className="text-red-500">*</span>
-            </label>
-            <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">
-                <IndianRupee className="w-4 h-4" />
-              </span>
-              <input
-                type="number"
-                step="0.01"
-                min="0.01"
-                value={formAmount}
-                onChange={(e) => setFormAmount(e.target.value)}
-                placeholder="0.00"
-                className="w-full pl-9 pr-3 py-2 text-sm rounded-lg border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors"
-                required
-              />
-            </div>
-          </div>
-
-          {/* Description */}
-          <div>
-            <label className="block text-sm font-medium text-foreground mb-1.5">
-              Description
-            </label>
-            <textarea
-              value={formDescription}
-              onChange={(e) => setFormDescription(e.target.value)}
-              placeholder="Brief description of the expense..."
-              maxLength={500}
-              rows={3}
-              className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors resize-none"
-            />
-            <p className="text-xs text-muted-foreground mt-1 text-right">
-              {formDescription.length}/500
-            </p>
-          </div>
-
-          {/* Receipt Upload */}
-          <div>
-            <label className="block text-sm font-medium text-foreground mb-1.5">
-              Receipt (image or PDF)
-            </label>
-            <input
-              type="file"
-              accept="image/*,.pdf"
-              onChange={(e) => {
-                const file = e.target.files?.[0] || null;
-                setFormReceiptFile(file);
-                if (file && file.type.startsWith('image/')) {
-                  const url = URL.createObjectURL(file);
-                  setReceiptPreview(url);
-                } else {
-                  setReceiptPreview(null);
-                }
-              }}
-              className="w-full text-sm text-foreground file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-primary/10 file:text-primary hover:file:bg-primary/20 cursor-pointer"
-            />
-            {receiptPreview && (
-              <img src={receiptPreview} alt="Receipt preview" className="mt-2 max-h-32 rounded-lg border border-border object-contain" />
-            )}
-            {formReceiptFile && !receiptPreview && (
-              <p className="mt-1 text-xs text-muted-foreground">{formReceiptFile.name}</p>
-            )}
-            {!formReceiptFile && (
-              <div className="mt-2">
-                <p className="text-xs text-muted-foreground mb-1">Or paste a receipt URL:</p>
-                <input
-                  type="url"
-                  value={formReceiptUrl}
-                  onChange={(e) => setFormReceiptUrl(e.target.value)}
-                  placeholder="https://..."
-                  className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors"
-                />
+        <AnimatePresence>
+          {successMsg && (
+            <motion.div
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              className="p-4 rounded-lg text-white font-medium bg-green-500/80 border border-green-400/50"
+            >
+              <div className="flex items-center gap-3">
+                <CheckCircle2 className="w-5 h-5" />
+                <span>{successMsg}</span>
               </div>
-            )}
-          </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
-          {/* Submit Error */}
-          {submitError && (
-            <div className="rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 px-4 py-3 text-sm text-red-700 dark:text-red-400 flex items-center gap-2">
-              <AlertCircle className="w-4 h-4 shrink-0" />
-              {submitError}
+          <FadeIn>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+              <TiltCard>
+                <GlassPanel className="p-6">
+                  <div className="flex items-center gap-4">
+                    <div className="p-3 rounded-lg bg-blue-500/20 shadow-[0_0_10px_rgba(59,130,246,0.3)]">
+                      <Receipt className="w-6 h-6 text-blue-300" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-white/60">Total Submitted</p>
+                      <p className="text-2xl font-bold text-white">{summary.totalSubmitted}</p>
+                    </div>
+                  </div>
+                </GlassPanel>
+              </TiltCard>
+
+              <TiltCard>
+                <GlassPanel className="p-6">
+                  <div className="flex items-center gap-4">
+                    <div className="p-3 rounded-lg bg-emerald-500/20 shadow-[0_0_10px_rgba(16,185,129,0.3)]">
+                      <CheckCircle2 className="w-6 h-6 text-emerald-300" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-white/60">Total Approved</p>
+                      <p className="text-2xl font-bold text-white">{summary.totalApproved}</p>
+                    </div>
+                  </div>
+                </GlassPanel>
+              </TiltCard>
+
+              <TiltCard>
+                <GlassPanel className="p-6">
+                  <div className="flex items-center gap-4">
+                    <div className="p-3 rounded-lg bg-amber-500/20 shadow-[0_0_10px_rgba(245,158,11,0.3)]">
+                      <Clock className="w-6 h-6 text-amber-300" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-white/60">Total Pending</p>
+                      <p className="text-2xl font-bold text-white">{summary.totalPending}</p>
+                    </div>
+                  </div>
+                </GlassPanel>
+              </TiltCard>
+
+              <TiltCard>
+                <GlassPanel className="p-6">
+                  <div className="flex items-center gap-4">
+                    <div className="p-3 rounded-lg bg-purple-500/20 shadow-[0_0_10px_rgba(168,85,247,0.3)]">
+                      <IndianRupee className="w-6 h-6 text-purple-300" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-white/60">Approved (YTD)</p>
+                      <p className="text-2xl font-bold text-white">{formatCurrency(summary.totalAmountApproved)}</p>
+                    </div>
+                  </div>
+                </GlassPanel>
+              </TiltCard>
             </div>
+          </FadeIn>
+
+          <FadeIn>
+            <div className="flex items-center gap-2 flex-wrap">
+              {([
+                { value: '', label: 'All' },
+                { value: 'pending', label: 'Pending' },
+                { value: 'approved', label: 'Approved' },
+                { value: 'rejected', label: 'Rejected' },
+                { value: 'processed', label: 'Processed' },
+              ].map((f) => (
+                <button
+                  key={f.value}
+                  onClick={() => {
+                    setStatusFilter(f.value);
+                    setPage(1);
+                  }}
+                  className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-300 transform hover:-translate-y-0.5 ${
+                    statusFilter === f.value
+                      ? 'bg-primary text-primary-foreground shadow-md shadow-primary/30'
+                      : 'bg-white/5 text-white/60 hover:bg-white/10 hover:text-white border border-white/10'
+                  }`}
+                >
+                  {f.label}
+                </button>
+              )))}
+            </div>
+          </FadeIn>
+
+          {error && (
+            <FadeIn>
+              <GlassPanel className="p-4 border border-red-500/30 text-red-300/90 flex items-center gap-3">
+                <AlertCircle className="w-5 h-5" />
+                <span>{error}</span>
+              </GlassPanel>
+            </FadeIn>
           )}
 
-          <ModalFooter>
-            <Button
-              variant="outline"
-              type="button"
+          <FadeIn>
+            <GlassPanel>
+              <div className="p-6 border-b border-white/10">
+                <h2 className="text-lg font-semibold text-white">Your Reimbursements</h2>
+              </div>
+              <div className="p-6">
+                {!loading && !error && reimbursements.length === 0 && (
+                  <div className="py-16 text-center">
+                    <div className="w-16 h-16 rounded-2xl bg-white/5 flex items-center justify-center mx-auto shadow-inner border border-white/10">
+                      <Inbox className="w-8 h-8 text-white/30" />
+                    </div>
+                    <p className="text-white/60 mt-4 font-medium">
+                      No reimbursements found.
+                    </p>
+                    <p className="text-white/40 text-sm mt-1">
+                      Submit your first reimbursement request to get started.
+                    </p>
+                    <Button onClick={openModal} variant="outline" size="sm" className="mt-6 bg-white/5 border-white/10 text-white/80 hover:bg-white/10 hover:text-white">
+                      <Plus className="w-4 h-4 mr-2" />
+                      New Request
+                    </Button>
+                  </div>
+                )}
+
+                {reimbursements.length > 0 && (
+                  <div className="space-y-4">
+                    {reimbursements.map((r) => (
+                      <FadeIn key={r.id}>
+                        <div className="flex items-start gap-4 p-4 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 transition-colors">
+                          {/* Category Icon */}
+                          <div
+                            className={`w-12 h-12 rounded-lg flex items-center justify-center shrink-0 ${
+                              CATEGORY_COLORS[r.category] || CATEGORY_COLORS.other
+                            }`}
+                          >
+                            {CATEGORY_ICONS[r.category] || CATEGORY_ICONS.other}
+                          </div>
+
+                          {/* Details */}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-start justify-between gap-2">
+                              <div>
+                                <p className="font-bold text-white">
+                                  {CATEGORY_LABELS[r.category] || r.category}
+                                </p>
+                                {r.description && (
+                                  <p className="text-sm text-white/60 mt-0.5 line-clamp-1">
+                                    {r.description}
+                                  </p>
+                                )}
+                              </div>
+                              <Badge variant={STATUS_BADGE[r.status] ?? 'default'}>
+                                {r.status}
+                              </Badge>
+                            </div>
+                            <div className="flex items-center justify-between mt-2">
+                              <p className="text-lg font-mono font-bold text-white">{formatCurrency(r.amount)}</p>
+                              <div className="text-xs text-white/50 flex items-center gap-4">
+                                <span>{formatDate(r.created_at)}</span>
+                                {r.receipt_url && (
+                                  <a
+                                    href={r.receipt_url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="flex items-center gap-1 hover:text-primary transition-colors"
+                                  >
+                                    <ExternalLink className="w-3 h-3" />
+                                    View Receipt
+                                  </a>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </FadeIn>
+                    ))}
+                  </div>
+                )}
+              </div>
+              {pagination && pagination.pages > 1 && (
+                <div className="p-4 border-t border-white/10 flex justify-center items-center gap-2">
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    disabled={page === 1}
+                    onClick={() => setPage(page - 1)}
+                    className="text-white/70 hover:text-white hover:bg-white/10"
+                  >
+                    <ChevronLeft className="w-4 h-4 mr-1" />
+                    Previous
+                  </Button>
+                  <span className="text-sm text-white/50">
+                    Page {page} of {pagination.pages}
+                  </span>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    disabled={page === pagination.pages}
+                    onClick={() => setPage(page + 1)}
+                    className="text-white/70 hover:text-white hover:bg-white/10"
+                  >
+                    Next
+                    <ChevronRight className="w-4 h-4 ml-1" />
+                  </Button>
+                </div>
+              )}
+            </GlassPanel>
+          </FadeIn>
+        </StaggerContainer>
+
+        {/* Modal */}
+        <AnimatePresence>
+          {showModal && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center"
               onClick={() => setShowModal(false)}
-              disabled={submitting}
             >
-              Cancel
-            </Button>
-            <Button type="submit" loading={submitting}>
-              <Banknote className="w-4 h-4" />
-              Submit Request
-            </Button>
-          </ModalFooter>
-        </form>
-      </Modal>
-    </motion.div>
-  );
+              <motion.div
+                initial={{ scale: 0.9, y: 20 }}
+                animate={{ scale: 1, y: 0 }}
+                exit={{ scale: 0.9, y: 20 }}
+                className="glass-panel border border-white/10 rounded-2xl w-full max-w-lg m-4"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <form onSubmit={handleSubmit}>
+                  <div className="p-6">
+                    <h2 className="text-xl font-bold text-white">New Reimbursement Request</h2>
+                    <p className="text-white/60 mt-1">Fill in the details of your expense.</p>
+                  </div>
+                  <div className="p-6 space-y-6 border-y border-white/10">
+                    {/* Category & Amount */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                      <div>
+                        <label className="text-sm font-medium text-white/80 block mb-2">Category</label>
+                        <select
+                          value={formCategory}
+                          onChange={(e) => setFormCategory(e.target.value)}
+                          className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white focus:ring-primary focus:border-primary"
+                        >
+                          {Object.entries(CATEGORY_LABELS).map(([key, label]) => (
+                            <option key={key} value={key}>{label}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label htmlFor="amount" className="text-sm font-medium text-white/80 block mb-2">Amount (INR)</label>
+                        <div className="relative">
+                          <IndianRupee className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40" />
+                          <input
+                            id="amount"
+                            type="number"
+                            value={formAmount}
+                            onChange={(e) => setFormAmount(e.target.value)}
+                            placeholder="0.00"
+                            className="w-full bg-white/5 border border-white/10 rounded-lg pl-9 pr-3 py-2 text-white focus:ring-primary focus:border-primary"
+                            required
+                          />
+                        </div>
+                      </div>
+                    </div>
+                    {/* Description */}
+                    <div>
+                      <label htmlFor="description" className="text-sm font-medium text-white/80 block mb-2">Description</label>
+                      <textarea
+                        id="description"
+                        value={formDescription}
+                        onChange={(e) => setFormDescription(e.target.value)}
+                        placeholder="e.g., Client lunch meeting"
+                        rows={3}
+                        className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white focus:ring-primary focus:border-primary"
+                      />
+                    </div>
+                    {/* Receipt */}
+                    <div>
+                      <label className="text-sm font-medium text-white/80 block mb-2">Receipt</label>
+                      <div className="p-4 border-2 border-dashed border-white/10 rounded-lg text-center">
+                        <input
+                          type="file"
+                          id="receipt-upload"
+                          className="hidden"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              setFormReceiptFile(file);
+                              setReceiptPreview(URL.createObjectURL(file));
+                            }
+                          }}
+                          accept="image/*,.pdf"
+                        />
+                        <label htmlFor="receipt-upload" className="cursor-pointer text-primary hover:underline">
+                          {formReceiptFile ? `Selected: ${formReceiptFile.name}` : 'Upload a file'}
+                        </label>
+                        <p className="text-xs text-white/50 mt-1">or paste a URL below</p>
+                        <input
+                          type="text"
+                          value={formReceiptUrl}
+                          onChange={(e) => setFormReceiptUrl(e.target.value)}
+                          placeholder="https://example.com/receipt.jpg"
+                          className="mt-3 w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:ring-primary focus:border-primary"
+                        />
+                        {receiptPreview && <img src={receiptPreview} alt="Receipt preview" className="mt-4 max-h-40 mx-auto rounded-lg" />}
+                      </div>
+                    </div>
+                    {submitError && (
+                      <p className="text-sm text-red-400 bg-red-500/10 p-3 rounded-lg">{submitError}</p>
+                    )}
+                  </div>
+                  <div className="p-6 flex justify-end gap-3">
+                    <Button type="button" variant="ghost" onClick={() => setShowModal(false)} className="text-white/70 hover:text-white hover:bg-white/10">
+                      Cancel
+                    </Button>
+                    <Button type="submit" disabled={submitting} className="bg-primary hover:bg-primary/90 text-primary-foreground">
+                      {submitting ? 'Submitting...' : 'Submit Request'}
+                    </Button>
+                  </div>
+                </form>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+    );
 }

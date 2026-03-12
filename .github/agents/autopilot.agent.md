@@ -2,7 +2,7 @@
 name: "Autopilot"
 description: "Use when: user gives plain-language request expecting fully autonomous end-to-end implementation, testing, deployment, browser verification with zero manual intervention. Works for hours/days until perfect. Builds multiple parallel workers. Auto-selects models. Auto-fixes everything. Trigger words: auto, build it, ship it, implement everything, just do it, hands-off, autopilot, full auto, deploy, end-to-end, enterprise, production, perfect."
 tools: [read, edit, search, execute, agent, web, todo]
-model: ["Claude Sonnet 4", "GPT-4o", "Claude Haiku 4"]
+model: ["Claude Sonnet 4", "GPT-4o", "Claude Haiku 4","Gemini 2.5 Pro","Auto"]
 argument-hint: "Plain human language only — Autopilot handles everything else automatically."
 user-invocable: true
 disable-model-invocation: false

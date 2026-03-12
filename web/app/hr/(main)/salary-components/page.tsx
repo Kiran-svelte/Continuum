@@ -1,8 +1,11 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { AnimatePresence, motion } from 'framer-motion';
+import { StaggerContainer, FadeIn, TiltCard } from '@/components/motion';
+import { PageHeader } from '@/components/page-header';
+import { GlassPanel } from '@/components/glass-panel';
+import { TabButton } from '@/components/tab-button';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Modal, ModalFooter } from '@/components/ui/modal';
@@ -26,6 +29,17 @@ import {
   ShieldCheck,
   Inbox,
 } from 'lucide-react';
+
+/* ─── Animation Variants ─────────────────────────────────────────────────── */
+
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: { opacity: 1, transition: { staggerChildren: 0.08 } },
+};
+const itemVariants = {
+  hidden: { opacity: 0, y: 20 },
+  visible: { opacity: 1, y: 0, transition: { type: 'spring' as const, stiffness: 100, damping: 12 } },
+};
 
 /* ─── Types ──────────────────────────────────────────────────────────────── */
 
@@ -60,26 +74,6 @@ interface ComponentFormData {
   type: 'earning' | 'deduction' | 'statutory';
   is_taxable: boolean;
 }
-
-/* ─── Animation Variants ─────────────────────────────────────────────────── */
-
-const containerVariants = {
-  hidden: { opacity: 0 },
-  visible: {
-    opacity: 1,
-    transition: { staggerChildren: 0.06 },
-  },
-};
-
-const itemVariants = {
-  hidden: { opacity: 0, y: 20, scale: 0.95 },
-  visible: {
-    opacity: 1,
-    y: 0,
-    scale: 1,
-    transition: { type: 'spring' as const, damping: 25, stiffness: 300 },
-  },
-};
 
 /* ─── Helpers ────────────────────────────────────────────────────────────── */
 
@@ -350,7 +344,7 @@ export default function SalaryComponentsPage() {
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="rounded-xl border border-border bg-card p-6 space-y-3">
+            <div key={i} className="rounded-xl border border-white/10 bg-white/5 p-6 space-y-3">
               <div className="flex items-center justify-between">
                 <Skeleton className="h-4 w-20" />
                 <Skeleton variant="circular" className="w-8 h-8" />
@@ -359,9 +353,9 @@ export default function SalaryComponentsPage() {
             </div>
           ))}
         </div>
-        <div className="rounded-xl border border-border bg-card">
+        <div className="rounded-xl border border-white/10 bg-white/5">
           {Array.from({ length: 5 }).map((_, i) => (
-            <div key={i} className="flex gap-4 p-4 border-b border-border last:border-0">
+            <div key={i} className="flex gap-4 p-4 border-b border-white/10 last:border-0">
               {Array.from({ length: 5 }).map((_, j) => (
                 <Skeleton key={j} className="h-4 flex-1" />
               ))}
@@ -396,8 +390,8 @@ export default function SalaryComponentsPage() {
       {/* Header */}
       <motion.div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4" variants={itemVariants}>
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Salary Components</h1>
-          <p className="text-muted-foreground mt-1">
+          <h1 className="text-2xl font-bold text-white">Salary Components</h1>
+          <p className="text-white/60 mt-1">
             Manage salary components and view revision history
           </p>
         </div>
@@ -415,26 +409,26 @@ export default function SalaryComponentsPage() {
           const Icon = card.icon;
           return (
             <motion.div key={card.label} variants={itemVariants}>
-              <Card>
-                <CardContent className="pt-6 pb-6">
+              <GlassPanel>
+                <div className="pt-6 pb-6 px-6">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm text-muted-foreground">{card.label}</p>
-                      <p className="text-2xl font-bold text-foreground mt-1">{card.value}</p>
+                      <p className="text-sm text-white/60">{card.label}</p>
+                      <p className="text-2xl font-bold text-white mt-1">{card.value}</p>
                     </div>
                     <div className={`w-10 h-10 rounded-xl ${card.bg} flex items-center justify-center`}>
                       <Icon className={`w-5 h-5 ${card.color}`} />
                     </div>
                   </div>
-                </CardContent>
-              </Card>
+                </div>
+              </GlassPanel>
             </motion.div>
           );
         })}
       </motion.div>
 
       {/* Tab Navigation */}
-      <motion.div className="flex gap-1 bg-muted/50 rounded-lg p-1 w-fit" variants={itemVariants}>
+      <motion.div className="flex gap-1 bg-white/5/50 rounded-lg p-1 w-fit" variants={itemVariants}>
         {TAB_ITEMS.map((tab) => {
           const Icon = tab.icon;
           return (
@@ -443,8 +437,8 @@ export default function SalaryComponentsPage() {
               onClick={() => setActiveTab(tab.key)}
               className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${
                 activeTab === tab.key
-                  ? 'bg-card text-foreground shadow-sm'
-                  : 'text-muted-foreground hover:text-foreground'
+                  ? 'bg-white/5 text-white shadow-sm'
+                  : 'text-white/60 hover:text-white'
               }`}
             >
               <Icon className="w-4 h-4" />
@@ -480,18 +474,18 @@ export default function SalaryComponentsPage() {
       {/* ─── Components Tab ──────────────────────────────────────────────── */}
       {activeTab === 'components' && (
         <motion.div variants={itemVariants}>
-          <Card>
-            <CardHeader>
+          <GlassPanel>
+            <div className="p-6 border-b border-white/10">
               <div className="flex items-center justify-between">
-                <CardTitle>All Components</CardTitle>
+                <h3 className="text-lg font-semibold text-white">All Components</h3>
                 {components.length > 0 && (
                   <Badge variant="default" size="sm">
                     {components.length} component{components.length !== 1 ? 's' : ''}
                   </Badge>
                 )}
               </div>
-            </CardHeader>
-            <CardContent>
+            </div>
+            <div className="p-6">
               {componentsLoading ? (
                 <div className="space-y-3">
                   {Array.from({ length: 5 }).map((_, i) => (
@@ -501,7 +495,7 @@ export default function SalaryComponentsPage() {
               ) : componentsError ? (
                 <div className="py-12 text-center">
                   <AlertCircle className="w-8 h-8 text-destructive mx-auto mb-3" />
-                  <p className="text-sm text-muted-foreground">{componentsError}</p>
+                  <p className="text-sm text-white/60">{componentsError}</p>
                   <Button variant="outline" size="sm" className="mt-3" onClick={fetchComponents}>
                     Retry
                   </Button>
@@ -512,7 +506,7 @@ export default function SalaryComponentsPage() {
                     <Inbox className="w-5 h-5 text-slate-400" />
                   </div>
                   <h3 className="text-lg font-semibold mt-3">No salary components</h3>
-                  <p className="text-sm text-muted-foreground mt-1">
+                  <p className="text-sm text-white/60 mt-1">
                     Add your first salary component to get started.
                   </p>
                   <Button size="sm" className="mt-4" onClick={openAddComponent}>
@@ -526,23 +520,23 @@ export default function SalaryComponentsPage() {
                   <div className="hidden md:block overflow-x-auto">
                     <table className="w-full text-sm">
                       <thead>
-                        <tr className="border-b border-border">
-                          <th className="text-left py-3 pr-4 text-muted-foreground font-medium">Name</th>
-                          <th className="text-left py-3 px-2 text-muted-foreground font-medium">Type</th>
-                          <th className="text-left py-3 px-2 text-muted-foreground font-medium">Taxable</th>
-                          <th className="text-left py-3 px-2 text-muted-foreground font-medium">Status</th>
-                          <th className="text-left py-3 px-2 text-muted-foreground font-medium">Created</th>
-                          <th className="text-left py-3 pl-2 text-muted-foreground font-medium">Actions</th>
+                        <tr className="border-b border-white/10">
+                          <th className="text-left py-3 pr-4 text-white/60 font-medium">Name</th>
+                          <th className="text-left py-3 px-2 text-white/60 font-medium">Type</th>
+                          <th className="text-left py-3 px-2 text-white/60 font-medium">Taxable</th>
+                          <th className="text-left py-3 px-2 text-white/60 font-medium">Status</th>
+                          <th className="text-left py-3 px-2 text-white/60 font-medium">Created</th>
+                          <th className="text-left py-3 pl-2 text-white/60 font-medium">Actions</th>
                         </tr>
                       </thead>
                       <tbody>
                         {components.map((comp) => (
                           <tr
                             key={comp.id}
-                            className="border-b border-border/50 hover:bg-muted/30 transition-colors"
+                            className="border-b border-white/10/50 hover:bg-white/5/30 transition-colors"
                           >
                             <td className="py-3 pr-4">
-                              <p className="font-medium text-foreground">{comp.name}</p>
+                              <p className="font-medium text-white">{comp.name}</p>
                             </td>
                             <td className="py-3 px-2">
                               <Badge variant={TYPE_BADGE_VARIANT[comp.type] || 'default'} size="sm">
@@ -565,7 +559,7 @@ export default function SalaryComponentsPage() {
                                 {comp.is_active ? 'Active' : 'Inactive'}
                               </Badge>
                             </td>
-                            <td className="py-3 px-2 text-muted-foreground text-xs">
+                            <td className="py-3 px-2 text-white/60 text-xs">
                               {formatDate(comp.created_at)}
                             </td>
                             <td className="py-3 pl-2">
@@ -603,12 +597,12 @@ export default function SalaryComponentsPage() {
                   {/* Mobile cards */}
                   <div className="md:hidden space-y-3">
                     {components.map((comp) => (
-                      <Card key={comp.id} variant="bordered">
-                        <CardContent className="pt-4 pb-4">
+                      <GlassPanel key={comp.id}>
+                        <div className="pt-4 pb-4 px-4">
                           <div className="flex items-start justify-between mb-2">
                             <div>
-                              <p className="font-medium text-foreground text-sm">{comp.name}</p>
-                              <p className="text-xs text-muted-foreground mt-0.5">
+                              <p className="font-medium text-white text-sm">{comp.name}</p>
+                              <p className="text-xs text-white/60 mt-0.5">
                                 Created {formatDate(comp.created_at)}
                               </p>
                             </div>
@@ -624,7 +618,7 @@ export default function SalaryComponentsPage() {
                               {comp.is_taxable ? 'Taxable' : 'Non-taxable'}
                             </Badge>
                           </div>
-                          <div className="flex gap-2 pt-2 border-t border-border">
+                          <div className="flex gap-2 pt-2 border-t border-white/10">
                             <Button variant="outline" size="sm" className="flex-1 text-xs" onClick={() => openEditComponent(comp)}>
                               <Edit2 className="w-3 h-3" /> Edit
                             </Button>
@@ -639,14 +633,14 @@ export default function SalaryComponentsPage() {
                               Delete
                             </Button>
                           </div>
-                        </CardContent>
-                      </Card>
+                        </div>
+                      </GlassPanel>
                     ))}
                   </div>
                 </>
               )}
-            </CardContent>
-          </Card>
+            </div>
+          </GlassPanel>
         </motion.div>
       )}
 
@@ -655,26 +649,26 @@ export default function SalaryComponentsPage() {
         <motion.div variants={itemVariants} className="space-y-4">
           {/* Search */}
           <div className="relative w-full sm:w-64">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/60" />
             <input
               type="text"
               placeholder="Search by employee or department..."
               value={revisionsSearch}
               onChange={(e) => setRevisionsSearch(e.target.value)}
-              className="w-full pl-9 pr-4 py-2 rounded-lg border border-border bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+              className="w-full pl-9 pr-4 py-2 rounded-lg border border-white/10 bg-black text-sm text-white placeholder:text-white/60 focus:outline-none focus:ring-2 focus:ring-primary/30"
             />
           </div>
 
-          <Card>
-            <CardHeader>
+          <GlassPanel>
+            <div className="p-6 border-b border-white/10">
               <div className="flex items-center justify-between">
-                <CardTitle>Revision History</CardTitle>
+                <h3 className="text-lg font-semibold text-white">Revision History</h3>
                 {revisionsTotal > 0 && (
-                  <span className="text-sm text-muted-foreground">{revisionsTotal} total</span>
+                  <span className="text-sm text-white/60">{revisionsTotal} total</span>
                 )}
               </div>
-            </CardHeader>
-            <CardContent>
+            </div>
+            <div className="p-6">
               {revisionsLoading ? (
                 <div className="space-y-3">
                   {Array.from({ length: 5 }).map((_, i) => (
@@ -684,7 +678,7 @@ export default function SalaryComponentsPage() {
               ) : revisionsError ? (
                 <div className="py-12 text-center">
                   <AlertCircle className="w-8 h-8 text-destructive mx-auto mb-3" />
-                  <p className="text-sm text-muted-foreground">{revisionsError}</p>
+                  <p className="text-sm text-white/60">{revisionsError}</p>
                   <Button variant="outline" size="sm" className="mt-3" onClick={() => fetchRevisions(revisionsPage)}>
                     Retry
                   </Button>
@@ -694,7 +688,7 @@ export default function SalaryComponentsPage() {
                   <div className="w-10 h-10 rounded-xl bg-slate-50 dark:bg-slate-500/10 flex items-center justify-center mx-auto">
                     <History className="w-5 h-5 text-slate-400" />
                   </div>
-                  <p className="text-muted-foreground mt-3 text-sm">No salary revisions found.</p>
+                  <p className="text-white/60 mt-3 text-sm">No salary revisions found.</p>
                 </div>
               ) : (
                 <>
@@ -702,14 +696,14 @@ export default function SalaryComponentsPage() {
                   <div className="hidden md:block overflow-x-auto">
                     <table className="w-full text-sm">
                       <thead>
-                        <tr className="border-b border-border">
-                          <th className="text-left py-3 pr-4 text-muted-foreground font-medium">Employee</th>
-                          <th className="text-right py-3 px-2 text-muted-foreground font-medium">Old CTC</th>
-                          <th className="text-right py-3 px-2 text-muted-foreground font-medium">New CTC</th>
-                          <th className="text-right py-3 px-2 text-muted-foreground font-medium">% Change</th>
-                          <th className="text-left py-3 px-2 text-muted-foreground font-medium">Effective Date</th>
-                          <th className="text-left py-3 px-2 text-muted-foreground font-medium">Reason</th>
-                          <th className="text-left py-3 pl-2 text-muted-foreground font-medium">Approved By</th>
+                        <tr className="border-b border-white/10">
+                          <th className="text-left py-3 pr-4 text-white/60 font-medium">Employee</th>
+                          <th className="text-right py-3 px-2 text-white/60 font-medium">Old CTC</th>
+                          <th className="text-right py-3 px-2 text-white/60 font-medium">New CTC</th>
+                          <th className="text-right py-3 px-2 text-white/60 font-medium">% Change</th>
+                          <th className="text-left py-3 px-2 text-white/60 font-medium">Effective Date</th>
+                          <th className="text-left py-3 px-2 text-white/60 font-medium">Reason</th>
+                          <th className="text-left py-3 pl-2 text-white/60 font-medium">Approved By</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -719,20 +713,20 @@ export default function SalaryComponentsPage() {
                           return (
                             <tr
                               key={rev.id}
-                              className="border-b border-border/50 hover:bg-muted/30 transition-colors"
+                              className="border-b border-white/10/50 hover:bg-white/5/30 transition-colors"
                             >
                               <td className="py-3 pr-4">
                                 <div>
-                                  <p className="font-medium text-foreground">{rev.employee_name}</p>
-                                  <p className="text-xs text-muted-foreground">
+                                  <p className="font-medium text-white">{rev.employee_name}</p>
+                                  <p className="text-xs text-white/60">
                                     {rev.department || '--'} {rev.designation ? `/ ${rev.designation}` : ''}
                                   </p>
                                 </div>
                               </td>
-                              <td className="py-3 px-2 text-right text-muted-foreground">
+                              <td className="py-3 px-2 text-right text-white/60">
                                 {fmtLakhs(rev.old_ctc)}
                               </td>
-                              <td className="py-3 px-2 text-right font-bold text-foreground">
+                              <td className="py-3 px-2 text-right font-bold text-white">
                                 {fmtLakhs(rev.new_ctc)}
                               </td>
                               <td className="py-3 px-2 text-right">
@@ -751,13 +745,13 @@ export default function SalaryComponentsPage() {
                                   {changeAbs.toFixed(1)}%
                                 </span>
                               </td>
-                              <td className="py-3 px-2 text-muted-foreground text-xs">
+                              <td className="py-3 px-2 text-white/60 text-xs">
                                 {formatDate(rev.effective_from)}
                               </td>
-                              <td className="py-3 px-2 text-muted-foreground text-xs max-w-[200px] truncate">
+                              <td className="py-3 px-2 text-white/60 text-xs max-w-[200px] truncate">
                                 {rev.reason || '--'}
                               </td>
-                              <td className="py-3 pl-2 text-muted-foreground text-xs">
+                              <td className="py-3 pl-2 text-white/60 text-xs">
                                 {rev.approver_name || '--'}
                               </td>
                             </tr>
@@ -773,12 +767,12 @@ export default function SalaryComponentsPage() {
                       const isIncrease = rev.new_ctc > rev.old_ctc;
                       const changeAbs = Math.abs(rev.change_percent);
                       return (
-                        <Card key={rev.id} variant="bordered">
-                          <CardContent className="pt-4 pb-4">
+                        <GlassPanel key={rev.id}>
+                          <div className="pt-4 pb-4 px-4">
                             <div className="flex items-start justify-between mb-2">
                               <div>
-                                <p className="font-medium text-foreground text-sm">{rev.employee_name}</p>
-                                <p className="text-xs text-muted-foreground">
+                                <p className="font-medium text-white text-sm">{rev.employee_name}</p>
+                                <p className="text-xs text-white/60">
                                   {rev.department || '--'}
                                 </p>
                               </div>
@@ -799,28 +793,28 @@ export default function SalaryComponentsPage() {
                             </div>
                             <div className="grid grid-cols-2 gap-2 text-xs mb-2">
                               <div>
-                                <p className="text-muted-foreground">Old CTC</p>
-                                <p className="font-medium text-foreground">{fmtLakhs(rev.old_ctc)}</p>
+                                <p className="text-white/60">Old CTC</p>
+                                <p className="font-medium text-white">{fmtLakhs(rev.old_ctc)}</p>
                               </div>
                               <div>
-                                <p className="text-muted-foreground">New CTC</p>
-                                <p className="font-bold text-foreground">{fmtLakhs(rev.new_ctc)}</p>
+                                <p className="text-white/60">New CTC</p>
+                                <p className="font-bold text-white">{fmtLakhs(rev.new_ctc)}</p>
                               </div>
                             </div>
-                            <div className="text-xs text-muted-foreground space-y-0.5">
+                            <div className="text-xs text-white/60 space-y-0.5">
                               <p>Effective: {formatDate(rev.effective_from)}</p>
                               {rev.reason && <p>Reason: {rev.reason}</p>}
                               {rev.approver_name && <p>Approved by: {rev.approver_name}</p>}
                             </div>
-                          </CardContent>
-                        </Card>
+                          </div>
+                        </GlassPanel>
                       );
                     })}
                   </div>
 
                   {/* Pagination */}
                   {revisionsTotalPages > 1 && (
-                    <div className="flex items-center justify-between mt-6 pt-4 border-t border-border">
+                    <div className="flex items-center justify-between mt-6 pt-4 border-t border-white/10">
                       <Button
                         variant="outline"
                         size="sm"
@@ -829,7 +823,7 @@ export default function SalaryComponentsPage() {
                       >
                         Previous
                       </Button>
-                      <span className="text-sm text-muted-foreground">
+                      <span className="text-sm text-white/60">
                         Page {revisionsPage} of {revisionsTotalPages}
                       </span>
                       <Button
@@ -844,8 +838,8 @@ export default function SalaryComponentsPage() {
                   )}
                 </>
               )}
-            </CardContent>
-          </Card>
+            </div>
+          </GlassPanel>
         </motion.div>
       )}
 
@@ -864,7 +858,7 @@ export default function SalaryComponentsPage() {
         <div className="space-y-4">
           {/* Name */}
           <div>
-            <label className="block text-sm font-medium text-foreground mb-1.5">
+            <label className="block text-sm font-medium text-white mb-1.5">
               Component Name
             </label>
             <input
@@ -872,13 +866,13 @@ export default function SalaryComponentsPage() {
               value={formData.name}
               onChange={(e) => setFormData((prev) => ({ ...prev, name: e.target.value }))}
               placeholder="e.g. Basic Salary, HRA, PF Contribution"
-              className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors"
+              className="w-full px-3 py-2 text-sm rounded-lg border border-white/10 bg-black text-white placeholder:text-white/60 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors"
             />
           </div>
 
           {/* Type */}
           <div>
-            <label className="block text-sm font-medium text-foreground mb-1.5">Type</label>
+            <label className="block text-sm font-medium text-white mb-1.5">Type</label>
             <select
               value={formData.type}
               onChange={(e) =>
@@ -887,7 +881,7 @@ export default function SalaryComponentsPage() {
                   type: e.target.value as ComponentFormData['type'],
                 }))
               }
-              className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors"
+              className="w-full px-3 py-2 text-sm rounded-lg border border-white/10 bg-black text-white focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors"
             >
               {TYPE_OPTIONS.map((opt) => (
                 <option key={opt.value} value={opt.value}>
@@ -904,9 +898,9 @@ export default function SalaryComponentsPage() {
               id="is-taxable"
               checked={formData.is_taxable}
               onChange={(e) => setFormData((prev) => ({ ...prev, is_taxable: e.target.checked }))}
-              className="rounded border-border"
+              className="rounded border-white/10"
             />
-            <label htmlFor="is-taxable" className="text-sm text-foreground">
+            <label htmlFor="is-taxable" className="text-sm text-white">
               This component is taxable
             </label>
           </div>

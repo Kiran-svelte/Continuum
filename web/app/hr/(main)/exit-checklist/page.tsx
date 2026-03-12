@@ -1,8 +1,10 @@
 'use client';
 
 import { useEffect, useState, useCallback, useMemo } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { AnimatePresence, motion } from 'framer-motion';
+import { StaggerContainer, FadeIn } from '@/components/motion';
+import { PageHeader } from '@/components/page-header';
+import { GlassPanel } from '@/components/glass-panel';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Modal, ModalFooter } from '@/components/ui/modal';
@@ -20,7 +22,6 @@ import {
   Users,
   Clock,
   CheckCircle2,
-  Search,
 } from 'lucide-react';
 
 /* ─── Types ──────────────────────────────────────────────────────────────── */
@@ -58,26 +59,6 @@ interface EmployeeOption {
   department: string | null;
   email: string;
 }
-
-/* ─── Animation Variants ─────────────────────────────────────────────────── */
-
-const containerVariants = {
-  hidden: { opacity: 0 },
-  visible: {
-    opacity: 1,
-    transition: { staggerChildren: 0.06 },
-  },
-};
-
-const itemVariants = {
-  hidden: { opacity: 0, y: 20, scale: 0.95 },
-  visible: {
-    opacity: 1,
-    y: 0,
-    scale: 1,
-    transition: { type: 'spring' as const, damping: 25, stiffness: 300 },
-  },
-};
 
 /* ─── Constants ──────────────────────────────────────────────────────────── */
 
@@ -369,27 +350,19 @@ export default function HRExitChecklistPage() {
   // ── Render ────────────────────────────────────────────────────────────
 
   return (
-    <motion.div
-      className="space-y-6"
-      variants={containerVariants}
-      initial="hidden"
-      animate="visible"
-    >
+    <StaggerContainer className="space-y-6">
       {/* Header */}
-      <motion.div variants={itemVariants} className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground dark:text-white">
-            Exit Checklist
-          </h1>
-          <p className="text-muted-foreground dark:text-slate-400 mt-1">
-            Manage offboarding tasks for departing employees
-          </p>
-        </div>
-        <Button onClick={() => setShowAddModal(true)}>
-          <Plus className="w-4 h-4 mr-2" />
-          Add Item
-        </Button>
-      </motion.div>
+      <PageHeader
+        title="Exit Checklist"
+        description="Manage offboarding tasks for departing employees"
+        icon={<ClipboardCheck className="w-6 h-6 text-primary" />}
+        action={
+          <Button onClick={() => setShowAddModal(true)}>
+            <Plus className="w-4 h-4 mr-2" />
+            Add Item
+          </Button>
+        }
+      />
 
       {/* Action Message */}
       <AnimatePresence>
@@ -400,8 +373,8 @@ export default function HRExitChecklistPage() {
             exit={{ opacity: 0, y: -10 }}
             className={`rounded-lg px-4 py-3 text-sm flex items-center gap-2 ${
               actionMessage.type === 'success'
-                ? 'bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-400'
-                : 'bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400'
+                ? 'bg-emerald-500/10 border border-emerald-800 text-emerald-400'
+                : 'bg-red-500/10 border border-red-800 text-red-400'
             }`}
           >
             {actionMessage.type === 'success' ? (
@@ -415,63 +388,63 @@ export default function HRExitChecklistPage() {
       </AnimatePresence>
 
       {/* Summary Cards */}
-      <motion.div variants={itemVariants} className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card className="dark:bg-slate-900 dark:border-slate-700">
-          <CardContent className="pt-6">
+      <FadeIn className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <GlassPanel>
+          <div className="p-6 relative z-10">
             <div className="flex items-center gap-4">
-              <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-500/10 flex items-center justify-center">
-                <ClipboardCheck className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+              <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center">
+                <ClipboardCheck className="w-5 h-5 text-blue-400" />
               </div>
               <div>
-                <p className="text-sm text-muted-foreground dark:text-slate-400">Total Items</p>
-                <p className="text-2xl font-bold text-foreground dark:text-white">
+                <p className="text-sm text-white/60">Total Items</p>
+                <p className="text-2xl font-bold text-white">
                   {stats.total}
                 </p>
               </div>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </GlassPanel>
 
-        <Card className="dark:bg-slate-900 dark:border-slate-700">
-          <CardContent className="pt-6">
+        <GlassPanel>
+          <div className="p-6 relative z-10">
             <div className="flex items-center gap-4">
-              <div className="w-10 h-10 rounded-xl bg-emerald-50 dark:bg-emerald-500/10 flex items-center justify-center">
-                <CheckCircle2 className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+              <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center">
+                <CheckCircle2 className="w-5 h-5 text-emerald-400" />
               </div>
               <div>
-                <p className="text-sm text-muted-foreground dark:text-slate-400">Completed</p>
-                <p className="text-2xl font-bold text-foreground dark:text-white">
+                <p className="text-sm text-white/60">Completed</p>
+                <p className="text-2xl font-bold text-white">
                   {stats.completed}
                 </p>
               </div>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </GlassPanel>
 
-        <Card className="dark:bg-slate-900 dark:border-slate-700">
-          <CardContent className="pt-6">
+        <GlassPanel>
+          <div className="p-6 relative z-10">
             <div className="flex items-center gap-4">
-              <div className="w-10 h-10 rounded-xl bg-amber-50 dark:bg-amber-500/10 flex items-center justify-center">
-                <Clock className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+              <div className="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center">
+                <Clock className="w-5 h-5 text-amber-400" />
               </div>
               <div>
-                <p className="text-sm text-muted-foreground dark:text-slate-400">Pending</p>
-                <p className="text-2xl font-bold text-foreground dark:text-white">
+                <p className="text-sm text-white/60">Pending</p>
+                <p className="text-2xl font-bold text-white">
                   {stats.pending}
                 </p>
               </div>
             </div>
-          </CardContent>
-        </Card>
-      </motion.div>
+          </div>
+        </GlassPanel>
+      </FadeIn>
 
       {/* Filters */}
-      <motion.div variants={itemVariants} className="flex flex-wrap items-center gap-4">
+      <FadeIn className="flex flex-wrap items-center gap-4">
         <div className="flex-1 min-w-[200px]">
           <select
             value={employeeFilter}
             onChange={(e) => setEmployeeFilter(e.target.value)}
-            className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background dark:bg-slate-900 dark:border-slate-700 text-foreground dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors"
+            className="w-full px-3 py-2 text-sm rounded-lg border border-white/10 bg-white/5 text-white focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors"
           >
             <option value="">All Employees</option>
             {employees.map((emp) => (
@@ -496,41 +469,41 @@ export default function HRExitChecklistPage() {
               className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
                 statusFilter === f.value
                   ? 'bg-primary text-primary-foreground'
-                  : 'bg-muted text-muted-foreground hover:bg-muted/50 dark:bg-slate-800 dark:text-slate-400 dark:hover:bg-slate-700'
+                  : 'bg-white/5 text-white/60 hover:bg-white/10'
               }`}
             >
               {f.label}
             </button>
           ))}
         </div>
-      </motion.div>
+      </FadeIn>
 
       {/* Per-Employee Progress */}
       {employeeProgress.length > 0 && !employeeFilter && (
-        <motion.div variants={itemVariants}>
-          <Card className="dark:bg-slate-900 dark:border-slate-700">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-foreground dark:text-white">
+        <FadeIn>
+          <GlassPanel>
+            <div className="p-6 border-b border-white/10">
+              <h3 className="text-lg font-semibold text-white flex items-center gap-2">
                 <Users className="w-5 h-5" />
                 Employee Progress
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
+              </h3>
+            </div>
+            <div className="p-6 relative z-10">
               <div className="space-y-4">
                 {employeeProgress.map((ep) => (
                   <div key={ep.empId} className="space-y-2">
                     <div className="flex items-center justify-between">
                       <div>
-                        <span className="text-sm font-medium text-foreground dark:text-slate-200">
+                        <span className="text-sm font-medium text-white">
                           {ep.name}
                         </span>
                         {ep.department && (
-                          <span className="text-xs text-muted-foreground dark:text-slate-500 ml-2">
+                          <span className="text-xs text-white/40 ml-2">
                             {ep.department}
                           </span>
                         )}
                       </div>
-                      <span className="text-xs text-muted-foreground dark:text-slate-400">
+                      <span className="text-xs text-white/60">
                         {ep.completed}/{ep.total} ({ep.percent}%)
                       </span>
                     </div>
@@ -549,29 +522,29 @@ export default function HRExitChecklistPage() {
                   </div>
                 ))}
               </div>
-            </CardContent>
-          </Card>
-        </motion.div>
+            </div>
+          </GlassPanel>
+        </FadeIn>
       )}
 
       {/* Checklist Table */}
-      <motion.div variants={itemVariants}>
-        <Card className="dark:bg-slate-900 dark:border-slate-700">
-          <CardHeader>
+      <FadeIn>
+        <GlassPanel>
+          <div className="p-6 border-b border-white/10">
             <div className="flex items-center justify-between">
-              <CardTitle className="text-foreground dark:text-white">
+              <h3 className="text-lg font-semibold text-white">
                 Checklist Items
-              </CardTitle>
+              </h3>
               {filteredChecklists.length > 0 && (
                 <Badge variant="info">{filteredChecklists.length} items</Badge>
               )}
             </div>
-          </CardHeader>
-          <CardContent>
+          </div>
+          <div className="p-6 relative z-10">
             {loading && (
               <div className="space-y-4">
                 {Array.from({ length: 4 }).map((_, i) => (
-                  <div key={i} className="flex items-center gap-4 p-4 border border-border dark:border-slate-700 rounded-lg">
+                  <div key={i} className="flex items-center gap-4 p-4 border border-white/10 rounded-lg">
                     <Skeleton className="w-5 h-5" />
                     <div className="flex-1 space-y-2">
                       <Skeleton className="h-4 w-3/4" />
@@ -584,17 +557,17 @@ export default function HRExitChecklistPage() {
             )}
 
             {error && !loading && (
-              <div className="rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 px-4 py-3 text-sm text-red-700 dark:text-red-400">
+              <div className="rounded-lg bg-red-500/10 border border-red-800 px-4 py-3 text-sm text-red-400">
                 {error}
               </div>
             )}
 
             {!loading && !error && filteredChecklists.length === 0 && (
               <div className="py-12 text-center">
-                <div className="w-10 h-10 rounded-xl bg-slate-50 dark:bg-slate-500/10 flex items-center justify-center mx-auto">
-                  <Inbox className="w-5 h-5 text-slate-400" />
+                <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center mx-auto">
+                  <Inbox className="w-5 h-5 text-white/40" />
                 </div>
-                <p className="text-muted-foreground dark:text-slate-400 mt-3 text-sm">
+                <p className="text-white/60 mt-3 text-sm">
                   No checklist items found.
                 </p>
                 <Button
@@ -613,24 +586,24 @@ export default function HRExitChecklistPage() {
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="border-b border-border dark:border-slate-700">
+                    <tr className="border-b border-white/10">
                       <th className="py-3 pr-2 w-10"></th>
-                      <th className="text-left py-3 pr-4 text-muted-foreground dark:text-slate-400 font-medium">
+                      <th className="text-left py-3 pr-4 text-white/60 font-medium">
                         Employee
                       </th>
-                      <th className="text-left py-3 px-2 text-muted-foreground dark:text-slate-400 font-medium">
+                      <th className="text-left py-3 px-2 text-white/60 font-medium">
                         Task
                       </th>
-                      <th className="text-left py-3 px-2 text-muted-foreground dark:text-slate-400 font-medium">
+                      <th className="text-left py-3 px-2 text-white/60 font-medium">
                         Category
                       </th>
-                      <th className="text-left py-3 px-2 text-muted-foreground dark:text-slate-400 font-medium">
+                      <th className="text-left py-3 px-2 text-white/60 font-medium">
                         Due Date
                       </th>
-                      <th className="text-left py-3 px-2 text-muted-foreground dark:text-slate-400 font-medium">
+                      <th className="text-left py-3 px-2 text-white/60 font-medium">
                         Status
                       </th>
-                      <th className="text-left py-3 pl-2 text-muted-foreground dark:text-slate-400 font-medium">
+                      <th className="text-left py-3 pl-2 text-white/60 font-medium">
                         Actions
                       </th>
                     </tr>
@@ -645,7 +618,7 @@ export default function HRExitChecklistPage() {
                       return (
                         <tr
                           key={checklist.id}
-                          className="border-b border-border dark:border-slate-700 hover:bg-muted/50 dark:hover:bg-slate-800/50 transition-colors"
+                          className="border-b border-white/10 hover:bg-white/5 transition-colors"
                         >
                           {/* Checkbox */}
                           <td className="py-3 pr-2">
@@ -655,7 +628,7 @@ export default function HRExitChecklistPage() {
                               className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${
                                 checklist.status === 'completed'
                                   ? 'bg-emerald-500 border-emerald-500 text-white'
-                                  : 'border-slate-300 dark:border-slate-600 hover:border-emerald-400 dark:hover:border-emerald-500'
+                                  : 'border-white/20 hover:border-emerald-400'
                               }`}
                             >
                               {toggleLoading === checklist.id ? (
@@ -674,10 +647,10 @@ export default function HRExitChecklistPage() {
                                 {checklist.employee.last_name[0]}
                               </div>
                               <div>
-                                <p className="font-medium text-foreground dark:text-slate-200">
+                                <p className="font-medium text-white">
                                   {checklist.employee.first_name} {checklist.employee.last_name}
                                 </p>
-                                <p className="text-xs text-muted-foreground dark:text-slate-500">
+                                <p className="text-xs text-white/40">
                                   {checklist.employee.department ?? '\u2014'}
                                 </p>
                               </div>
@@ -687,9 +660,9 @@ export default function HRExitChecklistPage() {
                           {/* Task */}
                           <td className="py-3 px-2">
                             <span
-                              className={`text-foreground dark:text-slate-300 ${
+                              className={`text-white ${
                                 checklist.status === 'completed'
-                                  ? 'line-through text-muted-foreground dark:text-slate-500'
+                                  ? 'line-through text-white/40'
                                   : ''
                               }`}
                             >
@@ -699,13 +672,13 @@ export default function HRExitChecklistPage() {
 
                           {/* Category */}
                           <td className="py-3 px-2">
-                            <span className="text-xs px-2 py-1 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400">
+                            <span className="text-xs px-2 py-1 rounded-full bg-white/5 text-white/60">
                               {firstItem?.category ?? '\u2014'}
                             </span>
                           </td>
 
                           {/* Due Date */}
-                          <td className="py-3 px-2 text-muted-foreground dark:text-slate-400">
+                          <td className="py-3 px-2 text-white/60">
                             {firstItem?.due_date ? formatDate(firstItem.due_date) : '\u2014'}
                           </td>
 
@@ -735,9 +708,9 @@ export default function HRExitChecklistPage() {
                 </table>
               </div>
             )}
-          </CardContent>
-        </Card>
-      </motion.div>
+          </div>
+        </GlassPanel>
+      </FadeIn>
 
       {/* Add Item Modal */}
       <Modal
@@ -753,13 +726,13 @@ export default function HRExitChecklistPage() {
         <div className="space-y-4">
           {/* Employee Select */}
           <div>
-            <label className="block text-sm font-medium text-foreground dark:text-slate-300 mb-1.5">
+            <label className="block text-sm font-medium text-white mb-1.5">
               Employee
             </label>
             <select
               value={formEmpId}
               onChange={(e) => setFormEmpId(e.target.value)}
-              className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background dark:bg-slate-800 dark:border-slate-600 text-foreground dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors"
+              className="w-full px-3 py-2 text-sm rounded-lg border border-white/10 bg-white/5 text-white focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors"
             >
               <option value="">Select employee...</option>
               {employees.map((emp) => (
@@ -773,7 +746,7 @@ export default function HRExitChecklistPage() {
 
           {/* Task */}
           <div>
-            <label className="block text-sm font-medium text-foreground dark:text-slate-300 mb-1.5">
+            <label className="block text-sm font-medium text-white mb-1.5">
               Task
             </label>
             <input
@@ -781,19 +754,19 @@ export default function HRExitChecklistPage() {
               value={formTask}
               onChange={(e) => setFormTask(e.target.value)}
               placeholder="e.g., Return laptop and accessories"
-              className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background dark:bg-slate-800 dark:border-slate-600 text-foreground dark:text-slate-300 placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors"
+              className="w-full px-3 py-2 text-sm rounded-lg border border-white/10 bg-white/5 text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors"
             />
           </div>
 
           {/* Category */}
           <div>
-            <label className="block text-sm font-medium text-foreground dark:text-slate-300 mb-1.5">
+            <label className="block text-sm font-medium text-white mb-1.5">
               Category
             </label>
             <select
               value={formCategory}
               onChange={(e) => setFormCategory(e.target.value)}
-              className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background dark:bg-slate-800 dark:border-slate-600 text-foreground dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors"
+              className="w-full px-3 py-2 text-sm rounded-lg border border-white/10 bg-white/5 text-white focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors"
             >
               {CATEGORY_OPTIONS.map((cat) => (
                 <option key={cat} value={cat}>
@@ -805,14 +778,14 @@ export default function HRExitChecklistPage() {
 
           {/* Due Date */}
           <div>
-            <label className="block text-sm font-medium text-foreground dark:text-slate-300 mb-1.5">
+            <label className="block text-sm font-medium text-white mb-1.5">
               Due Date (optional)
             </label>
             <input
               type="date"
               value={formDueDate}
               onChange={(e) => setFormDueDate(e.target.value)}
-              className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background dark:bg-slate-800 dark:border-slate-600 text-foreground dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors"
+              className="w-full px-3 py-2 text-sm rounded-lg border border-white/10 bg-white/5 text-white focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors"
             />
           </div>
         </div>
@@ -834,6 +807,6 @@ export default function HRExitChecklistPage() {
           </Button>
         </ModalFooter>
       </Modal>
-    </motion.div>
+    </StaggerContainer>
   );
 }

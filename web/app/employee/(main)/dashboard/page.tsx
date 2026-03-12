@@ -4,13 +4,16 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { GlassPanel } from '@/components/glass-panel';
+import { PageHeader } from '@/components/page-header';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { PageLoader } from '@/components/ui/progress';
 import { WelcomeModal, FloatingTutorialButton, StartTutorialButton, employeeTutorial } from '@/components/tutorial';
 import { ensureMe } from '@/lib/client-auth';
 import { getPusherClient, getUserChannelName, type PusherEventType } from '@/lib/pusher-client';
+import { TiltCard } from '@/components/motion/tilt-card';
+import { FadeIn, StaggerContainer } from '@/components/motion/fade-in';
 import {
   Plus,
   FilePlus,
@@ -399,7 +402,7 @@ export default function EmployeeDashboardPage() {
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {[1, 2, 3, 4].map((i) => (
-              <div key={i} className="rounded-xl border border-border bg-card p-6 space-y-3">
+              <div key={i} className="rounded-xl border border-white/10 bg-white/5 p-6 space-y-3">
                 <div className="flex items-center justify-between">
                   <Skeleton className="h-4 w-16" />
                   <Skeleton className="h-8 w-8 rounded-full" />
@@ -415,65 +418,44 @@ export default function EmployeeDashboardPage() {
   }
 
   return (
-    <motion.div
-      className="space-y-8"
-      initial="hidden"
-      animate="visible"
-      variants={containerVariants}
-    >
+    <StaggerContainer className="space-y-8 relative z-10">
       {/* Header with Live Status */}
-      <motion.div className="flex items-center justify-between" variants={itemVariants}>
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">
-            Welcome back, {userName}
-          </h1>
-          <div className="flex items-center gap-4 mt-1">
-            <p className="text-muted-foreground">Here&apos;s your leave overview for this year</p>
-            {/* Live status indicator */}
-            <div className="flex items-center gap-2 text-sm">
-              <div className={`w-2 h-2 rounded-full ${isLive ? 'bg-green-500' : 'bg-yellow-500'}`} />
-              <span className="text-muted-foreground">
-                {isLive ? 'Live' : 'Connecting...'}
-              </span>
-              {lastUpdated && isLive && (
-                <span className="text-xs text-muted-foreground">
-                  Updated {lastUpdated}
+      <FadeIn direction="up">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-black text-white tracking-tight">
+              Welcome back, {userName}
+            </h1>
+            <div className="flex items-center gap-4 mt-2">
+              <p className="text-white/60 font-medium">Here&apos;s your leave overview for this year</p>
+              {/* Live status indicator */}
+              <div className="flex items-center gap-2 text-sm bg-black/50 border border-white/10 px-3 py-1 rounded-full backdrop-blur-md">
+                <div className={`w-2 h-2 rounded-full ${isLive ? 'bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.6)] animate-pulse' : 'bg-yellow-500'}`} />
+                <span className="text-white/60 font-medium">
+                  {isLive ? 'Live' : 'Connecting...'}
                 </span>
-              )}
+              </div>
             </div>
           </div>
+          <div className="flex gap-3 items-center" data-tutorial="apply-leave-btn">
+            <StartTutorialButton tutorial={employeeTutorial} variant="outline" className="text-xs px-3 py-1.5 glass-panel" />
+            <Link
+              href="/employee/request-leave"
+              className="inline-flex items-center gap-2 bg-primary text-primary-foreground px-5 py-3 rounded-xl text-sm font-bold hover:bg-primary/90 transition-all shadow-[0_0_20px_rgba(0,255,255,0.3)] hover:shadow-[0_0_30px_rgba(0,255,255,0.5)] transform hover:-translate-y-0.5"
+            >
+              <Plus className="w-5 h-5" />
+              Apply Leave
+            </Link>
+          </div>
         </div>
-        <div className="flex gap-3 items-center" data-tutorial="apply-leave-btn">
-          <StartTutorialButton tutorial={employeeTutorial} variant="outline" className="text-xs px-3 py-1.5" />
-          <Link
-            href="/employee/request-leave"
-            className="inline-flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2.5 rounded-xl text-sm font-medium hover:bg-primary/90 transition-all shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/30 dark:shadow-primary/30 dark:hover:shadow-primary/40"
-          >
-            <Plus className="w-4 h-4" />
-            Apply Leave
-          </Link>
-        </div>
-      </motion.div>
+      </FadeIn>
 
       {/* Leave Balance Cards */}
-      <motion.div data-tutorial="leave-balances" variants={containerVariants}>
+      <div data-tutorial="leave-balances">
         {loadingBalances ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {[1, 2, 3, 4].map((i) => (
-              <Card key={i} className="border-0 shadow-md overflow-hidden">
-                <div className="h-1 bg-muted animate-pulse" />
-                <CardContent className="pt-5 pb-4">
-                  <div className="space-y-3 animate-pulse">
-                    <div className="flex items-center justify-between">
-                      <div className="h-4 w-20 bg-muted rounded" />
-                      <div className="h-6 w-12 bg-muted rounded-full" />
-                    </div>
-                    <div className="h-9 w-14 bg-muted rounded" />
-                    <div className="h-3 w-28 bg-muted rounded" />
-                    <div className="h-2 w-full bg-muted rounded-full" />
-                  </div>
-                </CardContent>
-              </Card>
+              <GlassPanel key={i} className="border-0 shadow-md overflow-hidden h-32"><span /></GlassPanel>
             ))}
           </div>
         ) : (
@@ -487,30 +469,26 @@ export default function EmployeeDashboardPage() {
                 : 0;
 
               return (
-                <motion.div
-                  key={balance.leave_type}
-                  variants={itemVariants}
-                  whileHover={{ y: -4, boxShadow: '0 20px 40px -12px rgba(0,0,0,0.15)' }}
-                  className="group"
-                >
-                  <Card className="relative overflow-hidden border-0 shadow-md dark:shadow-lg dark:shadow-black/20 dark:bg-slate-900/80 dark:border dark:border-slate-800/50">
-                    <div className={`absolute top-0 left-0 right-0 h-1 bg-gradient-to-r ${gradient}`} />
-                    <CardContent className="pt-5 pb-4">
-                      <div className="flex items-center justify-between mb-3">
-                        <p className="text-sm font-medium text-muted-foreground">{balance.leave_type}</p>
+                <FadeIn key={balance.leave_type} direction="up" delay={0.1 * index}>
+                  <TiltCard>
+                    <GlassPanel className="relative overflow-hidden border border-white/10 shadow-lg group-hover:border-primary/30 transition-all h-full">
+                      <div className={`absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r ${gradient} opacity-80`} />
+                      <div className="px-6 pt-6 pb-5">
+                        <div className="flex items-center justify-between mb-4">
+                          <p className="text-sm font-bold text-white/60 uppercase tracking-wider">{balance.leave_type}</p>
                         <div className={`w-10 h-10 rounded-xl ${bgColor} flex items-center justify-center`}>
                           <TrendingUp className={`w-5 h-5 ${iconColor}`} />
                         </div>
                       </div>
                       <motion.p
-                        className="text-3xl font-bold text-foreground"
+                        className="text-3xl font-bold text-white"
                         initial={{ opacity: 0, scale: 0.5 }}
                         animate={{ opacity: 1, scale: 1 }}
                         transition={{ type: 'spring', delay: index * 0.08 + 0.3 }}
                       >
                         {balance.remaining}
                       </motion.p>
-                      <p className="text-xs text-muted-foreground mt-1">
+                      <p className="text-xs text-white/60 mt-1">
                         of {balance.annual_entitlement} days remaining
                       </p>
                       <div className="mt-3 w-full bg-secondary rounded-full h-2 overflow-hidden">
@@ -521,31 +499,34 @@ export default function EmployeeDashboardPage() {
                           transition={{ duration: 0.8, delay: index * 0.08 + 0.4, ease: 'easeOut' }}
                         />
                       </div>
-                    </CardContent>
-                  </Card>
-                </motion.div>
+                    </div> {/* /CardContent */}
+                  </GlassPanel>
+                </TiltCard>
+              </FadeIn>
               );
             })}
             {balances.length === 0 && (
               <div className="col-span-full text-center py-8">
-                <div className="w-12 h-12 rounded-xl bg-muted/50 flex items-center justify-center mx-auto mb-3">
-                  <ClipboardList className="w-6 h-6 text-muted-foreground" />
+                <div className="w-12 h-12 rounded-xl bg-white/5 flex items-center justify-center mx-auto mb-3">
+                  <ClipboardList className="w-6 h-6 text-white/60" />
                 </div>
-                <p className="text-sm text-muted-foreground">No leave balances found. Contact your HR team.</p>
+                <p className="text-sm text-white/60">No leave balances found. Contact your HR team.</p>
               </div>
             )}
           </div>
         )}
-      </motion.div>
+      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Quick Actions */}
-        <motion.div variants={itemVariants}>
-          <Card data-tutorial="quick-actions" className="border-0 shadow-md dark:shadow-lg dark:shadow-black/20 dark:bg-slate-900/80 dark:border dark:border-slate-800/50 overflow-hidden h-full">
-            <CardHeader className="border-b border-border/50 bg-muted/30 dark:bg-slate-800/30">
-              <CardTitle className="text-base">Quick Actions</CardTitle>
-            </CardHeader>
-            <CardContent className="p-4 space-y-2">
+        <FadeIn direction="right" delay={0.2}>
+          <TiltCard>
+            <div data-tutorial="quick-actions">
+            <GlassPanel className="overflow-hidden h-full border border-white/10 shadow-md">
+              <div className="p-6 border-b border-white/10 bg-white/5">
+              <h3 className="text-lg font-semibold text-white">Quick Actions</h3>
+            </div> {/* /CardHeader */}
+            <div className="p-4 space-y-2">
               {[
                 { href: '/employee/request-leave', icon: FilePlus, label: 'Apply for Leave', sub: 'Submit a new request', gradient: 'from-blue-500/10 to-cyan-500/10', iconColor: 'text-blue-500' },
                 { href: '/employee/leave-history', icon: CalendarDays, label: 'Leave History', sub: 'Check past requests', gradient: 'from-purple-500/10 to-violet-500/10', iconColor: 'text-purple-500' },
@@ -560,34 +541,37 @@ export default function EmployeeDashboardPage() {
                 >
                   <Link
                     href={item.href}
-                    className={`flex items-center gap-3 p-3 rounded-xl bg-gradient-to-r ${item.gradient} border border-border/30 hover:border-primary/30 hover:shadow-sm transition-all group`}
+                    className={`flex items-center gap-3 p-3 rounded-xl bg-gradient-to-r ${item.gradient} border border-white/10 hover:border-primary/30 hover:shadow-sm transition-all group`}
                   >
                     <div className="w-10 h-10 rounded-xl bg-white/60 dark:bg-slate-800/60 flex items-center justify-center group-hover:scale-110 transition-transform">
                       <item.icon className={`w-5 h-5 ${item.iconColor}`} />
                     </div>
                     <div className="flex-1">
-                      <p className="text-sm font-medium text-foreground">{item.label}</p>
-                      <p className="text-xs text-muted-foreground">{item.sub}</p>
+                      <p className="text-sm font-medium text-white">{item.label}</p>
+                      <p className="text-xs text-white/60">{item.sub}</p>
                     </div>
-                    <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-primary group-hover:translate-x-0.5 transition-all" />
+                    <ChevronRight className="w-4 h-4 text-white/60 group-hover:text-primary group-hover:translate-x-0.5 transition-all" />
                   </Link>
                 </motion.div>
               ))}
-            </CardContent>
-          </Card>
-        </motion.div>
+            </div> {/* /CardContent */}
+          </GlassPanel>
+          </div>
+        </TiltCard>
+        </FadeIn>
 
         {/* Recent Requests + Upcoming Holidays */}
-        <motion.div className="lg:col-span-2 space-y-6" variants={containerVariants}>
+        <div className="lg:col-span-2 space-y-6">
           {/* Exit Checklist Widget - only shown if employee has exit items */}
           {!loadingExitItems && exitItems.length > 0 && (
-            <motion.div variants={itemVariants}>
-              <Card className="border-0 shadow-md dark:shadow-lg dark:shadow-black/20 dark:bg-slate-900/80 dark:border dark:border-slate-800/50 overflow-hidden border-l-4 border-l-amber-500">
-                <CardHeader className="border-b border-border/50 bg-amber-50/50 dark:bg-amber-900/10">
+            <FadeIn direction="left" delay={0.4}>
+              <TiltCard>
+                <GlassPanel className="overflow-hidden border-l-4 border-l-amber-500 shadow-md border-white/10">
+                  <div className="p-6 border-b border-white/10 bg-amber-500/5">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <ClipboardList className="w-5 h-5 text-amber-600" />
-                      <CardTitle className="text-base">Exit Checklist</CardTitle>
+                      <h3 className="text-lg font-semibold text-white">Exit Checklist</h3>
                       <Badge variant="warning" className="text-xs">
                         {exitItems.filter(i => i.status !== 'completed').length} pending
                       </Badge>
@@ -596,16 +580,16 @@ export default function EmployeeDashboardPage() {
                       View all
                     </Link>
                   </div>
-                </CardHeader>
-                <CardContent className="p-0">
+                </div> {/* /CardHeader */}
+                <div className="p-0">
                   <div className="divide-y divide-border/50">
                     {exitItems.slice(0, 4).map((item) => {
                       const isOverdue = item.due_date && new Date(item.due_date) < new Date() && item.status !== 'completed';
                       return (
-                        <div key={item.id} className="px-6 py-3 flex items-center justify-between hover:bg-muted/30 transition-colors">
+                        <div key={item.id} className="px-6 py-3 flex items-center justify-between hover:bg-white/5 transition-colors">
                           <div className="flex items-center gap-3">
                             <div className={`w-2 h-2 rounded-full ${item.status === 'completed' ? 'bg-green-500' : isOverdue ? 'bg-red-500' : 'bg-amber-500'}`} />
-                            <span className={`text-sm ${item.status === 'completed' ? 'text-muted-foreground line-through' : 'text-foreground'}`}>
+                            <span className={`text-sm ${item.status === 'completed' ? 'text-white/60 line-through' : 'text-white'}`}>
                               {item.task}
                             </span>
                           </div>
@@ -617,49 +601,51 @@ export default function EmployeeDashboardPage() {
                     })}
                   </div>
                   {exitItems.length > 4 && (
-                    <div className="px-6 py-2 text-center border-t border-border/50">
+                    <div className="px-6 py-2 text-center border-t border-white/10">
                       <Link href="/employee/exit-checklist" className="text-xs text-primary hover:underline">
                         +{exitItems.length - 4} more items
                       </Link>
                     </div>
                   )}
-                </CardContent>
-              </Card>
-            </motion.div>
+                </div> {/* /CardContent */}
+              </GlassPanel>
+            </TiltCard>
+            </FadeIn>
           )}
 
           {/* Recent Leave Requests */}
-          <motion.div variants={itemVariants}>
-            <Card className="border-0 shadow-md dark:shadow-lg dark:shadow-black/20 dark:bg-slate-900/80 dark:border dark:border-slate-800/50 overflow-hidden">
-              <CardHeader className="border-b border-border/50 bg-muted/30 dark:bg-slate-800/30">
+          <FadeIn direction="up" delay={0.5}>
+            <TiltCard>
+            <GlassPanel className="overflow-hidden border border-white/10 shadow-md">
+              <div className="p-6 border-b border-white/10 bg-white/5">
                 <div className="flex items-center justify-between">
-                  <CardTitle className="text-base">Recent Requests</CardTitle>
+                  <h3 className="text-lg font-semibold text-white">Recent Requests</h3>
                   <Link href="/employee/leave-history" className="text-xs text-primary hover:text-primary/80 font-medium transition-colors">
                     View all
                   </Link>
                 </div>
-              </CardHeader>
-              <CardContent className="p-0">
+              </div> {/* /CardHeader */}
+              <div className="p-0">
                 {loadingRequests ? (
                   <div className="divide-y divide-border/50">
                     {[1, 2, 3].map((i) => (
                       <div key={i} className="px-6 py-4 animate-pulse">
                         <div className="flex items-center justify-between">
                           <div className="space-y-2">
-                            <div className="h-4 w-24 bg-muted rounded" />
-                            <div className="h-3 w-40 bg-muted rounded" />
+                            <div className="h-4 w-24 bg-white/5 rounded" />
+                            <div className="h-3 w-40 bg-white/5 rounded" />
                           </div>
-                          <div className="h-6 w-16 bg-muted rounded-full" />
+                          <div className="h-6 w-16 bg-white/5 rounded-full" />
                         </div>
                       </div>
                     ))}
                   </div>
                 ) : recentRequests.length === 0 ? (
                   <div className="py-10 text-center">
-                    <div className="w-12 h-12 rounded-xl bg-muted/50 flex items-center justify-center mx-auto mb-3">
-                      <Inbox className="w-6 h-6 text-muted-foreground" />
+                    <div className="w-12 h-12 rounded-xl bg-white/5 flex items-center justify-center mx-auto mb-3">
+                      <Inbox className="w-6 h-6 text-white/60" />
                     </div>
-                    <p className="text-sm text-muted-foreground">No leave requests yet</p>
+                    <p className="text-sm text-white/60">No leave requests yet</p>
                     <Link href="/employee/request-leave" className="text-xs text-primary font-medium mt-1 inline-block hover:underline">
                       Submit your first request
                     </Link>
@@ -667,16 +653,16 @@ export default function EmployeeDashboardPage() {
                 ) : (
                   <div className="divide-y divide-border/50">
                     {recentRequests.map((req) => (
-                      <div key={req.id} className="px-6 py-3.5 hover:bg-muted/30 transition-colors">
+                      <div key={req.id} className="px-6 py-3.5 hover:bg-white/5 transition-colors">
                         <div className="flex items-center justify-between">
                           <div>
                             <div className="flex items-center gap-2">
-                              <span className="text-sm font-medium text-foreground">{req.leave_type}</span>
-                              <span className="text-xs text-muted-foreground">
+                              <span className="text-sm font-medium text-white">{req.leave_type}</span>
+                              <span className="text-xs text-white/60">
                                 {req.total_days} day{req.total_days !== 1 ? 's' : ''}
                               </span>
                             </div>
-                            <p className="text-xs text-muted-foreground mt-0.5">
+                            <p className="text-xs text-white/60 mt-0.5">
                               {formatDate(req.start_date)}
                               {req.start_date !== req.end_date && ` \u2013 ${formatDate(req.end_date)}`}
                             </p>
@@ -687,38 +673,40 @@ export default function EmployeeDashboardPage() {
                     ))}
                   </div>
                 )}
-              </CardContent>
-            </Card>
-          </motion.div>
+              </div> {/* /CardContent */}
+            </GlassPanel>
+            </TiltCard>
+          </FadeIn>
 
           {/* Upcoming Holidays - Real data from API */}
-          <motion.div variants={itemVariants}>
-            <Card className="border-0 shadow-md dark:shadow-lg dark:shadow-black/20 dark:bg-slate-900/80 dark:border dark:border-slate-800/50 overflow-hidden">
-              <CardHeader className="border-b border-border/50 bg-muted/30 dark:bg-slate-800/30">
-                <CardTitle className="text-base">Upcoming Holidays</CardTitle>
-              </CardHeader>
-              <CardContent className="p-0">
+          <FadeIn direction="up" delay={0.6}>
+            <TiltCard>
+            <GlassPanel className="overflow-hidden border border-white/10 shadow-md">
+              <div className="p-6 border-b border-white/10 bg-white/5">
+                <h3 className="text-lg font-semibold text-white">Upcoming Holidays</h3>
+              </div> {/* /CardHeader */}
+              <div className="p-0">
                 {loadingHolidays ? (
                   <div className="divide-y divide-border/50">
                     {[1, 2, 3, 4].map((i) => (
                       <div key={i} className="px-6 py-3.5 animate-pulse">
                         <div className="flex items-center justify-between">
                           <div className="space-y-2">
-                            <div className="h-4 w-28 bg-muted rounded" />
-                            <div className="h-3 w-20 bg-muted rounded" />
+                            <div className="h-4 w-28 bg-white/5 rounded" />
+                            <div className="h-3 w-20 bg-white/5 rounded" />
                           </div>
-                          <div className="h-6 w-16 bg-muted rounded-full" />
+                          <div className="h-6 w-16 bg-white/5 rounded-full" />
                         </div>
                       </div>
                     ))}
                   </div>
                 ) : holidays.length === 0 ? (
                   <div className="py-10 text-center">
-                    <div className="w-12 h-12 rounded-xl bg-muted/50 flex items-center justify-center mx-auto mb-3">
-                      <CalendarCheck className="w-6 h-6 text-muted-foreground" />
+                    <div className="w-12 h-12 rounded-xl bg-white/5 flex items-center justify-center mx-auto mb-3">
+                      <CalendarCheck className="w-6 h-6 text-white/60" />
                     </div>
-                    <p className="text-sm text-muted-foreground">No upcoming holidays configured</p>
-                    <p className="text-xs text-muted-foreground mt-1">Your HR team will add holidays during setup</p>
+                    <p className="text-sm text-white/60">No upcoming holidays configured</p>
+                    <p className="text-xs text-white/60 mt-1">Your HR team will add holidays during setup</p>
                   </div>
                 ) : (
                   <div className="divide-y divide-border/50">
@@ -728,11 +716,11 @@ export default function EmployeeDashboardPage() {
                         initial={{ opacity: 0, x: 10 }}
                         animate={{ opacity: 1, x: 0 }}
                         transition={{ delay: 0.3 + index * 0.05 }}
-                        className="flex items-center justify-between px-6 py-3.5 hover:bg-muted/30 transition-colors"
+                        className="flex items-center justify-between px-6 py-3.5 hover:bg-white/5 transition-colors"
                       >
                         <div>
-                          <p className="text-sm font-medium text-foreground">{holiday.name}</p>
-                          <p className="text-xs text-muted-foreground">{formatHolidayDate(holiday.date)}</p>
+                          <p className="text-sm font-medium text-white">{holiday.name}</p>
+                          <p className="text-xs text-white/60">{formatHolidayDate(holiday.date)}</p>
                         </div>
                         <div className="flex items-center gap-2">
                           {holiday.is_custom && (
@@ -744,14 +732,15 @@ export default function EmployeeDashboardPage() {
                     ))}
                   </div>
                 )}
-              </CardContent>
-            </Card>
-          </motion.div>
-        </motion.div>
+              </div> {/* /CardContent */}
+            </GlassPanel>
+            </TiltCard>
+          </FadeIn>
+        </div>
       </div>
 
       <WelcomeModal tutorial={employeeTutorial} roleName="Employee" />
       <FloatingTutorialButton tutorial={employeeTutorial} />
-    </motion.div>
+    </StaggerContainer>
   );
 }

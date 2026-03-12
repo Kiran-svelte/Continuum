@@ -2,9 +2,9 @@
 
 import { Suspense, useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
-import { getSupabaseBrowserClient } from '@/lib/supabase';
+import { motion, AnimatePresence } from 'framer-motion';
+import { StaggerContainer, FadeIn, TiltCard } from '@/components/motion';
+import { GlassPanel } from '@/components/glass-panel';
 import { syncUser, createCompanyAndEmployee, joinCompanyAsEmployee } from '@/app/actions/auth';
 import { LEAVE_TYPE_CATALOG } from '@/lib/leave-types-config';
 import {
@@ -15,6 +15,7 @@ import {
   Bell,
   CheckCircle,
   Sparkles,
+  Check,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
@@ -26,6 +27,13 @@ const STEPS: { id: number; label: string; icon: LucideIcon }[] = [
   { id: 5, label: 'Notifications', icon: Bell },
   { id: 6, label: 'Complete', icon: CheckCircle },
 ];
+
+// ─── Shared input classes ─────────────────────────────────────────────────────
+
+const inputClass =
+  'w-full bg-white/5 border border-white/10 text-white rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-primary/40 focus:border-primary/50 focus:outline-none placeholder:text-white/30';
+
+const labelClass = 'block text-sm font-medium text-white/90 mb-1';
 
 // ─── Step data types ────────────────────────────────────────────────────────
 
@@ -92,23 +100,23 @@ function CompanySetupStep({
   return (
     <div className="space-y-4">
       <div>
-        <label htmlFor="companyName" className="block text-sm font-medium text-foreground mb-1">Company Name</label>
+        <label htmlFor="companyName" className={labelClass}>Company Name</label>
         <input
           id="companyName"
           type="text"
           value={data.companyName}
           onChange={(e) => onChange({ ...data, companyName: e.target.value })}
-          className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground focus:border-primary focus:ring-2 focus:ring-primary focus:outline-none"
+          className={inputClass}
           placeholder="Acme Corporation"
         />
       </div>
       <div>
-        <label htmlFor="industry" className="block text-sm font-medium text-foreground mb-1">Industry</label>
+        <label htmlFor="industry" className={labelClass}>Industry</label>
         <select
           id="industry"
           value={data.industry}
           onChange={(e) => onChange({ ...data, industry: e.target.value })}
-          className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground focus:border-primary focus:ring-2 focus:ring-primary focus:outline-none"
+          className={inputClass}
         >
           <option value="">Select industry</option>
           <option value="technology">Technology</option>
@@ -120,12 +128,12 @@ function CompanySetupStep({
         </select>
       </div>
       <div>
-        <label htmlFor="employeeCount" className="block text-sm font-medium text-foreground mb-1">Employee Count</label>
+        <label htmlFor="employeeCount" className={labelClass}>Employee Count</label>
         <select
           id="employeeCount"
           value={data.employeeCount}
           onChange={(e) => onChange({ ...data, employeeCount: e.target.value })}
-          className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground focus:border-primary focus:ring-2 focus:ring-primary focus:outline-none"
+          className={inputClass}
         >
           <option value="">Select range</option>
           <option value="1-50">1–50</option>
@@ -135,12 +143,12 @@ function CompanySetupStep({
         </select>
       </div>
       <div>
-        <label htmlFor="country" className="block text-sm font-medium text-foreground mb-1">Country</label>
+        <label htmlFor="country" className={labelClass}>Country</label>
         <select
           id="country"
           value={data.country}
           onChange={(e) => onChange({ ...data, country: e.target.value })}
-          className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground focus:border-primary focus:ring-2 focus:ring-primary focus:outline-none"
+          className={inputClass}
         >
           <option value="">Select country</option>
           <option value="IN">India</option>
@@ -175,7 +183,7 @@ function CompanySetupStep({
           id="timezone"
           value={data.timezone}
           onChange={(e) => onChange({ ...data, timezone: e.target.value })}
-          className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground focus:border-primary focus:ring-2 focus:ring-primary focus:outline-none"
+          className={inputClass}
         >
           <option value="">Select timezone</option>
           <option value="Asia/Kolkata">Asia/Kolkata (IST)</option>
@@ -193,7 +201,7 @@ function CompanySetupStep({
       </div>
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <label htmlFor="slaHours" className="block text-sm font-medium text-foreground mb-1">
+          <label htmlFor="slaHours" className={labelClass}>
             SLA for Approvals (hours)
           </label>
           <input
@@ -203,11 +211,11 @@ function CompanySetupStep({
             max={336}
             value={data.slaHours}
             onChange={(e) => onChange({ ...data, slaHours: parseInt(e.target.value) || 48 })}
-            className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground focus:border-primary focus:ring-2 focus:ring-primary focus:outline-none"
+            className={inputClass}
           />
         </div>
         <div>
-          <label htmlFor="probationDays" className="block text-sm font-medium text-foreground mb-1">
+          <label htmlFor="probationDays" className={labelClass}>
             Probation Period (days)
           </label>
           <input
@@ -217,67 +225,67 @@ function CompanySetupStep({
             max={730}
             value={data.probationDays}
             onChange={(e) => onChange({ ...data, probationDays: parseInt(e.target.value) || 180 })}
-            className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground focus:border-primary focus:ring-2 focus:ring-primary focus:outline-none"
+            className={inputClass}
           />
         </div>
       </div>
-      <div className="flex items-center justify-between p-3 rounded-lg border border-border">
+      <div className="flex items-center justify-between p-3 rounded-xl border border-white/10 bg-white/5">
         <div>
-          <p className="text-sm font-medium text-foreground">Allow Negative Balance</p>
-          <p className="text-xs text-muted-foreground">Employees can take leave even when balance is zero</p>
+          <p className="text-sm font-medium text-white">Allow Negative Balance</p>
+          <p className="text-xs text-white/60">Employees can take leave even when balance is zero</p>
         </div>
         <input
           type="checkbox"
           checked={data.negativeBal}
           onChange={(e) => onChange({ ...data, negativeBal: e.target.checked })}
-          className="h-4 w-4 rounded border-input text-primary focus:ring-primary"
+          className="h-4 w-4 rounded border-white/10 text-primary focus:ring-primary"
           aria-label="Allow negative balance"
         />
       </div>
 
       {/* Work Schedule */}
-      <div className="mt-6 border-t border-border pt-6">
-        <h3 className="text-lg font-semibold text-foreground mb-4">Work Schedule</h3>
+      <div className="mt-6 border-t border-white/10 pt-6">
+        <h3 className="text-lg font-semibold text-white mb-4">Work Schedule</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium text-foreground mb-1">Work Start Time</label>
+            <label className={labelClass}>Work Start Time</label>
             <input
               type="time"
               value={data.workStart || '09:00'}
               onChange={(e) => onChange({...data, workStart: e.target.value})}
-              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus:border-primary focus:ring-primary"
+              className={inputClass}
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-foreground mb-1">Work End Time</label>
+            <label className={labelClass}>Work End Time</label>
             <input
               type="time"
               value={data.workEnd || '18:00'}
               onChange={(e) => onChange({...data, workEnd: e.target.value})}
-              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus:border-primary focus:ring-primary"
+              className={inputClass}
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-foreground mb-1">Grace Period (minutes)</label>
+            <label className={labelClass}>Grace Period (minutes)</label>
             <input
               type="number"
               min="0" max="120"
               value={data.gracePeriodMinutes ?? 15}
               onChange={(e) => onChange({...data, gracePeriodMinutes: parseInt(e.target.value) || 15})}
-              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus:border-primary focus:ring-primary"
+              className={inputClass}
             />
-            <p className="text-xs text-muted-foreground mt-1">Minutes after work start before marking late</p>
+            <p className="text-xs text-white/60 mt-1">Minutes after work start before marking late</p>
           </div>
           <div>
-            <label className="block text-sm font-medium text-foreground mb-1">Half-Day Threshold (hours)</label>
+            <label className={labelClass}>Half-Day Threshold (hours)</label>
             <input
               type="number"
               min="1" max="12" step="0.5"
               value={data.halfDayHours ?? 4}
               onChange={(e) => onChange({...data, halfDayHours: parseFloat(e.target.value) || 4})}
-              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus:border-primary focus:ring-primary"
+              className={inputClass}
             />
-            <p className="text-xs text-muted-foreground mt-1">Hours below which attendance is marked as half-day</p>
+            <p className="text-xs text-white/60 mt-1">Hours below which attendance is marked as half-day</p>
           </div>
         </div>
       </div>
@@ -294,18 +302,18 @@ function LeaveTypesStep({
 }) {
   return (
     <div className="space-y-4">
-      <p className="text-sm text-muted-foreground">Select and configure the leave types for your organization. Choose at least one type.</p>
+      <p className="text-sm text-white/60">Select and configure the leave types for your organization. Choose at least one type.</p>
       {data.filter((t) => t.enabled).length === 0 && (
-        <div className="rounded-lg bg-yellow-50 border border-yellow-200 px-3 py-2 text-sm text-yellow-700 dark:bg-yellow-900/20 dark:border-yellow-800 dark:text-yellow-300">
+        <div className="rounded-xl bg-yellow-500/10 border border-yellow-500/20 px-3 py-2 text-sm text-yellow-300">
           Please select at least one leave type to continue.
         </div>
       )}
       <div className="space-y-3">
         {data.map((type, idx) => (
-          <div key={type.code} className="flex items-center justify-between p-3 rounded-lg border border-border">
+          <div key={type.code} className="flex items-center justify-between p-3 rounded-xl border border-white/10 bg-white/5">
             <div>
-              <p className="text-sm font-medium text-foreground">{type.name}</p>
-              <p className="text-xs text-muted-foreground">{type.days} days/year · {type.carryForward ? 'Carry forward enabled' : 'No carry forward'}</p>
+              <p className="text-sm font-medium text-white">{type.name}</p>
+              <p className="text-xs text-white/60">{type.days} days/year · {type.carryForward ? 'Carry forward enabled' : 'No carry forward'}</p>
             </div>
             <input
               type="checkbox"
@@ -315,7 +323,7 @@ function LeaveTypesStep({
                 updated[idx] = { ...type, enabled: e.target.checked };
                 onChange(updated);
               }}
-              className="h-4 w-4 rounded border-input text-primary focus:ring-primary"
+              className="h-4 w-4 rounded border-white/10 text-primary focus:ring-primary"
               aria-label={`Enable ${type.name}`}
             />
           </div>
@@ -351,16 +359,16 @@ function ConstraintRulesStep({
 
   return (
     <div className="space-y-5">
-      <p className="text-sm text-muted-foreground">
+      <p className="text-sm text-white/60">
         Configure how the constraint engine evaluates leave requests.
       </p>
 
       {/* Team Coverage */}
-      <div className="p-4 rounded-lg border border-border space-y-2">
+      <div className="p-4 rounded-xl border border-white/10 bg-white/5 space-y-2">
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-sm font-medium text-foreground">Minimum Team Coverage</p>
-            <p className="text-xs text-muted-foreground">Minimum % of team that must be present</p>
+            <p className="text-sm font-medium text-white">Minimum Team Coverage</p>
+            <p className="text-xs text-white/60">Minimum % of team that must be present</p>
           </div>
           <div className="flex items-center gap-2">
             <input
@@ -370,10 +378,10 @@ function ConstraintRulesStep({
               step={5}
               value={data.minCoveragePercent}
               onChange={(e) => onChange({ ...data, minCoveragePercent: parseInt(e.target.value) })}
-              className="w-28"
+              className="w-28 accent-primary"
               aria-label="Minimum team coverage percentage"
             />
-            <span className="text-sm font-semibold text-foreground w-10 text-right">
+            <span className="text-sm font-semibold text-white w-10 text-right">
               {data.minCoveragePercent}%
             </span>
           </div>
@@ -381,11 +389,11 @@ function ConstraintRulesStep({
       </div>
 
       {/* Max Concurrent */}
-      <div className="p-4 rounded-lg border border-border space-y-2">
+      <div className="p-4 rounded-xl border border-white/10 bg-white/5 space-y-2">
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-sm font-medium text-foreground">Max Concurrent Leaves</p>
-            <p className="text-xs text-muted-foreground">Maximum employees on leave at same time</p>
+            <p className="text-sm font-medium text-white">Max Concurrent Leaves</p>
+            <p className="text-xs text-white/60">Maximum employees on leave at same time</p>
           </div>
           <input
             type="number"
@@ -393,28 +401,28 @@ function ConstraintRulesStep({
             max={50}
             value={data.maxConcurrent}
             onChange={(e) => onChange({ ...data, maxConcurrent: parseInt(e.target.value) || 2 })}
-            className="w-16 rounded-lg border border-input bg-background px-2 py-1 text-sm text-foreground focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none text-center"
+            className="w-16 bg-white/5 border border-white/10 text-white rounded-xl px-2 py-1 text-sm text-center focus:ring-2 focus:ring-primary/40 focus:border-primary/50 focus:outline-none"
             aria-label="Maximum concurrent leaves"
           />
         </div>
       </div>
 
       {/* Blackout Dates */}
-      <div className="p-4 rounded-lg border border-border space-y-3">
+      <div className="p-4 rounded-xl border border-white/10 bg-white/5 space-y-3">
         <div>
-          <p className="text-sm font-medium text-foreground">Blackout Periods</p>
-          <p className="text-xs text-muted-foreground">Dates when leave is not allowed (except emergency)</p>
+          <p className="text-sm font-medium text-white">Blackout Periods</p>
+          <p className="text-xs text-white/60">Dates when leave is not allowed (except emergency)</p>
         </div>
         {data.blackoutDates.length > 0 && (
           <div className="space-y-2">
             {data.blackoutDates.map((bd, idx) => (
-              <div key={idx} className="flex items-center justify-between bg-muted px-3 py-2 rounded text-xs">
-                <span className="font-medium text-foreground">{bd.name}</span>
-                <span className="text-muted-foreground">{bd.start} → {bd.end}</span>
+              <div key={idx} className="flex items-center justify-between bg-white/5 px-3 py-2 rounded-lg text-xs">
+                <span className="font-medium text-white">{bd.name}</span>
+                <span className="text-white/60">{bd.start} → {bd.end}</span>
                 <button
                   type="button"
                   onClick={() => removeBlackout(idx)}
-                  className="text-red-500 hover:text-red-700 ml-2"
+                  className="text-red-400 hover:text-red-300 ml-2"
                 >
                   ✕
                 </button>
@@ -428,38 +436,38 @@ function ConstraintRulesStep({
             placeholder="Name (e.g. Q4 Freeze)"
             value={blackoutInput.name}
             onChange={(e) => setBlackoutInput({ ...blackoutInput, name: e.target.value })}
-            className="col-span-3 sm:col-span-1 rounded border border-input bg-background px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-primary"
+            className="col-span-3 sm:col-span-1 bg-white/5 border border-white/10 text-white rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-primary/40 placeholder:text-white/30"
           />
           <input
             type="date"
             value={blackoutInput.start}
             onChange={(e) => setBlackoutInput({ ...blackoutInput, start: e.target.value })}
-            className="rounded border border-input bg-background px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-primary"
+            className="bg-white/5 border border-white/10 text-white rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-primary/40"
             aria-label="Blackout start date"
           />
           <input
             type="date"
             value={blackoutInput.end}
             onChange={(e) => setBlackoutInput({ ...blackoutInput, end: e.target.value })}
-            className="rounded border border-input bg-background px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-primary"
+            className="bg-white/5 border border-white/10 text-white rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-primary/40"
             aria-label="Blackout end date"
           />
         </div>
         <button
           type="button"
           onClick={addBlackout}
-          className="text-xs bg-muted hover:bg-muted/80 text-muted-foreground px-3 py-1.5 rounded transition-colors"
+          className="text-xs bg-white/10 hover:bg-white/15 text-white/80 px-3 py-1.5 rounded-lg transition-colors"
         >
           + Add Blackout Period
         </button>
       </div>
 
       {/* Auto-Approve */}
-      <div className="p-4 rounded-lg border border-border space-y-3">
+      <div className="p-4 rounded-xl border border-white/10 bg-white/5 space-y-3">
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-sm font-medium text-foreground">Auto-Approve</p>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-sm font-medium text-white">Auto-Approve</p>
+            <p className="text-xs text-white/60">
               Auto-approve when constraint engine confidence meets threshold
             </p>
           </div>
@@ -467,13 +475,13 @@ function ConstraintRulesStep({
             type="checkbox"
             checked={data.autoApprove}
             onChange={(e) => onChange({ ...data, autoApprove: e.target.checked })}
-            className="h-4 w-4 rounded border-input text-primary focus:ring-primary"
+            className="h-4 w-4 rounded border-white/10 text-primary focus:ring-primary"
             aria-label="Enable auto-approve"
           />
         </div>
         {data.autoApprove && (
           <div className="flex items-center gap-3 mt-2">
-            <label className="text-xs text-muted-foreground w-36">Confidence Threshold</label>
+            <label className="text-xs text-white/60 w-36">Confidence Threshold</label>
             <input
               type="range"
               min={0.5}
@@ -481,10 +489,10 @@ function ConstraintRulesStep({
               step={0.05}
               value={data.autoApproveThreshold}
               onChange={(e) => onChange({ ...data, autoApproveThreshold: parseFloat(e.target.value) })}
-              className="w-28"
+              className="w-28 accent-primary"
               aria-label="Auto-approve confidence threshold"
             />
-            <span className="text-sm font-semibold text-foreground w-12">
+            <span className="text-sm font-semibold text-white w-12">
               {(data.autoApproveThreshold * 100).toFixed(0)}%
             </span>
           </div>
@@ -560,28 +568,28 @@ function HolidaysStep({
 
   return (
     <div className="space-y-4">
-      <p className="text-sm text-muted-foreground">
+      <p className="text-sm text-white/60">
         {country
           ? 'Holidays loaded automatically for your country. Toggle or add custom ones.'
           : 'Select a country in Company Setup to auto-load holidays, or add them manually.'}
       </p>
 
       {fetchingHolidays && (
-        <div className="flex items-center gap-2 p-3 rounded-lg bg-primary/5 border border-primary/20">
+        <div className="flex items-center gap-2 p-3 rounded-xl bg-primary/10 border border-primary/20">
           <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
           <span className="text-sm text-primary">Fetching holidays for {country}...</span>
         </div>
       )}
 
       {fetchError && (
-        <div className="rounded-lg bg-yellow-50 border border-yellow-200 px-3 py-2 text-sm text-yellow-700 dark:bg-yellow-900/20 dark:border-yellow-800 dark:text-yellow-300">
+        <div className="rounded-xl bg-yellow-500/10 border border-yellow-500/20 px-3 py-2 text-sm text-yellow-300">
           {fetchError} — You can still add holidays manually.
         </div>
       )}
 
       <div className="space-y-2 mt-4">
         {data.map((holiday, idx) => (
-          <div key={`${holiday.name}-${holiday.date}`} className="flex items-center justify-between py-2 px-3 rounded-lg border border-border">
+          <div key={`${holiday.name}-${holiday.date}`} className="flex items-center justify-between py-2 px-3 rounded-xl border border-white/10 bg-white/5">
             <div className="flex items-center gap-3">
               <input
                 type="checkbox"
@@ -591,21 +599,21 @@ function HolidaysStep({
                   updated[idx] = { ...holiday, enabled: e.target.checked };
                   onChange(updated);
                 }}
-                className="h-4 w-4 rounded border-input text-primary focus:ring-primary"
+                className="h-4 w-4 rounded border-white/10 text-primary focus:ring-primary"
                 aria-label={`Enable ${holiday.name}`}
               />
-              <span className="text-sm text-foreground">{holiday.name}</span>
+              <span className="text-sm text-white">{holiday.name}</span>
               {holiday.custom && (
                 <span className="text-[10px] uppercase tracking-wide font-medium text-primary bg-primary/10 px-1.5 py-0.5 rounded">Custom</span>
               )}
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-xs text-muted-foreground">{holiday.date}</span>
+              <span className="text-xs text-white/60">{holiday.date}</span>
               {holiday.custom && (
                 <button
                   type="button"
                   onClick={() => removeCustomHoliday(idx)}
-                  className="text-red-500 hover:text-red-700 ml-1"
+                  className="text-red-400 hover:text-red-300 ml-1"
                   aria-label={`Remove ${holiday.name}`}
                 >
                   ✕
@@ -618,21 +626,21 @@ function HolidaysStep({
 
       {/* Add Custom Holiday */}
       {showAddForm ? (
-        <div className="p-4 rounded-lg border border-border space-y-3">
-          <p className="text-sm font-medium text-foreground">Add Custom Holiday</p>
+        <div className="p-4 rounded-xl border border-white/10 bg-white/5 space-y-3">
+          <p className="text-sm font-medium text-white">Add Custom Holiday</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             <input
               type="text"
               placeholder="Holiday name"
               value={newHoliday.name}
               onChange={(e) => setNewHoliday({ ...newHoliday, name: e.target.value })}
-              className="rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground focus:border-primary focus:ring-2 focus:ring-primary focus:outline-none"
+              className={inputClass}
             />
             <input
               type="date"
               value={newHoliday.date}
               onChange={(e) => setNewHoliday({ ...newHoliday, date: e.target.value })}
-              className="rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground focus:border-primary focus:ring-2 focus:ring-primary focus:outline-none"
+              className={inputClass}
               aria-label="Holiday date"
             />
           </div>
@@ -641,14 +649,14 @@ function HolidaysStep({
               type="button"
               onClick={addCustomHoliday}
               disabled={!newHoliday.name.trim() || !newHoliday.date}
-              className="text-xs bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed px-3 py-1.5 rounded transition-colors"
+              className="text-xs bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed px-3 py-1.5 rounded-lg transition-colors"
             >
               Add
             </button>
             <button
               type="button"
               onClick={() => { setShowAddForm(false); setNewHoliday({ name: '', date: '' }); }}
-              className="text-xs bg-muted hover:bg-muted/80 text-muted-foreground px-3 py-1.5 rounded transition-colors"
+              className="text-xs bg-white/10 hover:bg-white/15 text-white/80 px-3 py-1.5 rounded-lg transition-colors"
             >
               Cancel
             </button>
@@ -658,7 +666,7 @@ function HolidaysStep({
         <button
           type="button"
           onClick={() => setShowAddForm(true)}
-          className="text-xs bg-muted hover:bg-muted/80 text-muted-foreground px-3 py-1.5 rounded transition-colors"
+          className="text-xs bg-white/10 hover:bg-white/15 text-white/80 px-3 py-1.5 rounded-lg transition-colors"
         >
           + Add Holiday
         </button>
@@ -683,16 +691,16 @@ function NotificationsStep({
 
   return (
     <div className="space-y-4">
-      <p className="text-sm text-muted-foreground">Configure notification preferences.</p>
+      <p className="text-sm text-white/60">Configure notification preferences.</p>
       <div className="space-y-3">
         {items.map(({ key, label }) => (
-          <div key={key} className="flex items-center justify-between p-3 rounded-lg border border-border">
-            <span className="text-sm text-foreground">{label}</span>
+          <div key={key} className="flex items-center justify-between p-3 rounded-xl border border-white/10 bg-white/5">
+            <span className="text-sm text-white">{label}</span>
             <input
               type="checkbox"
               checked={data[key]}
               onChange={(e) => onChange({ ...data, [key]: e.target.checked })}
-              className="h-4 w-4 rounded border-input text-primary focus:ring-primary"
+              className="h-4 w-4 rounded border-white/10 text-primary focus:ring-primary"
               aria-label={label}
             />
           </div>
@@ -705,28 +713,62 @@ function NotificationsStep({
 function CompleteStep({ joinCode }: { joinCode: string }) {
   return (
     <div className="text-center py-8">
-      <div className="w-20 h-20 mx-auto rounded-full bg-primary/10 flex items-center justify-center">
-        <Sparkles className="w-10 h-10 text-primary" />
-      </div>
-      <h2 className="text-2xl font-bold text-foreground mt-4">Setup Complete!</h2>
-      <p className="text-muted-foreground mt-2 max-w-md mx-auto">
+      <motion.div
+        initial={{ scale: 0, rotate: -180 }}
+        animate={{ scale: 1, rotate: 0 }}
+        transition={{ type: 'spring' as const, stiffness: 200, damping: 15, delay: 0.2 }}
+        className="w-20 h-20 mx-auto rounded-full bg-primary/20 border-2 border-primary flex items-center justify-center shadow-[0_0_30px_rgba(var(--primary-rgb),0.4)]"
+      >
+        <motion.div
+          initial={{ scale: 0 }}
+          animate={{ scale: 1 }}
+          transition={{ type: 'spring' as const, stiffness: 300, damping: 20, delay: 0.5 }}
+        >
+          <Check className="w-10 h-10 text-primary" strokeWidth={3} />
+        </motion.div>
+      </motion.div>
+      <motion.h2
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.6, duration: 0.5 }}
+        className="text-2xl font-bold gradient-text mt-4"
+      >
+        Setup Complete!
+      </motion.h2>
+      <motion.p
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.8, duration: 0.5 }}
+        className="text-white/60 mt-2 max-w-md mx-auto"
+      >
         Your organization is now configured and ready to use.
-      </p>
+      </motion.p>
       {joinCode && (
-        <div className="mt-6 p-4 bg-primary/10 border border-primary/20 rounded-lg text-left max-w-sm mx-auto">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ delay: 1.0, type: 'spring' as const, stiffness: 200, damping: 20 }}
+          className="mt-6 p-4 bg-primary/10 border border-primary/20 rounded-xl text-left max-w-sm mx-auto shadow-[0_0_20px_rgba(var(--primary-rgb),0.2)]"
+        >
           <p className="text-sm font-medium text-primary mb-1">Company Join Code</p>
           <p className="text-2xl font-mono font-bold text-primary tracking-widest">{joinCode}</p>
           <p className="text-xs text-primary/80 mt-1">Share this with your employees so they can sign up.</p>
-        </div>
+        </motion.div>
       )}
-      <div className="mt-8">
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 1.2, duration: 0.5 }}
+        className="mt-8"
+      >
         <a
           href="/hr/dashboard"
-          className="inline-flex items-center gap-2 bg-primary text-primary-foreground px-6 py-3 rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors"
+          className="inline-flex items-center gap-2 bg-primary text-primary-foreground px-6 py-3 rounded-xl text-sm font-semibold hover:shadow-[0_0_25px_rgba(var(--primary-rgb),0.5)] hover:scale-[1.02] active:scale-[0.97] transition-all"
         >
-          Go to HR Dashboard →
+          <Sparkles className="w-4 h-4" />
+          Go to HR Dashboard
         </a>
-      </div>
+      </motion.div>
     </div>
   );
 }
@@ -756,6 +798,62 @@ const DEFAULT_HOLIDAYS: HolidayEntry[] = [
   { name: 'Diwali', date: `${CURRENT_YEAR}-10-20`, enabled: true },
   { name: 'Christmas', date: `${CURRENT_YEAR}-12-25`, enabled: true },
 ];
+
+// ─── Step indicator ──────────────────────────────────────────────────────────
+
+function StepIndicator({ currentStep }: { currentStep: number }) {
+  return (
+    <div className="flex items-center justify-center gap-3 mb-8">
+      {STEPS.map((step, index) => {
+        const StepIcon = step.icon;
+        const isCompleted = index < currentStep;
+        const isCurrent = index === currentStep;
+
+        return (
+          <div key={step.id} className="flex items-center">
+            <div className="flex flex-col items-center gap-1">
+              <TiltCard rotationIntensity={8}>
+                <motion.div
+                  className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 ${
+                    isCurrent
+                      ? 'bg-primary/20 border-2 border-primary text-primary shadow-[0_0_15px_rgba(var(--primary-rgb),0.4)]'
+                      : isCompleted
+                        ? 'bg-primary text-primary-foreground shadow-[0_0_15px_rgba(var(--primary-rgb),0.3)]'
+                        : 'bg-white/5 border border-white/10 text-white/40'
+                  }`}
+                  animate={isCurrent ? {
+                    boxShadow: [
+                      '0 0 15px rgba(var(--primary-rgb),0.4)',
+                      '0 0 25px rgba(var(--primary-rgb),0.6)',
+                      '0 0 15px rgba(var(--primary-rgb),0.4)',
+                    ],
+                  } : {}}
+                  transition={isCurrent ? {
+                    duration: 2,
+                    repeat: Infinity,
+                    ease: 'easeInOut',
+                  } : {}}
+                >
+                  <StepIcon className="w-4 h-4" />
+                </motion.div>
+              </TiltCard>
+              <span className={`text-[10px] font-medium hidden sm:block ${
+                isCurrent ? 'text-primary' : isCompleted ? 'text-white/70' : 'text-white/30'
+              }`}>
+                {step.label}
+              </span>
+            </div>
+            {index < STEPS.length - 1 && (
+              <div className={`h-[2px] w-12 mx-1 transition-colors duration-300 ${
+                isCompleted ? 'bg-primary' : 'bg-white/10'
+              }`} />
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
 
 // ─── Main page ───────────────────────────────────────────────────────────────
 
@@ -803,10 +901,19 @@ function OnboardingPageInner() {
   // Check authentication and sync user on mount
   useEffect(() => {
     async function checkAuth() {
-      const supabase = getSupabaseBrowserClient();
-      const { data: { user } } = await supabase.auth.getUser();
+      // Check if user has a valid session via the session API
+      let isAuthenticated = false;
+      try {
+        const sessionRes = await fetch('/api/auth/session', { credentials: 'include' });
+        if (sessionRes.ok) {
+          const sessionData = await sessionRes.json();
+          isAuthenticated = sessionData.status === 'authenticated';
+        }
+      } catch {
+        // ignore
+      }
 
-      if (!user) {
+      if (!isAuthenticated) {
         // Not authenticated - redirect to sign-up
         router.replace('/sign-up');
         return;
@@ -1036,81 +1143,78 @@ function OnboardingPageInner() {
   // Show loading state while checking auth
   if (loading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto" />
-          <p className="mt-4 text-muted-foreground">Loading...</p>
+          <p className="mt-4 text-white/60">Loading...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center px-4">
-      <div className="w-full max-w-2xl">
-        <div className="text-center mb-8">
-          <h1 className="text-2xl font-bold text-primary">Continuum</h1>
-          <p className="text-muted-foreground mt-2">Organization Setup</p>
-        </div>
+    <div className="min-h-screen flex items-center justify-center px-4 py-12">
+      <StaggerContainer className="w-full max-w-2xl">
+        <FadeIn>
+          <div className="text-center mb-8">
+            <h1 className="text-2xl font-bold gradient-text">Continuum</h1>
+            <p className="text-white/60 mt-2">Organization Setup</p>
+          </div>
+        </FadeIn>
 
         {/* Step Indicators */}
-        <div className="flex items-center justify-center gap-2 mb-8">
-          {STEPS.map((step, index) => {
-            const StepIcon = step.icon;
-            return (
-              <div key={step.id} className="flex items-center">
-                <div
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
-                    index === currentStep
-                      ? 'bg-primary text-primary-foreground'
-                      : index < currentStep
-                        ? 'bg-primary/10 text-primary'
-                        : 'bg-muted text-muted-foreground'
-                  }`}
-                >
-                  <StepIcon className="w-3.5 h-3.5" />
-                  <span className="hidden sm:inline">{step.label}</span>
-                </div>
-                {index < STEPS.length - 1 && (
-                  <div className={`w-6 h-0.5 mx-1 ${index < currentStep ? 'bg-primary' : 'bg-border'}`} />
-                )}
-              </div>
-            );
-          })}
-        </div>
+        <FadeIn delay={0.1}>
+          <StepIndicator currentStep={currentStep} />
+        </FadeIn>
 
         {/* Step Content */}
-        <Card>
-          <CardContent className="pt-6">
-            {!isCompletionStep && (
-              <h2 className="text-lg font-semibold text-foreground mb-4">{STEPS[currentStep].label}</h2>
-            )}
+        <FadeIn delay={0.2}>
+          <GlassPanel className="p-8">
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={currentStep}
+                initial={{ opacity: 0, x: 40 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -40 }}
+                transition={{ duration: 0.3, ease: 'easeInOut' }}
+              >
+                {!isCompletionStep && (
+                  <h2 className="text-lg font-semibold text-white mb-4">{STEPS[currentStep].label}</h2>
+                )}
 
-            {error && (
-              <div className="mb-4 rounded-lg bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 px-4 py-3 text-sm text-red-700 dark:text-red-300">
-                {error}
-              </div>
-            )}
+                {error && (
+                  <div className="mb-4 rounded-xl bg-red-500/10 border border-red-500/20 px-4 py-3 text-sm text-red-300">
+                    {error}
+                  </div>
+                )}
 
-            {renderStepContent()}
+                {renderStepContent()}
 
-            {!isCompletionStep && (
-              <div className="flex justify-between mt-8 pt-4 border-t border-border">
-                <Button
-                  variant="outline"
-                  onClick={() => setCurrentStep((s) => s - 1)}
-                  disabled={isFirstStep || saving}
-                >
-                  ← Back
-                </Button>
-                <Button onClick={handleNext} disabled={saving}>
-                  {saving ? 'Saving…' : isLastContentStep ? 'Finish Setup' : 'Next →'}
-                </Button>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+                {!isCompletionStep && (
+                  <div className="flex justify-between mt-8 pt-4 border-t border-white/10">
+                    <button
+                      type="button"
+                      onClick={() => setCurrentStep((s) => s - 1)}
+                      disabled={isFirstStep || saving}
+                      className="border border-white/20 text-white/80 rounded-xl px-6 py-2.5 hover:bg-white/10 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+                    >
+                      ← Back
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleNext}
+                      disabled={saving}
+                      className="bg-primary text-primary-foreground rounded-xl px-6 py-2.5 font-semibold hover:shadow-[0_0_25px_rgba(var(--primary-rgb),0.5)] hover:scale-[1.02] active:scale-[0.97] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {saving ? 'Saving...' : isLastContentStep ? 'Finish Setup' : 'Next →'}
+                    </button>
+                  </div>
+                )}
+              </motion.div>
+            </AnimatePresence>
+          </GlassPanel>
+        </FadeIn>
+      </StaggerContainer>
     </div>
   );
 }

@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { SkeletonForm } from '@/components/ui/skeleton';
 import {
   CheckCircle,
@@ -13,8 +12,12 @@ import {
   AlertTriangle,
   Sparkles,
   CalendarDays,
+  CalendarPlus,
   Loader2,
 } from 'lucide-react';
+import { FadeIn, TiltCard, StaggerContainer } from '@/components/motion';
+import { PageHeader } from '@/components/page-header';
+import { GlassPanel } from '@/components/glass-panel';
 
 // Type definitions for constraint violations
 // NOTE: The Python constraint engine returns `name` (not `rule_name`), so we
@@ -310,92 +313,114 @@ export default function RequestLeavePage() {
   }
 
   return (
-    <div className="max-w-2xl mx-auto space-y-6">
+    <StaggerContainer className="max-w-2xl mx-auto space-y-6">
       {/* Page Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Request Leave</h1>
-          <p className="text-muted-foreground mt-1">Submit a new leave application</p>
-        </div>
-        {autoSaving && (
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <div className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" />
-            Auto-saving draft...
-          </div>
-        )}
-      </div>
+      <PageHeader
+        title="Request Leave"
+        description="Submit a new leave application"
+        icon={<CalendarPlus className="w-6 h-6 text-primary" />}
+        action={
+          autoSaving ? (
+            <div className="flex items-center gap-2 text-sm text-primary font-medium bg-primary/10 px-4 py-2 rounded-full border border-primary/20">
+              <div className="w-3 h-3 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+              Auto-saving draft...
+            </div>
+          ) : undefined
+        }
+      />
 
       {/* Loading State */}
       {pageLoading && (
-        <Card>
-          <CardContent className="pt-6">
-            <SkeletonForm fields={5} />
-          </CardContent>
-        </Card>
+        <FadeIn>
+          <TiltCard>
+            <GlassPanel>
+              <div className="px-6 pb-6 pt-6">
+                <SkeletonForm fields={5} />
+              </div>
+            </GlassPanel>
+          </TiltCard>
+        </FadeIn>
       )}
 
       {/* Submission Processing State */}
       {isSubmitting && (
-        <Card>
-          <CardContent className="pt-6">
-            <div className="space-y-4">
-              <div className="flex items-center gap-3">
-                {submitSuccess ? <CheckCircle className="w-6 h-6 text-green-500" /> : <Loader2 className="w-6 h-6 text-blue-500 animate-spin" />}
-                <div className="flex-1">
-                  <div className={`font-medium ${submitSuccess ? 'text-green-600' : 'text-blue-600'}`}>
-                    {currentSubmissionStep || 'Processing...'}
+        <FadeIn>
+          <TiltCard>
+            <GlassPanel>
+              <div className="px-6 pb-6 pt-6">
+                <div className="space-y-4">
+                  <div className="flex items-center gap-3">
+                    {submitSuccess ? <CheckCircle className="w-6 h-6 text-green-400 drop-shadow-[0_0_8px_rgba(74,222,128,0.8)]" /> : <Loader2 className="w-6 h-6 text-blue-400 animate-spin drop-shadow-[0_0_8px_rgba(96,165,250,0.8)]" />}
+                    <div className="flex-1">
+                      <div className={`font-bold text-lg ${submitSuccess ? 'text-green-500' : 'text-blue-500'}`}>
+                        {currentSubmissionStep || 'Processing...'}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm font-medium">
+                      <span className="text-white/60">Progress</span>
+                      <span className="text-white/60">{submissionProgress}%</span>
+                    </div>
+                    <div className="w-full bg-black/40 rounded-full h-3 overflow-hidden border border-white/10 shadow-inner">
+                      <div
+                        className="h-full rounded-full bg-gradient-to-r from-blue-500 to-cyan-400 transition-all duration-500 ease-out shadow-[0_0_10px_rgba(56,189,248,0.5)]"
+                        style={{ width: `${submissionProgress}%` }}
+                      />
+                    </div>
                   </div>
                 </div>
               </div>
-              <div className="space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Progress</span>
-                  <span className="text-muted-foreground">{submissionProgress}%</span>
-                </div>
-                <div className="w-full bg-secondary rounded-full h-2 overflow-hidden">
-                  <div
-                    className="h-2 rounded-full bg-primary transition-all duration-500 ease-out"
-                    style={{ width: `${submissionProgress}%` }}
-                  />
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+            </GlassPanel>
+          </TiltCard>
+        </FadeIn>
       )}
 
       {/* Leave types not configured error */}
       {!pageLoading && leaveTypesError && (
-        <Card>
-          <CardContent className="pt-6">
-            <div className="rounded-lg bg-yellow-50 border border-yellow-200 px-4 py-4 dark:bg-yellow-900/20 dark:border-yellow-800">
-              <h4 className="font-semibold text-yellow-800 dark:text-yellow-300 mb-2">Leave Types Not Available</h4>
-              <p className="text-sm text-yellow-700 dark:text-yellow-200">{leaveTypesError}</p>
-            </div>
-          </CardContent>
-        </Card>
+        <FadeIn>
+          <TiltCard>
+            <GlassPanel className="border-yellow-500/30 shadow-[0_0_20px_rgba(234,179,8,0.1)]">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-yellow-500/10 rounded-full blur-2xl -z-10 transform translate-x-1/2 -translate-y-1/2" />
+              <div className="px-6 pb-6 pt-6 relative z-10">
+                <div className="rounded-xl bg-yellow-500/10 border border-yellow-500/20 px-5 py-5 backdrop-blur-sm">
+                  <h4 className="font-bold text-yellow-500 mb-2 flex items-center gap-2 drop-shadow-[0_0_5px_rgba(234,179,8,0.5)]">
+                    <AlertTriangle className="w-5 h-5" />
+                    Leave Types Not Available
+                  </h4>
+                  <p className="text-sm text-yellow-200/80 font-medium">{leaveTypesError}</p>
+                </div>
+              </div>
+            </GlassPanel>
+          </TiltCard>
+        </FadeIn>
       )}
 
       {/* Main Form */}
       {!pageLoading && !isSubmitting && !leaveTypesError && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center justify-between">
-              <span>Leave Details</span>
-              {constraintChecking && (
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <div className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                  Checking constraints...
-                </div>
-              )}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
+        <FadeIn>
+          <TiltCard>
+            <GlassPanel className="shadow-2xl">
+              <div className="absolute top-0 right-0 w-64 h-64 bg-primary/10 rounded-full blur-3xl -z-10 transform translate-x-1/2 -translate-y-1/2 pointer-events-none" />
+              <div className="absolute bottom-0 left-0 w-64 h-64 bg-cyan-500/10 rounded-full blur-3xl -z-10 transform -translate-x-1/2 translate-y-1/2 pointer-events-none" />
+
+              <div className="p-6 pb-4 border-b border-white/5">
+                <h2 className="text-lg font-semibold text-white flex items-center justify-between">
+                  <span>Leave Details</span>
+                  {constraintChecking && (
+                    <div className="flex items-center gap-2 text-sm text-cyan-400 font-medium">
+                      <div className="w-4 h-4 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin shadow-[0_0_5px_rgba(34,211,238,0.8)]" />
+                      Checking constraints...
+                    </div>
+                  )}
+                </h2>
+              </div>
+              <div className="px-6 pb-6 pt-6 relative z-10">
             {/* Success State */}
             {submitSuccess && success && (
-              <div className="mb-4 rounded-lg bg-green-50 border border-green-200 px-4 py-3 text-sm text-green-700 dark:bg-green-900/20 dark:border-green-800 dark:text-green-300">
-                <div className="flex items-center gap-2">
-                  <CheckCircle className="w-5 h-5 text-green-600 shrink-0" />
+              <div className="mb-6 rounded-xl bg-green-500/10 border border-green-500/30 px-5 py-4 backdrop-blur-sm shadow-[0_0_15px_rgba(34,197,94,0.1)]">
+                <div className="flex items-center gap-3 text-green-400 font-bold drop-shadow-[0_0_5px_rgba(74,222,128,0.5)]">
+                  <CheckCircle className="w-6 h-6 shrink-0" />
                   {success}
                 </div>
               </div>
@@ -403,35 +428,35 @@ export default function RequestLeavePage() {
 
             {/* Error State */}
             {error && !constraintResult && (
-              <div className="mb-4 rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700 dark:bg-red-900/20 dark:border-red-800 dark:text-red-300">
-                <div className="flex items-center gap-2">
-                  <XCircle className="w-5 h-5 text-red-600 shrink-0" />
+              <div className="mb-6 rounded-xl bg-red-500/10 border border-red-500/30 px-5 py-4 backdrop-blur-sm shadow-[0_0_15px_rgba(239,68,68,0.1)]">
+                <div className="flex items-center gap-3 text-red-400 font-bold drop-shadow-[0_0_5px_rgba(248,113,113,0.5)]">
+                  <XCircle className="w-6 h-6 shrink-0" />
                   {error}
                 </div>
               </div>
             )}
             {/* Constraint Preview - Real-time feedback */}
             {constraintResult && (
-              <div className="mb-6 space-y-4">
+              <div className="mb-8 space-y-5">
                 {/* Blocking Violations */}
                 {constraintResult.violations && constraintResult.violations.length > 0 && (
-                  <div className="rounded-lg bg-red-50 border border-red-200 px-4 py-4 dark:bg-red-900/20 dark:border-red-800">
-                    <h4 className="font-semibold text-red-800 dark:text-red-300 mb-3 flex items-center gap-2">
-                      <Ban className="w-5 h-5 text-red-600 dark:text-red-400 shrink-0" />
-                      Constraint Violations — Request cannot be submitted
+                  <div className="rounded-2xl bg-red-500/10 border border-red-500/30 px-5 py-5 backdrop-blur-sm shadow-[0_0_15px_rgba(239,68,68,0.15)]">
+                    <h4 className="font-bold text-red-500 mb-4 flex items-center gap-2 drop-shadow-[0_0_5px_rgba(248,113,113,0.5)]">
+                      <Ban className="w-5 h-5 shrink-0" />
+                      Issue Prevent Submission
                     </h4>
                     <div className="space-y-3">
                       {constraintResult.violations.map((v, i) => {
                         const label = v.name || v.rule_name || v.rule_id;
                         const suggestion = buildSuggestion(v);
                         return (
-                          <div key={i} className="rounded-lg bg-red-100 dark:bg-red-900/40 px-3 py-3 border border-red-200 dark:border-red-800">
-                            <div className="font-semibold text-red-800 dark:text-red-200">{label}</div>
-                            <div className="mt-1 text-red-700 dark:text-red-300 text-sm">{v.message}</div>
+                          <div key={i} className="rounded-xl bg-black/40 px-4 py-3 border border-red-500/20 shadow-inner">
+                            <div className="font-bold text-red-400">{label}</div>
+                            <div className="mt-1 text-white/80 text-sm font-medium">{v.message}</div>
                             {suggestion && (
-                              <div className="mt-2 flex items-start gap-2 rounded bg-red-200 dark:bg-red-800/50 px-3 py-2 text-red-900 dark:text-red-100">
-                                <Lightbulb className="w-4 h-4 mt-0.5 text-red-700 dark:text-red-200 shrink-0" />
-                                <span className="text-sm italic">{suggestion}</span>
+                              <div className="mt-3 flex items-start gap-2 rounded-lg bg-red-500/10 px-3 py-2 border border-red-500/20">
+                                <Lightbulb className="w-4 h-4 mt-0.5 text-red-400 shrink-0 drop-shadow-[0_0_5px_rgba(248,113,113,0.8)]" />
+                                <span className="text-sm italic font-medium text-red-200/90">{suggestion}</span>
                               </div>
                             )}
                           </div>
@@ -443,9 +468,9 @@ export default function RequestLeavePage() {
 
                 {/* Warnings */}
                 {constraintResult.warnings && constraintResult.warnings.length > 0 && (
-                  <div className="rounded-lg bg-yellow-50 border border-yellow-200 px-4 py-4 dark:bg-yellow-900/20 dark:border-yellow-800">
-                    <h4 className="font-semibold text-yellow-800 dark:text-yellow-300 mb-3 flex items-center gap-2">
-                      <AlertTriangle className="w-5 h-5 text-yellow-600 dark:text-yellow-400 shrink-0" />
+                  <div className="rounded-2xl bg-yellow-500/10 border border-yellow-500/30 px-5 py-5 backdrop-blur-sm shadow-[0_0_15px_rgba(234,179,8,0.15)]">
+                    <h4 className="font-bold text-yellow-500 mb-4 flex items-center gap-2 drop-shadow-[0_0_5px_rgba(250,204,21,0.5)]">
+                      <AlertTriangle className="w-5 h-5 shrink-0" />
                       Warnings
                     </h4>
                     <div className="space-y-3">
@@ -453,13 +478,13 @@ export default function RequestLeavePage() {
                         const label = w.name || w.rule_name || w.rule_id;
                         const suggestion = buildSuggestion(w);
                         return (
-                          <div key={i} className="text-sm text-yellow-700 dark:text-yellow-200">
-                            <div className="font-semibold">{label}</div>
-                            <div className="mt-1">{w.message}</div>
+                          <div key={i} className="rounded-xl bg-black/40 px-4 py-3 border border-yellow-500/20 shadow-inner">
+                            <div className="font-bold text-yellow-400">{label}</div>
+                            <div className="mt-1 text-white/80 text-sm font-medium">{w.message}</div>
                             {suggestion && (
-                              <div className="mt-2 flex items-start gap-2 rounded bg-yellow-100 dark:bg-yellow-900/40 px-2 py-2 text-yellow-800 dark:text-yellow-100">
-                                <Lightbulb className="w-4 h-4 mt-0.5 text-yellow-700 dark:text-yellow-200 shrink-0" />
-                                <span className="italic">{suggestion}</span>
+                              <div className="mt-3 flex items-start gap-2 rounded-lg bg-yellow-500/10 px-3 py-2 border border-yellow-500/20">
+                                <Lightbulb className="w-4 h-4 mt-0.5 text-yellow-400 shrink-0 drop-shadow-[0_0_5px_rgba(250,204,21,0.8)]" />
+                                <span className="text-sm italic font-medium text-yellow-200/90">{suggestion}</span>
                               </div>
                             )}
                           </div>
@@ -471,21 +496,21 @@ export default function RequestLeavePage() {
 
                 {/* AI Recommendation */}
                 {constraintResult.recommendation && (
-                  <div className="rounded-lg bg-blue-50 border border-blue-200 px-4 py-4 dark:bg-blue-900/20 dark:border-blue-800">
-                    <h4 className="font-semibold text-blue-800 dark:text-blue-300 mb-2 flex items-center gap-2">
-                      <Sparkles className="w-5 h-5 text-blue-600 dark:text-blue-400 shrink-0" />
+                  <div className="rounded-2xl bg-blue-500/10 border border-blue-500/30 px-5 py-5 backdrop-blur-sm shadow-[0_0_15px_rgba(59,130,246,0.15)]">
+                    <h4 className="font-bold text-blue-500 mb-3 flex items-center gap-2 drop-shadow-[0_0_5px_rgba(96,165,250,0.5)]">
+                      <Sparkles className="w-5 h-5 shrink-0" />
                       AI Recommendation
                     </h4>
-                    <p className="text-sm text-blue-700 dark:text-blue-200">{constraintResult.recommendation}</p>
+                    <p className="text-sm font-medium text-blue-100">{constraintResult.recommendation}</p>
                     {constraintResult.confidence_score !== undefined && (
-                      <div className="mt-2 flex items-center gap-2">
-                        <div className="flex-1 bg-blue-200 dark:bg-blue-800 rounded-full h-2">
+                      <div className="mt-4 flex items-center gap-3">
+                        <div className="flex-1 bg-black/40 rounded-full h-2 shadow-inner border border-white/5">
                           <div 
-                            className="bg-blue-600 dark:bg-blue-400 h-2 rounded-full transition-all duration-300"
+                            className="bg-gradient-to-r from-blue-600 to-blue-400 h-2 rounded-full transition-all duration-300 shadow-[0_0_8px_rgba(96,165,250,0.6)]"
                             style={{ width: `${(constraintResult.confidence_score || 0) * 100}%` }}
                           />
                         </div>
-                        <span className="text-xs text-blue-600 dark:text-blue-300">
+                        <span className="text-xs font-bold text-blue-400">
                           {Math.round((constraintResult.confidence_score || 0) * 100)}% confidence
                         </span>
                       </div>
@@ -497,8 +522,8 @@ export default function RequestLeavePage() {
             {/* Enhanced Form */}
             <form onSubmit={handleSubmit} className="space-y-6">
               {/* Leave Type with better styling */}
-              <div>
-                <label htmlFor="leaveType" className="block text-sm font-medium text-foreground mb-2">
+              <div className="space-y-2">
+                <label htmlFor="leaveType" className="block text-sm font-bold text-white/80">
                   Leave Type
                 </label>
                 <select
@@ -515,13 +540,13 @@ export default function RequestLeavePage() {
                     setSubmitError('');
                     setSuccess('');
                   }}
-                  className="w-full rounded-lg border border-border bg-background px-4 py-3 text-sm text-foreground focus:border-primary focus:ring-2 focus:ring-primary/20 focus:outline-none transition-all"
+                  className="w-full rounded-xl bg-white/5 border border-white/10 px-4 py-3.5 text-white placeholder:text-white/30 focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary/50 transition-all backdrop-blur-sm shadow-inner appearance-none cursor-pointer"
                   required
                   disabled={isSubmitting}
                 >
-                  <option value="">Select leave type</option>
+                  <option value="" className="bg-slate-900 text-white">Select leave type</option>
                   {leaveTypes.map((type) => (
-                    <option key={type.value} value={type.value}>
+                    <option key={type.value} value={type.value} className="bg-slate-900 text-white">
                       {type.label}
                     </option>
                   ))}
@@ -529,9 +554,9 @@ export default function RequestLeavePage() {
               </div>
 
               {/* Enhanced Date Range */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label htmlFor="startDate" className="block text-sm font-medium text-foreground mb-2">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div className="space-y-2">
+                  <label htmlFor="startDate" className="block text-sm font-bold text-white/80">
                     Start Date
                   </label>
                   <input
@@ -545,13 +570,13 @@ export default function RequestLeavePage() {
                         setEndDate(e.target.value);
                       }
                     }}
-                    className="w-full rounded-lg border border-border bg-background px-4 py-3 text-sm text-foreground focus:border-primary focus:ring-2 focus:ring-primary/20 focus:outline-none transition-all"
+                    className="w-full rounded-xl bg-white/5 border border-white/10 px-4 py-3.5 text-white placeholder:text-white/30 focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary/50 transition-all backdrop-blur-sm shadow-inner [color-scheme:dark]"
                     required
                     disabled={isSubmitting}
                   />
                 </div>
-                <div>
-                  <label htmlFor="endDate" className="block text-sm font-medium text-foreground mb-2">
+                <div className="space-y-2">
+                  <label htmlFor="endDate" className="block text-sm font-bold text-white/80">
                     End Date
                   </label>
                   <input
@@ -560,7 +585,7 @@ export default function RequestLeavePage() {
                     value={endDate}
                     min={startDate || new Date().toISOString().split('T')[0]}
                     onChange={(e) => setEndDate(e.target.value)}
-                    className="w-full rounded-lg border border-border bg-background px-4 py-3 text-sm text-foreground focus:border-primary focus:ring-2 focus:ring-primary/20 focus:outline-none transition-all"
+                    className="w-full rounded-xl bg-white/5 border border-white/10 px-4 py-3.5 text-white placeholder:text-white/30 focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary/50 transition-all backdrop-blur-sm shadow-inner [color-scheme:dark] disabled:opacity-50"
                     required
                     disabled={isSubmitting || halfDay}
                   />
@@ -569,19 +594,24 @@ export default function RequestLeavePage() {
 
               {/* Enhanced Days counter with better visual feedback */}
               {totalDays > 0 && (
-                <div className="flex items-center gap-4 rounded-lg bg-primary/5 border border-primary/10 px-4 py-3">
-                  <div className="flex items-center gap-2 text-primary">
-                    <CalendarDays className="w-5 h-5 text-primary" />
-                    <span className="text-sm font-medium">Total Duration:</span>
-                  </div>
-                  <span className="text-lg font-bold text-primary">
-                    {totalDays} day{totalDays !== 1 ? 's' : ''}
-                  </span>
-                </div>
+                <TiltCard>
+                  <GlassPanel className="p-5">
+                    <div className="flex items-center gap-4 relative overflow-hidden">
+                      <div className="absolute top-0 right-0 w-32 h-full bg-primary/10 rounded-full blur-xl -z-10 translate-x-1/2" />
+                      <div className="flex items-center gap-3 text-primary drop-shadow-[0_0_5px_rgba(var(--primary-rgb),0.8)]">
+                        <CalendarDays className="w-6 h-6 text-primary" />
+                        <span className="text-base font-bold text-white">Total Duration:</span>
+                      </div>
+                      <span className="text-2xl font-black text-primary drop-shadow-[0_0_8px_rgba(var(--primary-rgb),0.8)] ml-auto">
+                        {totalDays} day{totalDays !== 1 ? 's' : ''}
+                      </span>
+                    </div>
+                  </GlassPanel>
+                </TiltCard>
               )}
 
               {/* Enhanced Half Day Toggle */}
-              <div className="flex items-center gap-3 p-4 rounded-lg bg-muted/50 border border-border">
+              <div className="flex items-center gap-3 p-5 rounded-xl bg-white/5 border border-white/10 shadow-inner group transition-colors hover:bg-white/10">
                 <input
                   id="halfDay"
                   type="checkbox"
@@ -592,42 +622,42 @@ export default function RequestLeavePage() {
                       setEndDate(startDate);
                     }
                   }}
-                  className="h-4 w-4 rounded border-border text-primary focus:ring-primary transition-colors"
+                  className="h-5 w-5 rounded border-white/20 bg-black/50 text-primary focus:ring-primary focus:ring-offset-black transition-all cursor-pointer accent-primary"
                   disabled={isSubmitting}
                 />
-                <label htmlFor="halfDay" className="text-sm text-foreground font-medium">
+                <label htmlFor="halfDay" className="text-sm font-bold text-white cursor-pointer select-none">
                   Half-day leave
                 </label>
                 {halfDay && (
-                  <span className="text-xs text-muted-foreground ml-auto">
+                  <span className="text-xs font-bold text-cyan-400 ml-auto bg-cyan-500/10 px-3 py-1 rounded-full border border-cyan-500/20">
                     Duration will be 0.5 days
                   </span>
                 )}
               </div>
 
               {/* Enhanced Reason field */}
-              <div>
-                <label htmlFor="reason" className="block text-sm font-medium text-foreground mb-2">
-                  Reason <span className="text-muted-foreground font-normal">(required)</span>
+              <div className="space-y-2">
+                <label htmlFor="reason" className="block text-sm font-bold text-white/80">
+                  Reason <span className="text-white/40 font-normal italic">(required)</span>
                 </label>
                 <textarea
                   id="reason"
                   value={reason}
                   onChange={(e) => setReason(e.target.value)}
                   rows={4}
-                  className="w-full rounded-lg border border-border bg-background px-4 py-3 text-sm text-foreground focus:border-primary focus:ring-2 focus:ring-primary/20 focus:outline-none resize-none transition-all"
+                  className="w-full rounded-xl bg-white/5 border border-white/10 px-4 py-3.5 text-white placeholder:text-white/30 focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary/50 resize-none transition-all backdrop-blur-sm shadow-inner"
                   placeholder="Provide a clear reason for your leave request..."
                   required
                   minLength={3}
                   maxLength={1000}
                   disabled={isSubmitting}
                 />
-                <div className="flex justify-between items-center mt-1">
-                  <span className="text-xs text-muted-foreground">
-                    {reason.length}/1000 characters
+                <div className="flex justify-between items-center mt-2 px-1">
+                  <span className="text-xs font-medium text-white/50">
+                    {reason.length} / 1000
                   </span>
                   {reason.length > 0 && reason.length < 10 && (
-                    <span className="text-xs text-yellow-600 dark:text-yellow-400">
+                    <span className="text-xs font-bold text-yellow-400 drop-shadow-[0_0_5px_rgba(250,204,21,0.5)]">
                       Please provide more details
                     </span>
                   )}
@@ -635,35 +665,39 @@ export default function RequestLeavePage() {
               </div>
 
               {/* Submit Actions */}
-              <div className="flex justify-end gap-3 pt-6 border-t border-border">
+              <div className="flex justify-end gap-4 pt-8 border-t border-white/10 mt-8">
                 <Button
                   type="button"
-                  variant="outline"
                   onClick={() => router.push('/employee/dashboard')}
                   disabled={isSubmitting}
-                  className="min-w-[100px]"
+                  className="min-w-[120px] bg-transparent border border-white/20 hover:bg-white/10 text-white font-bold h-12 rounded-xl transition-all"
                 >
                   Cancel
                 </Button>
                 <Button
                   type="submit"
                   disabled={!leaveType || !startDate || !endDate || !reason || isSubmitting || (constraintResult?.violations && constraintResult.violations.length > 0)}
-                  className="min-w-[140px]"
+                  className="min-w-[160px] bg-primary hover:bg-white text-white hover:text-primary font-bold h-12 rounded-xl shadow-[0_0_20px_rgba(var(--primary-rgb),0.4)] hover:shadow-[0_0_30px_rgba(255,255,255,0.8)] transition-all group relative overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {isSubmitting ? (
-                    <span className="flex items-center gap-2">
-                      <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                      Submitting...
-                    </span>
-                  ) : (
-                    'Submit Request'
-                  )}
+                  <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300 ease-out" />
+                  <span className="relative z-10 flex items-center justify-center gap-2">
+                    {isSubmitting ? (
+                      <>
+                        <div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                        Submitting...
+                      </>
+                    ) : (
+                      'Submit Request'
+                    )}
+                  </span>
                 </Button>
               </div>
             </form>
-          </CardContent>
-        </Card>
+          </div>
+            </GlassPanel>
+          </TiltCard>
+        </FadeIn>
       )}
-    </div>
+    </StaggerContainer>
   );
 }

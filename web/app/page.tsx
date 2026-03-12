@@ -1,6 +1,8 @@
 import Link from 'next/link';
-import { Settings, Building2, Scale, Brain, Rocket, Check } from 'lucide-react';
+import { Settings, Building2, Scale, Brain, Rocket, Check, ArrowRight, Zap, Shield, Key } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
+import { FadeIn, StaggerContainer } from '@/components/motion/fade-in';
+import { TiltCard } from '@/components/motion/tilt-card';
 
 const FEATURES: { title: string; description: string; icon: LucideIcon }[] = [
   { title: 'Config-Driven', description: 'Define leave policies, rules, and workflows through configuration — no code changes needed.', icon: Settings },
@@ -18,16 +20,23 @@ const PRICING_PLANS = [
 
 export default function HomePage() {
   return (
-    <main className="min-h-screen">
+    <main className="min-h-screen relative overflow-hidden">
       {/* Navigation */}
-      <nav className="bg-slate-900/95 backdrop-blur-sm border-b border-slate-800 sticky top-0 z-50">
+      <nav className="fixed w-full backdrop-blur-xl border-b border-white/10 bg-black/50 z-50 transition-all duration-300">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-          <span className="text-xl font-bold text-white">Continuum</span>
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center">
+              <Zap className="w-5 h-5 text-white" />
+            </div>
+            <span className="text-xl font-black bg-clip-text text-transparent bg-gradient-to-r from-primary via-accent to-primary animate-gradient">
+              Continuum
+            </span>
+          </div>
           <div className="flex items-center gap-6">
-            <Link href="/status" className="text-sm text-slate-300 hover:text-white transition-colors">Status</Link>
-            <Link href="/support" className="text-sm text-slate-300 hover:text-white transition-colors">Support</Link>
-            <Link href="/sign-in" className="text-sm text-slate-300 hover:text-white transition-colors">Sign In</Link>
-            <Link href="/sign-up" className="bg-primary text-primary-foreground px-4 py-2 rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors">
+            <Link href="/status" className="text-sm font-medium text-white/60 hover:text-white transition-colors hidden md:block">Status</Link>
+            <Link href="/support" className="text-sm font-medium text-white/60 hover:text-white transition-colors hidden md:block">Support</Link>
+            <Link href="/sign-in" className="text-sm font-medium text-white/60 hover:text-white transition-colors">Sign In</Link>
+            <Link href="/sign-up" className="bg-primary hover:bg-primary/90 text-primary-foreground px-5 py-2.5 rounded-full text-sm font-semibold transition-all shadow-[0_0_20px_rgba(0,255,255,0.3)] hover:shadow-[0_0_30px_rgba(0,255,255,0.5)] transform hover:-translate-y-0.5">
               Get Started
             </Link>
           </div>
@@ -35,131 +44,160 @@ export default function HomePage() {
       </nav>
 
       {/* Hero Section */}
-      <section className="bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 text-white">
-        <div className="max-w-7xl mx-auto px-6 py-24 text-center">
-          <div className="inline-flex items-center gap-2 bg-primary/10 border border-primary/20 rounded-full px-4 py-1.5 mb-6">
-            <Rocket className="w-3.5 h-3.5 text-blue-300" />
-            <span className="text-xs font-medium text-blue-300">Now with AI-powered leave planning</span>
-          </div>
-          <h1 className="text-5xl md:text-6xl font-bold mb-6 leading-tight">
-            Enterprise Leave Management<br />
-            <span className="text-blue-400">Made Simple</span>
-          </h1>
-          <p className="text-xl text-blue-200 mb-4 max-w-2xl mx-auto">
-            Config-driven, multi-tenant, India-compliant HR platform that scales with your organization.
-          </p>
-          <p className="text-lg text-slate-400 max-w-xl mx-auto mb-10">
-            From 10 employees to 10,000 — manage leave policies, approvals, and compliance effortlessly.
-          </p>
-          <div className="flex items-center justify-center gap-4">
-            <Link href="/sign-up" className="bg-primary text-primary-foreground px-8 py-3 rounded-lg text-base font-medium hover:bg-primary/90 transition-colors">
-              Start Free Trial
-            </Link>
-            <Link href="/status" className="border border-slate-600 text-slate-300 px-8 py-3 rounded-lg text-base font-medium hover:bg-slate-800 transition-colors">
-              View Demo
-            </Link>
-          </div>
-        </div>
+      <section className="relative pt-32 pb-20 lg:pt-48 lg:pb-32 overflow-hidden flex items-center justify-center min-h-[90vh]">
+        <div className="absolute inset-0 z-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-primary/20 via-background to-background" />
+        
+        <StaggerContainer className="max-w-7xl mx-auto px-6 text-center relative z-10">
+          <FadeIn direction="up">
+            <div className="inline-flex items-center gap-2 glass-panel border border-primary/30 rounded-full px-4 py-1.5 mb-8 shadow-[0_0_30px_rgba(0,255,255,0.15)]">
+              <Rocket className="w-4 h-4 text-primary animate-pulse" />
+              <span className="text-xs font-bold uppercase tracking-wider text-primary">Now with AI-powered leave planning</span>
+            </div>
+          </FadeIn>
+          
+          <FadeIn direction="up" delay={0.1}>
+            <h1 className="text-5xl md:text-7xl lg:text-8xl font-black mb-8 leading-[1.1] tracking-tight">
+              Enterprise HR <br />
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary via-accent to-primary animate-gradient">
+                Reimagined.
+              </span>
+            </h1>
+          </FadeIn>
+          
+          <FadeIn direction="up" delay={0.2}>
+            <p className="text-xl md:text-2xl text-white/60 mb-12 max-w-3xl mx-auto font-medium leading-relaxed">
+              Config-driven, multi-tenant, India-compliant platform with <strong className="text-white">3D motion tracking</strong>, glassmorphism, and enterprise-grade security.
+            </p>
+          </FadeIn>
+          
+          <FadeIn direction="up" delay={0.3}>
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-6">
+              <Link href="/sign-up" className="w-full sm:w-auto bg-primary text-primary-foreground px-8 py-4 rounded-full text-lg font-bold transition-all shadow-[0_0_40px_rgba(0,255,255,0.4)] hover:shadow-[0_0_60px_rgba(0,255,255,0.6)] transform hover:-translate-y-1 flex items-center gap-2 justify-center">
+                Start Free Trial <ArrowRight className="w-5 h-5" />
+              </Link>
+              <Link href="/status" className="w-full sm:w-auto glass-panel border border-white/20 text-white px-8 py-4 rounded-full text-lg font-bold hover:bg-white/5 dark:hover:bg-white/5 transition-all flex items-center gap-2 justify-center">
+                View System Status
+              </Link>
+            </div>
+          </FadeIn>
+        </StaggerContainer>
       </section>
 
       {/* Features Section */}
-      <section className="bg-background py-24">
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl font-bold text-foreground">Built for Indian Enterprises</h2>
-            <p className="text-muted-foreground mt-3 max-w-xl mx-auto">
-              Everything you need to manage employee leave at scale, with compliance built in.
+      <section className="relative py-32 z-10">
+        <StaggerContainer className="max-w-7xl mx-auto px-6">
+          <FadeIn direction="up" className="text-center mb-20">
+            <h2 className="text-4xl md:text-5xl font-black text-white mb-6">Designed for the Future</h2>
+            <p className="text-xl text-white/60 max-w-2xl mx-auto">
+              Everything you need to manage employee leave at scale, wrapped in a beautiful, highly responsive UI.
             </p>
-          </div>
+          </FadeIn>
+          
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-            {FEATURES.map((feature) => {
+            {FEATURES.map((feature, index) => {
               const Icon = feature.icon;
               return (
-                <div key={feature.title} className="text-center p-6 rounded-xl border border-border hover:border-primary/30 hover:shadow-md transition-all bg-card">
-                  <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mx-auto">
-                    <Icon className="w-6 h-6 text-primary" />
-                  </div>
-                  <h3 className="text-lg font-semibold text-foreground mt-4">{feature.title}</h3>
-                  <p className="text-sm text-muted-foreground mt-2">{feature.description}</p>
-                </div>
+                <FadeIn key={feature.title} direction="up" delay={0.1 * index} className="h-full">
+                  <TiltCard className="h-full">
+                    <div className="h-full p-8 rounded-2xl glass-panel border border-white/10 hover:border-primary/50 transition-colors flex flex-col">
+                      <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center mb-6 shadow-inner">
+                        <Icon className="w-7 h-7 text-primary" />
+                      </div>
+                      <h3 className="text-xl font-bold text-white mb-3">{feature.title}</h3>
+                      <p className="text-white/60 leading-relaxed flex-grow">{feature.description}</p>
+                    </div>
+                  </TiltCard>
+                </FadeIn>
               );
             })}
           </div>
-        </div>
+        </StaggerContainer>
       </section>
 
       {/* Pricing Section */}
-      <section className="bg-muted/30 py-24">
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl font-bold text-foreground">Simple, Transparent Pricing</h2>
-            <p className="text-muted-foreground mt-3">Start free. Scale as you grow.</p>
-          </div>
+      <section className="relative py-32 z-10">
+        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-primary/5 to-transparent" />
+        <StaggerContainer className="relative max-w-7xl mx-auto px-6">
+          <FadeIn direction="up" className="text-center mb-20">
+            <h2 className="text-4xl md:text-5xl font-black text-white mb-6">Simple, Transparent Pricing</h2>
+            <p className="text-xl text-white/60 max-w-2xl mx-auto">Start free. Scale magically with our enterprise platform.</p>
+          </FadeIn>
+          
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-            {PRICING_PLANS.map((plan) => (
-              <div
-                key={plan.name}
-                className={`rounded-xl p-6 ${
-                  plan.highlighted
-                    ? 'bg-primary text-primary-foreground ring-2 ring-primary ring-offset-2 ring-offset-background'
-                    : 'bg-card border border-border'
-                }`}
-              >
-                <h3 className={`text-lg font-semibold ${plan.highlighted ? 'text-primary-foreground' : 'text-foreground'}`}>
-                  {plan.name}
-                </h3>
-                <div className="mt-3">
-                  <span className={`text-3xl font-bold ${plan.highlighted ? 'text-primary-foreground' : 'text-foreground'}`}>
-                    {plan.price}
-                  </span>
-                  <span className={`text-sm ${plan.highlighted ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>
-                    {plan.period}
-                  </span>
-                </div>
-                <p className={`text-sm mt-2 ${plan.highlighted ? 'text-primary-foreground/80' : 'text-muted-foreground'}`}>
-                  {plan.description}
-                </p>
-                <ul className="mt-6 space-y-2">
-                  {plan.features.map((feature) => (
-                    <li key={feature} className={`text-sm flex items-center gap-2 ${plan.highlighted ? 'text-primary-foreground/80' : 'text-muted-foreground'}`}>
-                      <Check className={`w-4 h-4 flex-shrink-0 ${plan.highlighted ? 'text-primary-foreground/70' : 'text-green-500'}`} />
-                      {feature}
-                    </li>
-                  ))}
-                </ul>
-                <button
-                  className={`w-full mt-6 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                    plan.highlighted
-                      ? 'bg-white text-primary hover:bg-primary-foreground/90'
-                      : 'bg-primary text-primary-foreground hover:bg-primary/90'
-                  }`}
-                >
-                  {plan.cta}
-                </button>
-              </div>
+            {PRICING_PLANS.map((plan, index) => (
+              <FadeIn key={plan.name} direction="up" delay={0.1 * index} className="h-full">
+                <TiltCard rotationIntensity={10} className="h-full">
+                  <div
+                    className={`h-full rounded-3xl p-8 flex flex-col relative overflow-hidden backdrop-blur-xl transition-all duration-300 ${
+                      plan.highlighted
+                        ? 'bg-gradient-to-br from-primary/20 to-accent/20 border border-primary/50 shadow-[0_0_40px_rgba(0,255,255,0.2)]'
+                        : 'glass-panel border border-white/10 hover:border-white/20'
+                    }`}
+                  >
+                    {plan.highlighted && (
+                      <div className="absolute top-0 right-0 p-4">
+                        <div className="px-3 py-1 bg-primary/20 backdrop-blur-md rounded-full border border-primary/50 text-primary text-xs font-bold tracking-wider uppercase">
+                          Most Popular
+                        </div>
+                      </div>
+                    )}
+                    
+                    <h3 className={`text-2xl font-black mb-2 ${plan.highlighted ? 'text-primary' : 'text-white'}`}>
+                      {plan.name}
+                    </h3>
+                    <div className="mb-6 flex items-baseline gap-1">
+                      <span className="text-5xl font-black text-white">{plan.price}</span>
+                      <span className="text-white/60 font-medium text-lg">{plan.period}</span>
+                    </div>
+                    <p className="text-white/60 font-medium mb-8 leading-relaxed">
+                      {plan.description}
+                    </p>
+                    <ul className="mb-10 space-y-4 flex-grow">
+                      {plan.features.map((feature) => (
+                        <li key={feature} className="flex items-start gap-3">
+                          <div className={`mt-1 p-1 rounded-full ${plan.highlighted ? 'bg-primary/20 text-primary' : 'bg-primary/10 text-primary'}`}>
+                            <Check className="w-3 h-3" />
+                          </div>
+                          <span className="text-white font-medium">{feature}</span>
+                        </li>
+                      ))}
+                    </ul>
+                    <button
+                      className={`w-full py-4 rounded-xl text-base font-bold transition-all shadow-lg transform hover:-translate-y-0.5 ${
+                        plan.highlighted
+                          ? 'bg-primary text-primary-foreground hover:bg-primary/90 hover:shadow-[0_0_20px_rgba(0,255,255,0.4)]'
+                          : 'glass-panel text-white border border-white/20 hover:bg-white/5 dark:hover:bg-white/5'
+                      }`}
+                    >
+                      {plan.cta}
+                    </button>
+                  </div>
+                </TiltCard>
+              </FadeIn>
             ))}
           </div>
-        </div>
+        </StaggerContainer>
       </section>
 
       {/* CTA Section */}
-      <section className="bg-slate-900 py-20">
-        <div className="max-w-4xl mx-auto px-6 text-center">
-          <h2 className="text-3xl font-bold text-white mb-4">Ready to streamline your leave management?</h2>
-          <p className="text-slate-400 mb-8">Join hundreds of Indian companies already using Continuum.</p>
-          <div className="flex items-center justify-center gap-4">
-            <Link href="/sign-up" className="bg-primary text-primary-foreground px-8 py-3 rounded-lg text-base font-medium hover:bg-primary/90 transition-colors">
-              Start Free Trial
-            </Link>
-            <Link href="/sign-in" className="border border-slate-600 text-slate-300 px-8 py-3 rounded-lg text-base font-medium hover:bg-slate-800 transition-colors">
-              Sign In
-            </Link>
+      <section className="relative py-32 overflow-hidden z-10">
+        <div className="absolute inset-0 bg-gradient-to-t from-primary/10 to-transparent" />
+        <FadeIn direction="up">
+          <div className="max-w-5xl mx-auto px-6 text-center relative">
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-[300px] bg-primary/20 blur-[100px] rounded-full -z-10" />
+            <h2 className="text-5xl md:text-6xl font-black text-white mb-8">Ready to stream your workflow?</h2>
+            <p className="text-xl text-white/60 mb-12 max-w-2xl mx-auto font-medium">Join hundreds of cutting-edge Indian companies already using Continuum to automate their HR.</p>
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-6">
+              <Link href="/sign-up" className="w-full sm:w-auto bg-primary text-primary-foreground px-10 py-5 rounded-full text-xl font-bold hover:bg-primary/90 transition-all shadow-[0_0_40px_rgba(0,255,255,0.4)] hover:shadow-[0_0_60px_rgba(0,255,255,0.6)] transform hover:-translate-y-1 flex items-center gap-2 justify-center">
+                Get Started for Free <ArrowRight className="w-6 h-6" />
+              </Link>
+            </div>
           </div>
-        </div>
+        </FadeIn>
       </section>
 
       {/* Footer */}
-      <footer className="bg-slate-950 text-slate-400 py-12">
+      <footer className="bg-black/60 backdrop-blur-xl border-t border-white/10 text-white/50 py-12">
         <div className="max-w-7xl mx-auto px-6">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
             <div>
@@ -195,7 +233,7 @@ export default function HomePage() {
               </ul>
             </div>
           </div>
-          <div className="border-t border-slate-800 mt-12 pt-8 text-center text-sm">
+          <div className="border-t border-white/10 mt-12 pt-8 text-center text-sm">
             <p>© {new Date().getFullYear()} Continuum. All rights reserved.</p>
           </div>
         </div>

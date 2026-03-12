@@ -2,8 +2,9 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { motion } from 'framer-motion';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { motion, AnimatePresence } from 'framer-motion';
+import { StaggerContainer, FadeIn, TiltCard } from '@/components/motion';
+import { GlassPanel } from '@/components/glass-panel';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ProgressBar } from '@/components/ui/progress';
@@ -75,23 +76,13 @@ interface LeaveRequest {
 /*  Constants                                                          */
 /* ------------------------------------------------------------------ */
 
-const containerVariants = {
-  hidden: { opacity: 0 },
-  visible: { opacity: 1, transition: { staggerChildren: 0.06 } },
-} as const;
-
-const itemVariants = {
-  hidden: { opacity: 0, y: 15 },
-  visible: { opacity: 1, y: 0, transition: { type: 'spring' as const, stiffness: 280, damping: 22 } },
-} as const;
-
 const ROLE_COLORS: Record<string, string> = {
-  admin: 'bg-purple-100 text-purple-700 dark:bg-purple-500/20 dark:text-purple-300',
-  hr: 'bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-300',
-  director: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-500/20 dark:text-indigo-300',
-  manager: 'bg-orange-100 text-orange-700 dark:bg-orange-500/20 dark:text-orange-300',
-  team_lead: 'bg-teal-100 text-teal-700 dark:bg-teal-500/20 dark:text-teal-300',
-  employee: 'bg-gray-100 text-gray-700 dark:bg-gray-500/20 dark:text-gray-300',
+  admin: 'bg-purple-500/20 text-purple-300',
+  hr: 'bg-blue-500/20 text-blue-300',
+  director: 'bg-indigo-500/20 text-indigo-300',
+  manager: 'bg-orange-500/20 text-orange-300',
+  team_lead: 'bg-teal-500/20 text-teal-300',
+  employee: 'bg-white/5 text-white/60',
 };
 
 const STATUS_BADGE: Record<string, { variant: 'success' | 'warning' | 'danger' | 'info' | 'default'; label: string }> = {
@@ -262,17 +253,17 @@ export default function EmployeeDetailPage() {
   if (error || !employee) {
     return (
       <div className="space-y-6">
-        <button onClick={() => router.push('/hr/employees')} className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
+        <button onClick={() => router.push('/hr/employees')} className="flex items-center gap-2 text-sm text-white/60 hover:text-white transition-colors">
           <ArrowLeft className="w-4 h-4" /> Back to Employees
         </button>
-        <Card>
-          <CardContent className="pt-6 text-center">
-            <AlertCircle className="h-10 w-10 text-destructive mx-auto mb-3" />
-            <h3 className="text-lg font-semibold">Employee Not Found</h3>
-            <p className="text-sm text-muted-foreground mt-1">{error || 'Unable to load employee details.'}</p>
+        <GlassPanel>
+          <div className="p-6 text-center">
+            <AlertCircle className="h-10 w-10 text-red-400 mx-auto mb-3" />
+            <h3 className="text-lg font-semibold text-white">Employee Not Found</h3>
+            <p className="text-sm text-white/60 mt-1">{error || 'Unable to load employee details.'}</p>
             <Button variant="primary" size="sm" className="mt-4" onClick={fetchEmployee}>Retry</Button>
-          </CardContent>
-        </Card>
+          </div>
+        </GlassPanel>
       </div>
     );
   }
@@ -283,25 +274,27 @@ export default function EmployeeDetailPage() {
   const totalEntitled = employee.leave_balances.reduce((s, b) => s + b.annual_entitlement, 0);
 
   return (
-    <motion.div className="space-y-6" variants={containerVariants} initial="hidden" animate="visible">
+    <StaggerContainer className="space-y-6">
       {/* Back + header */}
-      <motion.div variants={itemVariants}>
-        <button onClick={() => router.push('/hr/employees')} className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors mb-4">
+      <FadeIn>
+        <button onClick={() => router.push('/hr/employees')} className="flex items-center gap-2 text-sm text-white/60 hover:text-white transition-colors mb-4">
           <ArrowLeft className="w-4 h-4" /> Back to Employees
         </button>
         <div className="flex items-center justify-between flex-wrap gap-4">
           <div className="flex items-center gap-4">
-            <div className="w-14 h-14 rounded-xl bg-primary/10 flex items-center justify-center text-xl font-bold text-primary">
-              {initials}
-            </div>
+            <TiltCard>
+              <div className="w-14 h-14 rounded-xl bg-primary/20 backdrop-blur-md shadow-[0_0_20px_rgba(var(--primary-rgb),0.4)] border border-primary/30 flex items-center justify-center text-xl font-bold text-primary">
+                {initials}
+              </div>
+            </TiltCard>
             <div>
-              <h1 className="text-2xl font-bold">{employee.first_name} {employee.last_name}</h1>
+              <h1 className="text-2xl font-bold text-white drop-shadow-md">{employee.first_name} {employee.last_name}</h1>
               <div className="flex items-center gap-2 mt-1 flex-wrap">
                 <Badge variant={statusInfo.variant}>{statusInfo.label}</Badge>
                 <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${ROLE_COLORS[employee.primary_role] || ROLE_COLORS.employee}`}>
                   {employee.primary_role.replace('_', ' ')}
                 </span>
-                {employee.department && <span className="text-xs text-muted-foreground">{employee.department}</span>}
+                {employee.department && <span className="text-xs text-white/60">{employee.department}</span>}
               </div>
             </div>
           </div>
@@ -309,46 +302,62 @@ export default function EmployeeDetailPage() {
             <Edit2 className="w-3.5 h-3.5" /> {editing ? 'Cancel' : 'Edit'}
           </Button>
         </div>
-      </motion.div>
+      </FadeIn>
+
+      {/* Save feedback */}
+      <AnimatePresence>
+        {saveMessage && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className={`px-4 py-3 rounded-lg text-sm ${saveMessage.type === 'success' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'}`}
+          >
+            {saveMessage.text}
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <div className="grid md:grid-cols-3 gap-6">
         {/* Left column: Profile info */}
-        <motion.div className="md:col-span-1 space-y-4" variants={itemVariants}>
-          <Card>
-            <CardHeader><CardTitle className="text-sm">Personal Information</CardTitle></CardHeader>
-            <CardContent className="space-y-3">
+        <FadeIn className="md:col-span-1 space-y-4">
+          <GlassPanel>
+            <div className="p-6 border-b border-white/10">
+              <h3 className="text-lg font-semibold text-white text-sm">Personal Information</h3>
+            </div>
+            <div className="p-6 space-y-3">
               {editing ? (
                 <div className="space-y-3">
                   <div>
-                    <label className="text-xs text-muted-foreground">Phone</label>
-                    <input type="text" className="w-full mt-1 px-3 py-2 rounded-lg border border-border bg-background text-sm" value={editForm.phone} onChange={(e) => setEditForm({...editForm, phone: e.target.value})} />
+                    <label className="text-xs text-white/60">Phone</label>
+                    <input type="text" className="w-full mt-1 px-3 py-2 rounded-lg border border-white/10 bg-white/5 text-sm text-white" value={editForm.phone} onChange={(e) => setEditForm({...editForm, phone: e.target.value})} />
                   </div>
                   <div>
-                    <label className="text-xs text-muted-foreground">Department</label>
-                    <input type="text" className="w-full mt-1 px-3 py-2 rounded-lg border border-border bg-background text-sm" value={editForm.department} onChange={(e) => setEditForm({...editForm, department: e.target.value})} />
+                    <label className="text-xs text-white/60">Department</label>
+                    <input type="text" className="w-full mt-1 px-3 py-2 rounded-lg border border-white/10 bg-white/5 text-sm text-white" value={editForm.department} onChange={(e) => setEditForm({...editForm, department: e.target.value})} />
                   </div>
                   <div>
-                    <label className="text-xs text-muted-foreground">Designation</label>
-                    <input type="text" className="w-full mt-1 px-3 py-2 rounded-lg border border-border bg-background text-sm" value={editForm.designation} onChange={(e) => setEditForm({...editForm, designation: e.target.value})} />
+                    <label className="text-xs text-white/60">Designation</label>
+                    <input type="text" className="w-full mt-1 px-3 py-2 rounded-lg border border-white/10 bg-white/5 text-sm text-white" value={editForm.designation} onChange={(e) => setEditForm({...editForm, designation: e.target.value})} />
                   </div>
                   <div>
-                    <label className="text-xs text-muted-foreground">Status</label>
-                    <select className="w-full mt-1 px-3 py-2 rounded-lg border border-border bg-background text-sm" value={editForm.status} onChange={(e) => setEditForm({...editForm, status: e.target.value})}>
+                    <label className="text-xs text-white/60">Status</label>
+                    <select className="w-full mt-1 px-3 py-2 rounded-lg border border-white/10 bg-white/5 text-sm text-white" value={editForm.status} onChange={(e) => setEditForm({...editForm, status: e.target.value})}>
                       {['onboarding', 'probation', 'active', 'on_notice', 'suspended', 'resigned', 'terminated', 'exited'].map((s) => (
                         <option key={s} value={s}>{s.replace('_', ' ')}</option>
                       ))}
                     </select>
                   </div>
                   <div>
-                    <label className="text-xs text-muted-foreground">Role</label>
-                    <select className="w-full mt-1 px-3 py-2 rounded-lg border border-border bg-background text-sm" value={editForm.role} onChange={(e) => setEditForm({...editForm, role: e.target.value})}>
+                    <label className="text-xs text-white/60">Role</label>
+                    <select className="w-full mt-1 px-3 py-2 rounded-lg border border-white/10 bg-white/5 text-sm text-white" value={editForm.role} onChange={(e) => setEditForm({...editForm, role: e.target.value})}>
                       {['admin', 'hr', 'director', 'manager', 'team_lead', 'employee'].map((r) => (
                         <option key={r} value={r}>{r.replace('_', ' ')}</option>
                       ))}
                     </select>
                   </div>
                   <div>
-                    <label className="text-xs text-muted-foreground">Secondary Roles</label>
+                    <label className="text-xs text-white/60">Secondary Roles</label>
                     <div className="flex flex-wrap gap-2 mt-1">
                       {['admin', 'hr', 'director', 'manager', 'team_lead', 'employee']
                         .filter(r => r !== editForm.role)
@@ -369,7 +378,7 @@ export default function EmployeeDetailPage() {
                               className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${
                                 isSelected
                                   ? 'bg-primary text-primary-foreground border-primary'
-                                  : 'bg-background text-muted-foreground border-border hover:border-primary/50'
+                                  : 'bg-white/5 text-white/60 border-white/10 hover:border-primary/50'
                               }`}
                             >
                               {r.replace('_', ' ')}
@@ -377,7 +386,7 @@ export default function EmployeeDetailPage() {
                           );
                         })}
                     </div>
-                    <p className="text-[10px] text-muted-foreground mt-1">Click to toggle secondary roles</p>
+                    <p className="text-[10px] text-white/40 mt-1">Click to toggle secondary roles</p>
                   </div>
                   <Button variant="primary" size="sm" className="w-full mt-2" onClick={handleSave} disabled={saving}>
                     {saving ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : null}
@@ -393,9 +402,9 @@ export default function EmployeeDetailPage() {
                   <InfoRow icon={Shield} label="Role" value={employee.primary_role.replace('_', ' ')} />
                   {employee.secondary_roles && employee.secondary_roles.length > 0 && (
                     <div className="flex items-start gap-3 py-2.5">
-                      <Shield className="w-4 h-4 text-muted-foreground mt-0.5 shrink-0" />
+                      <Shield className="w-4 h-4 text-white/60 mt-0.5 shrink-0" />
                       <div>
-                        <span className="text-xs text-muted-foreground">Secondary Roles</span>
+                        <span className="text-xs text-white/60">Secondary Roles</span>
                         <div className="flex flex-wrap gap-1 mt-1">
                           {employee.secondary_roles.map((r: string) => (
                             <span key={r} className="px-2 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary">
@@ -411,45 +420,47 @@ export default function EmployeeDetailPage() {
                   <InfoRow icon={Clock} label="Gender" value={employee.gender || '--'} />
                 </>
               )}
-            </CardContent>
-          </Card>
+            </div>
+          </GlassPanel>
 
           {/* Summary stats */}
-          <Card>
-            <CardHeader><CardTitle className="text-sm">Leave Summary</CardTitle></CardHeader>
-            <CardContent>
+          <GlassPanel>
+            <div className="p-6 border-b border-white/10">
+              <h3 className="text-lg font-semibold text-white text-sm">Leave Summary</h3>
+            </div>
+            <div className="p-6">
               <div className="grid grid-cols-2 gap-3">
-                <div className="text-center p-3 rounded-lg bg-blue-50 dark:bg-blue-500/10">
-                  <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">{totalEntitled}</p>
-                  <p className="text-xs text-muted-foreground">Total Entitled</p>
+                <div className="text-center p-3 rounded-lg bg-blue-500/10 border border-blue-500/20">
+                  <p className="text-2xl font-bold text-blue-400">{totalEntitled}</p>
+                  <p className="text-xs text-white/60">Total Entitled</p>
                 </div>
-                <div className="text-center p-3 rounded-lg bg-green-50 dark:bg-green-500/10">
-                  <p className="text-2xl font-bold text-green-600 dark:text-green-400">{totalEntitled - totalUsed}</p>
-                  <p className="text-xs text-muted-foreground">Remaining</p>
+                <div className="text-center p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
+                  <p className="text-2xl font-bold text-emerald-400">{totalEntitled - totalUsed}</p>
+                  <p className="text-xs text-white/60">Remaining</p>
                 </div>
-                <div className="text-center p-3 rounded-lg bg-amber-50 dark:bg-amber-500/10">
-                  <p className="text-2xl font-bold text-amber-600 dark:text-amber-400">{totalUsed}</p>
-                  <p className="text-xs text-muted-foreground">Used</p>
+                <div className="text-center p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
+                  <p className="text-2xl font-bold text-amber-400">{totalUsed}</p>
+                  <p className="text-xs text-white/60">Used</p>
                 </div>
-                <div className="text-center p-3 rounded-lg bg-purple-50 dark:bg-purple-500/10">
-                  <p className="text-2xl font-bold text-purple-600 dark:text-purple-400">{employee.leave_requests.length}</p>
-                  <p className="text-xs text-muted-foreground">Requests</p>
+                <div className="text-center p-3 rounded-lg bg-purple-500/10 border border-purple-500/20">
+                  <p className="text-2xl font-bold text-purple-400">{employee.leave_requests.length}</p>
+                  <p className="text-xs text-white/60">Requests</p>
                 </div>
               </div>
-            </CardContent>
-          </Card>
-        </motion.div>
+            </div>
+          </GlassPanel>
+        </FadeIn>
 
         {/* Right column: Leave balances + requests */}
-        <motion.div className="md:col-span-2 space-y-4" variants={itemVariants}>
+        <FadeIn className="md:col-span-2 space-y-4">
           {/* Leave Balances */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-sm">Leave Balances ({new Date().getFullYear()})</CardTitle>
-            </CardHeader>
-            <CardContent>
+          <GlassPanel>
+            <div className="p-6 border-b border-white/10">
+              <h3 className="text-lg font-semibold text-white text-sm">Leave Balances ({new Date().getFullYear()})</h3>
+            </div>
+            <div className="p-6">
               {employee.leave_balances.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-4">No leave balances found.</p>
+                <p className="text-sm text-white/60 text-center py-4">No leave balances found.</p>
               ) : (
                 <div className="space-y-3">
                   {employee.leave_balances.map((b) => {
@@ -459,55 +470,55 @@ export default function EmployeeDetailPage() {
 
                     return (
                       <div key={b.id} className="flex items-center gap-4">
-                        <div className="w-16 text-xs font-medium text-muted-foreground shrink-0">{b.leave_type}</div>
+                        <div className="w-16 text-xs font-medium text-white/60 shrink-0">{b.leave_type}</div>
                         <div className="flex-1">
                           <ProgressBar value={b.used_days} max={total || 1} variant={variant} animated />
                         </div>
                         <div className="w-28 text-right text-xs shrink-0">
-                          <span className="font-medium">{b.remaining}</span>
-                          <span className="text-muted-foreground"> / {total} remaining</span>
+                          <span className="font-medium text-white">{b.remaining}</span>
+                          <span className="text-white/60"> / {total} remaining</span>
                         </div>
                       </div>
                     );
                   })}
                 </div>
               )}
-            </CardContent>
-          </Card>
+            </div>
+          </GlassPanel>
 
           {/* Recent Leave Requests */}
-          <Card>
-            <CardHeader>
+          <GlassPanel>
+            <div className="p-6 border-b border-white/10">
               <div className="flex items-center justify-between">
-                <CardTitle className="text-sm">Recent Leave Requests</CardTitle>
+                <h3 className="text-lg font-semibold text-white text-sm">Recent Leave Requests</h3>
                 <Badge variant="default" size="sm">{employee.leave_requests.length}</Badge>
               </div>
-            </CardHeader>
-            <CardContent>
+            </div>
+            <div className="p-6">
               {employee.leave_requests.length === 0 ? (
                 <div className="text-center py-6">
-                  <FileText className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
-                  <p className="text-sm text-muted-foreground">No leave requests found.</p>
+                  <FileText className="w-8 h-8 text-white/60 mx-auto mb-2" />
+                  <p className="text-sm text-white/60">No leave requests found.</p>
                 </div>
               ) : (
                 <div className="space-y-2">
                   {employee.leave_requests.map((req) => (
-                    <div key={req.id} className="flex items-center justify-between py-2.5 px-3 rounded-lg hover:bg-muted/30 transition-colors">
+                    <div key={req.id} className="flex items-center justify-between py-2.5 px-3 rounded-lg hover:bg-white/5 transition-colors">
                       <div className="flex items-center gap-3 min-w-0">
                         <Badge variant={LEAVE_STATUS_VARIANT[req.status] || 'default'} size="sm">
                           {req.status}
                         </Badge>
                         <div className="min-w-0">
-                          <p className="text-sm font-medium">{req.leave_type}</p>
-                          <p className="text-xs text-muted-foreground truncate">
+                          <p className="text-sm font-medium text-white">{req.leave_type}</p>
+                          <p className="text-xs text-white/60 truncate">
                             {new Date(req.start_date).toLocaleDateString('en-IN', { month: 'short', day: 'numeric' })}
                             {req.start_date !== req.end_date && ` - ${new Date(req.end_date).toLocaleDateString('en-IN', { month: 'short', day: 'numeric' })}`}
                           </p>
                         </div>
                       </div>
                       <div className="text-right shrink-0">
-                        <p className="text-sm font-medium">{req.total_days} day{req.total_days !== 1 ? 's' : ''}</p>
-                        <p className="text-xs text-muted-foreground">
+                        <p className="text-sm font-medium text-white">{req.total_days} day{req.total_days !== 1 ? 's' : ''}</p>
+                        <p className="text-xs text-white/60">
                           {new Date(req.created_at).toLocaleDateString('en-IN', { month: 'short', day: 'numeric' })}
                         </p>
                       </div>
@@ -515,11 +526,11 @@ export default function EmployeeDetailPage() {
                   ))}
                 </div>
               )}
-            </CardContent>
-          </Card>
-        </motion.div>
+            </div>
+          </GlassPanel>
+        </FadeIn>
       </div>
-    </motion.div>
+    </StaggerContainer>
   );
 }
 
@@ -537,11 +548,11 @@ function InfoRow({
   value: string;
 }) {
   return (
-    <div className="flex items-center gap-3 py-2 border-b border-border/50 last:border-0">
-      <Icon className="w-4 h-4 text-muted-foreground shrink-0" />
+    <div className="flex items-center gap-3 py-2 border-b border-white/5 last:border-0">
+      <Icon className="w-4 h-4 text-white/60 shrink-0" />
       <div className="min-w-0">
-        <p className="text-xs text-muted-foreground">{label}</p>
-        <p className="text-sm font-medium truncate">{value}</p>
+        <p className="text-xs text-white/60">{label}</p>
+        <p className="text-sm font-medium text-white truncate">{value}</p>
       </div>
     </div>
   );

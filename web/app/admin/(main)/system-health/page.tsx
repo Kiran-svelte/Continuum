@@ -3,7 +3,9 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { GlassPanel } from '@/components/glass-panel';
+import { StaggerContainer, FadeIn, TiltCard } from '@/components/motion';
+import { PageHeader } from '@/components/page-header';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -212,7 +214,7 @@ export default function SystemHealthPage() {
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="rounded-xl border border-border bg-card p-6 space-y-3">
+            <div key={i} className="rounded-xl border border-white/10 bg-white/5 p-6 space-y-3">
               <Skeleton className="h-4 w-24" />
               <Skeleton className="h-8 w-16" />
               <Skeleton className="h-2 w-full" />
@@ -220,11 +222,11 @@ export default function SystemHealthPage() {
           ))}
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className="rounded-xl border border-border bg-card p-6 space-y-4">
+          <div className="rounded-xl border border-white/10 bg-white/5 p-6 space-y-4">
             <Skeleton className="h-6 w-32" />
             <Skeleton className="h-40 w-full" />
           </div>
-          <div className="rounded-xl border border-border bg-card p-6 space-y-4">
+          <div className="rounded-xl border border-white/10 bg-white/5 p-6 space-y-4">
             <Skeleton className="h-6 w-32" />
             <Skeleton className="h-40 w-full" />
           </div>
@@ -247,11 +249,11 @@ export default function SystemHealthPage() {
       {/* Page Header */}
       <motion.div variants={itemVariants} className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-foreground tracking-tight flex items-center gap-2">
+          <h1 className="text-2xl font-bold text-white tracking-tight flex items-center gap-2">
             <Activity className="w-7 h-7 text-violet-500" />
             System Health
           </h1>
-          <p className="text-sm text-muted-foreground mt-1">
+          <p className="text-sm text-white/60 mt-1">
             Real-time monitoring of platform infrastructure
             {lastChecked && (
               <span className="ml-2 text-xs">
@@ -265,8 +267,8 @@ export default function SystemHealthPage() {
             onClick={() => setAutoRefresh(!autoRefresh)}
             className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-all border ${
               autoRefresh
-                ? 'border-emerald-200 dark:border-emerald-500/30 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400'
-                : 'border-border bg-muted text-muted-foreground'
+                ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400'
+                : 'border-white/10 bg-white/5 text-white/60'
             }`}
           >
             {autoRefresh ? (
@@ -291,29 +293,29 @@ export default function SystemHealthPage() {
       {/* Error Banner */}
       {fetchError && (
         <motion.div variants={itemVariants}>
-          <div className="flex items-center gap-3 px-4 py-3 rounded-lg bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20">
+          <div className="flex items-center gap-3 px-4 py-3 rounded-lg bg-red-500/10 border border-red-500/20">
             <AlertTriangle className="w-5 h-5 text-red-500 shrink-0" />
-            <p className="text-sm text-red-700 dark:text-red-400">{fetchError}</p>
+            <p className="text-sm text-red-400">{fetchError}</p>
           </div>
         </motion.div>
       )}
 
       {/* Overall Status Banner */}
       <motion.div variants={itemVariants}>
-        <Card className={`border-l-4 ${
+        <GlassPanel className={`border-l-4 ${
           health?.status === 'healthy' || health?.status === 'ok'
             ? 'border-l-emerald-500'
             : health?.status === 'degraded'
               ? 'border-l-amber-500'
               : 'border-l-red-500'
         }`}>
-          <CardContent className="py-4">
+          <div className="p-6 relative z-10">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-4">
                 {getStatusIcon(health?.status ?? 'unknown')}
                 <div>
-                  <p className="text-sm font-medium text-foreground">Overall System Status</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">
+                  <p className="text-sm font-medium text-white">Overall System Status</p>
+                  <p className="text-xs text-white/60 mt-0.5">
                     {health?.status === 'healthy' || health?.status === 'ok'
                       ? 'All systems are operating normally'
                       : health?.status === 'degraded'
@@ -324,18 +326,18 @@ export default function SystemHealthPage() {
               </div>
               {getStatusBadge(health?.status ?? 'unknown')}
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </GlassPanel>
       </motion.div>
 
       {/* Metric Cards */}
       <motion.div variants={itemVariants} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* API Status */}
-        <Card>
-          <CardContent className="pt-6">
+        <GlassPanel>
+          <div className="p-6 relative z-10">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">API Status</p>
+                <p className="text-sm text-white/60">API Status</p>
                 <div className="mt-2 flex items-center gap-2">
                   {getStatusIcon(health?.status ?? 'unknown')}
                   <span className={`text-lg font-bold ${getStatusColor(health?.status ?? 'unknown')}`}>
@@ -343,22 +345,22 @@ export default function SystemHealthPage() {
                   </span>
                 </div>
               </div>
-              <div className="w-12 h-12 rounded-xl bg-blue-500/10 dark:bg-blue-500/20 flex items-center justify-center">
+              <div className="w-12 h-12 rounded-xl bg-blue-500/20 flex items-center justify-center">
                 <Server className="w-6 h-6 text-blue-500" />
               </div>
             </div>
             {responseTime != null && (
-              <p className="text-xs text-muted-foreground mt-3">Response: {responseTime}ms</p>
+              <p className="text-xs text-white/60 mt-3">Response: {responseTime}ms</p>
             )}
-          </CardContent>
-        </Card>
+          </div>
+        </GlassPanel>
 
         {/* Database */}
-        <Card>
-          <CardContent className="pt-6">
+        <GlassPanel>
+          <div className="p-6 relative z-10">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">Database</p>
+                <p className="text-sm text-white/60">Database</p>
                 <div className="mt-2 flex items-center gap-2">
                   {getStatusIcon(health?.database ?? health?.checks?.database?.status ?? (health?.status === 'healthy' || health?.status === 'ok' ? 'connected' : 'unknown'))}
                   <span className={`text-lg font-bold ${getStatusColor(
@@ -370,57 +372,57 @@ export default function SystemHealthPage() {
                   </span>
                 </div>
               </div>
-              <div className="w-12 h-12 rounded-xl bg-violet-500/10 dark:bg-violet-500/20 flex items-center justify-center">
+              <div className="w-12 h-12 rounded-xl bg-violet-500/20 flex items-center justify-center">
                 <Database className="w-6 h-6 text-violet-500" />
               </div>
             </div>
             {health?.checks?.database?.latency != null && (
-              <p className="text-xs text-muted-foreground mt-3">Latency: {health.checks.database.latency}ms</p>
+              <p className="text-xs text-white/60 mt-3">Latency: {health.checks.database.latency}ms</p>
             )}
-          </CardContent>
-        </Card>
+          </div>
+        </GlassPanel>
 
         {/* Uptime */}
-        <Card>
-          <CardContent className="pt-6">
+        <GlassPanel>
+          <div className="p-6 relative z-10">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">Uptime</p>
-                <p className="text-lg font-bold text-foreground mt-2">
+                <p className="text-sm text-white/60">Uptime</p>
+                <p className="text-lg font-bold text-white mt-2">
                   {health?.uptime != null ? formatUptime(health.uptime) : 'N/A'}
                 </p>
               </div>
-              <div className="w-12 h-12 rounded-xl bg-emerald-500/10 dark:bg-emerald-500/20 flex items-center justify-center">
+              <div className="w-12 h-12 rounded-xl bg-emerald-500/20 flex items-center justify-center">
                 <Clock className="w-6 h-6 text-emerald-500" />
               </div>
             </div>
             {uptimePercent != null && (
-              <p className="text-xs text-muted-foreground mt-3">Availability: {uptimePercent}%</p>
+              <p className="text-xs text-white/60 mt-3">Availability: {uptimePercent}%</p>
             )}
-          </CardContent>
-        </Card>
+          </div>
+        </GlassPanel>
 
         {/* Memory */}
-        <Card>
-          <CardContent className="pt-6">
+        <GlassPanel>
+          <div className="p-6 relative z-10">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">Memory Usage</p>
-                <p className="text-lg font-bold text-foreground mt-2">
+                <p className="text-sm text-white/60">Memory Usage</p>
+                <p className="text-lg font-bold text-white mt-2">
                   {health?.memory?.heapUsed != null ? formatBytes(health.memory.heapUsed) : 'N/A'}
                 </p>
               </div>
-              <div className="w-12 h-12 rounded-xl bg-amber-500/10 dark:bg-amber-500/20 flex items-center justify-center">
+              <div className="w-12 h-12 rounded-xl bg-amber-500/20 flex items-center justify-center">
                 <MemoryStick className="w-6 h-6 text-amber-500" />
               </div>
             </div>
             {memoryUsedPercent != null && (
               <div className="mt-3">
-                <div className="flex items-center justify-between text-xs text-muted-foreground mb-1">
+                <div className="flex items-center justify-between text-xs text-white/60 mb-1">
                   <span>Heap usage</span>
                   <span>{memoryUsedPercent}%</span>
                 </div>
-                <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
+                <div className="w-full h-2 bg-white/5 rounded-full overflow-hidden">
                   <div
                     className={`h-full rounded-full transition-all duration-500 ${
                       parseFloat(memoryUsedPercent) > 90
@@ -434,22 +436,22 @@ export default function SystemHealthPage() {
                 </div>
               </div>
             )}
-          </CardContent>
-        </Card>
+          </div>
+        </GlassPanel>
       </motion.div>
 
       {/* Detailed Info Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Memory Details */}
         <motion.div variants={itemVariants}>
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base flex items-center gap-2">
-                <HardDrive className="w-5 h-5 text-muted-foreground" />
+          <GlassPanel>
+            <div className="p-6 border-b border-white/10">
+              <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+                <HardDrive className="w-5 h-5 text-white/60" />
                 Memory Details
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
+              </h3>
+            </div>
+            <div className="p-6 relative z-10">
               {health?.memory ? (
                 <div className="space-y-4">
                   {[
@@ -460,36 +462,36 @@ export default function SystemHealthPage() {
                     { label: 'Array Buffers', value: health.memory.arrayBuffers, icon: Database },
                   ].map(({ label, value, icon: Icon }) => (
                     value != null && (
-                      <div key={label} className="flex items-center justify-between py-2 border-b border-border/30 last:border-0">
+                      <div key={label} className="flex items-center justify-between py-2 border-b border-white/10 last:border-0">
                         <div className="flex items-center gap-2">
-                          <Icon className="w-4 h-4 text-muted-foreground" />
-                          <span className="text-sm text-muted-foreground">{label}</span>
+                          <Icon className="w-4 h-4 text-white/60" />
+                          <span className="text-sm text-white/60">{label}</span>
                         </div>
-                        <span className="text-sm font-medium text-foreground font-mono">{formatBytes(value)}</span>
+                        <span className="text-sm font-medium text-white font-mono">{formatBytes(value)}</span>
                       </div>
                     )
                   ))}
                 </div>
               ) : (
                 <div className="text-center py-8">
-                  <MemoryStick className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
-                  <p className="text-sm text-muted-foreground">Memory data not available</p>
+                  <MemoryStick className="w-8 h-8 text-white/60 mx-auto mb-2" />
+                  <p className="text-sm text-white/60">Memory data not available</p>
                 </div>
               )}
-            </CardContent>
-          </Card>
+            </div>
+          </GlassPanel>
         </motion.div>
 
         {/* Environment Info */}
         <motion.div variants={itemVariants}>
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base flex items-center gap-2">
-                <Cpu className="w-5 h-5 text-muted-foreground" />
+          <GlassPanel>
+            <div className="p-6 border-b border-white/10">
+              <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+                <Cpu className="w-5 h-5 text-white/60" />
                 Environment Info
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
+              </h3>
+            </div>
+            <div className="p-6 relative z-10">
               <div className="space-y-4">
                 {[
                   { label: 'Node Version', value: health?.node_version ?? health?.version ?? 'N/A' },
@@ -498,22 +500,22 @@ export default function SystemHealthPage() {
                   { label: 'Avg Response Time', value: avgResponseTime != null ? `${avgResponseTime}ms` : 'N/A' },
                   { label: 'Health Checks', value: `${healthHistory.length} recorded` },
                 ].map(({ label, value }) => (
-                  <div key={label} className="flex items-center justify-between py-2 border-b border-border/30 last:border-0">
-                    <span className="text-sm text-muted-foreground">{label}</span>
-                    <span className="text-sm font-medium text-foreground font-mono">{value}</span>
+                  <div key={label} className="flex items-center justify-between py-2 border-b border-white/10 last:border-0">
+                    <span className="text-sm text-white/60">{label}</span>
+                    <span className="text-sm font-medium text-white font-mono">{value}</span>
                   </div>
                 ))}
 
                 {/* Service Checks */}
                 {health?.checks && (
                   <div className="pt-2 space-y-3">
-                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Service Checks</p>
+                    <p className="text-xs font-medium text-white/60 uppercase tracking-wider">Service Checks</p>
                     {Object.entries(health.checks).map(([service, check]) => (
                       <div key={service} className="flex items-center justify-between">
-                        <span className="text-sm text-muted-foreground capitalize">{service}</span>
+                        <span className="text-sm text-white/60 capitalize">{service}</span>
                         <div className="flex items-center gap-2">
                           {'latency' in check && check.latency != null && (
-                            <span className="text-xs text-muted-foreground">{check.latency}ms</span>
+                            <span className="text-xs text-white/60">{check.latency}ms</span>
                           )}
                           {getStatusIcon(check.status)}
                         </div>
@@ -522,22 +524,22 @@ export default function SystemHealthPage() {
                   </div>
                 )}
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </GlassPanel>
         </motion.div>
       </div>
 
       {/* Response Time History */}
       {healthHistory.length > 1 && (
         <motion.div variants={itemVariants}>
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base flex items-center gap-2">
-                <Timer className="w-5 h-5 text-muted-foreground" />
+          <GlassPanel>
+            <div className="p-6 border-b border-white/10">
+              <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+                <Timer className="w-5 h-5 text-white/60" />
                 Response Time History
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
+              </h3>
+            </div>
+            <div className="p-6 relative z-10">
               <div className="flex items-end gap-1 h-24">
                 {healthHistory.map((entry, i) => {
                   const maxTime = Math.max(...healthHistory.map(e => e.responseTime), 1);
@@ -552,8 +554,8 @@ export default function SystemHealthPage() {
                       <div
                         className={`w-full rounded-t transition-all duration-300 ${
                           isHealthy
-                            ? 'bg-indigo-500/60 dark:bg-indigo-400/50 group-hover:bg-indigo-500'
-                            : 'bg-red-500/60 dark:bg-red-400/50 group-hover:bg-red-500'
+                            ? 'bg-indigo-400/50 group-hover:bg-indigo-500'
+                            : 'bg-red-400/50 group-hover:bg-red-500'
                         }`}
                         style={{ height: `${Math.max(heightPercent, 4)}%` }}
                       />
@@ -561,7 +563,7 @@ export default function SystemHealthPage() {
                   );
                 })}
               </div>
-              <div className="flex items-center justify-between mt-3 text-xs text-muted-foreground">
+              <div className="flex items-center justify-between mt-3 text-xs text-white/60">
                 <span>{healthHistory[0]?.timestamp.toLocaleTimeString()}</span>
                 <div className="flex items-center gap-4">
                   <span className="flex items-center gap-1">
@@ -577,43 +579,43 @@ export default function SystemHealthPage() {
                 </div>
                 <span>{healthHistory[healthHistory.length - 1]?.timestamp.toLocaleTimeString()}</span>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </GlassPanel>
         </motion.div>
       )}
 
       {/* Recent Error Logs */}
       {health?.errors && health.errors.length > 0 && (
         <motion.div variants={itemVariants}>
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base flex items-center gap-2">
+          <GlassPanel>
+            <div className="p-6 border-b border-white/10">
+              <h3 className="text-lg font-semibold text-white flex items-center gap-2">
                 <AlertTriangle className="w-5 h-5 text-red-500" />
                 Recent Error Logs
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-0">
+              </h3>
+            </div>
+            <div className="p-0 relative z-10">
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="border-b border-border/50">
-                      <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Level</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Message</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Time</th>
+                    <tr className="border-b border-white/10">
+                      <th className="px-6 py-3 text-left text-xs font-medium text-white/60 uppercase tracking-wider">Level</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-white/60 uppercase tracking-wider">Message</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-white/60 uppercase tracking-wider">Time</th>
                     </tr>
                   </thead>
                   <tbody>
                     {health.errors.map((error, i) => (
-                      <tr key={i} className="border-b border-border/30 last:border-0 hover:bg-muted/30 dark:hover:bg-slate-800/30">
+                      <tr key={i} className="border-b border-white/10 last:border-0 hover:bg-white/5">
                         <td className="px-6 py-3">
                           <Badge variant={error.level === 'error' ? 'danger' : error.level === 'warn' ? 'warning' : 'default'}>
                             {error.level || 'error'}
                           </Badge>
                         </td>
-                        <td className="px-6 py-3 font-mono text-xs text-foreground max-w-md truncate">
+                        <td className="px-6 py-3 font-mono text-xs text-white max-w-md truncate">
                           {error.message}
                         </td>
-                        <td className="px-6 py-3 text-muted-foreground whitespace-nowrap">
+                        <td className="px-6 py-3 text-white/60 whitespace-nowrap">
                           {new Date(error.timestamp).toLocaleString()}
                         </td>
                       </tr>
@@ -621,15 +623,15 @@ export default function SystemHealthPage() {
                   </tbody>
                 </table>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </GlassPanel>
         </motion.div>
       )}
 
       {/* Auto-refresh indicator */}
       {autoRefresh && (
         <motion.div variants={itemVariants}>
-          <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
+          <div className="flex items-center justify-center gap-2 text-xs text-white/60">
             <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
             <span>Auto-refreshing every 30 seconds</span>
           </div>

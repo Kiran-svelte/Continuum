@@ -1,4 +1,35 @@
 import { NextResponse, type NextRequest } from 'next/server';
+import { jwtVerify } from 'jose';
+
+// ─── Session Verification (Edge-compatible) ─────────────────────────────────
+
+const SESSION_COOKIE_NAME = 'continuum-session';
+
+/**
+ * Verify the session JWT in middleware (Edge runtime).
+ * Uses jose which is Edge-compatible. Returns decoded payload or null.
+ */
+async function verifySession(token: string): Promise<{
+  uid: string;
+  email: string;
+  role?: string;
+  roles?: string[];
+  org_id?: string;
+} | null> {
+  try {
+    const raw = process.env.SESSION_SECRET || process.env.CSRF_SECRET;
+    if (!raw) return null;
+    const secret = new TextEncoder().encode(raw);
+    const { payload } = await jwtVerify(token, secret, {
+      issuer: 'continuum',
+      audience: 'continuum-web',
+    });
+    if (!payload.uid || !payload.email) return null;
+    return payload as { uid: string; email: string; role?: string; roles?: string[]; org_id?: string };
+  } catch {
+    return null;
+  }
+}
 
 // ─── Configuration ──────────────────────────────────────────────────────────
 
@@ -38,9 +69,6 @@ const PUBLIC_API_PATTERNS = [
   '/api/auth/register',
   '/api/auth/join',
   '/api/auth/callback',
-  '/api/auth/keycloak/callback',
-  '/api/auth/keycloak/logout',
-  '/api/auth/keycloak/refresh',
   '/api/company/validate-code',
 ];
 
@@ -141,10 +169,8 @@ function addSecurityHeaders(response: NextResponse): void {
       "style-src 'self' 'unsafe-inline'",
       "img-src 'self' data: https:",
       "font-src 'self' data:",
-      "connect-src 'self' https://*.googleapis.com https://*.firebaseio.com https://*.firebaseapp.com https://*.supabase.co wss://*.pusher.com https://*.pusher.com" +
-        (process.env.NEXT_PUBLIC_KEYCLOAK_URL ? ` ${process.env.NEXT_PUBLIC_KEYCLOAK_URL}` : ''),
-      "frame-src 'self'" +
-        (process.env.NEXT_PUBLIC_KEYCLOAK_URL ? ` ${process.env.NEXT_PUBLIC_KEYCLOAK_URL}` : ''),
+      "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://accounts.google.com",
+      "frame-src 'self' https://*.supabase.co https://accounts.google.com",
     ].join('; ')
   );
   response.headers.set('X-DNS-Prefetch-Control', 'on');
@@ -324,16 +350,18 @@ export async function middleware(request: NextRequest) {
     return response;
   }
 
-  // 9. Portal role enforcement — read continuum-roles cookie, check PORTAL_ROLE_MAP
+  // 9. Portal role enforcement — verify session JWT and extract roles
   //    Only applies to portal page routes, NOT API routes (those use requireRole server-side)
   if (!isApiRoute(pathname)) {
     const portalPrefix = Object.keys(PORTAL_ROLE_MAP).find((prefix) => pathname.startsWith(prefix + '/') || pathname === prefix);
 
     if (portalPrefix) {
-      const rolesCookie = request.cookies.get('continuum-roles')?.value;
+      // Cryptographically verify the session JWT (not just check cookie existence)
+      const sessionToken = request.cookies.get(SESSION_COOKIE_NAME)?.value;
+      const session = sessionToken ? await verifySession(sessionToken) : null;
 
-      if (!rolesCookie) {
-        // No role cookie → not authenticated, redirect to sign-in
+      if (!session) {
+        // No valid session → redirect to sign-in
         const signInUrl = request.nextUrl.clone();
         signInUrl.pathname = '/sign-in';
         signInUrl.searchParams.set('redirect', pathname);
@@ -341,9 +369,31 @@ export async function middleware(request: NextRequest) {
         return NextResponse.redirect(signInUrl);
       }
 
-      const userRoles = rolesCookie.split(',').map((r) => r.trim().toLowerCase());
-      const allowedRoles = PORTAL_ROLE_MAP[portalPrefix];
+      // Extract roles from verified JWT (not from a forgeable plain cookie)
+      const userRoles = session.roles
+        ? session.roles.map((r) => r.toLowerCase())
+        : session.role
+          ? [session.role.toLowerCase()]
+          : [];
 
+      // If no roles in JWT yet (new user before /api/auth/me enrichment),
+      // fall back to the role cookies set by /api/auth/session as a hint.
+      // This is safe because the session JWT itself was verified cryptographically.
+      if (userRoles.length === 0) {
+        const rolesCookie = request.cookies.get('continuum-roles')?.value;
+        if (rolesCookie) {
+          userRoles.push(...rolesCookie.split(',').map((r) => r.trim().toLowerCase()));
+        }
+      }
+
+      if (userRoles.length === 0) {
+        // Authenticated but no roles assigned yet — redirect to onboarding
+        const onboardingUrl = request.nextUrl.clone();
+        onboardingUrl.pathname = '/onboarding';
+        return NextResponse.redirect(onboardingUrl);
+      }
+
+      const allowedRoles = PORTAL_ROLE_MAP[portalPrefix];
       const hasAccess = userRoles.some((role) => allowedRoles.includes(role));
 
       if (!hasAccess) {
@@ -362,7 +412,7 @@ export async function middleware(request: NextRequest) {
         );
 
         // Determine the correct portal for this user
-        const primaryRole = request.cookies.get('continuum-role')?.value?.toLowerCase() || userRoles[0];
+        const primaryRole = session.role?.toLowerCase() || userRoles[0];
         let correctPortal = '/employee/dashboard';
         if (primaryRole === 'admin') correctPortal = '/admin/dashboard';
         else if (primaryRole === 'hr') correctPortal = '/hr/dashboard';

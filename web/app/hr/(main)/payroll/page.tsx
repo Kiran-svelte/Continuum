@@ -2,7 +2,9 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { StaggerContainer, FadeIn, TiltCard } from '@/components/motion';
+import { GlassPanel } from '@/components/glass-panel';
+import { PageHeader } from '@/components/page-header';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Modal } from '@/components/ui/modal';
@@ -82,16 +84,6 @@ interface PayrollSlip {
 /* ------------------------------------------------------------------ */
 /*  Constants                                                          */
 /* ------------------------------------------------------------------ */
-
-const containerVariants = {
-  hidden: { opacity: 0 },
-  visible: { opacity: 1, transition: { staggerChildren: 0.08 } },
-} as const;
-
-const itemVariants = {
-  hidden: { opacity: 0, y: 20 },
-  visible: { opacity: 1, y: 0, transition: { type: 'spring' as const, stiffness: 260, damping: 20 } },
-} as const;
 
 const STATUS_COLORS: Record<string, string> = {
   draft: 'default',
@@ -188,20 +180,20 @@ function PayslipModal({
         {/* Header */}
         <div className="grid grid-cols-2 gap-4 text-sm">
           <div>
-            <p className="text-muted-foreground">Employee</p>
-            <p className="font-medium">{slip.employee_name}</p>
+            <p className="text-white/60">Employee</p>
+            <p className="font-medium text-white">{slip.employee_name}</p>
           </div>
           <div>
-            <p className="text-muted-foreground">Department</p>
-            <p className="font-medium">{slip.department || '--'}</p>
+            <p className="text-white/60">Department</p>
+            <p className="font-medium text-white">{slip.department || '--'}</p>
           </div>
           <div>
-            <p className="text-muted-foreground">Period</p>
-            <p className="font-medium">{MONTHS[slip.month - 1]} {slip.year}</p>
+            <p className="text-white/60">Period</p>
+            <p className="font-medium text-white">{MONTHS[slip.month - 1]} {slip.year}</p>
           </div>
           <div>
-            <p className="text-muted-foreground">Designation</p>
-            <p className="font-medium">{slip.designation || '--'}</p>
+            <p className="text-white/60">Designation</p>
+            <p className="font-medium text-white">{slip.designation || '--'}</p>
           </div>
         </div>
 
@@ -213,39 +205,39 @@ function PayslipModal({
             { label: 'Leave', value: slip.leave_days },
             { label: 'Absent', value: slip.absent_days },
           ].map((item) => (
-            <div key={item.label} className="text-center p-2 rounded-lg bg-muted/50">
-              <p className="text-xs text-muted-foreground">{item.label}</p>
-              <p className="text-sm font-bold">{item.value}</p>
+            <div key={item.label} className="text-center p-2 rounded-lg bg-white/5">
+              <p className="text-xs text-white/60">{item.label}</p>
+              <p className="text-sm font-bold text-white">{item.value}</p>
             </div>
           ))}
         </div>
 
         {/* Salary breakdown */}
-        <div className="border border-border rounded-lg overflow-hidden">
+        <div className="border border-white/10 rounded-lg overflow-hidden">
           {rows.map((row) => (
             <div
               key={row.label}
               className={`flex items-center justify-between px-4 py-2.5 text-sm ${
                 row.type === 'total'
-                  ? 'bg-blue-50 dark:bg-blue-500/10 font-semibold border-t border-b border-border'
+                  ? 'bg-blue-500/10 font-semibold border-t border-b border-white/10'
                   : row.type === 'total-deduction'
-                  ? 'bg-red-50 dark:bg-red-500/10 font-semibold border-t border-b border-border'
+                  ? 'bg-red-500/10 font-semibold border-t border-b border-white/10'
                   : row.type === 'net'
-                  ? 'bg-green-50 dark:bg-green-500/10 font-bold text-base border-t-2 border-border'
+                  ? 'bg-green-500/10 font-bold text-base border-t-2 border-white/10'
                   : row.type === 'info'
-                  ? 'text-muted-foreground italic'
+                  ? 'text-white/60 italic'
                   : ''
               }`}
             >
-              <span>{row.label}</span>
+              <span className="text-white">{row.label}</span>
               <span className={
                 row.type === 'deduction' || row.type === 'total-deduction'
-                  ? 'text-red-600 dark:text-red-400'
+                  ? 'text-red-400'
                   : row.type === 'earning'
-                  ? 'text-green-600 dark:text-green-400'
+                  ? 'text-green-400'
                   : row.type === 'net'
-                  ? 'text-green-700 dark:text-green-300'
-                  : ''
+                  ? 'text-green-300'
+                  : 'text-white'
               }>
                 {row.type === 'deduction' || row.type === 'total-deduction' ? '- ' : ''}
                 {formatCurrency(row.value)}
@@ -297,7 +289,7 @@ function SlipsTable({
 
   if (slips.length === 0) {
     return (
-      <div className="py-8 text-center text-sm text-muted-foreground">
+      <div className="py-8 text-center text-sm text-white/60">
         No payslips found for this run.
       </div>
     );
@@ -321,9 +313,9 @@ function SlipsTable({
   }
 
   return (
-    <div className="border-t border-border">
-      <div className="flex items-center justify-between px-4 py-2 bg-muted/30">
-        <span className="text-xs font-medium text-muted-foreground">
+    <div className="border-t border-white/10">
+      <div className="flex items-center justify-between px-4 py-2 bg-white/5">
+        <span className="text-xs font-medium text-white/60">
           {slips.length} payslip{slips.length !== 1 ? 's' : ''}
         </span>
         <Button variant="ghost" size="sm" onClick={downloadCSV} className="text-xs gap-1">
@@ -335,32 +327,32 @@ function SlipsTable({
       <div className="hidden md:block overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-border bg-muted/20 text-left">
-              <th className="px-4 py-2 font-medium text-muted-foreground">Employee</th>
-              <th className="px-4 py-2 font-medium text-muted-foreground">Department</th>
-              <th className="px-4 py-2 font-medium text-muted-foreground text-right">Gross</th>
-              <th className="px-4 py-2 font-medium text-muted-foreground text-right">Deductions</th>
-              <th className="px-4 py-2 font-medium text-muted-foreground text-right">Net Pay</th>
-              <th className="px-4 py-2 font-medium text-muted-foreground text-center">Actions</th>
+            <tr className="border-b border-white/10 bg-white/5 text-left">
+              <th className="px-4 py-2 font-medium text-white/60">Employee</th>
+              <th className="px-4 py-2 font-medium text-white/60">Department</th>
+              <th className="px-4 py-2 font-medium text-white/60 text-right">Gross</th>
+              <th className="px-4 py-2 font-medium text-white/60 text-right">Deductions</th>
+              <th className="px-4 py-2 font-medium text-white/60 text-right">Net Pay</th>
+              <th className="px-4 py-2 font-medium text-white/60 text-center">Actions</th>
             </tr>
           </thead>
           <tbody>
             {slips.map((s) => (
-              <tr key={s.id} className="border-b border-border/50 hover:bg-muted/20 transition-colors">
+              <tr key={s.id} className="border-b border-white/5 hover:bg-white/5 transition-colors">
                 <td className="px-4 py-2.5">
                   <div>
-                    <p className="font-medium">{s.employee_name}</p>
-                    <p className="text-xs text-muted-foreground">{s.designation || '--'}</p>
+                    <p className="font-medium text-white">{s.employee_name}</p>
+                    <p className="text-xs text-white/60">{s.designation || '--'}</p>
                   </div>
                 </td>
-                <td className="px-4 py-2.5 text-muted-foreground">{s.department || '--'}</td>
-                <td className="px-4 py-2.5 text-right text-green-600 dark:text-green-400 font-medium">
+                <td className="px-4 py-2.5 text-white/60">{s.department || '--'}</td>
+                <td className="px-4 py-2.5 text-right text-green-400 font-medium">
                   {formatCurrency(s.gross)}
                 </td>
-                <td className="px-4 py-2.5 text-right text-red-600 dark:text-red-400 font-medium">
+                <td className="px-4 py-2.5 text-right text-red-400 font-medium">
                   {formatCurrency(s.total_deductions)}
                 </td>
-                <td className="px-4 py-2.5 text-right font-bold">{formatCurrency(s.net_pay)}</td>
+                <td className="px-4 py-2.5 text-right font-bold text-white">{formatCurrency(s.net_pay)}</td>
                 <td className="px-4 py-2.5 text-center">
                   <Button variant="ghost" size="sm" onClick={() => setSelectedSlip(s)} className="text-xs gap-1">
                     <Eye className="w-3 h-3" /> View
@@ -370,15 +362,15 @@ function SlipsTable({
             ))}
           </tbody>
           <tfoot>
-            <tr className="bg-muted/30 font-semibold">
-              <td className="px-4 py-2" colSpan={2}>Total</td>
-              <td className="px-4 py-2 text-right text-green-600 dark:text-green-400">
+            <tr className="bg-white/5 font-semibold">
+              <td className="px-4 py-2 text-white" colSpan={2}>Total</td>
+              <td className="px-4 py-2 text-right text-green-400">
                 {formatCurrency(slips.reduce((s, r) => s + r.gross, 0))}
               </td>
-              <td className="px-4 py-2 text-right text-red-600 dark:text-red-400">
+              <td className="px-4 py-2 text-right text-red-400">
                 {formatCurrency(slips.reduce((s, r) => s + r.total_deductions, 0))}
               </td>
-              <td className="px-4 py-2 text-right">
+              <td className="px-4 py-2 text-right text-white">
                 {formatCurrency(slips.reduce((s, r) => s + r.net_pay, 0))}
               </td>
               <td />
@@ -388,13 +380,13 @@ function SlipsTable({
       </div>
 
       {/* Mobile cards */}
-      <div className="md:hidden divide-y divide-border">
+      <div className="md:hidden divide-y divide-white/10">
         {slips.map((s) => (
           <div key={s.id} className="p-4 space-y-2">
             <div className="flex items-center justify-between">
               <div>
-                <p className="font-medium text-sm">{s.employee_name}</p>
-                <p className="text-xs text-muted-foreground">{s.department || '--'}</p>
+                <p className="font-medium text-sm text-white">{s.employee_name}</p>
+                <p className="text-xs text-white/60">{s.department || '--'}</p>
               </div>
               <Button variant="ghost" size="sm" onClick={() => setSelectedSlip(s)} className="text-xs">
                 <Eye className="w-3 h-3" />
@@ -402,16 +394,16 @@ function SlipsTable({
             </div>
             <div className="grid grid-cols-3 gap-2 text-xs">
               <div>
-                <p className="text-muted-foreground">Gross</p>
-                <p className="font-medium text-green-600 dark:text-green-400">{formatCurrency(s.gross)}</p>
+                <p className="text-white/60">Gross</p>
+                <p className="font-medium text-green-400">{formatCurrency(s.gross)}</p>
               </div>
               <div>
-                <p className="text-muted-foreground">Deductions</p>
-                <p className="font-medium text-red-600 dark:text-red-400">{formatCurrency(s.total_deductions)}</p>
+                <p className="text-white/60">Deductions</p>
+                <p className="font-medium text-red-400">{formatCurrency(s.total_deductions)}</p>
               </div>
               <div>
-                <p className="text-muted-foreground">Net Pay</p>
-                <p className="font-bold">{formatCurrency(s.net_pay)}</p>
+                <p className="text-white/60">Net Pay</p>
+                <p className="font-bold text-white">{formatCurrency(s.net_pay)}</p>
               </div>
             </div>
           </div>
@@ -578,16 +570,16 @@ export default function PayrollPage() {
   if (error) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <Card className="max-w-md w-full">
-          <CardContent className="pt-6 text-center">
-            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-destructive/10">
-              <AlertCircle className="h-6 w-6 text-destructive" />
+        <GlassPanel className="max-w-md w-full">
+          <div className="p-6 text-center">
+            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-red-500/10">
+              <AlertCircle className="h-6 w-6 text-red-400" />
             </div>
-            <h3 className="text-lg font-semibold">Unable to Load Payroll</h3>
-            <p className="mt-2 text-sm text-muted-foreground">{error}</p>
+            <h3 className="text-lg font-semibold text-white">Unable to Load Payroll</h3>
+            <p className="mt-2 text-sm text-white/60">{error}</p>
             <Button variant="primary" size="sm" className="mt-4" onClick={() => window.location.reload()}>Retry</Button>
-          </CardContent>
-        </Card>
+          </div>
+        </GlassPanel>
       </div>
     );
   }
@@ -596,53 +588,54 @@ export default function PayrollPage() {
   const currentRun = runs.find((r) => r.month === month && r.year === year);
 
   return (
-    <motion.div className="space-y-6" variants={containerVariants} initial="hidden" animate="visible">
+    <StaggerContainer className="space-y-6">
       {/* Header */}
-      <motion.div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4" variants={itemVariants}>
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Payroll</h1>
-          <p className="text-muted-foreground mt-1">Generate, review, approve, and process payroll</p>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={fetchRuns} className="gap-1">
-            <RotateCcw className="w-3.5 h-3.5" /> Refresh
-          </Button>
-          <Button variant="primary" onClick={handleGenerate} loading={generating} disabled={generating}>
-            Generate Payroll
-          </Button>
-        </div>
-      </motion.div>
+      <PageHeader
+        title="Payroll"
+        description="Generate, review, approve, and process payroll"
+        icon={<Banknote className="w-6 h-6 text-primary" />}
+        action={
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={fetchRuns} className="gap-1">
+              <RotateCcw className="w-3.5 h-3.5" /> Refresh
+            </Button>
+            <Button variant="primary" onClick={handleGenerate} loading={generating} disabled={generating}>
+              Generate Payroll
+            </Button>
+          </div>
+        }
+      />
 
       {/* Result banner */}
       <AnimatePresence>
         {generateResult && (
           <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
-            <Card className={generateResult.success ? 'border-green-500/30 bg-green-500/5' : 'border-destructive/30 bg-destructive/5'}>
-              <CardContent className="pt-4 pb-4">
+            <GlassPanel className={generateResult.success ? 'border-green-500/30 bg-green-500/5' : 'border-red-500/30 bg-red-500/5'}>
+              <div className="p-4">
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex items-start gap-3">
-                    <div className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${generateResult.success ? 'bg-green-500/10 text-green-600' : 'bg-destructive/10 text-destructive'}`}>
+                    <div className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${generateResult.success ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400'}`}>
                       {generateResult.success ? <Check className="h-4 w-4" /> : <X className="h-4 w-4" />}
                     </div>
                     <div>
-                      <p className="text-sm font-semibold">{generateResult.success ? 'Payroll Generated' : 'Generation Failed'}</p>
-                      <p className="text-sm text-muted-foreground mt-0.5">{generateResult.message}</p>
+                      <p className="text-sm font-semibold text-white">{generateResult.success ? 'Payroll Generated' : 'Generation Failed'}</p>
+                      <p className="text-sm text-white/60 mt-0.5">{generateResult.message}</p>
                       {generateResult.data && (
                         <div className="flex flex-wrap gap-3 mt-2">
                           <Badge variant="success">{generateResult.data.status}</Badge>
-                          <span className="text-xs text-muted-foreground">{generateResult.data.employee_count} employees</span>
-                          <span className="text-xs font-medium">Gross: {formatCurrency(generateResult.data.total_gross)}</span>
-                          <span className="text-xs font-medium">Net: {formatCurrency(generateResult.data.total_net)}</span>
+                          <span className="text-xs text-white/60">{generateResult.data.employee_count} employees</span>
+                          <span className="text-xs font-medium text-white">Gross: {formatCurrency(generateResult.data.total_gross)}</span>
+                          <span className="text-xs font-medium text-white">Net: {formatCurrency(generateResult.data.total_net)}</span>
                         </div>
                       )}
                     </div>
                   </div>
-                  <button onClick={() => setGenerateResult(null)} className="text-muted-foreground hover:text-foreground" aria-label="Dismiss">
+                  <button onClick={() => setGenerateResult(null)} className="text-white/60 hover:text-white" aria-label="Dismiss">
                     <X className="h-4 w-4" />
                   </button>
                 </div>
-              </CardContent>
-            </Card>
+              </div>
+            </GlassPanel>
           </motion.div>
         )}
       </AnimatePresence>
@@ -656,8 +649,8 @@ export default function PayrollPage() {
             exit={{ opacity: 0, y: -10 }}
             className={`rounded-lg px-4 py-3 text-sm flex items-center gap-2 ${
               statusMessage.type === 'success'
-                ? 'bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-400'
-                : 'bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400'
+                ? 'bg-emerald-500/10 border border-emerald-500/30 text-emerald-400'
+                : 'bg-red-500/10 border border-red-500/30 text-red-400'
             }`}
           >
             {statusMessage.type === 'success' ? (
@@ -671,78 +664,80 @@ export default function PayrollPage() {
       </AnimatePresence>
 
       {/* Summary cards */}
-      <motion.div className="grid grid-cols-1 md:grid-cols-3 gap-4" variants={itemVariants}>
-        <Card>
-          <CardContent className="pt-5 pb-5">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Employees on Payroll</p>
-                <p className="text-2xl font-bold mt-1">{employeeCount}</p>
-                <p className="text-xs text-muted-foreground mt-1">Active employees</p>
-              </div>
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 dark:bg-blue-500/10">
-                <Users className="h-5 w-5 text-blue-500" />
+      <FadeIn>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <GlassPanel interactive>
+            <div className="p-5">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-medium text-white/60 uppercase tracking-wide">Employees on Payroll</p>
+                  <p className="text-2xl font-bold mt-1 text-white">{employeeCount}</p>
+                  <p className="text-xs text-white/60 mt-1">Active employees</p>
+                </div>
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-500/10">
+                  <Users className="h-5 w-5 text-blue-500" />
+                </div>
               </div>
             </div>
-          </CardContent>
-        </Card>
+          </GlassPanel>
 
-        <Card>
-          <CardContent className="pt-5 pb-5">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Next Payroll Date</p>
-                <p className="text-2xl font-bold mt-1">{getNextPayrollDate()}</p>
-                <p className="text-xs text-muted-foreground mt-1">{daysUntil} day{daysUntil !== 1 ? 's' : ''} away</p>
-              </div>
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-green-50 dark:bg-green-500/10">
-                <Calendar className="h-5 w-5 text-green-500" />
+          <GlassPanel interactive>
+            <div className="p-5">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-medium text-white/60 uppercase tracking-wide">Next Payroll Date</p>
+                  <p className="text-2xl font-bold mt-1 text-white">{getNextPayrollDate()}</p>
+                  <p className="text-xs text-white/60 mt-1">{daysUntil} day{daysUntil !== 1 ? 's' : ''} away</p>
+                </div>
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-green-500/10">
+                  <Calendar className="h-5 w-5 text-green-500" />
+                </div>
               </div>
             </div>
-          </CardContent>
-        </Card>
+          </GlassPanel>
 
-        <Card>
-          <CardContent className="pt-5 pb-5">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Current Period</p>
-                <p className="text-2xl font-bold mt-1">{currentMonthLabel}</p>
-                <p className="text-xs mt-1">
-                  <Badge variant={currentRun ? (STATUS_COLORS[currentRun.status] || 'default') as 'default' | 'info' | 'success' | 'warning' | 'danger' : 'default'} size="sm">
-                    {currentRun ? STATUS_LABELS[currentRun.status] || currentRun.status : 'Not Generated'}
-                  </Badge>
-                </p>
-              </div>
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-50 dark:bg-amber-500/10">
-                <Banknote className="h-5 w-5 text-amber-500" />
+          <GlassPanel interactive>
+            <div className="p-5">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-medium text-white/60 uppercase tracking-wide">Current Period</p>
+                  <p className="text-2xl font-bold mt-1 text-white">{currentMonthLabel}</p>
+                  <p className="text-xs mt-1">
+                    <Badge variant={currentRun ? (STATUS_COLORS[currentRun.status] || 'default') as 'default' | 'info' | 'success' | 'warning' | 'danger' : 'default'} size="sm">
+                      {currentRun ? STATUS_LABELS[currentRun.status] || currentRun.status : 'Not Generated'}
+                    </Badge>
+                  </p>
+                </div>
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-500/10">
+                  <Banknote className="h-5 w-5 text-amber-500" />
+                </div>
               </div>
             </div>
-          </CardContent>
-        </Card>
-      </motion.div>
+          </GlassPanel>
+        </div>
+      </FadeIn>
 
       {/* Payroll Runs - History */}
-      <motion.div variants={itemVariants}>
-        <Card>
-          <CardHeader>
+      <FadeIn>
+        <GlassPanel>
+          <div className="p-6 border-b border-white/10">
             <div className="flex items-center justify-between">
-              <CardTitle>Payroll History</CardTitle>
+              <h3 className="text-lg font-semibold text-white">Payroll History</h3>
               <Badge variant="default" size="sm">{runs.length} run{runs.length !== 1 ? 's' : ''}</Badge>
             </div>
-          </CardHeader>
-          <CardContent className="p-0">
+          </div>
+          <div>
             {runsLoading ? (
               <div className="p-6 space-y-3">
                 {[1, 2, 3].map((i) => <Skeleton key={i} className="h-16 w-full" />)}
               </div>
             ) : runs.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-16 text-center px-4">
-                <div className="flex h-16 w-16 items-center justify-center rounded-full bg-muted mb-4">
-                  <FileText className="h-8 w-8 text-muted-foreground" />
+                <div className="flex h-16 w-16 items-center justify-center rounded-full bg-white/5 mb-4">
+                  <FileText className="h-8 w-8 text-white/60" />
                 </div>
-                <h3 className="text-lg font-semibold">No payroll runs yet</h3>
-                <p className="mt-2 max-w-sm text-sm text-muted-foreground">
+                <h3 className="text-lg font-semibold text-white">No payroll runs yet</h3>
+                <p className="mt-2 max-w-sm text-sm text-white/60">
                   Click &quot;Generate Payroll&quot; to create the first run for {currentMonthLabel}.
                 </p>
                 <Button variant="primary" className="mt-6" onClick={handleGenerate} loading={generating} disabled={generating}>
@@ -750,7 +745,7 @@ export default function PayrollPage() {
                 </Button>
               </div>
             ) : (
-              <div className="divide-y divide-border">
+              <div className="divide-y divide-white/10">
                 {runs.map((run) => {
                   const isExpanded = expandedRun === run.id;
                   const action = NEXT_ACTION[run.status];
@@ -760,21 +755,21 @@ export default function PayrollPage() {
                     <div key={run.id} className="group">
                       {/* Run row */}
                       <div
-                        className="flex flex-col md:flex-row md:items-center justify-between px-4 py-3 hover:bg-muted/20 transition-colors cursor-pointer gap-3"
+                        className="flex flex-col md:flex-row md:items-center justify-between px-4 py-3 hover:bg-white/5 transition-colors cursor-pointer gap-3"
                         onClick={() => setExpandedRun(isExpanded ? null : run.id)}
                       >
                         <div className="flex items-center gap-4 min-w-0">
                           <div className="hidden md:block">
-                            {isExpanded ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
+                            {isExpanded ? <ChevronUp className="w-4 h-4 text-white/60" /> : <ChevronDown className="w-4 h-4 text-white/60" />}
                           </div>
                           <div className="min-w-0">
                             <div className="flex items-center gap-2 flex-wrap">
-                              <p className="font-medium text-sm">{MONTHS[run.month - 1]} {run.year}</p>
+                              <p className="font-medium text-sm text-white">{MONTHS[run.month - 1]} {run.year}</p>
                               <Badge variant={(STATUS_COLORS[run.status] || 'default') as 'default' | 'info' | 'success' | 'warning' | 'danger'} size="sm">
                                 {STATUS_LABELS[run.status] || run.status}
                               </Badge>
                             </div>
-                            <p className="text-xs text-muted-foreground mt-0.5">
+                            <p className="text-xs text-white/60 mt-0.5">
                               {run.employee_count} employees &middot; Generated by {run.generated_by || 'System'}
                               {run.approved_by ? ` &middot; Approved by ${run.approved_by}` : ''}
                             </p>
@@ -783,16 +778,16 @@ export default function PayrollPage() {
 
                         <div className="flex items-center gap-4 md:gap-6 text-sm">
                           <div className="text-right hidden md:block">
-                            <p className="text-xs text-muted-foreground">Gross</p>
-                            <p className="font-medium text-green-600 dark:text-green-400">{formatCurrency(run.total_gross)}</p>
+                            <p className="text-xs text-white/60">Gross</p>
+                            <p className="font-medium text-green-400">{formatCurrency(run.total_gross)}</p>
                           </div>
                           <div className="text-right hidden md:block">
-                            <p className="text-xs text-muted-foreground">Deductions</p>
-                            <p className="font-medium text-red-600 dark:text-red-400">{formatCurrency(run.total_deductions)}</p>
+                            <p className="text-xs text-white/60">Deductions</p>
+                            <p className="font-medium text-red-400">{formatCurrency(run.total_deductions)}</p>
                           </div>
                           <div className="text-right">
-                            <p className="text-xs text-muted-foreground">Net Pay</p>
-                            <p className="font-bold">{formatCurrency(run.total_net)}</p>
+                            <p className="text-xs text-white/60">Net Pay</p>
+                            <p className="font-bold text-white">{formatCurrency(run.total_net)}</p>
                           </div>
 
                           {/* Actions */}
@@ -827,12 +822,12 @@ export default function PayrollPage() {
                       {/* Mobile summary */}
                       <div className="md:hidden px-4 pb-2 flex gap-4 text-xs">
                         <div>
-                          <span className="text-muted-foreground">Gross: </span>
-                          <span className="font-medium text-green-600 dark:text-green-400">{formatCurrency(run.total_gross)}</span>
+                          <span className="text-white/60">Gross: </span>
+                          <span className="font-medium text-green-400">{formatCurrency(run.total_gross)}</span>
                         </div>
                         <div>
-                          <span className="text-muted-foreground">Deductions: </span>
-                          <span className="font-medium text-red-600 dark:text-red-400">{formatCurrency(run.total_deductions)}</span>
+                          <span className="text-white/60">Deductions: </span>
+                          <span className="font-medium text-red-400">{formatCurrency(run.total_deductions)}</span>
                         </div>
                       </div>
 
@@ -855,24 +850,24 @@ export default function PayrollPage() {
                 })}
               </div>
             )}
-          </CardContent>
-        </Card>
-      </motion.div>
+          </div>
+        </GlassPanel>
+      </FadeIn>
 
       {/* Reject confirmation modal */}
       {rejectRun && (
         <Modal isOpen={!!rejectRun} onClose={() => setRejectRun(null)} title="Reject Payroll Run">
           <div className="space-y-4">
-            <p className="text-sm text-muted-foreground">
+            <p className="text-sm text-white/60">
               Are you sure you want to reject the payroll run for{' '}
-              <span className="font-medium text-foreground">{MONTHS[rejectRun.month - 1]} {rejectRun.year}</span>?
+              <span className="font-medium text-white">{MONTHS[rejectRun.month - 1]} {rejectRun.year}</span>?
               This will return it to draft status for re-generation.
             </p>
             <div>
-              <label htmlFor="reject-reason" className="text-sm font-medium text-foreground">Reason (optional)</label>
+              <label htmlFor="reject-reason" className="text-sm font-medium text-white">Reason (optional)</label>
               <textarea
                 id="reject-reason"
-                className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+                className="mt-1 w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-primary/30"
                 rows={3}
                 maxLength={500}
                 placeholder="Enter the reason for rejection..."
@@ -895,6 +890,6 @@ export default function PayrollPage() {
           </div>
         </Modal>
       )}
-    </motion.div>
+    </StaggerContainer>
   );
 }

@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
+import { AmbientBackground } from '@/components/motion';
 import { SidebarNav } from '@/components/sidebar-nav';
 import { SignOutButton } from '@/components/sign-out-button';
 import { PortalSwitcher } from '@/components/portal-switcher';
@@ -23,6 +24,7 @@ import {
   X,
   Search,
   Bell,
+  Loader,
 } from 'lucide-react';
 
 const MANAGER_NAV_ITEMS = [
@@ -36,6 +38,18 @@ const MANAGER_NAV_ITEMS = [
   { label: 'Notifications', href: '/manager/notifications', icon: Bell },
   { label: 'Settings', href: '/manager/settings', icon: Settings },
 ];
+
+function AuthLoader() {
+  return (
+    <div className="flex h-screen w-screen items-center justify-center bg-black">
+      <div className="text-center space-y-4">
+        <Loader className="w-10 h-10 text-sky-400 animate-spin mx-auto" />
+        <p className="text-lg text-slate-300 font-medium">Authenticating...</p>
+        <p className="text-sm text-slate-500">Loading your portal experience.</p>
+      </div>
+    </div>
+  );
+}
 
 export default function ManagerLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -54,74 +68,46 @@ export default function ManagerLayout({ children }: { children: React.ReactNode 
 
   useEffect(() => {
     fetch('/api/auth/me', { credentials: 'include' })
-      .then(res => {
-        if (!res.ok) {
-          router.replace('/sign-in');
-          return;
-        }
-        return res.json();
-      })
+      .then(res => res.ok ? res.json() : Promise.reject(res))
       .then(data => {
-        if (!data) return;
-        // Middleware enforces role — just load the portal for any authenticated user
-        if (data.company?.name) {
-          setCompanyName(data.company.name);
-        }
-        if (data.first_name) {
-          setUserName(data.first_name);
-        }
+        if (data.company?.name) setCompanyName(data.company.name);
+        if (data.first_name) setUserName(data.first_name);
         setAuthChecked(true);
       })
-      .catch(() => {
-        router.replace('/sign-in');
-      });
+      .catch(() => router.replace('/sign-in'));
   }, [router]);
 
   useEffect(() => {
     const checkMobile = () => {
       const isMobileView = window.innerWidth < 1024;
       setIsMobile(isMobileView);
-      if (!isMobileView) {
-        setSidebarOpen(false);
-      }
+      if (!isMobileView) setSidebarOpen(false);
     };
-
     checkMobile();
     window.addEventListener('resize', checkMobile);
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
   const closeSidebar = () => {
-    if (isMobile) {
-      setSidebarOpen(false);
-    }
+    if (isMobile) setSidebarOpen(false);
   };
 
   if (!authChecked) {
-    return (
-      <div className="flex h-screen items-center justify-center bg-background">
-        <div className="text-center space-y-3">
-          <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto" />
-          <p className="text-sm text-muted-foreground">Loading...</p>
-        </div>
-      </div>
-    );
+    return <AuthLoader />;
   }
 
   return (
-    <div className="flex h-screen bg-background overflow-hidden">
-      {/* Mobile header bar */}
-      <div className="lg:hidden fixed top-0 left-0 right-0 z-50 h-14 bg-card/80 backdrop-blur-xl border-b border-border px-4 flex items-center justify-between">
+    <div className="flex h-screen bg-black text-white overflow-hidden">
+      <AmbientBackground />
+
+      {/* Mobile header */}
+      <div className="lg:hidden fixed top-0 left-0 right-0 z-50 h-16 glass-panel-navbar px-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <button
-            onClick={() => setSidebarOpen(true)}
-            className="p-2 hover:bg-muted rounded-lg transition-colors"
-            aria-label="Open navigation menu"
-          >
-            <Menu className="w-5 h-5" />
+          <button onClick={() => setSidebarOpen(true)} className="p-2 hover:bg-slate-700/50 rounded-lg transition-colors" aria-label="Open menu">
+            <Menu className="w-6 h-6" />
           </button>
           <Link href="/manager/dashboard">
-            <span className="text-lg font-bold bg-gradient-to-r from-violet-500 to-purple-600 bg-clip-text text-transparent">{companyName}</span>
+            <span className="text-xl font-bold text-shadow-md bg-gradient-to-r from-sky-300 to-blue-400 bg-clip-text text-transparent">{companyName}</span>
           </Link>
         </div>
         <div className="flex items-center gap-1">
@@ -137,8 +123,8 @@ export default function ManagerLayout({ children }: { children: React.ReactNode 
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            className="fixed inset-0 bg-black/40 backdrop-blur-sm z-40 lg:hidden"
+            transition={{ duration: 0.3 }}
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[59] lg:hidden"
             onClick={closeSidebar}
           />
         )}
@@ -148,29 +134,23 @@ export default function ManagerLayout({ children }: { children: React.ReactNode 
       <AnimatePresence>
         {(!isMobile || sidebarOpen) && (
           <motion.aside
-            initial={isMobile ? { x: -320 } : false}
+            initial={isMobile ? { x: '-100%' } : false}
             animate={{ x: 0 }}
-            exit={isMobile ? { x: -320 } : undefined}
-            transition={{ type: "spring", damping: 30, stiffness: 300 }}
-            className={`
-              ${isMobile
-                ? 'fixed left-0 top-0 bottom-0 z-50 w-[280px] shadow-2xl'
-                : 'relative w-[260px] shrink-0'
-              }
-              bg-card dark:bg-[#0c1021] border-r border-border/50 dark:border-slate-800/40 flex flex-col
-            `}
+            exit={isMobile ? { x: '-100%' } : undefined}
+            transition={{ type: "spring", damping: 30, stiffness: 250 }}
+            className={`fixed left-0 top-0 bottom-0 z-[60] w-[280px] lg:relative lg:w-[260px] lg:shrink-0 glass-panel flex flex-col border-r border-slate-700/50`}
           >
-            {/* Sidebar header */}
-            <div className="h-14 px-5 flex items-center justify-between border-b border-border/50 dark:border-slate-800/40">
+            {/* Sidebar Header */}
+            <div className="h-16 px-5 flex items-center justify-between border-b border-slate-700/50 shrink-0">
               <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center">
-                  <span className="text-white text-sm font-bold">{companyName[0]}</span>
+                <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-sky-400 to-blue-600 flex items-center justify-center shadow-lg">
+                  <span className="text-white text-lg font-bold">{companyName[0]}</span>
                 </div>
                 <div>
                   <Link href="/manager/dashboard" onClick={closeSidebar}>
-                    <h1 className="text-sm font-semibold text-foreground leading-tight">{companyName}</h1>
+                    <h1 className="text-base font-bold text-white leading-tight">{companyName}</h1>
                   </Link>
-                  <p className="text-[11px] text-muted-foreground leading-tight">Manager Portal</p>
+                  <p className="text-xs text-slate-400 leading-tight">Manager Portal</p>
                 </div>
               </div>
               <div className="hidden lg:flex items-center gap-1">
@@ -178,45 +158,39 @@ export default function ManagerLayout({ children }: { children: React.ReactNode 
                 <ThemeToggle />
               </div>
               {isMobile && (
-                <button
-                  onClick={closeSidebar}
-                  className="p-1.5 hover:bg-muted dark:hover:bg-slate-800 rounded-lg transition-colors lg:hidden"
-                  aria-label="Close navigation menu"
-                >
-                  <X className="w-4 h-4" />
+                <button onClick={closeSidebar} className="p-2 hover:bg-slate-700/50 rounded-lg transition-colors" aria-label="Close menu">
+                  <X className="w-5 h-5" />
                 </button>
               )}
             </div>
 
-            {/* Search bar */}
-            <div className="px-3 py-3">
-              <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted/50 dark:bg-slate-800/50 border border-transparent focus-within:border-primary/30 transition-colors">
-                <Search className="w-4 h-4 text-muted-foreground shrink-0" />
-                <input
-                  type="text"
-                  placeholder="Search..."
-                  className="bg-transparent text-sm text-foreground placeholder:text-muted-foreground w-full outline-none"
-                />
+            {/* Search */}
+            <div className="p-3">
+              <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-800/50 border border-slate-700 focus-within:border-sky-400/70 focus-within:ring-2 focus-within:ring-sky-400/20 transition-all">
+                <Search className="w-4 h-4 text-slate-400" />
+                <input type="text" placeholder="Search..." className="bg-transparent text-sm w-full outline-none" />
               </div>
             </div>
 
             {/* Navigation */}
-            <div className="flex-1 overflow-y-auto">
+            <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-slate-600 scrollbar-track-transparent pr-1">
               <SidebarNav items={navItems} onItemClick={closeSidebar} />
             </div>
 
-            {/* Footer section */}
-            <div className="px-3 py-3 border-t border-border/50 dark:border-slate-800/40 space-y-2">
-              <div className="flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-muted/50 dark:hover:bg-slate-800/50 transition-colors">
-                <div className="w-8 h-8 bg-gradient-to-br from-violet-500/20 to-violet-500/5 dark:from-violet-500/20 dark:to-violet-500/5 rounded-full flex items-center justify-center text-xs font-semibold text-violet-600 dark:text-violet-400">
+            {/* Footer */}
+            <div className="p-3 border-t border-slate-700/50 shrink-0 space-y-2">
+              <div className="flex items-center gap-3 p-2 rounded-lg hover:bg-slate-800/50 transition-colors">
+                <div className="w-9 h-9 rounded-full bg-gradient-to-br from-sky-400/20 to-blue-600/20 flex items-center justify-center font-bold text-sky-300">
                   {userName ? userName[0]?.toUpperCase() : 'U'}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-foreground truncate">{userName || 'My Account'}</p>
-                  <p className="text-[11px] text-muted-foreground">Manager</p>
+                  <p className="text-sm font-semibold truncate">{userName || 'My Account'}</p>
+                  <p className="text-xs text-slate-400">Manager</p>
                 </div>
               </div>
-              <PortalSwitcher />
+              <Suspense>
+                <PortalSwitcher />
+              </Suspense>
               <SignOutButton />
             </div>
           </motion.aside>
@@ -224,14 +198,8 @@ export default function ManagerLayout({ children }: { children: React.ReactNode 
       </AnimatePresence>
 
       {/* Main content */}
-      <main className={`
-        flex-1 overflow-y-auto transition-all duration-300
-        ${isMobile ? 'pt-14' : ''}
-      `}>
-        <div className={`
-          p-4 sm:p-6 lg:p-8
-          ${isMobile ? 'pb-8' : ''}
-        `}>
+      <main className="flex-1 overflow-y-auto lg:pt-0 pt-16">
+        <div className="p-4 sm:p-6 lg:p-8">
           {children}
         </div>
       </main>

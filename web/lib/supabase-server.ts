@@ -1,4 +1,14 @@
 // ─── Supabase Server Client (SSR / API Routes) ────────────────────────────
+//
+// Supabase is the PRIMARY authentication provider.
+//
+// This file provides:
+// 1. getSupabaseServerClient() — Server Components / Route Handlers (cookie-based session)
+// 2. createMiddlewareClient() — Middleware (request/response-based session refresh)
+// 3. getSupabaseAdmin() — Service role client for admin operations (bypasses RLS)
+// 4. verifySupabaseToken() — Verify a Supabase access token server-side
+//
+
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { NextRequest, NextResponse } from 'next/server';
@@ -9,8 +19,8 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 /**
- * Creates a Supabase server client for Server Components and Route Handlers
- * Uses cookies for session management
+ * Creates a Supabase server client for Server Components and Route Handlers.
+ * Uses cookies for session management.
  */
 export async function getSupabaseServerClient() {
   const cookieStore = await cookies();
@@ -35,8 +45,8 @@ export async function getSupabaseServerClient() {
 }
 
 /**
- * Creates a Supabase server client for Middleware
- * Handles session refresh and cookie management
+ * Creates a Supabase server client for Middleware.
+ * Handles session refresh and cookie management.
  */
 export function createMiddlewareClient(request: NextRequest, response: NextResponse) {
   return createServerClient(supabaseUrl, supabaseAnonKey, {
@@ -55,14 +65,15 @@ export function createMiddlewareClient(request: NextRequest, response: NextRespo
 }
 
 /**
- * Creates an admin Supabase client with service role key
+ * Creates an admin Supabase client with service role key.
  * Use only for server-side operations that need elevated privileges
+ * (e.g., admin DB operations, bypassing RLS).
  */
 export function getSupabaseAdmin() {
   if (!supabaseServiceKey) {
     throw new Error('SUPABASE_SERVICE_ROLE_KEY is not configured');
   }
-  
+
   return createClient(supabaseUrl, supabaseServiceKey, {
     auth: {
       autoRefreshToken: false,
@@ -72,50 +83,12 @@ export function getSupabaseAdmin() {
 }
 
 /**
- * Gets the current user from request cookies
- * For use in API routes
+ * Verify a Supabase access token (JWT) server-side using the Admin client.
+ * Returns the authenticated user or null.
  */
-export async function getUserFromRequest(request: NextRequest): Promise<{
-  user: { uid: string; email: string | undefined } | null;
-  error: Error | null;
-}> {
-  try {
-    // Create a minimal response to read cookies
-    const response = NextResponse.next();
-    const supabase = createMiddlewareClient(request, response);
-    
-    const { data: { user }, error } = await supabase.auth.getUser();
-    
-    if (error || !user) {
-      return { user: null, error: error || new Error('No user found') };
-    }
-    
-    return {
-      user: {
-        uid: user.id,
-        email: user.email,
-      },
-      error: null,
-    };
-  } catch (error) {
-    return {
-      user: null,
-      error: error instanceof Error ? error : new Error('Unknown error'),
-    };
-  }
-}
-
-/**
- * Gets the current authenticated user from cookies
- * For use in Server Components and Server Actions
- */
-export async function getUser() {
-  const supabase = await getSupabaseServerClient();
-  const { data: { user }, error } = await supabase.auth.getUser();
-  
-  if (error || !user) {
-    return null;
-  }
-  
+export async function verifySupabaseToken(accessToken: string) {
+  const admin = getSupabaseAdmin();
+  const { data: { user }, error } = await admin.auth.getUser(accessToken);
+  if (error || !user) return null;
   return user;
 }

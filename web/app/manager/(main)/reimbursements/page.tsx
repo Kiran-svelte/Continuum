@@ -2,7 +2,9 @@
 
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { FadeIn, StaggerContainer } from '@/components/motion';
+import { GlassPanel } from '@/components/glass-panel';
+import { PageHeader } from '@/components/page-header';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -88,11 +90,11 @@ const CATEGORY_ICONS: Record<string, React.ReactNode> = {
 };
 
 const CATEGORY_COLORS: Record<string, string> = {
-  travel: 'bg-blue-500/10 text-blue-600 dark:text-blue-400',
-  medical: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400',
-  equipment: 'bg-purple-500/10 text-purple-600 dark:text-purple-400',
-  food: 'bg-orange-500/10 text-orange-600 dark:text-orange-400',
-  other: 'bg-slate-500/10 text-slate-600 dark:text-slate-400',
+  travel: 'bg-blue-500/10 text-blue-400',
+  medical: 'bg-emerald-500/10 text-emerald-400',
+  equipment: 'bg-purple-500/10 text-purple-400',
+  food: 'bg-orange-500/10 text-orange-400',
+  other: 'bg-slate-500/10 text-slate-400',
 };
 
 const STATUS_TABS = [
@@ -139,45 +141,69 @@ function formatCurrency(amount: number) {
   }).format(amount);
 }
 
-// ─── Skeleton Loader ─────────────────────────────────────────────────────────
+/* ------------------------------------------------------------------ */
+/*  Loading Skeleton                                                   */
+/* ------------------------------------------------------------------ */
 
 function ReimbursementsSkeleton() {
   return (
-    <div className="space-y-6">
-      <div className="space-y-2">
-        <Skeleton className="h-8 w-56" />
-        <Skeleton className="h-4 w-72" />
-      </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {Array.from({ length: 4 }).map((_, i) => (
-          <div key={i} className="rounded-xl border border-border bg-card p-6 space-y-3">
-            <Skeleton className="h-4 w-24" />
-            <Skeleton className="h-8 w-16" />
-            <Skeleton className="h-3 w-20" />
-          </div>
-        ))}
-      </div>
-      <Skeleton className="h-10 w-full max-w-xs" />
-      <Card>
-        <CardContent className="py-6">
-          {Array.from({ length: 5 }).map((_, i) => (
-            <div key={i} className="flex items-center gap-4 py-4 border-b border-border last:border-0">
-              <Skeleton className="w-10 h-10 rounded-lg" />
-              <div className="flex-1 space-y-2">
-                <Skeleton className="h-4 w-3/4" />
-                <Skeleton className="h-3 w-1/2" />
-              </div>
-              <Skeleton className="h-8 w-20" />
-              <Skeleton className="h-8 w-20" />
-            </div>
+    <div className="p-4 sm:p-6 pb-32">
+      <div className="space-y-8">
+        {/* Header skeleton */}
+        <div className="space-y-2">
+          <Skeleton className="h-8 w-64 bg-white/10" />
+          <Skeleton className="h-4 w-80 bg-white/10" />
+        </div>
+
+        {/* Metric cards skeleton */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {[...Array(4)].map((_, i) => (
+            <GlassPanel key={i} className="p-6 space-y-3">
+              <Skeleton className="h-5 w-24 bg-white/10" />
+              <Skeleton className="h-8 w-16 bg-white/10" />
+            </GlassPanel>
           ))}
-        </CardContent>
-      </Card>
+        </div>
+
+        {/* Filters skeleton */}
+        <GlassPanel className="p-4">
+          <div className="flex flex-col sm:flex-row gap-3 items-center">
+            <div className="flex gap-2">
+              <Skeleton className="h-8 w-16 bg-white/10 rounded-full" />
+              <Skeleton className="h-8 w-20 bg-white/10 rounded-full" />
+              <Skeleton className="h-8 w-24 bg-white/10 rounded-full" />
+            </div>
+            <Skeleton className="h-10 flex-1 bg-white/10 rounded-lg sm:ml-auto" />
+          </div>
+        </GlassPanel>
+
+        {/* Table skeleton */}
+        <GlassPanel className="p-6 space-y-4">
+          <Skeleton className="h-6 w-40 bg-white/10" />
+          <div className="space-y-3">
+            {[...Array(5)].map((_, i) => (
+              <div key={i} className="flex justify-between items-center p-3 bg-black/10 rounded-lg">
+                <div className="flex items-center gap-3">
+                  <Skeleton className="h-10 w-10 rounded-full bg-white/10" />
+                  <div className="space-y-1.5">
+                    <Skeleton className="h-4 w-32 bg-white/10" />
+                    <Skeleton className="h-3 w-24 bg-white/10" />
+                  </div>
+                </div>
+                <Skeleton className="h-8 w-24 bg-white/10 rounded-lg" />
+              </div>
+            ))}
+          </div>
+        </GlassPanel>
+      </div>
     </div>
   );
 }
 
-// ─── Component ───────────────────────────────────────────────────────────────
+
+/* ------------------------------------------------------------------ */
+/*  Component                                                          */
+/* ------------------------------------------------------------------ */
 
 export default function ManagerReimbursementsPage() {
   const [reimbursements, setReimbursements] = useState<Reimbursement[]>([]);
@@ -297,33 +323,30 @@ export default function ManagerReimbursementsPage() {
 
   if (error && reimbursements.length === 0) {
     return (
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Reimbursement Approvals</h1>
-          <p className="text-muted-foreground mt-1">
-            Review and approve team reimbursement requests
-          </p>
-        </div>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="text-center py-12">
-              <div className="w-12 h-12 rounded-xl bg-red-50 dark:bg-red-500/10 flex items-center justify-center mx-auto">
-                <AlertCircle className="w-6 h-6 text-red-500" />
-              </div>
-              <p className="text-foreground font-medium mt-4">Unable to load reimbursements</p>
-              <p className="text-muted-foreground text-sm mt-1 max-w-sm mx-auto">{error}</p>
-              <Button
-                variant="outline"
-                size="sm"
-                className="mt-4"
-                onClick={() => loadReimbursements(page, statusFilter)}
-              >
-                <RefreshCw className="w-4 h-4" />
-                Try Again
-              </Button>
+      <div className="p-4 sm:p-6">
+        <FadeIn>
+          <PageHeader
+            title="Reimbursement Approvals"
+            description="Review and approve team reimbursement requests"
+            icon={<Receipt className="w-6 h-6 text-primary" />}
+          />
+          <GlassPanel interactive className="border-red-500/30 p-12 text-center">
+            <div className="w-16 h-16 rounded-full bg-red-500/10 flex items-center justify-center mx-auto ring-4 ring-red-500/20">
+              <AlertCircle className="w-8 h-8 text-red-400" />
             </div>
-          </CardContent>
-        </Card>
+            <p className="text-white font-semibold mt-6 text-xl">Unable to load reimbursements</p>
+            <p className="text-white/60 text-sm mt-2 max-w-sm mx-auto">{error}</p>
+            <Button
+              variant="outline"
+              size="md"
+              className="mt-6"
+              onClick={() => loadReimbursements(page, statusFilter)}
+            >
+              <RefreshCw className="w-4 h-4 mr-2" />
+              Try Again
+            </Button>
+          </GlassPanel>
+        </FadeIn>
       </div>
     );
   }
@@ -331,181 +354,112 @@ export default function ManagerReimbursementsPage() {
   // ─── Render ─────────────────────────────────────────────────────────────────
 
   return (
-    <motion.div
-      className="space-y-6"
-      variants={containerVariants}
-      initial="hidden"
-      animate="visible"
-    >
-      {/* Header */}
-      <motion.div variants={itemVariants}>
-        <h1 className="text-2xl font-bold text-foreground">Reimbursement Approvals</h1>
-        <p className="text-muted-foreground mt-1">
-          Review and approve team reimbursement requests
-        </p>
-      </motion.div>
+    <div className="p-4 sm:p-6 pb-32">
+      <StaggerContainer>
+        {/* Header */}
+        <PageHeader
+          title="Reimbursement Approvals"
+          description="Review and approve team reimbursement requests"
+          icon={<Receipt className="w-6 h-6 text-primary" />}
+        />
 
-      {/* Success Message */}
-      <AnimatePresence>
-        {successMsg && (
-          <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            className="rounded-lg px-4 py-3 text-sm flex items-center gap-2 bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-400"
-          >
-            <CheckCircle2 className="w-4 h-4 shrink-0" />
-            {successMsg}
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Inline error banner */}
-      <AnimatePresence>
-        {error && reimbursements.length > 0 && (
-          <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            className="rounded-lg px-4 py-3 text-sm flex items-center gap-2 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400"
-          >
-            <AlertCircle className="w-4 h-4 shrink-0" />
-            {error}
-            <button
-              type="button"
-              aria-label="Dismiss error"
-              onClick={() => setError('')}
-              className="ml-auto text-red-500 hover:text-red-600 dark:hover:text-red-300"
-            >
-              <XCircle className="w-4 h-4" />
-            </button>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Summary Cards */}
-      <motion.div
-        className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4"
-        variants={itemVariants}
-      >
-        <Card>
-          <CardContent className="pt-6 pb-6">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-amber-500/10 flex items-center justify-center">
-                <Clock className="w-5 h-5 text-amber-600 dark:text-amber-400" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Total Pending</p>
-                <p className="text-2xl font-bold text-foreground">{summary.totalPending}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="pt-6 pb-6">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-purple-500/10 flex items-center justify-center">
-                <IndianRupee className="w-5 h-5 text-purple-600 dark:text-purple-400" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Amount Pending</p>
-                <p className="text-2xl font-bold text-foreground">
-                  {formatCurrency(summary.totalAmountPending)}
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="pt-6 pb-6">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-emerald-500/10 flex items-center justify-center">
-                <CheckCircle2 className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Approved This Month</p>
-                <p className="text-2xl font-bold text-foreground">{summary.approvedThisMonth}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="pt-6 pb-6">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-red-500/10 flex items-center justify-center">
-                <XCircle className="w-5 h-5 text-red-600 dark:text-red-400" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Rejected</p>
-                <p className="text-2xl font-bold text-foreground">{summary.totalRejected}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </motion.div>
-
-      {/* Status Filter Tabs + Search */}
-      <motion.div
-        className="flex flex-col sm:flex-row sm:items-center gap-3"
-        variants={itemVariants}
-      >
-        <div className="flex items-center gap-2 flex-wrap">
-          {STATUS_TABS.map((tab) => (
-            <button
-              key={tab.value}
-              onClick={() => {
-                setStatusFilter(tab.value);
-                setPage(1);
-              }}
-              className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
-                statusFilter === tab.value
-                  ? 'bg-primary text-primary-foreground'
-                  : 'bg-muted text-muted-foreground hover:bg-muted/50'
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
+        {/* Success & Error Messages */}
+        <div className="relative">
+          <AnimatePresence>
+            {successMsg && (
+              <motion.div
+                initial={{ opacity: 0, y: -20, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, x: -30, scale: 0.95 }}
+                className="z-10 my-4 rounded-xl px-4 py-3 text-sm flex items-center gap-3 bg-green-500/10 border border-green-500/30 text-green-300 shadow-lg shadow-green-500/10"
+              >
+                <CheckCircle2 className="w-5 h-5 shrink-0" />
+                {successMsg}
+              </motion.div>
+            )}
+            {error && reimbursements.length > 0 && (
+              <motion.div
+                initial={{ opacity: 0, y: -20, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, x: -30, scale: 0.95 }}
+                className="z-10 my-4 rounded-xl px-4 py-3 text-sm flex items-center gap-3 bg-red-500/10 border border-red-500/30 text-red-300 shadow-lg shadow-red-500/10"
+              >
+                <AlertCircle className="w-5 h-5 shrink-0" />
+                {error}
+                <button
+                  type="button"
+                  aria-label="Dismiss error"
+                  onClick={() => setError('')}
+                  className="ml-auto text-red-400 hover:text-red-300"
+                >
+                  <XCircle className="w-5 h-5" />
+                </button>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
-        <div className="relative w-full sm:w-64 sm:ml-auto">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
-          <input
-            type="text"
-            placeholder="Search by employee name..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-9 pr-3 py-2 text-sm rounded-lg border border-border bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary transition-colors"
-          />
-        </div>
-      </motion.div>
 
-      {/* Reimbursements Table */}
-      <motion.div variants={itemVariants}>
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle>Reimbursement Requests</CardTitle>
+        {/* Summary Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mt-6">
+          <MetricCard icon={Clock} label="Total Pending" value={summary.totalPending} color="amber" />
+          <MetricCard icon={IndianRupee} label="Amount Pending" value={formatCurrency(summary.totalAmountPending)} color="purple" />
+          <MetricCard icon={CheckCircle2} label="Approved This Month" value={summary.approvedThisMonth} color="emerald" />
+          <MetricCard icon={XCircle} label="Total Rejected" value={summary.totalRejected} color="red" />
+        </div>
+
+        {/* Status Filter Tabs + Search */}
+        <FadeIn>
+          <GlassPanel className="mt-8 p-4">
+            <div className="flex flex-col sm:flex-row gap-4 items-center">
+              <div className="flex items-center gap-2 flex-wrap">
+                {STATUS_TABS.map((tab) => (
+                  <button
+                    key={tab.value}
+                    onClick={() => { setStatusFilter(tab.value); setPage(1); }}
+                    className={`px-4 py-2 rounded-full text-sm font-semibold transition-colors duration-300 ${
+                      statusFilter === tab.value
+                        ? 'bg-primary text-white shadow-[0_0_15px_rgba(var(--primary-rgb),0.3)]'
+                        : 'bg-black/20 text-white/60 hover:bg-black/40 hover:text-white'
+                    }`}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
+              <div className="relative w-full sm:w-72 sm:ml-auto">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/40 pointer-events-none" />
+                <input
+                  type="text"
+                  placeholder="Search by employee name..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full h-12 pl-12 pr-4 bg-black/20 border border-white/10 rounded-lg text-white placeholder:text-white/40 focus:ring-2 focus:ring-primary/50 focus:outline-none"
+                />
+              </div>
+            </div>
+          </GlassPanel>
+        </FadeIn>
+
+        {/* Reimbursements List */}
+        <FadeIn>
+          <GlassPanel className="mt-6 p-4 sm:p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-bold text-white">Requests</h3>
               {loading && reimbursements.length > 0 && (
-                <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+                <Loader2 className="w-5 h-5 animate-spin text-white/60" />
               )}
             </div>
-          </CardHeader>
-          <CardContent>
+
             {/* Empty State */}
             {!loading && !error && filteredReimbursements.length === 0 && (
-              <div className="py-12 text-center">
-                <div className="w-12 h-12 rounded-xl bg-slate-50 dark:bg-slate-500/10 flex items-center justify-center mx-auto">
-                  <Inbox className="w-6 h-6 text-slate-400" />
+              <div className="py-16 text-center">
+                <div className="w-20 h-20 rounded-full bg-black/20 flex items-center justify-center mx-auto border-2 border-white/10">
+                  <Inbox className="w-10 h-10 text-white/30" />
                 </div>
-                <p className="text-foreground font-medium mt-3">
-                  {searchQuery.trim()
-                    ? 'No matching reimbursements'
-                    : 'No reimbursements found'}
+                <p className="text-white font-semibold mt-5 text-lg">
+                  {searchQuery.trim() ? 'No matching requests' : 'No reimbursements found'}
                 </p>
-                <p className="text-muted-foreground text-sm mt-1 max-w-sm mx-auto">
+                <p className="text-white/60 text-sm mt-2 max-w-sm mx-auto">
                   {searchQuery.trim()
                     ? `No reimbursements match "${searchQuery}"`
                     : statusFilter
@@ -515,184 +469,18 @@ export default function ManagerReimbursementsPage() {
               </div>
             )}
 
-            {/* Desktop Table */}
+            {/* List */}
             {filteredReimbursements.length > 0 && (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-border">
-                      <th className="text-left py-3 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                        Employee
-                      </th>
-                      <th className="text-left py-3 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                        Category
-                      </th>
-                      <th className="text-right py-3 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                        Amount
-                      </th>
-                      <th className="text-left py-3 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider hidden lg:table-cell">
-                        Description
-                      </th>
-                      <th className="text-left py-3 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider hidden md:table-cell">
-                        Receipt
-                      </th>
-                      <th className="text-left py-3 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                        Status
-                      </th>
-                      <th className="text-left py-3 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider hidden md:table-cell">
-                        Date
-                      </th>
-                      <th className="text-right py-3 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                        Actions
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-border">
-                    {filteredReimbursements.map((r) => {
-                      const isPending = r.status === 'pending';
-                      const isActioning = actionLoading === r.id;
-
-                      return (
-                        <motion.tr
-                          key={r.id}
-                          initial={{ opacity: 0 }}
-                          animate={{ opacity: 1 }}
-                          className="hover:bg-muted/30 transition-colors"
-                        >
-                          {/* Employee */}
-                          <td className="py-3 px-3">
-                            <div className="flex items-center gap-2.5">
-                              <div className="w-8 h-8 rounded-full bg-violet-100 dark:bg-violet-900/20 flex items-center justify-center text-xs font-bold text-violet-600 dark:text-violet-400 shrink-0">
-                                {r.employee.first_name.charAt(0)}
-                                {r.employee.last_name.charAt(0)}
-                              </div>
-                              <div className="min-w-0">
-                                <p className="font-medium text-foreground truncate">
-                                  {r.employee.first_name} {r.employee.last_name}
-                                </p>
-                                {r.employee.department && (
-                                  <p className="text-xs text-muted-foreground truncate">
-                                    {r.employee.department}
-                                  </p>
-                                )}
-                              </div>
-                            </div>
-                          </td>
-
-                          {/* Category */}
-                          <td className="py-3 px-3">
-                            <div className="flex items-center gap-2">
-                              <div
-                                className={`w-7 h-7 rounded-md flex items-center justify-center shrink-0 ${
-                                  CATEGORY_COLORS[r.category] || CATEGORY_COLORS.other
-                                }`}
-                              >
-                                {CATEGORY_ICONS[r.category] || CATEGORY_ICONS.other}
-                              </div>
-                              <span className="text-foreground">
-                                {CATEGORY_LABELS[r.category] || r.category}
-                              </span>
-                            </div>
-                          </td>
-
-                          {/* Amount */}
-                          <td className="py-3 px-3 text-right">
-                            <span className="font-semibold text-foreground">
-                              {formatCurrency(r.amount)}
-                            </span>
-                          </td>
-
-                          {/* Description */}
-                          <td className="py-3 px-3 hidden lg:table-cell">
-                            <p className="text-muted-foreground text-xs line-clamp-2 max-w-[200px]">
-                              {r.description || '-'}
-                            </p>
-                          </td>
-
-                          {/* Receipt */}
-                          <td className="py-3 px-3 hidden md:table-cell">
-                            {r.receipt_url ? (
-                              <a
-                                href={r.receipt_url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="inline-flex items-center gap-1 text-xs text-primary hover:text-primary/80 transition-colors"
-                              >
-                                <ExternalLink className="w-3 h-3" />
-                                View
-                              </a>
-                            ) : (
-                              <span className="text-xs text-muted-foreground">-</span>
-                            )}
-                          </td>
-
-                          {/* Status */}
-                          <td className="py-3 px-3">
-                            <Badge
-                              variant={STATUS_BADGE[r.status] ?? 'default'}
-                              size="sm"
-                            >
-                              {r.status}
-                            </Badge>
-                          </td>
-
-                          {/* Date */}
-                          <td className="py-3 px-3 hidden md:table-cell">
-                            <span className="text-xs text-muted-foreground">
-                              {formatDate(r.created_at)}
-                            </span>
-                          </td>
-
-                          {/* Actions */}
-                          <td className="py-3 px-3 text-right">
-                            {isPending ? (
-                              <div className="flex items-center justify-end gap-2">
-                                <Button
-                                  variant="success"
-                                  size="sm"
-                                  disabled={isActioning}
-                                  onClick={() => handleAction(r.id, 'approve')}
-                                >
-                                  {isActioning ? (
-                                    <Loader2 className="w-3 h-3 animate-spin" />
-                                  ) : (
-                                    <CheckCircle2 className="w-3 h-3" />
-                                  )}
-                                  Approve
-                                </Button>
-                                <Button
-                                  variant="danger"
-                                  size="sm"
-                                  disabled={isActioning}
-                                  onClick={() => handleAction(r.id, 'reject')}
-                                >
-                                  {isActioning ? (
-                                    <Loader2 className="w-3 h-3 animate-spin" />
-                                  ) : (
-                                    <XCircle className="w-3 h-3" />
-                                  )}
-                                  Reject
-                                </Button>
-                              </div>
-                            ) : (
-                              <span className="text-xs text-muted-foreground">
-                                {r.approver
-                                  ? `By ${r.approver.first_name} ${r.approver.last_name}`
-                                  : '-'}
-                              </span>
-                            )}
-                          </td>
-                        </motion.tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
+              <div className="space-y-4">
+                {filteredReimbursements.map((r) => (
+                  <ReimbursementCard key={r.id} request={r} onAction={handleAction} actionLoading={actionLoading} />
+                ))}
               </div>
             )}
 
             {/* Pagination */}
             {pagination && pagination.pages > 1 && (
-              <div className="flex items-center justify-between mt-6 pt-4 border-t border-border">
+              <div className="flex items-center justify-between mt-8 pt-4 border-t-2 border-white/5">
                 <Button
                   variant="outline"
                   size="sm"
@@ -701,7 +489,7 @@ export default function ManagerReimbursementsPage() {
                 >
                   Previous
                 </Button>
-                <span className="text-sm text-muted-foreground">
+                <span className="text-sm text-white/60">
                   Page {page} of {pagination.pages}
                 </span>
                 <Button
@@ -714,9 +502,133 @@ export default function ManagerReimbursementsPage() {
                 </Button>
               </div>
             )}
-          </CardContent>
-        </Card>
-      </motion.div>
+          </GlassPanel>
+        </FadeIn>
+      </StaggerContainer>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Sub-components                                                     */
+/* ------------------------------------------------------------------ */
+
+function MetricCard({ icon: Icon, label, value, color }: { icon: React.ElementType, label: string, value: number | string, color: string }) {
+  const colorClasses: Record<string, string> = {
+    amber: 'text-amber-400 bg-amber-500/10 shadow-amber-500/10',
+    purple: 'text-purple-400 bg-purple-500/10 shadow-purple-500/10',
+    emerald: 'text-emerald-400 bg-emerald-500/10 shadow-emerald-500/10',
+    red: 'text-red-400 bg-red-500/10 shadow-red-500/10',
+  };
+
+  return (
+    <FadeIn>
+      <GlassPanel interactive className="p-5 h-full">
+        <div className="flex items-center gap-4">
+          <div className={`p-3 rounded-lg shadow-lg ${colorClasses[color]}`}>
+            <Icon className="w-6 h-6" />
+          </div>
+          <div>
+            <p className="text-sm text-white/70">{label}</p>
+            <p className="text-2xl font-bold text-white">{value}</p>
+          </div>
+        </div>
+      </GlassPanel>
+    </FadeIn>
+  );
+}
+
+function ReimbursementCard({ request, onAction, actionLoading }: { request: Reimbursement, onAction: (id: string, action: 'approve' | 'reject') => void, actionLoading: string | null }) {
+  const isPending = request.status === 'pending';
+  const isActioning = actionLoading === request.id;
+
+  return (
+    <motion.div
+      layout
+      initial={{ opacity: 0, y: 20, scale: 0.98 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      exit={{ opacity: 0, y: -20, scale: 0.98 }}
+      transition={{ duration: 0.3, ease: 'easeOut' }}
+      className="bg-black/20 border border-white/10 rounded-2xl p-4 transition-shadow hover:shadow-xl hover:shadow-primary/10"
+    >
+      <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+        {/* Employee Info */}
+        <div className="flex-1 flex items-center gap-4">
+          <div className="w-12 h-12 rounded-full bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center text-lg font-bold text-white shrink-0 shadow-lg shadow-violet-500/20">
+            {request.employee.first_name.charAt(0)}
+            {request.employee.last_name.charAt(0)}
+          </div>
+          <div className="min-w-0">
+            <p className="font-semibold text-white truncate">{request.employee.first_name} {request.employee.last_name}</p>
+            <p className="text-xs text-white/60 truncate">{request.employee.department || 'N/A'}</p>
+            <p className="text-xs text-white/60 truncate">{formatDate(request.created_at)}</p>
+          </div>
+        </div>
+
+        {/* Details */}
+        <div className="flex-1 grid grid-cols-2 gap-4 text-sm">
+          <div>
+            <div className="flex items-center gap-2">
+              <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${CATEGORY_COLORS[request.category] || CATEGORY_COLORS.other}`}>
+                {CATEGORY_ICONS[request.category] || CATEGORY_ICONS.other}
+              </div>
+              <div>
+                <p className="text-white/60">Category</p>
+                <p className="font-medium text-white">{CATEGORY_LABELS[request.category] || request.category}</p>
+              </div>
+            </div>
+          </div>
+          <div>
+            <p className="text-white/60">Amount</p>
+            <p className="font-bold text-lg text-white">{formatCurrency(request.amount)}</p>
+          </div>
+        </div>
+
+        {/* Status & Actions */}
+        <div className="sm:w-64 flex flex-col sm:items-end gap-2">
+          <div className="flex items-center gap-2">
+            {request.receipt_url && (
+              <a href={request.receipt_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 transition-colors">
+                <ExternalLink className="w-4 h-4 text-white/70" />
+              </a>
+            )}
+            <Badge variant={STATUS_BADGE[request.status] ?? 'default'} className="capitalize py-1 px-3 text-xs">{request.status}</Badge>
+          </div>
+          {isPending ? (
+            <div className="flex items-center justify-end gap-2 mt-2 w-full">
+              <Button
+                variant="success"
+                size="sm"
+                className="flex-1"
+                disabled={isActioning}
+                onClick={() => onAction(request.id, 'approve')}
+              >
+                {isActioning ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
+                <span className="ml-2">Approve</span>
+              </Button>
+              <Button
+                variant="danger"
+                size="sm"
+                className="flex-1"
+                disabled={isActioning}
+                onClick={() => onAction(request.id, 'reject')}
+              >
+                {isActioning ? <Loader2 className="w-4 h-4 animate-spin" /> : <XCircle className="w-4 h-4" />}
+                <span className="ml-2">Reject</span>
+              </Button>
+            </div>
+          ) : (
+            <p className="text-xs text-white/50 text-right mt-2">
+              {request.approver ? `By ${request.approver.first_name}` : 'Processed'}
+            </p>
+          )}
+        </div>
+      </div>
+      {request.description && (
+        <div className="mt-3 pt-3 border-t border-white/10 text-sm text-white/70">
+          <p className="line-clamp-2">{request.description}</p>
+        </div>
+      )}
     </motion.div>
   );
 }

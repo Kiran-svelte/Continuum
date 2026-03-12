@@ -2,11 +2,13 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { PageLoader } from '@/components/ui/progress';
+import { TiltCard, FadeIn, StaggerContainer } from '@/components/motion';
+import { PageHeader } from '@/components/page-header';
+import { GlassPanel } from '@/components/glass-panel';
 import {
   Building2,
   Home,
@@ -92,23 +94,6 @@ const REG_STATUS_BADGE: Record<string, 'warning' | 'success' | 'danger'> = {
   pending: 'warning',
   approved: 'success',
   rejected: 'danger',
-};
-
-const containerVariants = {
-  hidden: { opacity: 0 },
-  visible: {
-    opacity: 1,
-    transition: { staggerChildren: 0.08, delayChildren: 0.1 },
-  },
-};
-
-const itemVariants = {
-  hidden: { opacity: 0, y: 20 },
-  visible: {
-    opacity: 1,
-    y: 0,
-    transition: { type: 'spring' as const, stiffness: 300, damping: 24 },
-  },
 };
 
 export default function AttendancePage() {
@@ -311,106 +296,108 @@ export default function AttendancePage() {
   const todayStr = new Date().toISOString().split('T')[0];
 
   return (
-    <motion.div
-      className="space-y-6"
-      initial="hidden"
-      animate="visible"
-      variants={containerVariants}
-    >
+    <StaggerContainer className="space-y-6">
       <PageLoader className={loading ? '' : 'opacity-0 pointer-events-none'} />
 
       {/* Header */}
-      <motion.div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3" variants={itemVariants}>
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Attendance</h1>
-          <p className="text-muted-foreground mt-1">Your attendance log and leave balances</p>
-        </div>
-
-        {/* Clock In/Out + Regularization buttons */}
-        <div className="flex items-center gap-2 flex-wrap">
-          <Button
-            onClick={() => { setShowRegModal(true); setRegError(''); setRegSuccess(''); }}
-            variant="outline"
-            className="gap-2 border-purple-300 text-purple-700 hover:bg-purple-50 dark:border-purple-700 dark:text-purple-400 dark:hover:bg-purple-500/10"
-          >
-            <FileEdit className="w-4 h-4" /> Request Regularization
-          </Button>
-          {canCheckIn && (
-            <>
-              <Button
-                onClick={() => handleClock('check_in', false)}
-                disabled={clockingIn}
-                className="bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-600/20 gap-2"
-              >
-                {clockingIn ? 'Clocking in...' : <><Building2 className="w-4 h-4" /> Clock In</>}
-              </Button>
-              <Button
-                onClick={() => handleClock('check_in', true)}
-                disabled={clockingIn}
-                variant="outline"
-                className="border-emerald-300 text-emerald-700 hover:bg-emerald-50 dark:border-emerald-700 dark:text-emerald-400 gap-2"
-              >
-                {clockingIn ? '...' : <><Home className="w-4 h-4" /> WFH</>}
-              </Button>
-            </>
-          )}
-          {canCheckOut && (
+      <PageHeader
+        title="My Attendance"
+        description="Track your check-in/check-out and attendance history"
+        icon={<Clock className="w-6 h-6 text-primary" />}
+        action={
+          <div className="flex items-center gap-3 flex-wrap">
             <Button
-              onClick={() => handleClock('check_out')}
-              disabled={clockingOut}
-              className="bg-rose-600 hover:bg-rose-700 text-white shadow-lg shadow-rose-600/20 gap-2"
+              onClick={() => { setShowRegModal(true); setRegError(''); setRegSuccess(''); }}
+              variant="outline"
+              className="gap-2 border-purple-500/30 text-purple-400 hover:bg-purple-500/10 hover:text-purple-300 font-bold h-11 px-4 rounded-xl shadow-inner transition-all hover:shadow-[0_0_15px_rgba(168,85,247,0.3)] bg-black/20"
             >
-              {clockingOut ? 'Clocking out...' : <><LogOut className="w-4 h-4" /> Clock Out</>}
+              <FileEdit className="w-4 h-4" /> Request Regularization
             </Button>
-          )}
-          {!canCheckIn && !canCheckOut && todayRecord && (
-            <Badge variant="success">Day complete</Badge>
-          )}
-        </div>
-      </motion.div>
+            {canCheckIn && (
+              <>
+                <Button
+                  onClick={() => handleClock('check_in', false)}
+                  disabled={clockingIn}
+                  className="bg-primary hover:bg-white text-white hover:text-primary font-bold h-11 px-6 rounded-xl shadow-[0_0_20px_rgba(var(--primary-rgb),0.3)] hover:shadow-[0_0_30px_rgba(255,255,255,0.6)] gap-2 group relative overflow-hidden transition-all"
+                >
+                  <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300 ease-out" />
+                  <span className="relative z-10 flex items-center gap-2">
+                    {clockingIn ? 'Clocking in...' : <><Building2 className="w-4 h-4" /> Clock In</>}
+                  </span>
+                </Button>
+                <Button
+                  onClick={() => handleClock('check_in', true)}
+                  disabled={clockingIn}
+                  variant="outline"
+                  className="gap-2 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10 hover:text-emerald-300 font-bold h-11 px-4 rounded-xl shadow-inner transition-all hover:shadow-[0_0_15px_rgba(16,185,129,0.3)] bg-black/20"
+                >
+                  {clockingIn ? '...' : <><Home className="w-4 h-4" /> WFH</>}
+                </Button>
+              </>
+            )}
+            {canCheckOut && (
+              <Button
+                onClick={() => handleClock('check_out')}
+                disabled={clockingOut}
+                className="bg-rose-500 hover:bg-white text-white hover:text-rose-600 font-bold h-11 px-6 rounded-xl shadow-[0_0_20px_rgba(244,63,94,0.3)] hover:shadow-[0_0_30px_rgba(255,255,255,0.6)] gap-2 group relative overflow-hidden transition-all"
+              >
+                <div className="absolute inset-0 bg-rose-500/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300 ease-out" />
+                <span className="relative z-10 flex items-center gap-2">
+                  {clockingOut ? 'Clocking out...' : <><LogOut className="w-4 h-4" /> Clock Out</>}
+                </span>
+              </Button>
+            )}
+            {!canCheckIn && !canCheckOut && todayRecord && (
+              <Badge variant="success" className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 font-bold px-3 py-1.5 shadow-[0_0_10px_rgba(16,185,129,0.2)]">Day complete</Badge>
+            )}
+          </div>
+        }
+      />
 
       {clockMessage && (
-        <motion.div
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className={`rounded-xl px-4 py-3 text-sm font-medium ${
-            clockMessage.includes('success')
-              ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20'
-              : 'bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/20'
-          }`}
-        >
-          {clockMessage}
-        </motion.div>
+        <FadeIn>
+          <div
+            className={`rounded-xl px-5 py-4 text-sm font-bold shadow-lg backdrop-blur-sm ${
+              clockMessage.includes('success')
+                ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 shadow-[0_0_15px_rgba(16,185,129,0.15)]'
+                : 'bg-amber-500/10 text-amber-400 border border-amber-500/30 shadow-[0_0_15px_rgba(245,158,11,0.15)]'
+            }`}
+          >
+            {clockMessage}
+          </div>
+        </FadeIn>
       )}
 
       {error && (
-        <div className="rounded-xl px-4 py-3 text-sm font-medium bg-red-50 text-red-700 border border-red-200 dark:bg-red-500/10 dark:text-red-400 dark:border-red-500/20 flex items-center gap-2">
-          <AlertCircle className="w-4 h-4 shrink-0" />
-          <span className="flex-1">{error}</span>
-          <button
-            type="button"
-            onClick={() => { setError(null); loadAttendance(); loadLeaveBalances(); loadRegularizations(); }}
-            className="ml-2 text-sm underline hover:no-underline shrink-0"
-          >
-            Retry
-          </button>
-        </div>
+        <FadeIn>
+          <div className="rounded-xl px-5 py-4 text-sm font-bold bg-red-500/10 text-red-400 border border-red-500/30 shadow-[0_0_15px_rgba(239,68,68,0.15)] flex items-center gap-3 backdrop-blur-sm">
+            <AlertCircle className="w-5 h-5 shrink-0" />
+            <span className="flex-1">{error}</span>
+            <button
+              type="button"
+              onClick={() => { setError(null); loadAttendance(); loadLeaveBalances(); loadRegularizations(); }}
+              className="ml-2 text-sm text-red-300 underline hover:no-underline shrink-0"
+            >
+              Retry
+            </button>
+          </div>
+        </FadeIn>
       )}
 
       {/* Summary Cards */}
-      <motion.div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4" variants={containerVariants}>
-        {[
-          { label: 'Present Days', value: summary?.presentDays ?? 0, icon: <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />, color: 'from-emerald-500 to-green-600', bgColor: 'bg-emerald-500/10', textColor: 'text-emerald-600 dark:text-emerald-400' },
-          { label: 'Half Days', value: summary?.halfDayDays ?? 0, icon: <TimerOff className="w-4 h-4 text-orange-600 dark:text-orange-400" />, color: 'from-orange-500 to-red-500', bgColor: 'bg-orange-500/10', textColor: 'text-orange-600 dark:text-orange-400' },
-          { label: 'Late Arrivals', value: summary?.lateDays ?? 0, icon: <AlarmClock className="w-4 h-4 text-rose-600 dark:text-rose-400" />, color: 'from-rose-500 to-pink-600', bgColor: 'bg-rose-500/10', textColor: 'text-rose-600 dark:text-rose-400' },
-          { label: 'WFH Days', value: summary?.wfhDays ?? 0, icon: <Home className="w-4 h-4 text-blue-600 dark:text-blue-400" />, color: 'from-blue-500 to-cyan-600', bgColor: 'bg-blue-500/10', textColor: 'text-blue-600 dark:text-blue-400' },
-          { label: 'Total Hours', value: summary?.totalHours ?? '0', icon: <Clock className="w-4 h-4 text-purple-600 dark:text-purple-400" />, color: 'from-purple-500 to-violet-600', bgColor: 'bg-purple-500/10', textColor: 'text-purple-600 dark:text-purple-400' },
-          { label: 'Attendance %', value: summary ? `${summary.attendancePercent}%` : '\u2014', icon: <BarChart3 className="w-4 h-4 text-amber-600 dark:text-amber-400" />, color: 'from-amber-500 to-orange-600', bgColor: 'bg-amber-500/10', textColor: 'text-amber-600 dark:text-amber-400' },
-        ].map((item, index) => (
-          <motion.div key={item.label} variants={itemVariants}>
-            <Card className="relative overflow-hidden border-0 shadow-md">
-              <div className={`absolute top-0 left-0 right-0 h-1 bg-gradient-to-r ${item.color}`} />
-              <CardContent className="pt-5 pb-4">
+      <FadeIn>
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+          {[
+            { label: 'Present Days', value: summary?.presentDays ?? 0, icon: <CheckCircle2 className="w-4 h-4 text-emerald-400" />, color: 'from-emerald-500 to-green-400', bgColor: 'bg-emerald-500/10 border-emerald-500/20 shadow-[0_0_15px_rgba(16,185,129,0.15)]', textColor: 'text-emerald-400' },
+            { label: 'Half Days', value: summary?.halfDayDays ?? 0, icon: <TimerOff className="w-4 h-4 text-orange-400" />, color: 'from-orange-500 to-red-400', bgColor: 'bg-orange-500/10 border-orange-500/20 shadow-[0_0_15px_rgba(249,115,22,0.15)]', textColor: 'text-orange-400' },
+            { label: 'Late Arrivals', value: summary?.lateDays ?? 0, icon: <AlarmClock className="w-4 h-4 text-rose-400" />, color: 'from-rose-500 to-pink-400', bgColor: 'bg-rose-500/10 border-rose-500/20 shadow-[0_0_15px_rgba(244,63,94,0.15)]', textColor: 'text-rose-400' },
+            { label: 'WFH Days', value: summary?.wfhDays ?? 0, icon: <Home className="w-4 h-4 text-blue-400" />, color: 'from-blue-500 to-cyan-400', bgColor: 'bg-blue-500/10 border-blue-500/20 shadow-[0_0_15px_rgba(59,130,246,0.15)]', textColor: 'text-blue-400' },
+            { label: 'Total Hours', value: summary?.totalHours ?? '0', icon: <Clock className="w-4 h-4 text-purple-400" />, color: 'from-purple-500 to-violet-400', bgColor: 'bg-purple-500/10 border-purple-500/20 shadow-[0_0_15px_rgba(168,85,247,0.15)]', textColor: 'text-purple-400' },
+            { label: 'Attendance %', value: summary ? `${summary.attendancePercent}%` : '\u2014', icon: <BarChart3 className="w-4 h-4 text-amber-400" />, color: 'from-amber-500 to-yellow-400', bgColor: 'bg-amber-500/10 border-amber-500/20 shadow-[0_0_15px_rgba(245,158,11,0.15)]', textColor: 'text-amber-400' },
+          ].map((item, index) => (
+            <TiltCard key={item.label}>
+              <GlassPanel className={`p-5 ${item.bgColor}`}>
+                <div className={`absolute top-0 left-0 right-0 h-1 bg-gradient-to-r ${item.color}`} />
                 {loading ? (
                   <div className="space-y-2 animate-pulse">
                     <Skeleton className="h-3 w-20" />
@@ -418,7 +405,7 @@ export default function AttendancePage() {
                   </div>
                 ) : (
                   <>
-                    <p className="text-xs font-medium text-muted-foreground">{item.label}</p>
+                    <p className="text-xs font-medium text-white/60">{item.label}</p>
                     <div className="flex items-center gap-2 mt-1.5">
                       <div className={`h-8 w-8 rounded-lg ${item.bgColor} flex items-center justify-center`}>
                         {item.icon}
@@ -434,35 +421,36 @@ export default function AttendancePage() {
                     </div>
                   </>
                 )}
-              </CardContent>
-            </Card>
-          </motion.div>
-        ))}
-      </motion.div>
+              </GlassPanel>
+            </TiltCard>
+          ))}
+        </div>
+      </FadeIn>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 relative z-10">
         {/* Attendance Records */}
-        <motion.div variants={itemVariants}>
-          <Card className="border-0 shadow-md overflow-hidden">
-            <CardHeader className="border-b border-border/50 bg-muted/30">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-base">Attendance Log</CardTitle>
-                <div className="flex items-center gap-2">
-                  <button onClick={prevMonth} className="p-1 hover:bg-muted rounded transition-colors text-muted-foreground hover:text-foreground">
-                    <ChevronLeft className="w-4 h-4" />
-                  </button>
-                  <span className="text-sm font-medium text-foreground min-w-[140px] text-center">
-                    {monthNames[currentMonth - 1]} {currentYear}
-                  </span>
-                  <button onClick={nextMonth} className="p-1 hover:bg-muted rounded transition-colors text-muted-foreground hover:text-foreground">
-                    <ChevronRight className="w-4 h-4" />
-                  </button>
+        <FadeIn>
+          <TiltCard>
+            <GlassPanel>
+              <div className="border-b border-white/10 bg-white/5 px-6 py-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-base text-white font-bold drop-shadow-[0_0_10px_rgba(255,255,255,0.5)]">Attendance Log</h3>
+                  <div className="flex items-center gap-2">
+                    <button onClick={prevMonth} className="p-1.5 hover:bg-white/10 rounded-full transition-colors text-white/70 hover:text-white">
+                      <ChevronLeft className="w-5 h-5 drop-shadow-[0_0_8px_rgba(255,255,255,0.3)]" />
+                    </button>
+                    <span className="text-sm font-bold text-white min-w-[140px] text-center tracking-wider drop-shadow-[0_0_10px_rgba(255,255,255,0.3)]">
+                      {monthNames[currentMonth - 1]} {currentYear}
+                    </span>
+                    <button onClick={nextMonth} className="p-1.5 hover:bg-white/10 rounded-full transition-colors text-white/70 hover:text-white">
+                      <ChevronRight className="w-5 h-5 drop-shadow-[0_0_8px_rgba(255,255,255,0.3)]" />
+                    </button>
+                  </div>
                 </div>
               </div>
-            </CardHeader>
-            <CardContent className="p-0">
+              <div className="backdrop-blur-md bg-black/20">
               {loading ? (
-                <div className="divide-y divide-border/50">
+                <div className="divide-y divide-white/10">
                   {[1, 2, 3, 4, 5, 6, 7].map((i) => (
                     <div key={i} className="px-6 py-3.5 animate-pulse">
                       <div className="flex items-center justify-between">
@@ -477,26 +465,26 @@ export default function AttendancePage() {
                 </div>
               ) : records.length === 0 ? (
                 <div className="py-12 text-center">
-                  <div className="w-12 h-12 rounded-xl bg-muted/50 flex items-center justify-center mx-auto mb-3">
-                    <CalendarDays className="w-6 h-6 text-muted-foreground" />
+                  <div className="w-12 h-12 rounded-xl bg-white/5 flex items-center justify-center mx-auto mb-3">
+                    <CalendarDays className="w-6 h-6 text-white/60" />
                   </div>
-                  <p className="text-sm text-muted-foreground">No attendance records for this month</p>
-                  <p className="text-xs text-muted-foreground mt-1">Use the Clock In button to start tracking</p>
+                  <p className="text-sm text-white/60">No attendance records for this month</p>
+                  <p className="text-xs text-white/60 mt-1">Use the Clock In button to start tracking</p>
                 </div>
               ) : (
-                <div className="divide-y divide-border/50 max-h-[480px] overflow-y-auto">
+                <div className="divide-y divide-white/10 max-h-[480px] overflow-y-auto">
                   {records.map((record, index) => (
                     <motion.div
                       key={record.id}
                       initial={{ opacity: 0, x: -10 }}
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: index * 0.03 }}
-                      className="px-6 py-3 hover:bg-muted/30 transition-colors"
+                      className="px-6 py-3 hover:bg-white/5 transition-colors"
                     >
                       <div className="flex items-center justify-between">
                         <div>
-                          <p className="text-sm font-medium text-foreground">{formatDate(record.date)}</p>
-                          <p className="text-xs text-muted-foreground mt-0.5">
+                          <p className="text-sm font-medium text-white">{formatDate(record.date)}</p>
+                          <p className="text-xs text-white/60 mt-0.5">
                             {record.check_in ? `In: ${formatTime(record.check_in)}` : ''}
                             {record.check_out ? ` \u00b7 Out: ${formatTime(record.check_out)}` : ''}
                             {record.total_hours ? ` \u00b7 ${formatHours(record.total_hours)}` : ''}
@@ -504,7 +492,7 @@ export default function AttendancePage() {
                         </div>
                         <div className="flex items-center gap-2">
                           {record.is_wfh && (
-                            <span className="text-xs bg-blue-500/10 text-blue-600 dark:text-blue-400 px-2 py-0.5 rounded-full">WFH</span>
+                            <span className="text-xs bg-blue-500/10 text-blue-400 px-2 py-0.5 rounded-full">WFH</span>
                           )}
                           <Badge variant={STATUS_BADGE[record.status] ?? 'default'}>
                             {STATUS_LABEL[record.status] ?? record.status}
@@ -515,19 +503,21 @@ export default function AttendancePage() {
                   ))}
                 </div>
               )}
-            </CardContent>
-          </Card>
-        </motion.div>
+            </div>
+            </GlassPanel>
+          </TiltCard>
+        </FadeIn>
 
         {/* Leave Balances */}
-        <motion.div variants={itemVariants}>
-          <Card className="border-0 shadow-md overflow-hidden">
-            <CardHeader className="border-b border-border/50 bg-muted/30">
-              <CardTitle className="text-base">
-                Leave Balances {leaveData ? `(${leaveData.year})` : ''}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-0">
+        <FadeIn>
+          <TiltCard>
+            <GlassPanel>
+              <div className="border-b border-white/10 bg-white/5 px-6 py-4">
+                <h3 className="text-base text-white font-bold drop-shadow-[0_0_10px_rgba(255,255,255,0.5)]">
+                  Leave Balances {leaveData ? `(${leaveData.year})` : ''}
+                </h3>
+              </div>
+              <div className="backdrop-blur-md bg-black/20">
               {loadingLeaves ? (
                 <div className="p-6 space-y-4">
                   {[1, 2, 3, 4, 5].map((i) => (
@@ -555,13 +545,13 @@ export default function AttendancePage() {
                         transition={{ delay: index * 0.06 }}
                       >
                         <div className="flex items-center justify-between mb-1.5">
-                          <span className="text-sm font-medium text-foreground">{b.leave_type}</span>
-                          <span className="text-sm text-foreground">
+                          <span className="text-sm font-medium text-white">{b.leave_type}</span>
+                          <span className="text-sm text-white">
                             <span className="font-semibold">{b.remaining}</span>
-                            <span className="text-muted-foreground"> / {b.annual_entitlement}</span>
+                            <span className="text-white/60"> / {b.annual_entitlement}</span>
                           </span>
                         </div>
-                        <div className="w-full bg-secondary rounded-full h-2 overflow-hidden">
+                        <div className="w-full bg-white/10 rounded-full h-2 overflow-hidden">
                           <motion.div
                             className="bg-primary h-2 rounded-full"
                             initial={{ width: 0 }}
@@ -572,10 +562,10 @@ export default function AttendancePage() {
                         {(b.used_days > 0 || b.pending_days > 0) && (
                           <div className="flex gap-3 mt-1">
                             {b.used_days > 0 && (
-                              <span className="text-xs text-muted-foreground">Used: {b.used_days}</span>
+                              <span className="text-xs text-white/60">Used: {b.used_days}</span>
                             )}
                             {b.pending_days > 0 && (
-                              <span className="text-xs text-amber-600 dark:text-amber-400">Pending: {b.pending_days}</span>
+                              <span className="text-xs text-amber-400">Pending: {b.pending_days}</span>
                             )}
                           </div>
                         )}
@@ -585,26 +575,28 @@ export default function AttendancePage() {
                 </div>
               ) : (
                 <div className="py-12 text-center">
-                  <p className="text-sm text-muted-foreground">Could not load balances.</p>
+                  <p className="text-sm text-white/60">Could not load balances.</p>
                 </div>
               )}
-            </CardContent>
-          </Card>
-        </motion.div>
+            </div>
+            </GlassPanel>
+          </TiltCard>
+        </FadeIn>
       </div>
 
       {/* My Regularization Requests */}
-      <motion.div variants={itemVariants}>
-        <Card className="border-0 shadow-md overflow-hidden">
-          <CardHeader className="border-b border-border/50 bg-muted/30">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-base">My Regularization Requests</CardTitle>
-              <Badge variant="default">{regularizations.length}</Badge>
+      <FadeIn>
+        <TiltCard>
+          <GlassPanel>
+            <div className="border-b border-white/10 bg-white/5 px-6 py-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-base text-white font-bold drop-shadow-[0_0_10px_rgba(255,255,255,0.5)]">My Regularization Requests</h3>
+                <Badge variant="default" className="bg-[rgba(var(--primary-rgb),0.2)] text-[rgb(var(--primary-rgb))] border-[rgba(var(--primary-rgb),0.5)] shadow-[0_0_10px_rgba(var(--primary-rgb),0.3)]">{regularizations.length}</Badge>
+              </div>
             </div>
-          </CardHeader>
-          <CardContent className="p-0">
+            <div className="backdrop-blur-md bg-black/20">
             {loadingRegs ? (
-              <div className="divide-y divide-border/50">
+              <div className="divide-y divide-white/10">
                 {[1, 2, 3].map((i) => (
                   <div key={i} className="px-6 py-3.5 animate-pulse">
                     <div className="flex items-center justify-between">
@@ -619,35 +611,35 @@ export default function AttendancePage() {
               </div>
             ) : regularizations.length === 0 ? (
               <div className="py-12 text-center">
-                <div className="w-12 h-12 rounded-xl bg-muted/50 flex items-center justify-center mx-auto mb-3">
-                  <FileEdit className="w-6 h-6 text-muted-foreground" />
+                <div className="w-12 h-12 rounded-xl bg-white/5 flex items-center justify-center mx-auto mb-3">
+                  <FileEdit className="w-6 h-6 text-white/60" />
                 </div>
-                <p className="text-sm text-muted-foreground">No regularization requests yet</p>
-                <p className="text-xs text-muted-foreground mt-1">Use the button above to request attendance regularization</p>
+                <p className="text-sm text-white/60">No regularization requests yet</p>
+                <p className="text-xs text-white/60 mt-1">Use the button above to request attendance regularization</p>
               </div>
             ) : (
-              <div className="divide-y divide-border/50 max-h-[400px] overflow-y-auto">
+              <div className="divide-y divide-white/10 max-h-[400px] overflow-y-auto">
                 {regularizations.map((reg, index) => (
                   <motion.div
                     key={reg.id}
                     initial={{ opacity: 0, x: -10 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: index * 0.03 }}
-                    className="px-6 py-3 hover:bg-muted/30 transition-colors"
+                    className="px-6 py-3 hover:bg-white/5 transition-colors"
                   >
                     <div className="flex items-center justify-between">
                       <div className="min-w-0 flex-1 mr-3">
-                        <p className="text-sm font-medium text-foreground">
+                        <p className="text-sm font-medium text-white">
                           {formatDate(reg.date)}
                         </p>
-                        <p className="text-xs text-muted-foreground mt-0.5 truncate">
+                        <p className="text-xs text-white/60 mt-0.5 truncate">
                           {reg.reason}
                         </p>
-                        <p className="text-xs text-muted-foreground mt-0.5">
+                        <p className="text-xs text-white/60 mt-0.5">
                           Submitted {new Date(reg.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
                         </p>
                       </div>
-                      <Badge variant={REG_STATUS_BADGE[reg.status] ?? 'default'}>
+                      <Badge variant={REG_STATUS_BADGE[reg.status] ?? 'default'} className="bg-[rgba(var(--primary-rgb),0.2)] text-[rgb(var(--primary-rgb))] border-[rgba(var(--primary-rgb),0.5)] shadow-[0_0_10px_rgba(var(--primary-rgb),0.3)]">
                         {reg.status.charAt(0).toUpperCase() + reg.status.slice(1)}
                       </Badge>
                     </div>
@@ -655,9 +647,10 @@ export default function AttendancePage() {
                 ))}
               </div>
             )}
-          </CardContent>
-        </Card>
-      </motion.div>
+          </div>
+          </GlassPanel>
+        </TiltCard>
+      </FadeIn>
 
       {/* Regularization Request Modal */}
       <AnimatePresence>
@@ -676,17 +669,17 @@ export default function AttendancePage() {
 
             {/* Modal */}
             <motion.div
-              className="relative w-full max-w-md bg-background border border-border rounded-2xl shadow-2xl overflow-hidden"
+              className="relative w-full max-w-md bg-black/80 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl overflow-hidden"
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              transition={{ type: 'spring', stiffness: 300, damping: 24 }}
+              transition={{ type: 'spring' as const, stiffness: 300, damping: 24 }}
             >
-              <div className="flex items-center justify-between px-6 py-4 border-b border-border/50 bg-muted/30">
-                <h2 className="text-lg font-semibold text-foreground">Request Regularization</h2>
+              <div className="flex items-center justify-between px-6 py-4 border-b border-white/10 bg-white/5">
+                <h2 className="text-lg font-semibold text-white">Request Regularization</h2>
                 <button
                   onClick={() => !regSubmitting && setShowRegModal(false)}
-                  className="p-1.5 rounded-lg hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
+                  className="p-1.5 rounded-lg hover:bg-white/5 transition-colors text-white/60 hover:text-white"
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -694,44 +687,44 @@ export default function AttendancePage() {
 
               <div className="p-6 space-y-4">
                 {regError && (
-                  <div className="rounded-lg px-4 py-3 text-sm font-medium bg-red-50 text-red-700 border border-red-200 dark:bg-red-500/10 dark:text-red-400 dark:border-red-500/20">
+                  <div className="rounded-lg px-4 py-3 text-sm font-medium bg-red-500/10 text-red-400 border border-red-500/20">
                     {regError}
                   </div>
                 )}
                 {regSuccess && (
-                  <div className="rounded-lg px-4 py-3 text-sm font-medium bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20">
+                  <div className="rounded-lg px-4 py-3 text-sm font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
                     {regSuccess}
                   </div>
                 )}
 
                 <div>
-                  <label className="block text-sm font-medium text-foreground mb-1.5">Date</label>
+                  <label className="block text-sm font-medium text-white mb-1.5">Date</label>
                   <input
                     type="date"
                     value={regDate}
                     max={todayStr}
                     onChange={(e) => setRegDate(e.target.value)}
-                    className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors"
+                    className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors"
                     disabled={regSubmitting}
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-foreground mb-1.5">Reason</label>
+                  <label className="block text-sm font-medium text-white mb-1.5">Reason</label>
                   <textarea
                     value={regReason}
                     onChange={(e) => setRegReason(e.target.value)}
                     placeholder="Explain why you need attendance regularization for this date..."
                     rows={4}
                     maxLength={1000}
-                    className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors resize-none"
+                    className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors resize-none"
                     disabled={regSubmitting}
                   />
-                  <p className="text-xs text-muted-foreground mt-1">{regReason.length}/1000 characters</p>
+                  <p className="text-xs text-white/60 mt-1">{regReason.length}/1000 characters</p>
                 </div>
               </div>
 
-              <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-border/50 bg-muted/20">
+              <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-white/10 bg-white/5">
                 <Button
                   variant="outline"
                   onClick={() => !regSubmitting && setShowRegModal(false)}
@@ -751,6 +744,6 @@ export default function AttendancePage() {
           </motion.div>
         )}
       </AnimatePresence>
-    </motion.div>
+    </StaggerContainer>
   );
 }

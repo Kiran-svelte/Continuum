@@ -214,12 +214,12 @@ function TutorialOverlay() {
   return (
     <AnimatePresence>
       <div className="fixed inset-0 z-[100]">
-        {/* Backdrop */}
+        {/* Backdrop with blur */}
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="absolute inset-0 bg-black/60"
+          className="absolute inset-0 bg-black/60 backdrop-blur-sm"
         />
 
         {/* Spotlight on target element */}
@@ -268,7 +268,7 @@ function Spotlight({ selector }: { selector: string }) {
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className="absolute rounded-lg ring-4 ring-primary ring-offset-4 ring-offset-transparent pointer-events-none"
+      className="absolute rounded-xl ring-2 ring-primary/80 pointer-events-none shadow-[0_0_30px_rgba(var(--primary-rgb),0.4)]"
       style={{
         top: rect.top - 8,
         left: rect.left - 8,
@@ -323,16 +323,18 @@ function TutorialCard({
       initial={{ opacity: 0, scale: 0.9, y: 20 }}
       animate={{ opacity: 1, scale: 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.9, y: 20 }}
-      transition={{ duration: 0.3, ease: 'easeOut' }}
+      transition={{ type: 'spring', damping: 25, stiffness: 300 }}
       className={cn(
-        'absolute z-10 w-full max-w-md rounded-2xl bg-card text-card-foreground border border-border shadow-2xl overflow-hidden',
+        'absolute z-10 w-full max-w-md rounded-2xl overflow-hidden',
+        'bg-black/50 backdrop-blur-2xl border border-white/10',
+        'shadow-[0_0_60px_rgba(var(--primary-rgb),0.2),0_25px_50px_rgba(0,0,0,0.5)]',
         positionStyles[step.position || 'center']
       )}
     >
       {/* Progress bar */}
-      <div className="h-1 bg-muted">
+      <div className="h-1.5 bg-black/40 shadow-inner">
         <motion.div
-          className="h-full bg-primary"
+          className="h-full bg-gradient-to-r from-primary to-blue-500 shadow-[0_0_10px_rgba(var(--primary-rgb),0.8)]"
           initial={{ width: 0 }}
           animate={{ width: `${progress}%` }}
           transition={{ duration: 0.3 }}
@@ -340,18 +342,18 @@ function TutorialCard({
       </div>
 
       {/* Header */}
-      <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+      <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
         <div className="flex items-center gap-2">
-          <span className="flex items-center justify-center w-7 h-7 rounded-full bg-primary text-primary-foreground text-sm font-medium">
+          <span className="flex items-center justify-center w-7 h-7 rounded-full bg-primary text-white text-sm font-bold shadow-[0_0_10px_rgba(var(--primary-rgb),0.5)] border border-white/20">
             {stepNumber}
           </span>
-          <span className="text-sm text-muted-foreground">
+          <span className="text-sm text-white/70">
             of {totalSteps} steps
           </span>
         </div>
         <button
           onClick={onSkip}
-          className="p-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+          className="p-1 rounded-lg text-white/70 hover:text-foreground hover:bg-muted transition-colors"
           aria-label="Skip tutorial"
         >
           <X className="w-5 h-5" />
@@ -365,11 +367,11 @@ function TutorialCard({
             <img src={step.image} alt={step.title} className="w-full" />
           </div>
         )}
-        <h3 className="text-xl font-semibold text-foreground mb-2">{step.title}</h3>
-        <p className="text-muted-foreground">{step.description}</p>
+        <h3 className="text-xl font-semibold text-white mb-2">{step.title}</h3>
+        <p className="text-white/70">{step.description}</p>
         {step.route && (
-          <div className="mt-3 flex items-center gap-2 text-xs text-muted-foreground">
-            <span className="inline-block px-2 py-0.5 rounded bg-muted font-mono">{step.route}</span>
+          <div className="mt-3 flex items-center gap-2 text-xs text-white/70">
+            <span className="inline-block px-2 py-0.5 rounded bg-white/10 font-mono text-white/60">{step.route}</span>
           </div>
         )}
         {step.actionLabel && (
@@ -381,16 +383,16 @@ function TutorialCard({
       </div>
 
       {/* Footer */}
-      <div className="flex flex-col gap-3 px-6 py-4 border-t border-border bg-muted/30">
+      <div className="flex flex-col gap-3 px-6 py-4 border-t border-white/10 bg-black/20 backdrop-blur-sm">
         {/* Don't show again checkbox */}
         <label className="flex items-center gap-2 cursor-pointer select-none">
           <input
             type="checkbox"
             checked={dontShowAgain}
             onChange={(e) => onDontShowAgainChange(e.target.checked)}
-            className="w-4 h-4 rounded border-border text-primary focus:ring-primary accent-current"
+            className="w-4 h-4 rounded border-white/20 bg-white/5 text-primary focus:ring-primary/40 accent-current"
           />
-          <span className="text-xs text-muted-foreground">Don&apos;t show this tutorial again</span>
+          <span className="text-xs text-white/70">Don&apos;t show this tutorial again</span>
         </label>
 
         <div className="flex items-center justify-between">
@@ -398,10 +400,10 @@ function TutorialCard({
             onClick={onPrev}
             disabled={isFirstStep}
             className={cn(
-              'flex items-center gap-1 px-4 py-2 rounded-lg text-sm font-medium transition-colors',
+              'flex items-center gap-1 px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200',
               isFirstStep
-                ? 'text-muted-foreground/50 cursor-not-allowed'
-                : 'text-foreground hover:bg-muted'
+                ? 'text-white/30 cursor-not-allowed'
+                : 'text-white/70 hover:text-white hover:bg-white/10'
             )}
           >
             <ChevronLeft className="w-4 h-4" />
@@ -409,7 +411,7 @@ function TutorialCard({
           </button>
           <button
             onClick={isLastStep ? onComplete : onNext}
-            className="flex items-center gap-1 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
+            className="flex items-center gap-1 px-5 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-bold shadow-[0_0_20px_rgba(var(--primary-rgb),0.4)] hover:shadow-[0_0_30px_rgba(var(--primary-rgb),0.6)] hover:scale-[1.02] active:scale-[0.97] transition-all duration-200"
           >
             {isLastStep ? (
               <>

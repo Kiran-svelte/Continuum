@@ -1,8 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback, useMemo } from 'react';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   CheckCircle,
   XCircle,
@@ -14,8 +13,21 @@ import {
   Users,
   ChevronLeft,
   ChevronRight,
+  Loader2,
+  Inbox,
+  CalendarDays,
+  Hash,
+  User,
 } from 'lucide-react';
+import { useDebounce } from '@/lib/use-debounce';
+import { StaggerContainer, FadeIn } from '@/components/motion';
+import { PageHeader } from '@/components/page-header';
+import { TabButton } from '@/components/tab-button';
+import { GlassPanel } from '@/components/glass-panel';
+import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
 
+// --- Types ---
 interface LeaveRequest {
   id: string;
   leave_type: string;
@@ -33,148 +45,152 @@ interface LeaveRequest {
   };
 }
 
-interface BulkResult {
-  requestId: string;
-  success: boolean;
-  error?: string;
-}
-
-const LEAVE_TYPE_COLORS: Record<string, string> = {
-  CL: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
-  SL: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
-  EL: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
-  PL: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400',
-  ML: 'bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-400',
-  LWP: 'bg-gray-100 text-gray-700 dark:bg-gray-900/30 dark:text-gray-400',
-  CO: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
+// --- Constants ---
+const LEAVE_TYPE_STYLES: Record<string, string> = {
+  CL: 'bg-blue-900/50 text-blue-300 border-blue-700/60',
+  SL: 'bg-red-900/50 text-red-300 border-red-700/60',
+  EL: 'bg-green-900/50 text-green-300 border-green-700/60',
+  PL: 'bg-purple-900/50 text-purple-300 border-purple-700/60',
+  ML: 'bg-pink-900/50 text-pink-300 border-pink-700/60',
+  LWP: 'bg-slate-700/50 text-slate-300 border-slate-600/60',
+  CO: 'bg-amber-900/50 text-amber-300 border-amber-700/60',
 };
 
-function formatDate(d: string) {
-  return new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
-}
-
-function hoursAgo(dateStr: string) {
-  const now = new Date();
-  const created = new Date(dateStr);
-  const diffMs = now.getTime() - created.getTime();
-  const diffHrs = Math.floor(diffMs / 3600000);
-  if (diffHrs < 1) return 'Just submitted';
-  if (diffHrs < 24) return `${diffHrs}h ago`;
-  const days = Math.floor(diffHrs / 24);
-  return `${days}d ago`;
-}
-
-// SLA countdown: default 48h SLA for pending leave requests
 const SLA_HOURS = 48;
 
-function getSlaInfo(createdAt: string): { remaining: number; label: string; urgent: boolean; breached: boolean } {
-  const now = new Date();
-  const created = new Date(createdAt);
-  const deadlineMs = created.getTime() + SLA_HOURS * 3600000;
-  const remainingMs = deadlineMs - now.getTime();
+// --- Helper Functions ---
+const formatDate = (d: string) => new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+
+const getSlaInfo = (createdAt: string) => {
+  const deadline = new Date(createdAt).getTime() + SLA_HOURS * 3600000;
+  const remainingMs = deadline - Date.now();
   const remainingHrs = Math.ceil(remainingMs / 3600000);
 
   if (remainingMs <= 0) {
-    const overdueHrs = Math.abs(remainingHrs);
-    return { remaining: overdueHrs, label: `${overdueHrs}h overdue`, urgent: true, breached: true };
+    const overdue = Math.abs(remainingHrs);
+    return { label: `${overdue}h overdue`, urgent: true, breached: true, remaining: -overdue };
   }
-  if (remainingHrs <= 4) {
-    return { remaining: remainingHrs, label: `${remainingHrs}h left`, urgent: true, breached: false };
-  }
-  if (remainingHrs <= 12) {
-    return { remaining: remainingHrs, label: `${remainingHrs}h left`, urgent: false, breached: false };
-  }
-  return { remaining: remainingHrs, label: `${remainingHrs}h left`, urgent: false, breached: false };
-}
+  return { label: `${remainingHrs}h left`, urgent: remainingHrs <= 12, breached: false, remaining: remainingHrs };
+};
 
+// --- Helper Components ---
+const StatCard = ({ icon: Icon, label, value }: any) => (
+  <GlassPanel className="p-4 flex-1">
+    <div className="flex items-center gap-3 text-slate-400 mb-1">
+      <Icon className="w-4 h-4" />
+      <span className="text-xs font-medium uppercase">{label}</span>
+    </div>
+    <p className="text-2xl font-bold text-slate-100">{value}</p>
+  </GlassPanel>
+);
+
+const LoadingRequestCard = () => (
+  <GlassPanel className="p-4">
+    <div className="flex items-start gap-4">
+      <Skeleton className="w-5 h-5 mt-1 rounded bg-slate-700/50" />
+      <div className="flex-1 space-y-3">
+        <div className="flex items-center justify-between">
+          <Skeleton className="h-5 w-1/3 rounded bg-slate-700/50" />
+          <Skeleton className="h-4 w-20 rounded bg-slate-700/50" />
+        </div>
+        <Skeleton className="h-4 w-3/4 rounded bg-slate-700/50" />
+        <div className="flex gap-2">
+          <Skeleton className="h-8 w-24 rounded-lg bg-slate-700/50" />
+          <Skeleton className="h-8 w-24 rounded-lg bg-slate-700/50" />
+        </div>
+      </div>
+    </div>
+  </GlassPanel>
+);
+
+const EmptyState = ({ status }: { status: string }) => (
+  <GlassPanel className="text-center py-16">
+    <Inbox className="w-12 h-12 text-emerald-500 mx-auto mb-4" />
+    <h3 className="text-lg font-semibold text-slate-200 mb-1">All Caught Up!</h3>
+    <p className="text-sm text-slate-400">No {status} leave requests at the moment.</p>
+  </GlassPanel>
+);
+
+// --- Main Page Component ---
 export default function HRApprovalsPage() {
   const [requests, setRequests] = useState<LeaveRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [actionLoading, setActionLoading] = useState<string | null>(null);
-  const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [total, setTotal] = useState(0);
+  const [actionLoading, setActionLoading] = useState<{ id: string; action: 'approve' | 'reject' } | null>(null);
+  const [pagination, setPagination] = useState({ page: 1, totalPages: 1, total: 0 });
   const [searchQuery, setSearchQuery] = useState('');
   const [statusTab, setStatusTab] = useState<'pending' | 'escalated'>('pending');
-
-  // Bulk selection
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [bulkLoading, setBulkLoading] = useState(false);
-
-  // Message
+  const [bulkLoading, setBulkLoading] = useState<'approve' | 'reject' | null>(null);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
+  const debouncedSearch = useDebounce(searchQuery, 300);
+
   const filteredRequests = useMemo(() => {
-    if (!searchQuery) return requests;
-    const q = searchQuery.toLowerCase();
-    return requests.filter((r) =>
+    if (!debouncedSearch) return requests;
+    const q = debouncedSearch.toLowerCase();
+    return requests.filter(r =>
       `${r.employee.first_name} ${r.employee.last_name}`.toLowerCase().includes(q) ||
       r.employee.department?.toLowerCase().includes(q) ||
       r.leave_type.toLowerCase().includes(q)
     );
-  }, [requests, searchQuery]);
+  }, [requests, debouncedSearch]);
 
-  const allSelected = filteredRequests.length > 0 && filteredRequests.every((r) => selectedIds.has(r.id));
-
-  const loadRequests = useCallback(async (p: number, status: string) => {
+  const loadRequests = useCallback(async (page: number, status: string) => {
     setLoading(true);
     setError('');
     try {
-      const params = new URLSearchParams({ page: String(p), limit: '20', status });
+      const params = new URLSearchParams({ page: String(page), limit: '10', status });
       const res = await fetch(`/api/leaves/list?${params}`, { credentials: 'include' });
       const json = await res.json();
-      if (!res.ok) {
-        setError(json.error ?? 'Failed to load requests');
-        return;
-      }
+      if (!res.ok) throw new Error(json.error ?? 'Failed to load requests');
       setRequests(json.requests ?? []);
-      setTotalPages(json.pagination?.pages || 1);
-      setTotal(json.pagination?.total || 0);
+      setPagination({
+        page: json.pagination?.page || 1,
+        totalPages: json.pagination?.pages || 1,
+        total: json.pagination?.total || 0,
+      });
+    } catch (err: any) {
+      setError(err.message);
     } finally {
       setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    loadRequests(page, statusTab);
+    loadRequests(pagination.page, statusTab);
     setSelectedIds(new Set());
-  }, [page, statusTab, loadRequests]);
+  }, [pagination.page, statusTab, loadRequests]);
 
-  function showMsg(type: 'success' | 'error', text: string) {
+  const showMessage = (type: 'success' | 'error', text: string) => {
     setMessage({ type, text });
     setTimeout(() => setMessage(null), 5000);
-  }
+  };
 
-  async function handleAction(requestId: string, action: 'approve' | 'reject') {
-    setActionLoading(requestId + action);
+  const handleAction = async (requestId: string, action: 'approve' | 'reject') => {
+    setActionLoading({ id: requestId, action });
     try {
       const res = await fetch(`/api/leaves/${action}/${requestId}`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ comments: null }),
+        body: JSON.stringify({ comments: `Action taken by HR.` }),
       });
-      if (res.ok) {
-        setRequests((prev) => prev.filter((r) => r.id !== requestId));
-        setTotal((prev) => Math.max(0, prev - 1));
-        const req = requests.find((r) => r.id === requestId);
-        showMsg('success', `${action === 'approve' ? 'Approved' : 'Rejected'} request for ${req?.employee.first_name ?? 'employee'}`);
-      } else {
-        const data = await res.json().catch(() => ({}));
-        showMsg('error', data.error ?? `Failed to ${action} request`);
-      }
-    } catch {
-      showMsg('error', `Network error while trying to ${action} request`);
+      if (!res.ok) throw new Error(await res.text());
+      
+      setRequests(prev => prev.filter(r => r.id !== requestId));
+      setPagination(p => ({ ...p, total: p.total - 1 }));
+      showMessage('success', `Request ${action}d successfully.`);
+    } catch (err: any) {
+      showMessage('error', `Failed to ${action} request.`);
     } finally {
       setActionLoading(null);
     }
-  }
+  };
 
-  async function handleBulkAction(action: 'approve' | 'reject') {
+  const handleBulkAction = async (action: 'approve' | 'reject') => {
     const ids = Array.from(selectedIds);
     if (ids.length === 0) return;
-    setBulkLoading(true);
+    setBulkLoading(action);
     try {
       const res = await fetch('/api/leaves/bulk-approve', {
         method: 'POST',
@@ -182,331 +198,192 @@ export default function HRApprovalsPage() {
         credentials: 'include',
         body: JSON.stringify({ requestIds: ids, action }),
       });
-      if (res.ok) {
-        const data = await res.json() as { results: BulkResult[]; successCount: number; failCount: number };
-        const successIds = new Set(data.results.filter((r) => r.success).map((r) => r.requestId));
-        setRequests((prev) => prev.filter((r) => !successIds.has(r.id)));
-        setTotal((prev) => Math.max(0, prev - data.successCount));
-        setSelectedIds(new Set());
-        showMsg(
-          data.failCount > 0 ? 'error' : 'success',
-          `Bulk ${action}: ${data.successCount} succeeded${data.failCount > 0 ? `, ${data.failCount} failed` : ''}`
-        );
-      } else {
-        const data = await res.json().catch(() => ({}));
-        showMsg('error', data.error ?? `Bulk ${action} failed`);
-      }
-    } catch {
-      showMsg('error', `Network error during bulk ${action}`);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || `Bulk ${action} failed`);
+      
+      const successIds = new Set(data.results.filter((r: any) => r.success).map((r: any) => r.requestId));
+      setRequests(prev => prev.filter(r => !successIds.has(r.id)));
+      setPagination(p => ({ ...p, total: p.total - successIds.size }));
+      setSelectedIds(new Set());
+      showMessage('success', `Bulk ${action}: ${data.successCount} succeeded, ${data.failCount} failed.`);
+    } catch (err: any) {
+      showMessage('error', err.message);
     } finally {
-      setBulkLoading(false);
+      setBulkLoading(null);
     }
-  }
+  };
 
-  function toggleSelect(id: string) {
-    setSelectedIds((prev) => {
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => {
       const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
+      next.has(id) ? next.delete(id) : next.add(id);
       return next;
     });
-  }
+  };
 
-  function toggleSelectAll() {
-    if (allSelected) {
+  const toggleSelectAll = () => {
+    if (filteredRequests.length === selectedIds.size) {
       setSelectedIds(new Set());
     } else {
-      setSelectedIds(new Set(filteredRequests.map((r) => r.id)));
+      setSelectedIds(new Set(filteredRequests.map(r => r.id)));
     }
-  }
+  };
 
   return (
-    <div className="p-6 max-w-5xl mx-auto">
-      {/* Header */}
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-foreground">Pending Approvals</h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          Review and approve or reject leave requests requiring your action.
-        </p>
-      </div>
+    <StaggerContainer>
+      <FadeIn>
+        <PageHeader
+          title="Leave Approvals"
+          description="Review and process leave requests requiring HR action."
+        />
+      </FadeIn>
 
-      {/* Message */}
-      {message && (
-        <div className={`mb-4 flex items-center gap-2 p-3 rounded-lg text-sm ${
-          message.type === 'success' ? 'bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-400' : 'bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-400'
-        }`}>
-          {message.type === 'success' ? <CheckCircle className="w-4 h-4" /> : <XCircle className="w-4 h-4" />}
-          {message.text}
-        </div>
-      )}
-
-      {/* Tabs + Search */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-4">
-        <div className="flex gap-2">
-          <button
-            onClick={() => { setStatusTab('pending'); setPage(1); }}
-            className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
-              statusTab === 'pending'
-                ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400'
-                : 'bg-muted text-muted-foreground hover:text-foreground'
+      <AnimatePresence>
+        {message && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className={`mb-4 flex items-center gap-2 p-3 rounded-lg text-sm border ${
+              message.type === 'success' ? 'bg-green-900/30 text-green-300 border-green-500/30' : 'bg-red-900/30 text-red-300 border-red-500/30'
             }`}
           >
-            <Clock className="w-4 h-4 inline mr-1.5" />
-            Pending
-          </button>
-          <button
-            onClick={() => { setStatusTab('escalated'); setPage(1); }}
-            className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
-              statusTab === 'escalated'
-                ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'
-                : 'bg-muted text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            <AlertTriangle className="w-4 h-4 inline mr-1.5" />
-            Escalated
-          </button>
-        </div>
+            {message.type === 'success' ? <CheckCircle className="w-4 h-4" /> : <XCircle className="w-4 h-4" />}
+            {message.text}
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-        <div className="flex items-center gap-2 w-full sm:w-auto">
-          <div className="relative flex-1 sm:w-64">
-            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+      <FadeIn>
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-4">
+          <div className="flex border-b border-slate-700">
+            <TabButton active={statusTab === 'pending'} onClick={() => { setStatusTab('pending'); setPagination(p => ({ ...p, page: 1 })); }}><Clock className="w-4 h-4" /> Pending</TabButton>
+            <TabButton active={statusTab === 'escalated'} onClick={() => { setStatusTab('escalated'); setPagination(p => ({ ...p, page: 1 })); }}><AlertTriangle className="w-4 h-4" /> Escalated</TabButton>
+          </div>
+          <div className="relative w-full md:w-64">
+            <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
               type="text"
-              placeholder="Search by name, department..."
+              placeholder="Search..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-3 py-2 text-sm bg-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+              className="form-input w-full pl-10"
             />
           </div>
         </div>
-      </div>
+      </FadeIn>
 
-      {/* Bulk actions bar */}
-      {selectedIds.size > 0 && (
-        <div className="mb-4 flex items-center gap-3 p-3 bg-primary/5 border border-primary/20 rounded-lg">
-          <span className="text-sm font-medium text-foreground">
-            {selectedIds.size} selected
-          </span>
-          <Button
-            size="sm"
-            onClick={() => handleBulkAction('approve')}
-            disabled={bulkLoading}
-            className="bg-green-600 hover:bg-green-700 text-white"
+      <AnimatePresence>
+        {selectedIds.size > 0 && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            className="mb-4"
           >
-            <Check className="w-4 h-4 mr-1" />
-            Approve All
-          </Button>
-          <Button
-            size="sm"
-            variant="danger"
-            onClick={() => handleBulkAction('reject')}
-            disabled={bulkLoading}
-          >
-            <X className="w-4 h-4 mr-1" />
-            Reject All
-          </Button>
-          <button
-            onClick={() => setSelectedIds(new Set())}
-            className="text-sm text-muted-foreground hover:text-foreground ml-auto"
-          >
-            Clear
-          </button>
-        </div>
-      )}
+            <GlassPanel className="flex items-center gap-4 p-3">
+              <span className="text-sm font-medium text-slate-200">{selectedIds.size} selected</span>
+              <Button size="sm" variant="success" onClick={() => handleBulkAction('approve')} loading={bulkLoading === 'approve'} disabled={!!bulkLoading}>
+                <Check className="w-4 h-4 mr-1" /> Approve
+              </Button>
+              <Button size="sm" variant="danger" onClick={() => handleBulkAction('reject')} loading={bulkLoading === 'reject'} disabled={!!bulkLoading}>
+                <X className="w-4 h-4 mr-1" /> Reject
+              </Button>
+              <button onClick={() => setSelectedIds(new Set())} className="text-sm text-slate-400 hover:text-white ml-auto">Clear</button>
+            </GlassPanel>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-      {/* Stats */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-6">
-        <div className="bg-card border border-border rounded-xl p-4">
-          <div className="flex items-center gap-2 text-muted-foreground mb-1">
-            <Clock className="w-4 h-4" />
-            <span className="text-xs font-medium uppercase">Total {statusTab}</span>
-          </div>
-          <p className="text-2xl font-bold text-foreground">{total}</p>
+      <FadeIn>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          <StatCard icon={Clock} label={`Total ${statusTab}`} value={pagination.total} />
+          <StatCard icon={Users} label="Showing" value={filteredRequests.length} />
+          <StatCard icon={CheckCircle} label="Selected" value={selectedIds.size} />
+          <StatCard icon={AlertTriangle} label="SLA Urgent" value={requests.filter(r => getSlaInfo(r.created_at).urgent && !getSlaInfo(r.created_at).breached).length} />
         </div>
-        <div className="bg-card border border-border rounded-xl p-4">
-          <div className="flex items-center gap-2 text-muted-foreground mb-1">
-            <Users className="w-4 h-4" />
-            <span className="text-xs font-medium uppercase">Shown</span>
-          </div>
-          <p className="text-2xl font-bold text-foreground">{filteredRequests.length}</p>
-        </div>
-        <div className="bg-card border border-border rounded-xl p-4 col-span-2 sm:col-span-1">
-          <div className="flex items-center gap-2 text-muted-foreground mb-1">
-            <CheckCircle className="w-4 h-4" />
-            <span className="text-xs font-medium uppercase">Selected</span>
-          </div>
-          <p className="text-2xl font-bold text-foreground">{selectedIds.size}</p>
-        </div>
-      </div>
+      </FadeIn>
 
-      {/* Error */}
-      {error && (
-        <div className="mb-4 p-3 bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-400 rounded-lg text-sm">
-          {error}
-        </div>
-      )}
+      {error && <div className="mb-4 p-3 bg-red-900/30 text-red-300 border border-red-500/30 rounded-lg text-sm">{error}</div>}
 
-      {/* Request list */}
-      {loading ? (
-        <div className="space-y-3">
-          {Array.from({ length: 5 }).map((_, i) => (
-            <div key={i} className="bg-card rounded-xl border border-border p-4 animate-pulse">
-              <div className="flex items-center gap-3">
-                <div className="w-5 h-5 bg-muted rounded" />
-                <div className="w-10 h-10 bg-muted rounded-full" />
-                <div className="flex-1 space-y-2">
-                  <div className="h-4 bg-muted rounded w-1/3" />
-                  <div className="h-3 bg-muted rounded w-1/2" />
-                </div>
-              </div>
+      <div className="space-y-3">
+        {loading ? (
+          [...Array(5)].map((_, i) => <LoadingRequestCard key={i} />)
+        ) : filteredRequests.length === 0 ? (
+          <EmptyState status={statusTab} />
+        ) : (
+          <>
+            <div className="flex items-center gap-3 px-4 py-2">
+              <input
+                type="checkbox"
+                checked={filteredRequests.length > 0 && selectedIds.size === filteredRequests.length}
+                onChange={toggleSelectAll}
+                className="form-checkbox"
+              />
+              <span className="text-xs text-slate-400 font-medium uppercase">Select all shown</span>
             </div>
-          ))}
-        </div>
-      ) : filteredRequests.length === 0 ? (
-        <div className="text-center py-16 bg-card rounded-xl border border-border">
-          <CheckCircle className="w-12 h-12 text-green-500 mx-auto mb-4" />
-          <h3 className="text-lg font-semibold text-foreground mb-1">All caught up!</h3>
-          <p className="text-sm text-muted-foreground">
-            No {statusTab} leave requests at the moment.
-          </p>
-        </div>
-      ) : (
-        <div className="space-y-2">
-          {/* Select all */}
-          <div className="flex items-center gap-3 px-4 py-2">
-            <input
-              type="checkbox"
-              checked={allSelected}
-              onChange={toggleSelectAll}
-              className="w-4 h-4 rounded border-input text-primary focus:ring-primary"
-            />
-            <span className="text-xs text-muted-foreground font-medium uppercase">Select all</span>
-          </div>
+            {filteredRequests.sort((a, b) => getSlaInfo(a.created_at).remaining - getSlaInfo(b.created_at).remaining).map(req => {
+              const sla = getSlaInfo(req.created_at);
+              const isActioning = actionLoading?.id === req.id;
+              return (
+                <GlassPanel
+                  key={req.id}
+                  className={`p-4 transition-all duration-300 ${selectedIds.has(req.id) ? 'border-emerald-500/50 ring-2 ring-emerald-500/20' : 'border-slate-700/50'}`}
+                >
+                  <div className="flex items-start gap-4">
+                    <input type="checkbox" checked={selectedIds.has(req.id)} onChange={() => toggleSelect(req.id)} className="form-checkbox mt-1" />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+                        <div className="flex items-center gap-2">
+                          <User className="w-4 h-4 text-slate-400" />
+                          <span className="font-medium text-slate-100">{req.employee.first_name} {req.employee.last_name}</span>
+                          {req.employee.department && <span className="text-xs text-slate-500">{req.employee.department}</span>}
+                        </div>
+                        <div className={`text-xs font-medium px-2 py-0.5 rounded-full border ${
+                          sla.breached ? 'bg-red-900/50 text-red-300 border-red-700/60' : sla.urgent ? 'bg-amber-900/50 text-amber-300 border-amber-700/60' : 'text-slate-400 border-transparent'
+                        }`}>
+                          SLA: {sla.label}
+                        </div>
+                      </div>
 
-          {filteredRequests.map((req) => {
-            const isActioning = actionLoading === req.id + 'approve' || actionLoading === req.id + 'reject';
-            const ltColor = LEAVE_TYPE_COLORS[req.leave_type] || 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300';
-            return (
-              <div
-                key={req.id}
-                className={`bg-card rounded-xl border transition-colors ${
-                  selectedIds.has(req.id)
-                    ? 'border-primary/40 bg-primary/5'
-                    : 'border-border hover:border-border/80'
-                } p-4`}
-              >
-                <div className="flex items-start gap-3">
-                  <input
-                    type="checkbox"
-                    checked={selectedIds.has(req.id)}
-                    onChange={() => toggleSelect(req.id)}
-                    className="w-4 h-4 mt-1 rounded border-input text-primary focus:ring-primary"
-                  />
+                      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-slate-300 mb-3">
+                        <div className={`flex items-center gap-1.5 px-2 py-0.5 text-xs font-semibold rounded-full border ${LEAVE_TYPE_STYLES[req.leave_type] || LEAVE_TYPE_STYLES.LWP}`}>
+                          <Hash className="w-3 h-3" /> {req.leave_type}
+                        </div>
+                        <div className="flex items-center gap-1.5"><CalendarDays className="w-4 h-4 text-slate-500" /> {formatDate(req.start_date)} - {formatDate(req.end_date)}</div>
+                        <div className="flex items-center gap-1.5"><Clock className="w-4 h-4 text-slate-500" /> {req.total_days} day{req.total_days !== 1 ? 's' : ''}</div>
+                      </div>
 
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between gap-2 mb-1">
+                      {req.reason && <p className="text-sm text-slate-400 bg-slate-800/40 p-2 rounded-md mb-3">{req.reason}</p>}
+
                       <div className="flex items-center gap-2">
-                        <span className="font-medium text-foreground">
-                          {req.employee.first_name} {req.employee.last_name}
-                        </span>
-                        {req.employee.department && (
-                          <span className="text-xs text-muted-foreground">{req.employee.department}</span>
-                        )}
+                        <Button size="sm" variant="success" onClick={() => handleAction(req.id, 'approve')} loading={isActioning && actionLoading?.action === 'approve'} disabled={isActioning}>
+                          <Check className="w-4 h-4 mr-1" /> Approve
+                        </Button>
+                        <Button size="sm" variant="danger" onClick={() => handleAction(req.id, 'reject')} loading={isActioning && actionLoading?.action === 'reject'} disabled={isActioning}>
+                          <X className="w-4 h-4 mr-1" /> Reject
+                        </Button>
                       </div>
-                      <div className="flex items-center gap-2 shrink-0">
-                        {(() => {
-                          const sla = getSlaInfo(req.created_at);
-                          return (
-                            <span className={`text-xs font-medium whitespace-nowrap px-1.5 py-0.5 rounded ${
-                              sla.breached
-                                ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
-                                : sla.urgent
-                                  ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
-                                  : 'text-muted-foreground'
-                            }`}>
-                              {sla.breached ? `SLA: ${sla.label}` : `SLA: ${sla.label}`}
-                            </span>
-                          );
-                        })()}
-                        <span className="text-xs text-muted-foreground whitespace-nowrap">
-                          {hoursAgo(req.created_at)}
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="flex flex-wrap items-center gap-2 mb-2">
-                      <span className={`px-2 py-0.5 text-xs font-semibold rounded-full ${ltColor}`}>
-                        {req.leave_type}
-                      </span>
-                      <span className="text-sm text-muted-foreground">
-                        {formatDate(req.start_date)} — {formatDate(req.end_date)}
-                      </span>
-                      <Badge variant="info" className="text-xs">
-                        {req.total_days} day{req.total_days !== 1 ? 's' : ''}
-                      </Badge>
-                      {req.status === 'escalated' && (
-                        <Badge variant="danger" className="text-xs">
-                          <AlertTriangle className="w-3 h-3 mr-1" />
-                          Escalated
-                        </Badge>
-                      )}
-                    </div>
-
-                    {req.reason && (
-                      <p className="text-sm text-muted-foreground line-clamp-2 mb-2">{req.reason}</p>
-                    )}
-
-                    <div className="flex items-center gap-2">
-                      <Button
-                        size="sm"
-                        onClick={() => handleAction(req.id, 'approve')}
-                        disabled={isActioning}
-                        className="bg-green-600 hover:bg-green-700 text-white h-8 px-3"
-                      >
-                        <Check className="w-3.5 h-3.5 mr-1" />
-                        Approve
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="danger"
-                        onClick={() => handleAction(req.id, 'reject')}
-                        disabled={isActioning}
-                        className="h-8 px-3"
-                      >
-                        <X className="w-3.5 h-3.5 mr-1" />
-                        Reject
-                      </Button>
                     </div>
                   </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
+                </GlassPanel>
+              );
+            })}
+          </>
+        )}
+      </div>
 
-      {/* Pagination */}
-      {totalPages > 1 && (
+      {pagination.totalPages > 1 && (
         <div className="flex items-center justify-center gap-2 mt-6">
-          <button
-            onClick={() => setPage((p) => Math.max(1, p - 1))}
-            disabled={page <= 1}
-            className="p-2 rounded-lg hover:bg-muted disabled:opacity-40 transition-colors"
-          >
+          <Button variant="outline" size="sm" onClick={() => setPagination(p => ({ ...p, page: p.page - 1 }))} disabled={pagination.page <= 1}>
             <ChevronLeft className="w-4 h-4" />
-          </button>
-          <span className="text-sm text-muted-foreground">
-            Page {page} of {totalPages}
-          </span>
-          <button
-            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-            disabled={page >= totalPages}
-            className="p-2 rounded-lg hover:bg-muted disabled:opacity-40 transition-colors"
-          >
+          </Button>
+          <span className="text-sm text-slate-400">Page {pagination.page} of {pagination.totalPages}</span>
+          <Button variant="outline" size="sm" onClick={() => setPagination(p => ({ ...p, page: p.page + 1 }))} disabled={pagination.page >= pagination.totalPages}>
             <ChevronRight className="w-4 h-4" />
-          </button>
+          </Button>
         </div>
       )}
-    </div>
+    </StaggerContainer>
   );
 }

@@ -1,7 +1,12 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { Bell, BellOff, CheckCircle2, XCircle, FileText, Wallet, AlertTriangle, Clock, FolderOpen, Users, Check } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { Bell, BellOff, CheckCircle2, XCircle, FileText, Wallet, AlertTriangle, Clock, FolderOpen, Users, Check, Loader2 } from 'lucide-react';
+import { TiltCard, FadeIn, StaggerContainer } from '@/components/motion';
+import { GlassPanel } from '@/components/glass-panel';
+import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface Notification {
   id: string;
@@ -13,14 +18,14 @@ interface Notification {
 }
 
 const iconMap: Record<string, React.ReactNode> = {
-  'leave-request-submitted': <FileText className="w-5 h-5 text-blue-500" />,
-  'leave-request-approved': <CheckCircle2 className="w-5 h-5 text-green-500" />,
-  'leave-request-rejected': <XCircle className="w-5 h-5 text-red-500" />,
-  'leave-balance-updated': <Wallet className="w-5 h-5 text-amber-500" />,
-  'sla-breach-warning': <AlertTriangle className="w-5 h-5 text-red-600" />,
-  'attendance': <Clock className="w-5 h-5 text-indigo-500" />,
-  'document': <FolderOpen className="w-5 h-5 text-teal-500" />,
-  'employee': <Users className="w-5 h-5 text-purple-500" />,
+  'leave-request-submitted': <FileText className="w-5 h-5 text-blue-300" />,
+  'leave-request-approved': <CheckCircle2 className="w-5 h-5 text-green-400" />,
+  'leave-request-rejected': <XCircle className="w-5 h-5 text-red-400" />,
+  'leave-balance-updated': <Wallet className="w-5 h-5 text-amber-400" />,
+  'sla-breach-warning': <AlertTriangle className="w-5 h-5 text-red-500" />,
+  'attendance': <Clock className="w-5 h-5 text-indigo-400" />,
+  'document': <FolderOpen className="w-5 h-5 text-teal-300" />,
+  'employee': <Users className="w-5 h-5 text-purple-400" />,
   'default': <Bell className="w-5 h-5 text-primary" />,
 };
 
@@ -40,6 +45,47 @@ function timeAgo(dateStr: string) {
   const diffDays = Math.floor(diffHrs / 24);
   if (diffDays < 7) return `${diffDays}d ago`;
   return date.toLocaleDateString();
+}
+
+function NotificationsLoadingSkeleton() {
+  return (
+    <div className="p-4 sm:p-6 pb-32 max-w-3xl mx-auto">
+      <div className="space-y-8">
+        {/* Header skeleton */}
+        <div className="flex justify-between items-center">
+          <div className="space-y-2">
+            <Skeleton className="h-8 w-48 bg-white/10" />
+            <Skeleton className="h-5 w-24 bg-white/10" />
+          </div>
+          <Skeleton className="h-10 w-36 bg-white/10 rounded-lg" />
+        </div>
+
+        {/* Filters skeleton */}
+        <div className="flex gap-3">
+          <Skeleton className="h-9 w-24 bg-white/10 rounded-lg" />
+          <Skeleton className="h-9 w-24 bg-white/10 rounded-lg" />
+          <Skeleton className="h-9 w-20 bg-white/10 rounded-lg" />
+          <Skeleton className="h-9 w-20 bg-white/10 rounded-lg" />
+        </div>
+
+        {/* List skeleton */}
+        <div className="space-y-4">
+          {[...Array(5)].map((_, i) => (
+            <div key={i} className="rounded-2xl border border-white/10 bg-white/5 backdrop-blur-xl p-4 flex items-start gap-4">
+              <Skeleton className="w-12 h-12 rounded-full bg-white/10" />
+              <div className="flex-1 space-y-2">
+                <div className="flex justify-between">
+                  <Skeleton className="h-5 w-1/2 bg-white/10" />
+                  <Skeleton className="h-4 w-16 bg-white/10" />
+                </div>
+                <Skeleton className="h-4 w-3/4 bg-white/10" />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export function NotificationsPage() {
@@ -121,158 +167,148 @@ export function NotificationsPage() {
   }
 
   if (loading) {
-    return (
-      <div className="p-6">
-        <div className="flex items-center gap-3 mb-6">
-          <Bell className="w-6 h-6 text-primary" />
-          <h1 className="text-2xl font-bold text-foreground">Notifications</h1>
-        </div>
-        <div className="space-y-3">
-          {Array.from({ length: 5 }).map((_, i) => (
-            <div key={i} className="bg-card rounded-xl border border-border p-4 animate-pulse">
-              <div className="flex items-start gap-3">
-                <div className="w-10 h-10 rounded-full bg-muted" />
-                <div className="flex-1 space-y-2">
-                  <div className="h-4 bg-muted rounded w-1/3" />
-                  <div className="h-3 bg-muted rounded w-2/3" />
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    );
+    return <NotificationsLoadingSkeleton />;
   }
 
   return (
-    <div className="p-6 max-w-3xl mx-auto">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-3">
-          <Bell className="w-6 h-6 text-primary" />
-          <h1 className="text-2xl font-bold text-foreground">Notifications</h1>
-          {unreadCount > 0 && (
-            <span className="px-2 py-0.5 text-xs font-semibold bg-primary text-primary-foreground rounded-full">
-              {unreadCount} unread
-            </span>
-          )}
-        </div>
-        {unreadCount > 0 && (
-          <button
-            onClick={markAllRead}
-            disabled={markingAll}
-            className="flex items-center gap-2 px-3 py-1.5 text-sm text-primary hover:bg-primary/10 rounded-lg transition-colors disabled:opacity-50"
-          >
-            <Check className="w-4 h-4" />
-            Mark all as read
-          </button>
-        )}
-      </div>
-
-      {/* Filters */}
-      <div className="flex flex-wrap gap-2 mb-4">
-        <button
-          onClick={() => setFilter('all')}
-          className={`px-3 py-1.5 text-sm rounded-lg transition-colors ${
-            filter === 'all'
-              ? 'bg-primary text-primary-foreground'
-              : 'bg-muted text-muted-foreground hover:text-foreground'
-          }`}
-        >
-          All ({notifications.length})
-        </button>
-        <button
-          onClick={() => setFilter('unread')}
-          className={`px-3 py-1.5 text-sm rounded-lg transition-colors ${
-            filter === 'unread'
-              ? 'bg-primary text-primary-foreground'
-              : 'bg-muted text-muted-foreground hover:text-foreground'
-          }`}
-        >
-          Unread ({unreadCount})
-        </button>
-        {typeCategories.length > 1 && (
-          <>
-            <div className="w-px bg-border self-stretch mx-1" />
-            <button
-              onClick={() => setTypeFilter('all')}
-              className={`px-2.5 py-1.5 text-xs rounded-lg transition-colors ${
-                typeFilter === 'all'
-                  ? 'bg-primary/10 text-primary font-medium'
-                  : 'bg-muted/50 text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              All types
-            </button>
-            {typeCategories.map(cat => {
-              const types = typeCategoryMap[cat];
-              const isActive = types.some(t => t === typeFilter) || (typeFilter === cat);
-              return (
-                <button
-                  key={cat}
-                  onClick={() => setTypeFilter(isActive ? 'all' : types[0])}
-                  className={`px-2.5 py-1.5 text-xs rounded-lg transition-colors ${
-                    isActive
-                      ? 'bg-primary/10 text-primary font-medium'
-                      : 'bg-muted/50 text-muted-foreground hover:text-foreground'
-                  }`}
-                >
-                  {cat}
-                </button>
-              );
-            })}
-          </>
-        )}
-      </div>
-
-      {/* Notification list */}
-      {filtered.length === 0 ? (
-        <div className="text-center py-16">
-          <BellOff className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-          <h3 className="text-lg font-semibold text-foreground mb-1">
-            {filter === 'unread' ? 'All caught up!' : 'No notifications yet'}
-          </h3>
-          <p className="text-sm text-muted-foreground">
-            {filter === 'unread'
-              ? 'You have no unread notifications.'
-              : 'Notifications from leave requests, attendance, and other events will appear here.'}
-          </p>
-        </div>
-      ) : (
-        <div className="space-y-2">
-          {filtered.map((notif) => (
-            <div
-              key={notif.id}
-              className={`flex items-start gap-3 p-4 rounded-xl border transition-colors cursor-pointer ${
-                notif.is_read
-                  ? 'bg-card border-border hover:bg-muted/50'
-                  : 'bg-primary/5 border-primary/20 hover:bg-primary/10'
-              }`}
-              onClick={() => !notif.is_read && markAsRead(notif.id)}
-            >
-              <div className="w-10 h-10 rounded-full bg-muted/50 flex items-center justify-center shrink-0">
-                {getIcon(notif.type)}
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-start justify-between gap-2">
-                  <p className={`text-sm ${notif.is_read ? 'text-foreground' : 'text-foreground font-semibold'}`}>
-                    {notif.title}
-                  </p>
-                  <span className="text-xs text-muted-foreground whitespace-nowrap shrink-0">
-                    {timeAgo(notif.created_at)}
+    <div className="p-4 sm:p-6 pb-32 max-w-3xl mx-auto">
+      <StaggerContainer>
+        {/* Header */}
+        <FadeIn>
+          <div className="flex items-center justify-between mb-8">
+            <div className="flex items-center gap-4">
+              <Bell className="w-8 h-8 text-primary" />
+              <div>
+                <h1 className="text-3xl font-bold text-white drop-shadow-lg">Notifications</h1>
+                {unreadCount > 0 && (
+                  <span className="text-sm text-primary font-semibold animate-pulse">
+                    {unreadCount} unread
                   </span>
-                </div>
-                <p className="text-sm text-muted-foreground mt-0.5 line-clamp-2">
-                  {notif.message}
-                </p>
+                )}
               </div>
-              {!notif.is_read && (
-                <div className="w-2.5 h-2.5 rounded-full bg-primary shrink-0 mt-1.5" />
-              )}
             </div>
-          ))}
-        </div>
-      )}
+            {unreadCount > 0 && (
+              <Button
+                variant="ghost"
+                onClick={markAllRead}
+                disabled={markingAll}
+                className="text-white/70 hover:text-white hover:bg-white/10"
+              >
+                {markingAll ? (
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                ) : (
+                  <Check className="w-4 h-4 mr-2" />
+                )}
+                Mark all as read
+              </Button>
+            )}
+          </div>
+        </FadeIn>
+
+        {/* Filters */}
+        <FadeIn>
+          <div className="flex flex-wrap items-center gap-2 mb-6">
+            <Button
+              size="sm"
+              variant={filter === 'all' ? 'primary' : 'outline'}
+              onClick={() => setFilter('all')}
+              className={`transition-all ${filter === 'all' ? 'bg-primary text-primary-foreground' : 'bg-white/5 border-white/10 text-white/70 hover:bg-white/10 hover:text-white'}`}
+            >
+              All ({notifications.length})
+            </Button>
+            <Button
+              size="sm"
+              variant={filter === 'unread' ? 'primary' : 'outline'}
+              onClick={() => setFilter('unread')}
+              className={`transition-all ${filter === 'unread' ? 'bg-primary text-primary-foreground' : 'bg-white/5 border-white/10 text-white/70 hover:bg-white/10 hover:text-white'}`}
+            >
+              Unread ({unreadCount})
+            </Button>
+            {typeCategories.length > 1 && (
+              <>
+                <div className="w-px bg-white/10 self-stretch mx-2" />
+                <Button
+                  size="sm"
+                  variant={typeFilter === 'all' ? 'secondary' : 'outline'}
+                  onClick={() => setTypeFilter('all')}
+                  className={`transition-all text-xs px-2.5 py-1 h-auto ${typeFilter === 'all' ? 'bg-primary/20 text-primary border-primary/30' : 'bg-white/5 border-white/10 text-white/60 hover:bg-white/10 hover:text-white'}`}
+                >
+                  All types
+                </Button>
+                {typeCategories.map(cat => {
+                  const types = typeCategoryMap[cat];
+                  const isActive = types.some(t => t === typeFilter) || (typeFilter === cat);
+                  return (
+                    <Button
+                      key={cat}
+                      size="sm"
+                      variant={isActive ? 'secondary' : 'outline'}
+                      onClick={() => setTypeFilter(isActive ? 'all' : types[0])}
+                      className={`transition-all text-xs px-2.5 py-1 h-auto ${isActive ? 'bg-primary/20 text-primary border-primary/30' : 'bg-white/5 border-white/10 text-white/60 hover:bg-white/10 hover:text-white'}`}
+                    >
+                      {cat}
+                    </Button>
+                  );
+                })}
+              </>
+            )}
+          </div>
+        </FadeIn>
+
+        {/* Notification list */}
+        {filtered.length === 0 ? (
+          <FadeIn>
+            <GlassPanel className="text-center py-24">
+              <BellOff className="w-16 h-16 text-white/30 mx-auto mb-6" />
+              <h3 className="text-xl font-semibold text-white mb-2">
+                {filter === 'unread' ? 'All caught up!' : 'No notifications yet'}
+              </h3>
+              <p className="text-sm text-white/60 max-w-xs mx-auto">
+                {filter === 'unread'
+                  ? 'You have no unread notifications.'
+                  : 'Important updates and alerts will appear here.'}
+              </p>
+            </GlassPanel>
+          </FadeIn>
+        ) : (
+          <div className="space-y-3">
+            {filtered.map((notif, i) => (
+              <FadeIn key={notif.id} delay={i * 0.05}>
+                <TiltCard>
+                  <div
+                    className={`glass-panel-interactive border rounded-2xl p-4 flex items-start gap-4 cursor-pointer transition-all duration-300 ${
+                      notif.is_read
+                        ? 'border-white/10'
+                        : 'border-primary/40 shadow-[0_0_15px_rgba(var(--primary-rgb),0.2)]'
+                    }`}
+                    onClick={() => !notif.is_read && markAsRead(notif.id)}
+                  >
+                    <div className={`w-11 h-11 rounded-full flex items-center justify-center shrink-0 bg-white/10 shadow-inner ${notif.is_read ? '' : 'shadow-[0_0_10px_rgba(var(--primary-rgb),0.3)]'}`}>
+                      {getIcon(notif.type)}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-start justify-between gap-2">
+                        <p className={`text-sm ${notif.is_read ? 'text-white/80' : 'text-white font-semibold'}`}>
+                          {notif.title}
+                        </p>
+                        <span className="text-xs text-white/50 whitespace-nowrap shrink-0 pt-0.5">
+                          {timeAgo(notif.created_at)}
+                        </span>
+                      </div>
+                      <p className="text-sm text-white/60 mt-0.5 line-clamp-2">
+                        {notif.message}
+                      </p>
+                    </div>
+                    {!notif.is_read && (
+                      <div className="w-2.5 h-2.5 rounded-full bg-primary shrink-0 mt-1.5 animate-pulse" />
+                    )}
+                  </div>
+                </TiltCard>
+              </FadeIn>
+            ))}
+          </div>
+        )}
+      </StaggerContainer>
     </div>
   );
 }

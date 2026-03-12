@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { GlassPanel } from "@/components/glass-panel";
 import { Button } from '@/components/ui/button';
 
 interface NavigationSuggestion {
@@ -81,15 +81,15 @@ export default function NotFound() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-4">
+    <div className="min-h-screen bg-black flex items-center justify-center p-4">
       <motion.div
         initial={{ opacity: 0, scale: 0.9, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         transition={{ duration: 0.4 }}
         className="w-full max-w-lg"
       >
-        <Card>
-          <CardHeader className="text-center">
+        <GlassPanel>
+          <div className="p-6 border-b border-white/10 text-center">
             <motion.div
               initial={{ scale: 0 }}
               animate={{ scale: 1 }}
@@ -98,18 +98,18 @@ export default function NotFound() {
             >
               🗺️
             </motion.div>
-            <CardTitle className="text-3xl">Page Not Found</CardTitle>
-            <p className="text-muted-foreground mt-2">
+            <h3 className="text-xl font-semibold text-white">Page Not Found</h3>
+            <p className="text-white/60 mt-2">
               The page you&rsquo;re looking for doesn&rsquo;t exist or has been moved.
             </p>
-          </CardHeader>
+          </div>
           
-          <CardContent className="space-y-6">
+          <div className="p-6 space-y-6">
             {/* Current path info for development */}
             {process.env.NODE_ENV === 'development' && (
-              <div className="bg-muted rounded-lg p-3">
+              <div className="bg-white/5 rounded-lg p-3">
                 <h4 className="text-sm font-medium mb-2">Debug Info (Development)</h4>
-                <div className="text-xs text-muted-foreground space-y-1">
+                <div className="text-xs text-white/60 space-y-1">
                   <div><strong>Path:</strong> {typeof window !== 'undefined' ? window.location.pathname : 'Unknown'}</div>
                   <div><strong>Search:</strong> {typeof window !== 'undefined' ? window.location.search || 'None' : 'Unknown'}</div>
                   <div><strong>Referrer:</strong> {referrer || 'Direct'}</div>
@@ -129,18 +129,18 @@ export default function NotFound() {
                     transition={{ delay: 0.1 * index }}
                   >
                     <Link href={suggestion.href}>
-                      <div className="border rounded-lg p-3 hover:bg-muted/50 transition-colors group cursor-pointer">
+                      <div className="border rounded-lg p-3 hover:bg-white/5 transition-colors group cursor-pointer">
                         <div className="flex items-center justify-between">
                           <div>
                             <div className="font-medium text-sm group-hover:text-primary transition-colors">
                               {suggestion.label}
                             </div>
-                            <div className="text-xs text-muted-foreground">
+                            <div className="text-xs text-white/60">
                               {suggestion.description}
                             </div>
                           </div>
                           <svg 
-                            className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" 
+                            className="w-4 h-4 text-white/60 group-hover:text-primary transition-colors" 
                             fill="none" 
                             stroke="currentColor" 
                             viewBox="0 0 24 24"
@@ -179,7 +179,7 @@ export default function NotFound() {
 
             {/* Contact support */}
             <div className="text-center pt-2">
-              <p className="text-xs text-muted-foreground">
+              <p className="text-xs text-white/60">
                 Still can&rsquo;t find what you&rsquo;re looking for?{' '}
                 <a 
                   href="mailto:support@continuum-hr.com" 
@@ -189,8 +189,8 @@ export default function NotFound() {
                 </a>
               </p>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </GlassPanel>
       </motion.div>
     </div>
   );

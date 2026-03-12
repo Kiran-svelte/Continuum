@@ -1,11 +1,16 @@
 'use client';
 
 import { useEffect, useState, useCallback, useMemo } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { motion, AnimatePresence } from 'framer-motion';
+import { TiltCard, FadeIn, StaggerContainer } from '@/components/motion';
+import { GlassPanel } from '@/components/glass-panel';
+import { PageHeader } from '@/components/page-header';
+import { TabButton } from '@/components/tab-button';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Modal, ModalFooter } from '@/components/ui/modal';
-import { ProgressBar } from '@/components/ui/progress';
+import { ProgressBar, PageLoader } from '@/components/ui/progress';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
   Inbox,
   CheckCircle,
@@ -23,6 +28,7 @@ import {
   MinusSquare,
   Search,
   Filter,
+  Check,
   X,
 } from 'lucide-react';
 
@@ -89,6 +95,68 @@ interface Pagination {
 }
 
 type TabId = 'pending' | 'history';
+
+// ─── Loading Skeleton ────────────────────────────────────────────────────────
+
+function ApprovalsLoadingSkeleton() {
+  return (
+    <div className="p-4 sm:p-6 pb-32">
+      <div className="space-y-8">
+        {/* Header skeleton */}
+        <div className="space-y-2">
+          <Skeleton className="h-8 w-48 bg-white/10" />
+          <Skeleton className="h-4 w-64 bg-white/10" />
+        </div>
+
+        {/* Tabs skeleton */}
+        <div className="flex gap-2">
+          <Skeleton className="h-10 w-28 bg-white/10 rounded-lg" />
+          <Skeleton className="h-10 w-28 bg-white/10 rounded-lg" />
+        </div>
+
+        {/* Filters skeleton */}
+        <GlassPanel className="p-4 flex flex-col sm:flex-row gap-3">
+          <Skeleton className="h-10 flex-1 bg-white/10 rounded-lg" />
+          <Skeleton className="h-10 w-40 bg-white/10 rounded-lg" />
+          <Skeleton className="h-10 w-10 bg-white/10 rounded-lg" />
+        </GlassPanel>
+
+        {/* Bulk actions skeleton */}
+        <div className="h-12 flex items-center justify-between">
+          <Skeleton className="h-6 w-32 bg-white/10 rounded-md" />
+          <div className="flex gap-3">
+            <Skeleton className="h-10 w-28 bg-white/10 rounded-lg" />
+            <Skeleton className="h-10 w-28 bg-white/10 rounded-lg" />
+          </div>
+        </div>
+
+        {/* List skeleton */}
+        <div className="space-y-4">
+          {[...Array(3)].map((_, i) => (
+            <GlassPanel key={i} className="p-4">
+              <div className="flex items-start gap-4">
+                <Skeleton className="w-12 h-12 rounded-full bg-white/10" />
+                <div className="flex-1 space-y-3">
+                  <div className="flex justify-between">
+                    <Skeleton className="h-5 w-1/3 bg-white/10" />
+                    <Skeleton className="h-4 w-16 bg-white/10" />
+                  </div>
+                  <Skeleton className="h-4 w-3/4 bg-white/10" />
+                  <Skeleton className="h-4 w-1/2 bg-white/10" />
+                </div>
+              </div>
+              <div className="mt-4 h-px bg-white/10" />
+              <div className="mt-4 flex justify-end gap-3">
+                <Skeleton className="h-9 w-24 bg-white/10 rounded-lg" />
+                <Skeleton className="h-9 w-24 bg-white/10 rounded-lg" />
+              </div>
+            </GlassPanel>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
@@ -425,7 +493,7 @@ export default function ManagerApprovalsPage() {
 
   function statusBadgeVariant(
     status: string
-  ): 'success' | 'danger' | 'default' | 'warning' {
+  ): 'success' | 'danger' | 'default' | 'warning' | 'info' {
     switch (status) {
       case 'approved':
         return 'success';
@@ -433,6 +501,8 @@ export default function ManagerApprovalsPage() {
         return 'danger';
       case 'cancelled':
         return 'default';
+      case 'escalated':
+        return 'info';
       default:
         return 'warning';
     }
@@ -449,684 +519,464 @@ export default function ManagerApprovalsPage() {
 
   // ─── Render ────────────────────────────────────────────────────────────────
 
+  if (loading && requests.length === 0) {
+    return <ApprovalsLoadingSkeleton />;
+  }
+
+  const headerDescription = activeTab === 'pending'
+    ? pendingCount > 0
+      ? `${pendingCount} request${pendingCount !== 1 ? 's' : ''} need your attention`
+      : 'All caught up!'
+    : 'Review past approval decisions';
+
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-foreground">Approvals</h1>
-        <p className="text-muted-foreground mt-1">
-          {activeTab === 'pending'
-            ? pendingCount > 0
-              ? `${pendingCount} request${pendingCount !== 1 ? 's' : ''} need your attention`
-              : 'All caught up!'
-            : 'Review past approval decisions'}
-        </p>
-      </div>
+    <div className="p-4 sm:p-6 pb-32">
+      <StaggerContainer>
+        <PageHeader
+          title="Approvals"
+          description={headerDescription}
+          icon={<CheckCircle className="w-6 h-6 text-primary" />}
+        />
 
-      {/* Status Messages */}
-      {actionSuccess && (
-        <div className="rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 px-4 py-3 text-sm text-green-700 dark:text-green-300 flex items-center gap-2">
-          <CheckCircle className="w-4 h-4 shrink-0" />
-          {actionSuccess}
-        </div>
-      )}
-      {error && (
-        <div className="rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 px-4 py-3 text-sm text-red-700 dark:text-red-300 flex items-center gap-2">
-          <AlertCircle className="w-4 h-4 shrink-0" />
-          {error}
-          <button
-            onClick={() => setError('')}
-            className="ml-auto text-red-500 hover:text-red-700 dark:hover:text-red-300"
-            aria-label="Dismiss error"
-          >
-            <XCircle className="w-4 h-4" />
-          </button>
-        </div>
-      )}
-
-      {/* Tabs */}
-      <div className="flex gap-1 p-1 rounded-lg bg-muted/50 w-fit">
-        {tabs.map((tab) => {
-          const Icon = tab.icon;
-          const isActive = activeTab === tab.id;
-          return (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                isActive
-                  ? 'bg-card text-foreground shadow-sm'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
+        {/* Status Messages */}
+        <AnimatePresence>
+          {actionSuccess && (
+            <motion.div
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              className="mb-6 glass-panel p-4 rounded-xl border border-green-500/30 text-green-300/90 flex items-center gap-3"
             >
-              <Icon className="w-4 h-4" />
-              {tab.label}
-              {tab.id === 'pending' && pendingCount > 0 && (
-                <span className="ml-1 px-1.5 py-0.5 text-[10px] font-semibold rounded-full bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400">
-                  {pendingCount}
-                </span>
-              )}
-            </button>
-          );
-        })}
-      </div>
-
-      {/* ═══════════════════════════════════════════════════════════════════ */}
-      {/* PENDING TAB                                                        */}
-      {/* ═══════════════════════════════════════════════════════════════════ */}
-      {activeTab === 'pending' && (
-        <>
-          {/* Filter controls */}
-          {requests.length > 0 && (
-            <div className="flex flex-wrap items-center gap-3">
-              {/* Employee name search */}
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <input
-                  type="text"
-                  value={filterName}
-                  onChange={(e) => setFilterName(e.target.value)}
-                  placeholder="Search by employee name..."
-                  className="pl-9 pr-8 py-2 text-sm rounded-lg border border-border bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring w-60"
-                />
-                {filterName && (
-                  <button
-                    onClick={() => setFilterName('')}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                    aria-label="Clear name search"
-                  >
-                    <X className="w-3.5 h-3.5" />
-                  </button>
-                )}
-              </div>
-
-              {/* Leave type dropdown */}
-              <div className="flex items-center gap-1.5">
-                <Filter className="w-4 h-4 text-muted-foreground" />
-                <select
-                  value={filterLeaveType}
-                  onChange={(e) => setFilterLeaveType(e.target.value)}
-                  aria-label="Filter by leave type"
-                  className="text-sm rounded-lg border border-border bg-background text-foreground px-3 py-2 pr-8 focus:outline-none focus:ring-2 focus:ring-ring appearance-none cursor-pointer"
-                >
-                  <option value="all">All leave types</option>
-                  {activeLeaveTypes.map((code) => (
-                    <option key={code} value={code}>
-                      {leaveTypeLabel(code)}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Clear filters + count */}
-              {(filterLeaveType !== 'all' || filterName.trim()) && (
-                <>
-                  <button
-                    onClick={() => {
-                      setFilterLeaveType('all');
-                      setFilterName('');
-                    }}
-                    className="text-xs text-primary hover:text-primary/80 font-medium"
-                  >
-                    Clear filters
-                  </button>
-                  <span className="text-xs text-muted-foreground">
-                    Showing {filteredRequests.length} of {requests.length}
-                  </span>
-                </>
-              )}
-            </div>
+              <CheckCircle className="w-5 h-5" />
+              <span className="flex-1">{actionSuccess}</span>
+            </motion.div>
           )}
-
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  {/* Select-all checkbox */}
-                  {filteredRequests.length > 0 && (
-                    <button
-                      onClick={toggleSelectAll}
-                      className="text-muted-foreground hover:text-foreground transition-colors"
-                      aria-label={allVisibleSelected ? 'Deselect all' : 'Select all'}
-                      disabled={bulkProcessing}
-                    >
-                      {allVisibleSelected ? (
-                        <CheckSquare className="w-5 h-5 text-primary" />
-                      ) : someVisibleSelected ? (
-                        <MinusSquare className="w-5 h-5 text-primary" />
-                      ) : (
-                        <Square className="w-5 h-5" />
-                      )}
-                    </button>
-                  )}
-                  <CardTitle>Team Requests</CardTitle>
-                </div>
-                {pendingCount > 0 && (
-                  <Badge variant="warning">{pendingCount} pending</Badge>
-                )}
-              </div>
-            </CardHeader>
-            <CardContent>
-              {loading && (
-                <div className="py-12 text-center text-sm text-muted-foreground flex items-center justify-center gap-2">
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  Loading...
-                </div>
-              )}
-              {!loading && filteredRequests.length === 0 && requests.length === 0 && !error && (
-                <div className="py-12 text-center">
-                  <div className="w-10 h-10 rounded-xl bg-green-50 dark:bg-green-500/10 flex items-center justify-center mx-auto">
-                    <Inbox className="w-5 h-5 text-green-500" />
-                  </div>
-                  <p className="text-muted-foreground mt-3 text-sm">No pending requests -- all caught up!</p>
-                </div>
-              )}
-              {!loading && filteredRequests.length === 0 && requests.length > 0 && (
-                <div className="py-12 text-center">
-                  <div className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center mx-auto">
-                    <Search className="w-5 h-5 text-muted-foreground" />
-                  </div>
-                  <p className="text-muted-foreground mt-3 text-sm">No requests match your filters.</p>
-                </div>
-              )}
-              {!loading && filteredRequests.length > 0 && (
-                <div className="space-y-3">
-                  {filteredRequests.map((req) => {
-                    const empName = `${req.employee.first_name} ${req.employee.last_name}`;
-                    const isCommenting = commentingId === req.id;
-                    const isSelected = selectedIds.has(req.id);
-                    return (
-                      <div
-                        key={req.id}
-                        className={`p-4 rounded-lg border transition-colors ${
-                          isSelected
-                            ? 'border-primary/40 bg-primary/5 dark:bg-primary/10'
-                            : 'border-border hover:bg-muted/50'
-                        }`}
-                      >
-                        <div className="flex items-start justify-between">
-                          <div className="flex items-start gap-3 flex-1">
-                            {/* Checkbox */}
-                            <button
-                              onClick={() => toggleSelect(req.id)}
-                              className="mt-1 shrink-0 text-muted-foreground hover:text-primary transition-colors"
-                              disabled={bulkProcessing}
-                              aria-label={isSelected ? 'Deselect request' : 'Select request'}
-                            >
-                              {isSelected ? (
-                                <CheckSquare className="w-5 h-5 text-primary" />
-                              ) : (
-                                <Square className="w-5 h-5" />
-                              )}
-                            </button>
-
-                            <div className="w-9 h-9 bg-blue-100 dark:bg-blue-900/20 rounded-full flex items-center justify-center text-sm font-bold text-primary shrink-0">
-                              {req.employee.first_name[0]}{req.employee.last_name[0]}
-                            </div>
-                            <div>
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <p className="text-sm font-semibold text-foreground">
-                                  {empName}
-                                </p>
-                                <span className="text-xs text-muted-foreground">{req.employee.department ?? '--'}</span>
-                                <Badge variant="warning">{req.leave_type}</Badge>
-                                {req.status === 'escalated' && (
-                                  <span className="text-xs px-2 py-0.5 rounded-full bg-orange-100 text-orange-700 dark:bg-orange-900/20 dark:text-orange-300">
-                                    Escalated
-                                  </span>
-                                )}
-                              </div>
-                              <p className="text-sm text-muted-foreground mt-1">
-                                {formatDate(req.start_date)}
-                                {req.start_date !== req.end_date && ` \u2013 ${formatDate(req.end_date)}`}
-                                {' \u00b7 '}
-                                <span className="font-medium">{req.total_days} day{req.total_days !== 1 ? 's' : ''}</span>
-                                {' \u00b7 '}
-                                <span className="text-muted-foreground">{timeAgo(req.created_at)}</span>
-                              </p>
-                              {req.reason && (
-                                <p className="text-xs text-muted-foreground mt-1 max-w-sm truncate">&ldquo;{req.reason}&rdquo;</p>
-                              )}
-                            </div>
-                          </div>
-                          {!isCommenting && (
-                            <div className="flex gap-2 ml-4 shrink-0">
-                              <button
-                                onClick={() => startAction(req.id, 'approve')}
-                                disabled={!!actionLoading || bulkProcessing}
-                                className="px-3 py-1.5 text-xs font-medium text-green-700 dark:text-green-300 bg-green-50 dark:bg-green-900/20 rounded-lg hover:bg-green-100 dark:hover:bg-green-900/40 disabled:opacity-50 transition-colors"
-                              >
-                                Approve
-                              </button>
-                              <button
-                                onClick={() => startAction(req.id, 'reject')}
-                                disabled={!!actionLoading || bulkProcessing}
-                                className="px-3 py-1.5 text-xs font-medium text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-900/20 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/40 disabled:opacity-50 transition-colors"
-                              >
-                                Reject
-                              </button>
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Constraint Engine Results */}
-                        {req.constraint_result && (
-                          <div className="mt-3 ml-8 p-3 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800">
-                            <p className="text-xs font-medium text-amber-700 dark:text-amber-300 mb-2 flex items-center gap-1.5">
-                              <AlertTriangle className="w-3.5 h-3.5" />
-                              Constraint Engine Results
-                            </p>
-                            {(req.constraint_result.violations?.length ?? 0) > 0 && (
-                              <div className="space-y-1">
-                                {req.constraint_result.violations!.map((v, i) => (
-                                  <p key={i} className="text-xs text-red-600 dark:text-red-400 flex items-start gap-1.5">
-                                    <AlertCircle className="w-3 h-3 mt-0.5 shrink-0" />
-                                    {typeof v === 'string' ? v : v.message || v.rule_name || 'Violation'}
-                                  </p>
-                                ))}
-                              </div>
-                            )}
-                            {(req.constraint_result.warnings?.length ?? 0) > 0 && (
-                              <div className="space-y-1 mt-1">
-                                {req.constraint_result.warnings!.map((w, i) => (
-                                  <p key={i} className="text-xs text-amber-600 dark:text-amber-400 flex items-start gap-1.5">
-                                    <AlertTriangle className="w-3 h-3 mt-0.5 shrink-0" />
-                                    {typeof w === 'string' ? w : w.message || w.rule_name || 'Warning'}
-                                  </p>
-                                ))}
-                              </div>
-                            )}
-                            {(req.constraint_result.suggestions?.length ?? 0) > 0 && (
-                              <div className="space-y-1 mt-1">
-                                {req.constraint_result.suggestions!.map((s, i) => (
-                                  <p key={i} className="text-xs text-muted-foreground">
-                                    {typeof s === 'string' ? s : s.message || 'Suggestion'}
-                                  </p>
-                                ))}
-                              </div>
-                            )}
-                            {req.constraint_result.ai_recommendation && (
-                              <p className="text-xs text-primary mt-2 flex items-center gap-1.5">
-                                <Bot className="w-3.5 h-3.5 shrink-0" />
-                                AI: {req.constraint_result.ai_recommendation.decision}
-                                {' '}({Math.round((req.constraint_result.ai_recommendation.confidence || 0) * 100)}% confidence)
-                              </p>
-                            )}
-                          </div>
-                        )}
-
-                        {/* Comment input for approve/reject */}
-                        {isCommenting && commentAction && (
-                          <div className="mt-3 ml-8 p-3 rounded-lg border border-border bg-muted/30">
-                            <p className="text-xs font-medium text-foreground mb-2">
-                              {commentAction === 'approve' ? 'Approve' : 'Reject'} {empName}&apos;s request
-                            </p>
-                            <textarea
-                              value={comment}
-                              onChange={(e) => setComment(e.target.value)}
-                              placeholder="Add a comment (optional)..."
-                              rows={2}
-                              className="w-full text-sm rounded-md border border-border bg-background px-3 py-2 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring resize-none"
-                            />
-                            <div className="flex gap-2 mt-2 justify-end">
-                              <button
-                                onClick={cancelAction}
-                                disabled={!!actionLoading}
-                                className="px-3 py-1.5 text-xs font-medium text-muted-foreground bg-muted rounded-lg hover:bg-muted/80 disabled:opacity-50 transition-colors"
-                              >
-                                Cancel
-                              </button>
-                              <button
-                                onClick={() => confirmAction(req.id, commentAction, empName)}
-                                disabled={!!actionLoading}
-                                className={`px-3 py-1.5 text-xs font-medium rounded-lg disabled:opacity-50 transition-colors ${
-                                  commentAction === 'approve'
-                                    ? 'text-green-700 dark:text-green-300 bg-green-50 dark:bg-green-900/20 hover:bg-green-100 dark:hover:bg-green-900/40'
-                                    : 'text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/40'
-                                }`}
-                              >
-                                {actionLoading === req.id + commentAction
-                                  ? 'Processing...'
-                                  : `Confirm ${commentAction === 'approve' ? 'Approval' : 'Rejection'}`}
-                              </button>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Sticky Bulk Action Bar */}
-          {selectedCount > 0 && !bulkProcessing && (
-            <div className="sticky bottom-4 z-30 mx-auto max-w-2xl">
-              <div className="flex items-center justify-between gap-4 px-5 py-3 rounded-xl bg-card border border-border shadow-lg dark:shadow-black/30">
-                <p className="text-sm text-foreground font-medium whitespace-nowrap">
-                  {selectedCount} request{selectedCount !== 1 ? 's' : ''} selected
-                </p>
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="success"
-                    size="sm"
-                    onClick={() => openBulkDialog('approve')}
-                    disabled={!!actionLoading}
-                  >
-                    <CheckCircle className="w-4 h-4" />
-                    Approve Selected ({selectedCount})
-                  </Button>
-                  <Button
-                    variant="danger"
-                    size="sm"
-                    onClick={() => openBulkDialog('reject')}
-                    disabled={!!actionLoading}
-                  >
-                    <XCircle className="w-4 h-4" />
-                    Reject Selected ({selectedCount})
-                  </Button>
-                  <button
-                    onClick={() => setSelectedIds(new Set())}
-                    className="ml-1 p-1.5 text-muted-foreground hover:text-foreground rounded-lg hover:bg-muted transition-colors"
-                    aria-label="Clear selection"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-        </>
-      )}
-
-      {/* ═══════════════════════════════════════════════════════════════════ */}
-      {/* HISTORY TAB                                                        */}
-      {/* ═══════════════════════════════════════════════════════════════════ */}
-      {activeTab === 'history' && (
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle>Decision History</CardTitle>
-              <button
-                onClick={() => loadHistory(historyPage)}
-                disabled={historyLoading}
-                className="text-xs text-primary hover:text-primary/80 font-medium disabled:opacity-50"
+          {error && (
+            <motion.div
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              className="mb-6 glass-panel p-4 rounded-xl border border-red-500/30 text-red-300/90 flex items-center gap-3"
+            >
+              <AlertCircle className="w-5 h-5" />
+              <span className="flex-1">{error}</span>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setError('')}
+                className="text-red-300/70 hover:text-red-300 hover:bg-red-500/20"
               >
-                Refresh
-              </button>
-            </div>
-          </CardHeader>
-          <CardContent>
-            {historyLoading && (
-              <div className="py-12 text-center text-sm text-muted-foreground flex items-center justify-center gap-2">
-                <Loader2 className="w-4 h-4 animate-spin" />
-                Loading history...
-              </div>
-            )}
-            {historyError && (
-              <div className="py-8 text-center text-sm text-red-600 dark:text-red-400">
-                {historyError}
-              </div>
-            )}
-            {!historyLoading && !historyError && historyRequests.length === 0 && (
-              <div className="py-12 text-center">
-                <div className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center mx-auto">
-                  <History className="w-5 h-5 text-muted-foreground" />
-                </div>
-                <p className="text-muted-foreground mt-3 text-sm">No approval history yet.</p>
-              </div>
-            )}
-            {!historyLoading && !historyError && historyRequests.length > 0 && (
-              <>
-                {/* Desktop table */}
-                <div className="hidden md:block overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b border-border/60 dark:border-slate-800/50">
-                        <th className="text-left py-3 px-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">Employee</th>
-                        <th className="text-left py-3 px-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">Leave Type</th>
-                        <th className="text-left py-3 px-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">Dates</th>
-                        <th className="text-left py-3 px-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">Days</th>
-                        <th className="text-left py-3 px-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">Status</th>
-                        <th className="text-left py-3 px-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">Processed By</th>
-                        <th className="text-left py-3 px-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">Date</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-border/40 dark:divide-slate-800/40">
-                      {historyRequests.map((req) => (
-                        <tr key={req.id} className="hover:bg-muted/30 transition-colors">
-                          <td className="py-3 px-3">
-                            <div className="flex items-center gap-2">
-                              <div className="w-7 h-7 bg-blue-100 dark:bg-blue-900/20 rounded-full flex items-center justify-center text-xs font-bold text-primary shrink-0">
-                                {req.employee.first_name[0]}{req.employee.last_name[0]}
-                              </div>
-                              <div>
-                                <p className="font-medium text-foreground">{req.employee.first_name} {req.employee.last_name}</p>
-                                <p className="text-xs text-muted-foreground">{req.employee.department ?? '--'}</p>
-                              </div>
-                            </div>
-                          </td>
-                          <td className="py-3 px-3">
-                            <Badge variant="info" size="sm">{req.leave_type}</Badge>
-                          </td>
-                          <td className="py-3 px-3 text-muted-foreground">
-                            {formatDate(req.start_date)}
-                            {req.start_date !== req.end_date && ` \u2013 ${formatDate(req.end_date)}`}
-                          </td>
-                          <td className="py-3 px-3 text-muted-foreground">
-                            {req.total_days}
-                          </td>
-                          <td className="py-3 px-3">
-                            <Badge variant={statusBadgeVariant(req.status)} size="sm">
-                              {req.status.charAt(0).toUpperCase() + req.status.slice(1)}
-                            </Badge>
-                          </td>
-                          <td className="py-3 px-3 text-muted-foreground">
-                            {req.approver
-                              ? `${req.approver.first_name} ${req.approver.last_name}`
-                              : '--'}
-                          </td>
-                          <td className="py-3 px-3 text-muted-foreground">
-                            {req.approved_at ? formatFullDate(req.approved_at) : formatFullDate(req.created_at)}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                <X className="w-5 h-5" />
+              </Button>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
-                {/* Mobile cards */}
-                <div className="md:hidden space-y-3">
-                  {historyRequests.map((req) => (
-                    <div key={req.id} className="p-3 rounded-lg border border-border">
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="flex items-center gap-2">
-                          <div className="w-7 h-7 bg-blue-100 dark:bg-blue-900/20 rounded-full flex items-center justify-center text-xs font-bold text-primary shrink-0">
-                            {req.employee.first_name[0]}{req.employee.last_name[0]}
-                          </div>
-                          <p className="text-sm font-medium text-foreground">
-                            {req.employee.first_name} {req.employee.last_name}
-                          </p>
-                        </div>
-                        <Badge variant={statusBadgeVariant(req.status)} size="sm">
-                          {req.status.charAt(0).toUpperCase() + req.status.slice(1)}
-                        </Badge>
+        {/* Tabs */}
+        <FadeIn>
+          <div className="flex gap-2 mb-6">
+            {tabs.map((tab) => {
+              const Icon = tab.icon;
+              return (
+                <TabButton
+                  key={tab.id}
+                  active={activeTab === tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                >
+                  <Icon className="w-5 h-5" />
+                  {tab.label}
+                </TabButton>
+              );
+            })}
+          </div>
+        </FadeIn>
+
+        {/* Pending Tab Content */}
+        <AnimatePresence mode="wait">
+          {activeTab === 'pending' && (
+            <motion.div
+              key="pending-tab"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.3 }}
+              className="space-y-6"
+            >
+              {/* Filters */}
+              <FadeIn>
+                <GlassPanel className="p-4 flex flex-col sm:flex-row gap-3">
+                  <div className="relative flex-1">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-white/40" />
+                    <input
+                      type="text"
+                      placeholder="Filter by name..."
+                      value={filterName}
+                      onChange={(e) => setFilterName(e.target.value)}
+                      className="w-full h-10 pl-10 pr-4 bg-black/20 border border-white/10 rounded-lg text-white placeholder:text-white/40 focus:ring-2 focus:ring-primary/50 focus:outline-none"
+                    />
+                  </div>
+                  <div className="relative">
+                    <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-white/40" />
+                    <select
+                      value={filterLeaveType}
+                      onChange={(e) => setFilterLeaveType(e.target.value)}
+                      className="appearance-none w-full sm:w-48 h-10 pl-10 pr-8 bg-black/20 border border-white/10 rounded-lg text-white focus:ring-2 focus:ring-primary/50 focus:outline-none"
+                    >
+                      <option value="all">All Leave Types</option>
+                      {activeLeaveTypes.map((lt) => (
+                        <option key={lt} value={lt}>{leaveTypeLabel(lt)}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <Button variant="ghost" onClick={() => { setFilterName(''); setFilterLeaveType('all'); }} className="h-10 text-white/60 hover:text-white hover:bg-white/10">
+                    Clear
+                  </Button>
+                </GlassPanel>
+              </FadeIn>
+
+              {/* Bulk Actions */}
+              <AnimatePresence>
+                {selectedCount > 0 && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                  >
+                    <GlassPanel className="p-4 flex items-center justify-between border-primary/30">
+                      <p className="text-sm font-semibold text-primary">{selectedCount} request{selectedCount !== 1 ? 's' : ''} selected</p>
+                      <div className="flex gap-3">
+                        <Button size="sm" variant="success" onClick={() => openBulkDialog('approve')}>
+                          <Check className="w-4 h-4 mr-2" /> Approve
+                        </Button>
+                        <Button size="sm" variant="danger" onClick={() => openBulkDialog('reject')}>
+                          <X className="w-4 h-4 mr-2" /> Reject
+                        </Button>
                       </div>
-                      <div className="text-xs text-muted-foreground space-y-1">
-                        <p>
-                          <Badge variant="info" size="sm">{req.leave_type}</Badge>
-                          {' \u00b7 '}
-                          {formatDate(req.start_date)}
-                          {req.start_date !== req.end_date && ` \u2013 ${formatDate(req.end_date)}`}
-                          {' \u00b7 '}
-                          {req.total_days} day{req.total_days !== 1 ? 's' : ''}
-                        </p>
-                        <p>
-                          By: {req.approver ? `${req.approver.first_name} ${req.approver.last_name}` : '--'}
-                          {req.approved_at && ` \u00b7 ${formatFullDate(req.approved_at)}`}
-                        </p>
-                      </div>
-                    </div>
+                    </GlassPanel>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              {/* Request List */}
+              {loading && requests.length === 0 ? (
+                <PageLoader />
+              ) : filteredRequests.length === 0 ? (
+                <FadeIn>
+                  <GlassPanel className="text-center py-24">
+                    <Inbox className="w-16 h-16 text-white/30 mx-auto mb-6" />
+                    <h3 className="text-xl font-semibold text-white mb-2">No matching requests</h3>
+                    <p className="text-sm text-white/60">Try adjusting your filters.</p>
+                  </GlassPanel>
+                </FadeIn>
+              ) : (
+                <div className="space-y-4">
+                  {/* Select All Header */}
+                  <div className="flex items-center gap-3 px-2">
+                    <button onClick={toggleSelectAll} className="flex items-center gap-2 text-sm text-white/60 hover:text-white">
+                      {allVisibleSelected ? <CheckSquare className="w-5 h-5 text-primary" /> : someVisibleSelected ? <MinusSquare className="w-5 h-5 text-primary/70" /> : <Square className="w-5 h-5" />}
+                      <span>Select All Visible</span>
+                    </button>
+                  </div>
+                  {filteredRequests.map((req, i) => (
+                    <FadeIn key={req.id} delay={i * 0.05}>
+                      <RequestCard
+                        req={req}
+                        onToggleSelect={toggleSelect}
+                        isSelected={selectedIds.has(req.id)}
+                        onStartAction={startAction}
+                        actionLoading={actionLoading}
+                      />
+                    </FadeIn>
                   ))}
                 </div>
+              )}
+            </motion.div>
+          )}
+        </AnimatePresence>
 
-                {/* Pagination */}
-                {historyPagination && historyPagination.pages > 1 && (
-                  <div className="flex items-center justify-between mt-4 pt-4 border-t border-border/40 dark:border-slate-800/40">
-                    <p className="text-xs text-muted-foreground">
-                      Showing {(historyPage - 1) * historyPagination.limit + 1}
-                      {' '}-{' '}
-                      {Math.min(historyPage * historyPagination.limit, historyPagination.total)}
-                      {' '}of {historyPagination.total}
-                    </p>
-                    <div className="flex items-center gap-1">
-                      <button
-                        onClick={() => setHistoryPage(historyPage - 1)}
-                        disabled={historyPage <= 1}
-                        aria-label="Previous page"
-                        className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+        {/* History Tab Content */}
+        <AnimatePresence mode="wait">
+          {activeTab === 'history' && (
+            <motion.div
+              key="history-tab"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.3 }}
+              className="space-y-6"
+            >
+              {historyLoading && historyRequests.length === 0 ? (
+                <PageLoader />
+              ) : historyError ? (
+                <GlassPanel className="text-center py-24 border-red-500/30">
+                  <AlertCircle className="w-16 h-16 text-red-400/70 mx-auto mb-6" />
+                  <h3 className="text-xl font-semibold text-white mb-2">Error loading history</h3>
+                  <p className="text-sm text-red-300/80">{historyError}</p>
+                </GlassPanel>
+              ) : historyRequests.length === 0 ? (
+                <GlassPanel className="text-center py-24">
+                  <History className="w-16 h-16 text-white/30 mx-auto mb-6" />
+                  <h3 className="text-xl font-semibold text-white mb-2">No history yet</h3>
+                  <p className="text-sm text-white/60">Approved and rejected requests will appear here.</p>
+                </GlassPanel>
+              ) : (
+                <div className="space-y-4">
+                  {historyRequests.map((req, i) => (
+                    <FadeIn key={req.id} delay={i * 0.05}>
+                      <HistoryCard req={req} />
+                    </FadeIn>
+                  ))}
+                  {/* Pagination */}
+                  {historyPagination && historyPagination.pages > 1 && (
+                    <div className="flex justify-center items-center gap-4 pt-4">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setHistoryPage(p => Math.max(1, p - 1))}
+                        disabled={historyPage === 1}
+                        className="bg-black/20 border-white/10 text-white/70 hover:bg-white/10 hover:text-white"
                       >
-                        <ChevronLeft className="w-4 h-4" />
-                      </button>
-                      {Array.from({ length: Math.min(historyPagination.pages, 5) }, (_, i) => {
-                        let pageNum: number;
-                        if (historyPagination.pages <= 5) {
-                          pageNum = i + 1;
-                        } else if (historyPage <= 3) {
-                          pageNum = i + 1;
-                        } else if (historyPage >= historyPagination.pages - 2) {
-                          pageNum = historyPagination.pages - 4 + i;
-                        } else {
-                          pageNum = historyPage - 2 + i;
-                        }
-                        return (
-                          <button
-                            key={pageNum}
-                            onClick={() => setHistoryPage(pageNum)}
-                            className={`w-8 h-8 rounded-lg text-xs font-medium transition-colors ${
-                              historyPage === pageNum
-                                ? 'bg-primary text-primary-foreground'
-                                : 'text-muted-foreground hover:text-foreground hover:bg-muted'
-                            }`}
-                          >
-                            {pageNum}
-                          </button>
-                        );
-                      })}
-                      <button
-                        onClick={() => setHistoryPage(historyPage + 1)}
-                        disabled={historyPage >= (historyPagination?.pages ?? 1)}
-                        aria-label="Next page"
-                        className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                        <ChevronLeft className="w-4 h-4 mr-1" /> Previous
+                      </Button>
+                      <span className="text-sm text-white/60">
+                        Page {historyPagination.page} of {historyPagination.pages}
+                      </span>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setHistoryPage(p => Math.min(historyPagination.pages, p + 1))}
+                        disabled={historyPage === historyPagination.pages}
+                        className="bg-black/20 border-white/10 text-white/70 hover:bg-white/10 hover:text-white"
                       >
-                        <ChevronRight className="w-4 h-4" />
-                      </button>
+                        Next <ChevronRight className="w-4 h-4 ml-1" />
+                      </Button>
                     </div>
-                  </div>
-                )}
+                  )}
+                </div>
+              )}
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </StaggerContainer>
+
+      {/* Comment Modal */}
+      <AnimatePresence>
+        {commentingId && (
+          <Modal
+            isOpen
+            onClose={cancelAction}
+            title={`${commentAction === 'approve' ? 'Approve' : 'Reject'} Request`}
+            description="Add an optional comment for the employee."
+            className="glass-panel border-white/10 text-white"
+          >
+            <textarea
+              value={comment}
+              onChange={(e) => setComment(e.target.value)}
+              placeholder="e.g., 'Enjoy your time off!'"
+              className="w-full mt-4 p-3 bg-black/20 border border-white/10 rounded-lg text-white placeholder:text-white/40 focus:ring-2 focus:ring-primary/50 focus:outline-none"
+              rows={3}
+            />
+            <ModalFooter className="mt-6">
+              <Button variant="ghost" onClick={cancelAction} className="text-white/70 hover:text-white hover:bg-white/10">Cancel</Button>
+              <Button
+                variant={commentAction === 'approve' ? 'success' : 'danger'}
+                onClick={() => {
+                  const req = requests.find(r => r.id === commentingId);
+                  if (req) confirmAction(commentingId, commentAction!, `${req.employee.first_name} ${req.employee.last_name}`);
+                }}
+              >
+                Confirm {commentAction}
+              </Button>
+            </ModalFooter>
+          </Modal>
+        )}
+      </AnimatePresence>
+
+      {/* Bulk Action Modal */}
+      <AnimatePresence>
+        {bulkAction && (
+          <Modal
+            isOpen
+            onClose={closeBulkDialog}
+            title={`Bulk ${bulkAction === 'approve' ? 'Approve' : 'Reject'} Requests`}
+            description={`You are about to ${bulkAction} ${selectedCount} request${selectedCount !== 1 ? 's' : ''}.`}
+            className="glass-panel border-white/10 text-white"
+          >
+            {!bulkProcessing && bulkErrors.length === 0 && (
+              <>
+                <textarea
+                  value={bulkComment}
+                  onChange={(e) => setBulkComment(e.target.value)}
+                  placeholder="Optional comment for all selected requests..."
+                  className="w-full mt-4 p-3 bg-black/20 border border-white/10 rounded-lg text-white placeholder:text-white/40 focus:ring-2 focus:ring-primary/50 focus:outline-none"
+                  rows={3}
+                />
+                <p className="text-xs text-white/50 mt-2">This comment will be applied to all {selectedCount} requests.</p>
               </>
             )}
-          </CardContent>
-        </Card>
-      )}
 
-      {/* ═══════════════════════════════════════════════════════════════════ */}
-      {/* BULK ACTION MODAL                                                  */}
-      {/* ═══════════════════════════════════════════════════════════════════ */}
-      <Modal
-        isOpen={bulkAction !== null}
-        onClose={closeBulkDialog}
-        title={
-          bulkProcessing
-            ? `${bulkAction === 'approve' ? 'Approving' : 'Rejecting'} requests...`
-            : bulkErrors.length > 0
-              ? 'Bulk Action Complete'
-              : `Bulk ${bulkAction === 'approve' ? 'Approve' : 'Reject'} ${selectedCount} Request${selectedCount !== 1 ? 's' : ''}`
-        }
-        size="md"
-        closeOnOverlayClick={!bulkProcessing}
-        closeOnEscape={!bulkProcessing}
-      >
-        {/* Step 1: Comment dialog before execution */}
-        {!bulkProcessing && bulkErrors.length === 0 && bulkProgress === 0 && (
-          <>
-            <p className="text-sm text-muted-foreground mb-3">
-              {bulkAction === 'approve'
-                ? `You are about to approve ${selectedCount} leave request${selectedCount !== 1 ? 's' : ''}. Add an optional comment that will be applied to all.`
-                : `You are about to reject ${selectedCount} leave request${selectedCount !== 1 ? 's' : ''}. Add an optional comment that will be applied to all.`}
-            </p>
-            <textarea
-              value={bulkComment}
-              onChange={(e) => setBulkComment(e.target.value)}
-              placeholder="Add a comment (optional)..."
-              rows={3}
-              className="w-full text-sm rounded-md border border-border bg-background px-3 py-2 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring resize-none"
-            />
-            <ModalFooter>
-              <Button variant="outline" size="sm" onClick={closeBulkDialog}>
-                Cancel
-              </Button>
-              <Button
-                variant={bulkAction === 'approve' ? 'success' : 'danger'}
-                size="sm"
-                onClick={executeBulkAction}
-              >
-                {bulkAction === 'approve'
-                  ? `Approve All (${selectedCount})`
-                  : `Reject All (${selectedCount})`}
-              </Button>
-            </ModalFooter>
-          </>
-        )}
+            {(bulkProcessing || bulkErrors.length > 0) && (
+              <div className="mt-4 space-y-4">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-white/80">Progress:</span>
+                  <span className="font-semibold">{bulkProgress} / {bulkTotal}</span>
+                </div>
+                <ProgressBar value={(bulkProgress / bulkTotal) * 100} />
 
-        {/* Step 2: Progress display during execution */}
-        {bulkProcessing && (
-          <div className="py-4 space-y-4">
-            <ProgressBar
-              value={bulkProgress}
-              max={bulkTotal}
-              variant={bulkAction === 'approve' ? 'success' : 'danger'}
-              size="md"
-              showValue
-              animated
-            />
-            <p className="text-sm text-muted-foreground text-center">
-              Processing {bulkProgress} of {bulkTotal}...
-            </p>
-          </div>
-        )}
-
-        {/* Step 3: Error summary after completion with failures */}
-        {!bulkProcessing && bulkErrors.length > 0 && (
-          <div className="space-y-3">
-            {bulkSuccessCount > 0 && (
-              <div className="rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 p-3">
-                <p className="text-sm text-green-700 dark:text-green-300">
-                  {bulkSuccessCount} request{bulkSuccessCount !== 1 ? 's' : ''} processed successfully.
-                </p>
+                {bulkErrors.length > 0 && !bulkProcessing && (
+                  <div className="mt-4 space-y-3 max-h-40 overflow-y-auto p-3 bg-black/20 rounded-lg border border-red-500/30">
+                    <h4 className="font-semibold text-red-400">Errors ({bulkErrors.length}):</h4>
+                    <ul className="text-xs text-red-300/90 list-disc list-inside space-y-1">
+                      {bulkErrors.map((err, i) => <li key={i}>{err}</li>)}
+                    </ul>
+                  </div>
+                )}
               </div>
             )}
-            <div className="rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 p-3">
-              <p className="text-sm font-medium text-red-700 dark:text-red-300 mb-2">
-                {bulkErrors.length} request{bulkErrors.length !== 1 ? 's' : ''} failed:
-              </p>
-              <ul className="space-y-1">
-                {bulkErrors.map((err, i) => (
-                  <li key={i} className="text-xs text-red-600 dark:text-red-400 flex items-start gap-1.5">
-                    <AlertCircle className="w-3 h-3 mt-0.5 shrink-0" />
-                    {err}
-                  </li>
-                ))}
-              </ul>
-            </div>
-            <ModalFooter>
-              <Button variant="outline" size="sm" onClick={closeBulkDialog}>
-                Close
+
+            <ModalFooter className="mt-6">
+              <Button variant="ghost" onClick={closeBulkDialog} disabled={bulkProcessing} className="text-white/70 hover:text-white hover:bg-white/10">
+                {bulkProcessing ? 'Processing...' : bulkErrors.length > 0 ? 'Close' : 'Cancel'}
               </Button>
+              {!bulkProcessing && bulkErrors.length === 0 && (
+                <Button
+                  variant={bulkAction === 'approve' ? 'success' : 'danger'}
+                  onClick={executeBulkAction}
+                  loading={bulkProcessing}
+                >
+                  Confirm {bulkAction} ({selectedCount})
+                </Button>
+              )}
             </ModalFooter>
-          </div>
+          </Modal>
         )}
-      </Modal>
+      </AnimatePresence>
     </div>
   );
+}
+
+// ─── Request Card ────────────────────────────────────────────────────────────
+
+function RequestCard({ req, onToggleSelect, isSelected, onStartAction, actionLoading }: { req: LeaveRequest, onToggleSelect: (id: string) => void, isSelected: boolean, onStartAction: (id: string, action: 'approve' | 'reject') => void, actionLoading: string | null }) {
+  return (
+    <TiltCard>
+      <GlassPanel className={isSelected ? 'border-primary/50 shadow-[0_0_20px_rgba(var(--primary-rgb),0.2)]' : ''}>
+        <div className="p-4 relative z-10">
+          <div className="flex items-start gap-4">
+            <button onClick={() => onToggleSelect(req.id)} className="mt-1">
+              {isSelected ? <CheckSquare className="w-6 h-6 text-primary" /> : <Square className="w-6 h-6 text-white/40 hover:text-white" />}
+            </button>
+            <div className="flex-1 min-w-0">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 rounded-full bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center text-base font-semibold text-primary shrink-0">
+                    {req.employee.first_name?.[0]}{req.employee.last_name?.[0]}
+                  </div>
+                  <div>
+                    <p className="text-base font-bold text-white">{req.employee.first_name} {req.employee.last_name}</p>
+                    <p className="text-xs text-white/60">{req.employee.department || 'No Department'}</p>
+                  </div>
+                </div>
+                <p className="text-xs text-white/50 mt-2 sm:mt-0">{timeAgo(req.created_at)}</p>
+              </div>
+              <div className="mt-4 pl-1 space-y-1 text-sm">
+                <p><strong className="text-white/70 font-medium">Type:</strong> {req.leave_type}</p>
+                <p><strong className="text-white/70 font-medium">Dates:</strong> {formatDate(req.start_date)} - {formatDate(req.end_date)} ({req.total_days} days)</p>
+                {req.reason && <p><strong className="text-white/70 font-medium">Reason:</strong> <span className="text-white/90">{req.reason}</span></p>}
+              </div>
+            </div>
+          </div>
+        </div>
+        {/* Constraint Analysis Section */}
+        {req.constraint_result && (
+          <div className="border-t border-white/10 px-5 py-4 bg-black/10 space-y-3 relative z-10">
+            <h4 className="text-sm font-semibold text-white/80 flex items-center gap-2"><Bot className="w-5 h-5 text-primary" /> Constraint Analysis</h4>
+          </div>
+        )}
+        <div className="border-t border-white/10 p-4 flex justify-end gap-3 bg-black/10 rounded-b-2xl relative z-10">
+          <Button variant="danger" size="sm" onClick={() => onStartAction(req.id, 'reject')} loading={actionLoading === req.id + 'reject'} disabled={!!actionLoading}>
+            <XCircle className="w-4 h-4 mr-2" /> Reject
+          </Button>
+          <Button variant="success" size="sm" onClick={() => onStartAction(req.id, 'approve')} loading={actionLoading === req.id + 'approve'} disabled={!!actionLoading}>
+            <CheckCircle className="w-4 h-4 mr-2" /> Approve
+          </Button>
+        </div>
+      </GlassPanel>
+    </TiltCard>
+  );
+}
+
+// ─── History Card ────────────────────────────────────────────────────────────
+
+function HistoryCard({ req }: { req: LeaveRequest }) {
+  const statusInfo = ({
+    approved: { icon: CheckCircle, color: 'text-green-400', bg: 'bg-green-500/10' },
+    rejected: { icon: XCircle, color: 'text-red-400', bg: 'bg-red-500/10' },
+    cancelled: { icon: AlertTriangle, color: 'text-amber-400', bg: 'bg-amber-500/10' },
+  } as Record<string, { icon: typeof CheckCircle; color: string; bg: string }>)[req.status] || { icon: History, color: 'text-white/60', bg: 'bg-white/10' };
+  const StatusIcon = statusInfo.icon;
+
+  return (
+    <TiltCard>
+      <GlassPanel className="p-4">
+        <div className="flex items-start gap-4 relative z-10">
+          <div className={`h-10 w-10 rounded-full ${statusInfo.bg} flex items-center justify-center shrink-0`}>
+            <StatusIcon className={`w-6 h-6 ${statusInfo.color}`} />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex justify-between">
+              <p className="font-bold text-white">{req.employee.first_name} {req.employee.last_name}</p>
+              <Badge variant={statusBadgeVariant(req.status)}>{req.status}</Badge>
+            </div>
+            <p className="text-xs text-white/60">{req.leave_type} · {req.total_days} day{req.total_days !== 1 ? 's' : ''}</p>
+            <p className="text-sm text-white/80 mt-2">{formatFullDate(req.start_date)} - {formatFullDate(req.end_date)}</p>
+            {req.approved_at && <p className="text-xs text-white/50 mt-1">Processed on {formatFullDate(req.approved_at)} by {req.approver?.first_name}</p>}
+            {req.approver_comments && <p className="text-xs italic text-white/70 mt-1">"{req.approver_comments}"</p>}
+          </div>
+        </div>
+      </GlassPanel>
+    </TiltCard>
+  );
+}
+
+// ─── Standalone Helpers (used by child components) ───────────────────────────
+
+function formatDate(dateStr: string) {
+  return new Date(dateStr).toLocaleDateString('en-IN', {
+    day: '2-digit',
+    month: 'short',
+  });
+}
+
+function formatFullDate(dateStr: string) {
+  return new Date(dateStr).toLocaleDateString('en-IN', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  });
+}
+
+function timeAgo(dateStr: string) {
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const hours = Math.floor(diff / 3_600_000);
+  if (hours < 1) return 'Just now';
+  if (hours < 24) return `${hours}h ago`;
+  return `${Math.floor(hours / 24)}d ago`;
+}
+
+function statusBadgeVariant(
+  status: string
+): 'success' | 'danger' | 'default' | 'warning' | 'info' {
+  switch (status) {
+    case 'approved':
+      return 'success';
+    case 'rejected':
+      return 'danger';
+    case 'cancelled':
+      return 'default';
+    case 'escalated':
+      return 'info';
+    default:
+      return 'warning';
+  }
 }

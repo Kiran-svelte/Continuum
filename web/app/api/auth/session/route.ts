@@ -1,44 +1,95 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyIdToken } from '@/lib/firebase-admin';
+import { verifySupabaseToken } from '@/lib/supabase-server';
+import {
+  createSessionToken,
+  SESSION_COOKIE_NAME,
+  getSessionCookieOptions,
+  getSessionFromCookies,
+} from '@/lib/session';
+import prisma from '@/lib/prisma';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 30;
 
-const AUTH_COOKIE_NAME = 'firebase-auth-token';
-const COOKIE_MAX_AGE = 60 * 60 * 24 * 7; // 7 days
-
 /**
  * POST /api/auth/session
- * 
- * Sets the Firebase auth token as an HTTP-only cookie.
- * Called from the client after successful Firebase sign-in.
+ *
+ * Creates a server-side session after Supabase sign-in.
+ * 1. Verifies the Supabase access token via Admin API
+ * 2. Looks up the Employee record (if exists)
+ * 3. Creates a signed session JWT with user identity + role info
+ * 4. Sets it as an HTTP-only cookie
  */
 export async function POST(request: NextRequest) {
   try {
-    const { idToken } = await request.json();
-    
-    if (!idToken) {
-      return NextResponse.json({ error: 'ID token required' }, { status: 400 });
+    const { accessToken } = await request.json();
+
+    if (!accessToken) {
+      return NextResponse.json({ error: 'Access token required' }, { status: 400 });
     }
 
-    // Verify the token is valid
-    const decodedToken = await verifyIdToken(idToken);
-    
-    // Create response with cookie
-    const response = NextResponse.json({ 
+    // Verify the Supabase access token server-side
+    const supabaseUser = await verifySupabaseToken(accessToken);
+
+    if (!supabaseUser || !supabaseUser.id || !supabaseUser.email) {
+      return NextResponse.json({ error: 'Invalid token: missing uid or email' }, { status: 401 });
+    }
+
+    // Look up employee record (may not exist yet for new sign-ups)
+    const employee = await prisma.employee.findUnique({
+      where: { auth_id: supabaseUser.id },
+      select: {
+        id: true,
+        primary_role: true,
+        secondary_roles: true,
+        org_id: true,
+      },
+    });
+
+    // Build all roles list
+    const allRoles: string[] = employee ? [employee.primary_role] : [];
+    if (employee?.secondary_roles && Array.isArray(employee.secondary_roles)) {
+      for (const r of employee.secondary_roles) {
+        if (typeof r === 'string' && !allRoles.includes(r)) {
+          allRoles.push(r);
+        }
+      }
+    }
+
+    // Create signed session JWT
+    const sessionToken = await createSessionToken({
+      uid: supabaseUser.id,
+      email: supabaseUser.email,
+      emp_id: employee?.id,
+      role: employee?.primary_role,
+      roles: allRoles.length > 0 ? allRoles : undefined,
+      org_id: employee?.org_id,
+    });
+
+    // Build response
+    const response = NextResponse.json({
       success: true,
-      uid: decodedToken.uid,
-      email: decodedToken.email,
+      uid: supabaseUser.id,
+      email: supabaseUser.email,
+      has_employee: !!employee,
     });
-    
-    // Set HTTP-only cookie with the token
-    response.cookies.set(AUTH_COOKIE_NAME, idToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: COOKIE_MAX_AGE,
-      path: '/',
-    });
+
+    // Set session cookie (signed JWT)
+    const opts = getSessionCookieOptions();
+    response.cookies.set(SESSION_COOKIE_NAME, sessionToken, opts);
+
+    // Also set role cookies for middleware portal enforcement
+    if (employee) {
+      const cookieOpts = {
+        path: '/',
+        sameSite: 'lax' as const,
+        secure: process.env.NODE_ENV === 'production',
+        maxAge: 60 * 60 * 24, // 24 hours
+        httpOnly: true,
+      };
+      response.cookies.set('continuum-role', employee.primary_role, cookieOpts);
+      response.cookies.set('continuum-roles', allRoles.join(','), cookieOpts);
+    }
 
     return response;
   } catch (error) {
@@ -53,32 +104,55 @@ export async function POST(request: NextRequest) {
 
 /**
  * GET /api/auth/session
- * 
- * Returns the current session status without requiring authentication.
- * Used for health checks and session validation.
+ *
+ * Returns the current session status. If the session cookie exists and is valid,
+ * returns session info. Otherwise returns unauthenticated status.
  */
 export async function GET() {
-  return NextResponse.json({ 
-    status: 'available',
+  const session = await getSessionFromCookies();
+
+  if (session) {
+    return NextResponse.json({
+      status: 'authenticated',
+      uid: session.uid,
+      email: session.email,
+      role: session.role,
+      has_employee: !!session.emp_id,
+    });
+  }
+
+  return NextResponse.json({
+    status: 'unauthenticated',
     endpoint: 'session',
-    methods: ['GET', 'POST', 'DELETE']
+    methods: ['GET', 'POST', 'DELETE'],
   });
 }
 
 /**
  * DELETE /api/auth/session
- * 
- * Clears the Firebase auth cookie (sign out).
+ *
+ * Clears all auth cookies (sign out).
  */
 export async function DELETE() {
   const response = NextResponse.json({ success: true });
-  
-  response.cookies.set(AUTH_COOKIE_NAME, '', {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
+
+  // Clear session cookie
+  response.cookies.set(SESSION_COOKIE_NAME, '', {
+    ...getSessionCookieOptions(0),
     maxAge: 0,
-    path: '/',
+  });
+
+  // Clear role cookies
+  const cookiesToClear = [
+    'continuum-role',
+    'continuum-roles',
+  ];
+
+  cookiesToClear.forEach((name) => {
+    response.cookies.set(name, '', {
+      path: '/',
+      maxAge: 0,
+    });
   });
 
   return response;

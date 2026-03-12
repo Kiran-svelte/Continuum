@@ -2,11 +2,12 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { motion } from 'framer-motion';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton, SkeletonTable } from '@/components/ui/skeleton';
+import { GlassPanel } from '@/components/glass-panel';
+import { PageHeader } from '@/components/page-header';
+import { StaggerContainer, FadeIn } from '@/components/motion';
 import { ensureMe } from '@/lib/client-auth';
 import {
   Shield,
@@ -17,16 +18,6 @@ import {
   AlertCircle,
   Filter,
 } from 'lucide-react';
-
-const containerVariants = {
-  hidden: { opacity: 0 },
-  visible: { opacity: 1, transition: { staggerChildren: 0.08 } },
-} as const;
-
-const itemVariants = {
-  hidden: { opacity: 0, y: 20 },
-  visible: { opacity: 1, y: 0, transition: { type: 'spring' as const, stiffness: 260, damping: 20 } },
-} as const;
 
 interface AuditLogActor {
   id: string;
@@ -180,50 +171,45 @@ export default function AuditLogsPage() {
   }
 
   return (
-    <motion.div
-      variants={containerVariants}
-      initial="hidden"
-      animate="visible"
-      className="space-y-6"
-    >
+    <StaggerContainer className="space-y-6">
       {/* Page Header */}
-      <motion.div variants={itemVariants} className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground tracking-tight flex items-center gap-2">
-            <Shield className="w-7 h-7 text-indigo-500" />
-            Audit Logs
-          </h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            {pagination.total > 0
+      <FadeIn>
+        <PageHeader
+          title="Audit Logs"
+          description={
+            pagination.total > 0
               ? `${pagination.total} total entries across ${pagination.pages} page${pagination.pages !== 1 ? 's' : ''}`
-              : 'Track all system activity and changes'}
-          </p>
-        </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handleRefresh}
-          disabled={refreshing}
-        >
-          <RefreshCw className={`w-4 h-4 mr-1.5 ${refreshing ? 'animate-spin' : ''}`} />
-          Refresh
-        </Button>
-      </motion.div>
+              : 'Track all system activity and changes'
+          }
+          icon={<Shield className="w-6 h-6 text-primary" />}
+          action={
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleRefresh}
+              disabled={refreshing}
+            >
+              <RefreshCw className={`w-4 h-4 mr-1.5 ${refreshing ? 'animate-spin' : ''}`} />
+              Refresh
+            </Button>
+          }
+        />
+      </FadeIn>
 
       {/* Error Banner */}
       {error && (
-        <motion.div variants={itemVariants}>
-          <div className="flex items-center gap-3 px-4 py-3 rounded-lg bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20">
+        <FadeIn>
+          <div className="flex items-center gap-3 px-4 py-3 rounded-lg bg-red-500/10 border border-red-500/20">
             <AlertCircle className="w-5 h-5 text-red-500 shrink-0" />
-            <p className="text-sm text-red-700 dark:text-red-400">{error}</p>
+            <p className="text-sm text-red-400">{error}</p>
           </div>
-        </motion.div>
+        </FadeIn>
       )}
 
       {/* Filters */}
-      <motion.div variants={itemVariants} className="flex flex-col sm:flex-row gap-3">
+      <FadeIn className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/60" />
           <input
             type="text"
             placeholder="Search actions, entities..."
@@ -232,15 +218,15 @@ export default function AuditLogsPage() {
             onKeyDown={(e) => {
               if (e.key === 'Enter') handleSearch();
             }}
-            className="w-full pl-9 pr-4 py-2 rounded-lg border border-border bg-card dark:bg-[#0c1021] text-foreground text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/50 transition-all"
+            className="w-full pl-9 pr-4 py-2 rounded-lg border bg-white/5 border-white/10 text-white text-sm placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/50 transition-all"
           />
         </div>
         <div className="relative">
-          <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/60" />
           <select
             value={actionFilter}
             onChange={(e) => setActionFilter(e.target.value)}
-            className="pl-9 pr-8 py-2 rounded-lg border border-border bg-card dark:bg-[#0c1021] text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/50 transition-all appearance-none cursor-pointer"
+            className="pl-9 pr-8 py-2 rounded-lg border bg-white/5 border-white/10 text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/50 transition-all appearance-none cursor-pointer"
           >
             <option value="">All Actions</option>
             {uniqueActions.map((action) => (
@@ -249,11 +235,11 @@ export default function AuditLogsPage() {
           </select>
         </div>
         <div className="relative">
-          <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/60" />
           <select
             value={entityFilter}
             onChange={(e) => setEntityFilter(e.target.value)}
-            className="pl-9 pr-8 py-2 rounded-lg border border-border bg-card dark:bg-[#0c1021] text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/50 transition-all appearance-none cursor-pointer"
+            className="pl-9 pr-8 py-2 rounded-lg border bg-white/5 border-white/10 text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/50 transition-all appearance-none cursor-pointer"
           >
             <option value="">All Entities</option>
             {uniqueEntities.map((entity) => (
@@ -265,19 +251,19 @@ export default function AuditLogsPage() {
           <Search className="w-4 h-4 mr-1.5" />
           Search
         </Button>
-      </motion.div>
+      </FadeIn>
 
       {/* Audit Log Table */}
-      <motion.div variants={itemVariants}>
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Activity Log</CardTitle>
-          </CardHeader>
-          <CardContent className="p-0">
+      <FadeIn>
+        <GlassPanel>
+          <div className="p-6 border-b border-white/10">
+            <h3 className="text-lg font-semibold text-white">Activity Log</h3>
+          </div>
+          <div className="p-0 relative z-10">
             {logs.length === 0 ? (
               <div className="px-6 py-12 text-center">
-                <Shield className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
-                <p className="text-sm text-muted-foreground">No audit log entries found</p>
+                <Shield className="w-10 h-10 text-white/60 mx-auto mb-3" />
+                <p className="text-sm text-white/60">No audit log entries found</p>
                 {(searchQuery || actionFilter || entityFilter) && (
                   <Button
                     variant="outline"
@@ -297,33 +283,33 @@ export default function AuditLogsPage() {
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="border-b border-border/50 text-left">
-                      <th className="px-6 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider whitespace-nowrap">Date</th>
-                      <th className="px-6 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider whitespace-nowrap">Actor</th>
-                      <th className="px-6 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider whitespace-nowrap">Action</th>
-                      <th className="px-6 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider whitespace-nowrap">Entity</th>
-                      <th className="px-6 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider whitespace-nowrap">IP Address</th>
+                    <tr className="border-b border-white/10 text-left">
+                      <th className="px-6 py-3 text-xs font-medium text-white/60 uppercase tracking-wider whitespace-nowrap">Date</th>
+                      <th className="px-6 py-3 text-xs font-medium text-white/60 uppercase tracking-wider whitespace-nowrap">Actor</th>
+                      <th className="px-6 py-3 text-xs font-medium text-white/60 uppercase tracking-wider whitespace-nowrap">Action</th>
+                      <th className="px-6 py-3 text-xs font-medium text-white/60 uppercase tracking-wider whitespace-nowrap">Entity</th>
+                      <th className="px-6 py-3 text-xs font-medium text-white/60 uppercase tracking-wider whitespace-nowrap">IP Address</th>
                     </tr>
                   </thead>
                   <tbody>
                     {logs.map((log) => (
                       <tr
                         key={log.id}
-                        className="border-b border-border/30 last:border-0 hover:bg-muted/30 dark:hover:bg-slate-800/30 transition-colors"
+                        className="border-b border-white/10 last:border-0 hover:bg-white/5 transition-colors"
                       >
-                        <td className="px-6 py-3 text-muted-foreground whitespace-nowrap">
+                        <td className="px-6 py-3 text-white/60 whitespace-nowrap">
                           {formatDate(log.createdAt)}
                         </td>
                         <td className="px-6 py-3">
                           {log.actor ? (
                             <div>
-                              <p className="font-medium text-foreground">
+                              <p className="font-medium text-white">
                                 {log.actor.firstName} {log.actor.lastName}
                               </p>
-                              <p className="text-xs text-muted-foreground">{log.actor.email}</p>
+                              <p className="text-xs text-white/60">{log.actor.email}</p>
                             </div>
                           ) : (
-                            <span className="text-muted-foreground">System</span>
+                            <span className="text-white/60">System</span>
                           )}
                         </td>
                         <td className="px-6 py-3">
@@ -331,17 +317,17 @@ export default function AuditLogsPage() {
                             {formatAction(log.action)}
                           </Badge>
                         </td>
-                        <td className="px-6 py-3 text-muted-foreground">
+                        <td className="px-6 py-3 text-white/60">
                           <div>
-                            <span className="font-medium text-foreground">{log.entityType}</span>
+                            <span className="font-medium text-white">{log.entityType}</span>
                             {log.entityId && (
-                              <p className="text-xs text-muted-foreground font-mono">
+                              <p className="text-xs text-white/60 font-mono">
                                 {log.entityId.length > 12 ? `${log.entityId.slice(0, 12)}...` : log.entityId}
                               </p>
                             )}
                           </div>
                         </td>
-                        <td className="px-6 py-3 text-muted-foreground font-mono text-xs whitespace-nowrap">
+                        <td className="px-6 py-3 text-white/60 font-mono text-xs whitespace-nowrap">
                           {log.ipAddress || '-'}
                         </td>
                       </tr>
@@ -350,14 +336,14 @@ export default function AuditLogsPage() {
                 </table>
               </div>
             )}
-          </CardContent>
-        </Card>
-      </motion.div>
+          </div>
+        </GlassPanel>
+      </FadeIn>
 
       {/* Pagination */}
       {pagination.pages > 1 && (
-        <motion.div variants={itemVariants} className="flex items-center justify-between">
-          <p className="text-sm text-muted-foreground">
+        <FadeIn className="flex items-center justify-between">
+          <p className="text-sm text-white/60">
             Page {pagination.page} of {pagination.pages}
           </p>
           <div className="flex items-center gap-2">
@@ -380,8 +366,8 @@ export default function AuditLogsPage() {
               <ChevronRight className="w-4 h-4 ml-1" />
             </Button>
           </div>
-        </motion.div>
+        </FadeIn>
       )}
-    </motion.div>
+    </StaggerContainer>
   );
 }

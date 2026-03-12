@@ -2,7 +2,9 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { StaggerContainer, FadeIn, TiltCard } from '@/components/motion';
+import { PageHeader } from '@/components/page-header';
+import { GlassPanel } from '@/components/glass-panel';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -71,10 +73,10 @@ const UNIT_TYPES = [
 ] as const;
 
 const UNIT_TYPE_COLORS: Record<string, string> = {
-  department: 'bg-blue-100 text-blue-800 dark:bg-blue-500/15 dark:text-blue-400',
-  division: 'bg-purple-100 text-purple-800 dark:bg-purple-500/15 dark:text-purple-400',
-  team: 'bg-green-100 text-green-800 dark:bg-green-500/15 dark:text-green-400',
-  branch: 'bg-amber-100 text-amber-800 dark:bg-amber-500/15 dark:text-amber-400',
+  department: 'bg-blue-500/15 text-blue-400',
+  division: 'bg-purple-500/15 text-purple-400',
+  team: 'bg-green-500/15 text-green-400',
+  branch: 'bg-amber-500/15 text-amber-400',
 };
 
 /* ------------------------------------------------------------------ */
@@ -133,12 +135,12 @@ export default function OrganizationPage() {
 
   const getRoleBadgeColor = (role: string) => {
     switch (role) {
-      case 'admin': return 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200';
-      case 'hr': return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200';
-      case 'manager': return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200';
-      case 'director': return 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200';
-      case 'team_lead': return 'bg-teal-100 text-teal-800 dark:bg-teal-900 dark:text-teal-200';
-      default: return 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200';
+      case 'admin': return 'bg-purple-500/10 text-purple-400';
+      case 'hr': return 'bg-blue-500/10 text-blue-400';
+      case 'manager': return 'bg-green-500/10 text-green-400';
+      case 'director': return 'bg-amber-500/10 text-amber-400';
+      case 'team_lead': return 'bg-teal-500/10 text-teal-400';
+      default: return 'bg-gray-500/10 text-gray-400';
     }
   };
 
@@ -269,22 +271,24 @@ export default function OrganizationPage() {
 
   return (
     <div className="p-6 space-y-6 max-w-7xl mx-auto">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div>
-          <h1 className="text-3xl font-bold text-foreground">Organization</h1>
-          <p className="text-muted-foreground mt-1">
-            Company structure and department overview
-          </p>
-        </div>
-        <Button
-          onClick={openAddModal}
-          className="bg-primary hover:bg-primary/90 text-primary-foreground gap-2 w-fit"
-        >
-          <Plus className="w-4 h-4" /> Add Unit
-        </Button>
-      </div>
+      <PageHeader
+        title="Organization"
+        description="Company structure and department overview"
+        icon={<Building2 className="w-6 h-6 text-primary" />}
+        action={
+          <Button
+            onClick={openAddModal}
+            className="bg-primary hover:bg-primary/90 text-primary-foreground gap-2 w-fit"
+          >
+            <Plus className="w-4 h-4" /> Add Unit
+          </Button>
+        }
+      />
+
+      <StaggerContainer className="space-y-6">
 
       {/* Action message */}
+      <FadeIn>
       <AnimatePresence>
         {actionMsg && (
           <motion.div
@@ -293,18 +297,20 @@ export default function OrganizationPage() {
             exit={{ opacity: 0, y: -10 }}
             className={`rounded-xl px-4 py-3 text-sm font-medium ${
               actionMsg.type === 'success'
-                ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20'
-                : 'bg-red-50 text-red-700 border border-red-200 dark:bg-red-500/10 dark:text-red-400 dark:border-red-500/20'
+                ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                : 'bg-red-500/10 text-red-400 border border-red-500/20'
             }`}
           >
             {actionMsg.text}
           </motion.div>
         )}
       </AnimatePresence>
+      </FadeIn>
 
       {/* Error banner */}
+      <FadeIn>
       {error && !loading && (
-        <div className="rounded-xl px-4 py-3 text-sm font-medium bg-red-50 text-red-700 border border-red-200 dark:bg-red-500/10 dark:text-red-400 dark:border-red-500/20 flex items-center gap-2">
+        <div className="rounded-xl px-4 py-3 text-sm font-medium bg-red-500/10 text-red-400 border border-red-500/20 flex items-center gap-2">
           <AlertCircle className="w-4 h-4 shrink-0" />
           <span className="flex-1">{error}</span>
           <button
@@ -316,69 +322,70 @@ export default function OrganizationPage() {
           </button>
         </div>
       )}
+      </FadeIn>
 
       {/* Summary Stats */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card>
-          <CardContent className="p-6">
+        <GlassPanel>
+          <div className="p-6 relative z-10">
             <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900/20 rounded-lg flex items-center justify-center">
-                <Building2 className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+              <div className="w-12 h-12 bg-blue-500/10 rounded-lg flex items-center justify-center">
+                <Building2 className="w-6 h-6 text-blue-400" />
               </div>
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Company</p>
-                <p className="text-xl font-bold text-foreground">{loading ? <div className="h-7 w-20 bg-muted animate-pulse rounded" /> : data?.company?.name ?? 'N/A'}</p>
+                <p className="text-sm font-medium text-white/60">Company</p>
+                <p className="text-xl font-bold text-white">{loading ? <div className="h-7 w-20 bg-white/5 animate-pulse rounded" /> : data?.company?.name ?? 'N/A'}</p>
                 {data?.company?.industry && (
-                  <p className="text-xs text-muted-foreground">{data.company.industry}</p>
+                  <p className="text-xs text-white/60">{data.company.industry}</p>
                 )}
               </div>
             </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-6">
+          </div>
+        </GlassPanel>
+        <GlassPanel>
+          <div className="p-6 relative z-10">
             <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-green-100 dark:bg-green-900/20 rounded-lg flex items-center justify-center">
-                <Briefcase className="w-6 h-6 text-green-600 dark:text-green-400" />
+              <div className="w-12 h-12 bg-green-500/10 rounded-lg flex items-center justify-center">
+                <Briefcase className="w-6 h-6 text-green-400" />
               </div>
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Departments</p>
-                <p className="text-2xl font-bold text-foreground">{loading ? <div className="h-7 w-16 bg-muted animate-pulse rounded" /> : data?.totalDepartments ?? 0}</p>
+                <p className="text-sm font-medium text-white/60">Departments</p>
+                <p className="text-2xl font-bold text-white">{loading ? <div className="h-7 w-16 bg-white/5 animate-pulse rounded" /> : data?.totalDepartments ?? 0}</p>
               </div>
             </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-6">
+          </div>
+        </GlassPanel>
+        <GlassPanel>
+          <div className="p-6 relative z-10">
             <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-purple-100 dark:bg-purple-900/20 rounded-lg flex items-center justify-center">
-                <Users className="w-6 h-6 text-purple-600 dark:text-purple-400" />
+              <div className="w-12 h-12 bg-purple-500/10 rounded-lg flex items-center justify-center">
+                <Users className="w-6 h-6 text-purple-400" />
               </div>
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Total Employees</p>
-                <p className="text-2xl font-bold text-foreground">{loading ? <div className="h-7 w-16 bg-muted animate-pulse rounded" /> : data?.totalEmployees ?? 0}</p>
+                <p className="text-sm font-medium text-white/60">Total Employees</p>
+                <p className="text-2xl font-bold text-white">{loading ? <div className="h-7 w-16 bg-white/5 animate-pulse rounded" /> : data?.totalEmployees ?? 0}</p>
               </div>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </GlassPanel>
       </div>
 
       {/* Organization Units */}
       {orgUnits.length > 0 && (
         <div className="space-y-3">
-          <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
+          <h2 className="text-lg font-semibold text-white flex items-center gap-2">
             <GitBranch className="w-5 h-5 text-primary" />
             Organization Units
             <Badge variant="default">{orgUnits.length}</Badge>
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {orgUnits.map((unit) => (
-              <Card key={unit.id} className="overflow-hidden hover:shadow-md transition-shadow">
-                <CardContent className="p-4">
+              <GlassPanel key={unit.id} className="overflow-hidden hover:shadow-md transition-shadow">
+                <div className="p-4 relative z-10">
                   <div className="flex items-start justify-between">
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2 mb-1">
-                        <h3 className="text-sm font-semibold text-foreground truncate">{unit.name}</h3>
+                        <h3 className="text-sm font-semibold text-white truncate">{unit.name}</h3>
                         <Badge
                           variant="default"
                           size="sm"
@@ -388,22 +395,22 @@ export default function OrganizationPage() {
                         </Badge>
                       </div>
                       {unit.head && (
-                        <p className="text-xs text-muted-foreground">
+                        <p className="text-xs text-white/60">
                           Head: {unit.head.first_name} {unit.head.last_name}
                         </p>
                       )}
                       {unit.parent && (
-                        <p className="text-xs text-muted-foreground">
+                        <p className="text-xs text-white/60">
                           Parent: {unit.parent.name}
                         </p>
                       )}
                       {unit.cost_center && (
-                        <p className="text-xs text-muted-foreground">
+                        <p className="text-xs text-white/60">
                           Cost Center: {unit.cost_center}
                         </p>
                       )}
                       {unit.children && unit.children.length > 0 && (
-                        <p className="text-xs text-muted-foreground mt-1">
+                        <p className="text-xs text-white/60 mt-1">
                           {unit.children.length} sub-unit{unit.children.length !== 1 ? 's' : ''}
                         </p>
                       )}
@@ -412,7 +419,7 @@ export default function OrganizationPage() {
                       <button
                         type="button"
                         onClick={() => openEditModal(unit)}
-                        className="p-1.5 rounded-lg hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
+                        className="p-1.5 rounded-lg hover:bg-white/5 transition-colors text-white/60 hover:text-white"
                         title="Edit unit"
                       >
                         <Pencil className="w-3.5 h-3.5" />
@@ -420,15 +427,15 @@ export default function OrganizationPage() {
                       <button
                         type="button"
                         onClick={() => setDeletingUnit(unit)}
-                        className="p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors text-muted-foreground hover:text-red-600 dark:hover:text-red-400"
+                        className="p-1.5 rounded-lg hover:bg-red-500/10 transition-colors text-white/60 hover:text-red-400"
                         title="Delete unit"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
                     </div>
                   </div>
-                </CardContent>
-              </Card>
+                </div>
+              </GlassPanel>
             ))}
           </div>
         </div>
@@ -436,27 +443,27 @@ export default function OrganizationPage() {
 
       {/* Departments (existing org chart display) */}
       <div className="space-y-3">
-        <h2 className="text-lg font-semibold text-foreground">Departments from Employee Records</h2>
+        <h2 className="text-lg font-semibold text-white">Departments from Employee Records</h2>
         {loading ? (
           <div className="space-y-4">
             {[...Array(4)].map((_, i) => (
-              <div key={i} className="h-20 bg-muted/50 rounded-lg animate-pulse" />
+              <div key={i} className="h-20 bg-white/5 rounded-lg animate-pulse" />
             ))}
           </div>
         ) : !data || data.departments.length === 0 ? (
-          <Card>
-            <CardContent className="py-12 text-center text-muted-foreground">
+          <GlassPanel>
+            <div className="py-12 text-center text-white/60 relative z-10">
               <Building2 className="w-12 h-12 mx-auto mb-4 opacity-30" />
               <p className="text-lg font-medium">No departments found</p>
               <p className="text-sm mt-1">Departments are derived from employee records. Add employees with departments to see them here.</p>
-            </CardContent>
-          </Card>
+            </div>
+          </GlassPanel>
         ) : (
           <div className="space-y-3">
             {data.departments.map((dept) => (
-              <Card key={dept.name} className="overflow-hidden">
+              <GlassPanel key={dept.name} className="overflow-hidden">
                 <button
-                  className="w-full text-left p-4 flex items-center justify-between hover:bg-muted/50 transition-colors"
+                  className="w-full text-left p-4 flex items-center justify-between hover:bg-white/5 transition-colors relative z-10"
                   onClick={() => toggleDept(dept.name)}
                 >
                   <div className="flex items-center gap-4">
@@ -464,42 +471,42 @@ export default function OrganizationPage() {
                       <Building2 className="w-5 h-5 text-primary" />
                     </div>
                     <div>
-                      <p className="font-semibold text-base text-foreground">{dept.name}</p>
-                      <p className="text-sm text-muted-foreground">
+                      <p className="font-semibold text-base text-white">{dept.name}</p>
+                      <p className="text-sm text-white/60">
                         {dept.employeeCount} employee{dept.employeeCount !== 1 ? 's' : ''}
                         {dept.head ? ` \u00b7 Head: ${dept.head}` : ''}
                       </p>
                     </div>
                   </div>
                   {expandedDepts.has(dept.name) ? (
-                    <ChevronDown className="w-5 h-5 text-muted-foreground" />
+                    <ChevronDown className="w-5 h-5 text-white/60" />
                   ) : (
-                    <ChevronRight className="w-5 h-5 text-muted-foreground" />
+                    <ChevronRight className="w-5 h-5 text-white/60" />
                   )}
                 </button>
                 {expandedDepts.has(dept.name) && (
-                  <div className="border-t">
+                  <div className="border-t relative z-10">
                     <div className="overflow-x-auto">
                       <table className="w-full">
                         <thead>
-                          <tr className="border-b bg-muted/30">
-                            <th className="text-left py-2 px-4 text-sm font-medium text-foreground">Name</th>
-                            <th className="text-left py-2 px-4 text-sm font-medium text-foreground">Role</th>
-                            <th className="text-left py-2 px-4 text-sm font-medium text-foreground">Designation</th>
-                            <th className="text-left py-2 px-4 text-sm font-medium text-foreground">Joined</th>
+                          <tr className="border-b bg-white/5">
+                            <th className="text-left py-2 px-4 text-sm font-medium text-white">Name</th>
+                            <th className="text-left py-2 px-4 text-sm font-medium text-white">Role</th>
+                            <th className="text-left py-2 px-4 text-sm font-medium text-white">Designation</th>
+                            <th className="text-left py-2 px-4 text-sm font-medium text-white">Joined</th>
                           </tr>
                         </thead>
                         <tbody>
                           {dept.members.map((member) => (
-                            <tr key={member.id} className="border-b last:border-b-0 hover:bg-muted/30 transition-colors">
-                              <td className="py-2.5 px-4 text-sm font-medium text-foreground">{member.name}</td>
+                            <tr key={member.id} className="border-b last:border-b-0 hover:bg-white/5 transition-colors">
+                              <td className="py-2.5 px-4 text-sm font-medium text-white">{member.name}</td>
                               <td className="py-2.5 px-4">
                                 <Badge variant="default" className={getRoleBadgeColor(member.role)}>
                                   {member.role}
                                 </Badge>
                               </td>
-                              <td className="py-2.5 px-4 text-sm text-muted-foreground">{member.designation || '--'}</td>
-                              <td className="py-2.5 px-4 text-sm text-muted-foreground">{member.joinDate || '--'}</td>
+                              <td className="py-2.5 px-4 text-sm text-white/60">{member.designation || '--'}</td>
+                              <td className="py-2.5 px-4 text-sm text-white/60">{member.joinDate || '--'}</td>
                             </tr>
                           ))}
                         </tbody>
@@ -507,7 +514,7 @@ export default function OrganizationPage() {
                     </div>
                   </div>
                 )}
-              </Card>
+              </GlassPanel>
             ))}
           </div>
         )}
@@ -527,19 +534,19 @@ export default function OrganizationPage() {
               onClick={closeModal}
             />
             <motion.div
-              className="relative w-full max-w-lg bg-background border border-border rounded-2xl shadow-2xl overflow-hidden"
+              className="relative w-full max-w-lg bg-background border border-white/10 rounded-2xl shadow-2xl overflow-hidden"
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              transition={{ type: 'spring', stiffness: 300, damping: 24 }}
+              transition={{ type: 'spring' as const, stiffness: 300, damping: 24 }}
             >
-              <div className="flex items-center justify-between px-6 py-4 border-b border-border/50 bg-muted/30">
-                <h2 className="text-lg font-semibold text-foreground">
+              <div className="flex items-center justify-between px-6 py-4 border-b border-white/10 bg-white/5">
+                <h2 className="text-lg font-semibold text-white">
                   {editingUnit ? 'Edit Organization Unit' : 'Add Organization Unit'}
                 </h2>
                 <button
                   onClick={closeModal}
-                  className="p-1.5 rounded-lg hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
+                  className="p-1.5 rounded-lg hover:bg-white/5 transition-colors text-white/60 hover:text-white"
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -547,30 +554,30 @@ export default function OrganizationPage() {
 
               <div className="p-6 space-y-4">
                 {formError && (
-                  <div className="rounded-lg px-4 py-3 text-sm font-medium bg-red-50 text-red-700 border border-red-200 dark:bg-red-500/10 dark:text-red-400 dark:border-red-500/20">
+                  <div className="rounded-lg px-4 py-3 text-sm font-medium bg-red-500/10 text-red-400 border border-red-500/20">
                     {formError}
                   </div>
                 )}
 
                 <div>
-                  <label className="block text-sm font-medium text-foreground mb-1.5">Name *</label>
+                  <label className="block text-sm font-medium text-white mb-1.5">Name *</label>
                   <input
                     type="text"
                     value={formName}
                     onChange={(e) => setFormName(e.target.value)}
                     placeholder="e.g. Engineering, Marketing..."
                     maxLength={200}
-                    className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors"
+                    className="w-full rounded-lg border border-white/10 bg-background px-3 py-2 text-sm text-white placeholder:text-white/60 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors"
                     disabled={formSubmitting}
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-foreground mb-1.5">Type *</label>
+                  <label className="block text-sm font-medium text-white mb-1.5">Type *</label>
                   <select
                     value={formType}
                     onChange={(e) => setFormType(e.target.value)}
-                    className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors"
+                    className="w-full rounded-lg border border-white/10 bg-background px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors"
                     disabled={formSubmitting}
                   >
                     {UNIT_TYPES.map((t) => (
@@ -580,11 +587,11 @@ export default function OrganizationPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-foreground mb-1.5">Parent Unit</label>
+                  <label className="block text-sm font-medium text-white mb-1.5">Parent Unit</label>
                   <select
                     value={formParentId}
                     onChange={(e) => setFormParentId(e.target.value)}
-                    className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors"
+                    className="w-full rounded-lg border border-white/10 bg-background px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors"
                     disabled={formSubmitting}
                   >
                     <option value="">None (top-level)</option>
@@ -599,19 +606,19 @@ export default function OrganizationPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-foreground mb-1.5">Cost Center</label>
+                  <label className="block text-sm font-medium text-white mb-1.5">Cost Center</label>
                   <input
                     type="text"
                     value={formCostCenter}
                     onChange={(e) => setFormCostCenter(e.target.value)}
                     placeholder="e.g. CC-001"
-                    className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors"
+                    className="w-full rounded-lg border border-white/10 bg-background px-3 py-2 text-sm text-white placeholder:text-white/60 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors"
                     disabled={formSubmitting}
                   />
                 </div>
               </div>
 
-              <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-border/50 bg-muted/20">
+              <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-white/10 bg-white/5">
                 <Button
                   variant="outline"
                   onClick={closeModal}
@@ -650,22 +657,22 @@ export default function OrganizationPage() {
               onClick={() => !deleteSubmitting && setDeletingUnit(null)}
             />
             <motion.div
-              className="relative w-full max-w-sm bg-background border border-border rounded-2xl shadow-2xl overflow-hidden"
+              className="relative w-full max-w-sm bg-background border border-white/10 rounded-2xl shadow-2xl overflow-hidden"
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              transition={{ type: 'spring', stiffness: 300, damping: 24 }}
+              transition={{ type: 'spring' as const, stiffness: 300, damping: 24 }}
             >
               <div className="p-6 text-center">
-                <div className="w-12 h-12 rounded-xl bg-red-50 dark:bg-red-500/10 flex items-center justify-center mx-auto mb-4">
+                <div className="w-12 h-12 rounded-xl bg-red-500/10 flex items-center justify-center mx-auto mb-4">
                   <Trash2 className="w-6 h-6 text-red-500" />
                 </div>
-                <h3 className="text-lg font-semibold text-foreground">Delete Unit</h3>
-                <p className="text-sm text-muted-foreground mt-2">
+                <h3 className="text-lg font-semibold text-white">Delete Unit</h3>
+                <p className="text-sm text-white/60 mt-2">
                   Are you sure you want to delete <strong>{deletingUnit.name}</strong>? This action can be reversed by an administrator.
                 </p>
               </div>
-              <div className="flex items-center justify-center gap-3 px-6 py-4 border-t border-border/50 bg-muted/20">
+              <div className="flex items-center justify-center gap-3 px-6 py-4 border-t border-white/10 bg-white/5">
                 <Button
                   variant="outline"
                   onClick={() => !deleteSubmitting && setDeletingUnit(null)}
@@ -685,6 +692,8 @@ export default function OrganizationPage() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      </StaggerContainer>
     </div>
   );
 }

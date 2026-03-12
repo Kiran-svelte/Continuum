@@ -1,12 +1,14 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { motion, AnimatePresence } from 'framer-motion';
+import { StaggerContainer, FadeIn, TiltCard } from '@/components/motion';
+import { GlassPanel } from '@/components/glass-panel';
+import { PageHeader } from '@/components/page-header';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input, Select, Checkbox } from '@/components/ui/input';
-import { Check, Lightbulb, Plus, Pencil, Trash2, X, AlertTriangle } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { Check, Lightbulb, Plus, Pencil, Trash2, X, AlertTriangle, Settings } from 'lucide-react';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -120,7 +122,7 @@ function ConfigBadges({ config }: { config: Record<string, unknown> }) {
   return (
     <div className="flex flex-wrap gap-1 mt-1">
       {items.map((item) => (
-        <span key={item} className="text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded">
+        <span key={item} className="text-xs bg-white/5 text-white/60 px-2 py-0.5 rounded">
           {item}
         </span>
       ))}
@@ -160,48 +162,48 @@ function RuleConfigEditor({
   }
 
   return (
-    <div className="mt-3 p-3 bg-muted/50 rounded-lg border border-border space-y-3">
+    <div className="mt-3 p-3 bg-white/5 rounded-lg border border-white/10 space-y-3">
       <div className="flex items-center gap-3">
-        <label className="text-xs font-medium text-muted-foreground">Active</label>
+        <label className="text-xs font-medium text-white/60">Active</label>
         <input
           type="checkbox"
           checked={isActive}
           onChange={(e) => setIsActive(e.target.checked)}
-          className="h-4 w-4 rounded border-border"
+          className="h-4 w-4 rounded border-white/10"
         />
       </div>
 
       {rule.rule_id === 'RULE003' && (
         <div className="flex items-center gap-3">
-          <label className="text-xs font-medium text-muted-foreground">Min Coverage %</label>
+          <label className="text-xs font-medium text-white/60">Min Coverage %</label>
           <input
             type="number"
             min={0}
             max={100}
             value={(config.min_coverage_percent as number) ?? 60}
             onChange={(e) => setConfig({ ...config, min_coverage_percent: parseInt(e.target.value) })}
-            className="border border-border rounded px-2 py-1 text-xs w-20"
+            className="border border-white/10 bg-white/5 text-white rounded px-2 py-1 text-xs w-20"
           />
         </div>
       )}
 
       {rule.rule_id === 'RULE004' && (
         <div className="flex items-center gap-3">
-          <label className="text-xs font-medium text-muted-foreground">Max Concurrent</label>
+          <label className="text-xs font-medium text-white/60">Max Concurrent</label>
           <input
             type="number"
             min={1}
             max={50}
             value={(config.max_concurrent as number) ?? 2}
             onChange={(e) => setConfig({ ...config, max_concurrent: parseInt(e.target.value) })}
-            className="border border-border rounded px-2 py-1 text-xs w-20"
+            className="border border-white/10 bg-white/5 text-white rounded px-2 py-1 text-xs w-20"
           />
         </div>
       )}
 
       {rule.rule_id === 'RULE005' && (
         <div>
-          <label className="text-xs font-medium text-muted-foreground">Blackout Periods (JSON array)</label>
+          <label className="text-xs font-medium text-white/60">Blackout Periods (JSON array)</label>
           <textarea
             rows={3}
             value={JSON.stringify(config.blackout_dates ?? [], null, 2)}
@@ -213,12 +215,12 @@ function RuleConfigEditor({
                 setJsonError('Invalid JSON — fix before saving');
               }
             }}
-            className={`mt-1 w-full border rounded px-2 py-1 text-xs font-mono ${jsonError ? 'border-red-400' : 'border-border'}`}
+            className={`mt-1 w-full border rounded px-2 py-1 text-xs font-mono bg-white/5 text-white ${jsonError ? 'border-red-400' : 'border-white/10'}`}
           />
           {jsonError && (
             <p className="text-xs text-red-500 mt-1">{jsonError}</p>
           )}
-          <p className="text-xs text-muted-foreground mt-1">
+          <p className="text-xs text-white/60 mt-1">
             Format: {`[{"name":"Q4 Freeze","start":"2025-10-01","end":"2025-10-07"}]`}
           </p>
         </div>
@@ -226,12 +228,12 @@ function RuleConfigEditor({
 
       {rule.rule_id === 'RULE002' && (
         <div className="flex items-center gap-3">
-          <label className="text-xs font-medium text-muted-foreground">Allow Negative Balance</label>
+          <label className="text-xs font-medium text-white/60">Allow Negative Balance</label>
           <input
             type="checkbox"
             checked={!!config.allow_negative}
             onChange={(e) => setConfig({ ...config, allow_negative: e.target.checked })}
-            className="h-4 w-4 rounded border-border"
+            className="h-4 w-4 rounded border-white/10"
           />
         </div>
       )}
@@ -249,7 +251,7 @@ function RuleConfigEditor({
         </button>
         <button
           onClick={() => { setConfig(rule.config); setJsonError(''); setEditing(false); }}
-          className="text-xs text-muted-foreground hover:underline"
+          className="text-xs text-white/60 hover:underline"
         >
           Cancel
         </button>
@@ -347,15 +349,15 @@ function LeaveTypeModal({
         animate={{ opacity: 1, scale: 1 }}
         exit={{ opacity: 0, scale: 0.95 }}
         transition={{ duration: 0.2 }}
-        className="relative z-10 w-full max-w-lg mx-4 bg-card border border-border rounded-xl shadow-xl max-h-[90vh] overflow-y-auto"
+        className="relative z-10 w-full max-w-lg mx-4 bg-white/5/80 dark:bg-black/60 backdrop-blur-xl border border-white/10 rounded-xl shadow-xl max-h-[90vh] overflow-y-auto"
       >
-        <div className="flex items-center justify-between px-6 py-4 border-b border-border/40">
-          <h2 className="text-lg font-semibold text-foreground">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
+          <h2 className="text-lg font-semibold text-white">
             {isEdit ? 'Edit Leave Type' : 'Add Leave Type'}
           </h2>
           <button
             onClick={onClose}
-            className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+            className="p-1 rounded-md text-white/60 hover:text-white hover:bg-white/5 transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
@@ -421,8 +423,8 @@ function LeaveTypeModal({
             </div>
           </div>
 
-          <div className="border border-border/40 rounded-lg p-4 space-y-3 bg-muted/20">
-            <p className="text-sm font-medium text-foreground">Carry Forward</p>
+          <div className="border border-white/10 rounded-lg p-4 space-y-3 bg-white/5">
+            <p className="text-sm font-medium text-white">Carry Forward</p>
             <Checkbox
               label="Allow carry forward"
               checked={form.carryForward}
@@ -440,8 +442,8 @@ function LeaveTypeModal({
             )}
           </div>
 
-          <div className="border border-border/40 rounded-lg p-4 space-y-3 bg-muted/20">
-            <p className="text-sm font-medium text-foreground">Encashment</p>
+          <div className="border border-white/10 rounded-lg p-4 space-y-3 bg-white/5">
+            <p className="text-sm font-medium text-white">Encashment</p>
             <Checkbox
               label="Allow encashment"
               checked={form.encashmentEnabled}
@@ -501,7 +503,7 @@ function DeleteConfirmDialog({
         animate={{ opacity: 1, scale: 1 }}
         exit={{ opacity: 0, scale: 0.95 }}
         transition={{ duration: 0.2 }}
-        className="relative z-10 w-full max-w-md mx-4 bg-card border border-border rounded-xl shadow-xl"
+        className="relative z-10 w-full max-w-md mx-4 bg-white/5/80 dark:bg-black/60 backdrop-blur-xl border border-white/10 rounded-xl shadow-xl"
       >
         <div className="px-6 py-5 space-y-4">
           <div className="flex items-start gap-3">
@@ -509,8 +511,8 @@ function DeleteConfirmDialog({
               <AlertTriangle className="w-5 h-5 text-red-600 dark:text-red-400" />
             </div>
             <div>
-              <h3 className="text-lg font-semibold text-foreground">Delete Leave Type</h3>
-              <p className="text-sm text-muted-foreground mt-1">
+              <h3 className="text-lg font-semibold text-white">Delete Leave Type</h3>
+              <p className="text-sm text-white/60 mt-1">
                 Are you sure you want to deactivate <strong>{leaveType.name}</strong> ({leaveType.code})?
                 This will soft-delete the leave type. Existing leave balances and requests will be preserved.
               </p>
@@ -552,11 +554,6 @@ function LeaveTypesTab() {
       const res = await fetch('/api/company/leave-types', { credentials: 'include' });
       if (!res.ok) throw new Error('Failed to load');
       const data = await res.json();
-      // Map from the GET response format to the LeaveTypeCrud format
-      // The GET endpoint returns a simplified format; for full CRUD data we need all fields.
-      // We'll fetch fresh data including id by using a slightly different approach.
-      // Since the existing GET doesn't return id, we need to enhance or use a different approach.
-      // For now, map what we get. The id will come from POST/PUT responses.
       setLeaveTypes(
         data.leaveTypes.map((lt: Record<string, unknown>) => ({
           id: lt.id || '',
@@ -640,10 +637,10 @@ function LeaveTypesTab() {
     return (
       <div className="space-y-4 animate-pulse">
         <div className="flex justify-between items-center">
-          <div className="h-6 w-32 bg-muted rounded" />
-          <div className="h-9 w-36 bg-muted rounded-lg" />
+          <div className="h-6 w-32 bg-white/5 rounded" />
+          <div className="h-9 w-36 bg-white/5 rounded-lg" />
         </div>
-        <div className="h-64 bg-muted rounded-xl" />
+        <div className="h-64 bg-white/5 rounded-xl" />
       </div>
     );
   }
@@ -675,11 +672,11 @@ function LeaveTypesTab() {
         </motion.div>
       )}
 
-      <Card>
-        <CardHeader>
+      <GlassPanel>
+        <div className="p-6 border-b border-white/10">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <CardTitle>Leave Types</CardTitle>
+              <h3 className="text-lg font-semibold text-white">Leave Types</h3>
               <Badge variant="info">{leaveTypes.length} configured</Badge>
             </div>
             <Button size="sm" onClick={handleAdd}>
@@ -687,15 +684,15 @@ function LeaveTypesTab() {
               Add Leave Type
             </Button>
           </div>
-        </CardHeader>
-        <CardContent>
+        </div>
+        <div className="p-6">
           {leaveTypes.length === 0 ? (
             <div className="text-center py-12">
-              <div className="mx-auto w-12 h-12 rounded-full bg-muted flex items-center justify-center mb-4">
-                <Plus className="w-6 h-6 text-muted-foreground" />
+              <div className="mx-auto w-12 h-12 rounded-full bg-white/5 flex items-center justify-center mb-4">
+                <Plus className="w-6 h-6 text-white/60" />
               </div>
-              <h3 className="text-sm font-semibold text-foreground mb-1">No leave types configured</h3>
-              <p className="text-sm text-muted-foreground mb-4">
+              <h3 className="text-sm font-semibold text-white mb-1">No leave types configured</h3>
+              <p className="text-sm text-white/60 mb-4">
                 Create your first leave type to start managing employee leave policies.
               </p>
               <Button size="sm" onClick={handleAdd}>
@@ -707,15 +704,15 @@ function LeaveTypesTab() {
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-border">
-                    <th className="text-left py-3 pr-4 text-muted-foreground font-medium">Code</th>
-                    <th className="text-left py-3 px-2 text-muted-foreground font-medium">Name</th>
-                    <th className="text-left py-3 px-2 text-muted-foreground font-medium">Category</th>
-                    <th className="text-left py-3 px-2 text-muted-foreground font-medium">Default Quota</th>
-                    <th className="text-left py-3 px-2 text-muted-foreground font-medium hidden md:table-cell">Carry Forward</th>
-                    <th className="text-left py-3 px-2 text-muted-foreground font-medium hidden lg:table-cell">Paid</th>
-                    <th className="text-left py-3 px-2 text-muted-foreground font-medium">Status</th>
-                    <th className="text-right py-3 pl-2 text-muted-foreground font-medium">Actions</th>
+                  <tr className="border-b border-white/10">
+                    <th className="text-left py-3 pr-4 text-white/60 font-medium">Code</th>
+                    <th className="text-left py-3 px-2 text-white/60 font-medium">Name</th>
+                    <th className="text-left py-3 px-2 text-white/60 font-medium">Category</th>
+                    <th className="text-left py-3 px-2 text-white/60 font-medium">Default Quota</th>
+                    <th className="text-left py-3 px-2 text-white/60 font-medium hidden md:table-cell">Carry Forward</th>
+                    <th className="text-left py-3 px-2 text-white/60 font-medium hidden lg:table-cell">Paid</th>
+                    <th className="text-left py-3 px-2 text-white/60 font-medium">Status</th>
+                    <th className="text-right py-3 pl-2 text-white/60 font-medium">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -726,27 +723,27 @@ function LeaveTypesTab() {
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
-                        className="border-b border-border hover:bg-muted/50 transition-colors"
+                        className="border-b border-white/10 hover:bg-white/5 transition-colors"
                       >
                         <td className="py-2.5 pr-4">
                           <span className="inline-flex px-2 py-0.5 rounded text-xs font-bold font-mono bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300">
                             {lt.code}
                           </span>
                         </td>
-                        <td className="py-2.5 px-2 text-foreground font-medium">{lt.name}</td>
+                        <td className="py-2.5 px-2 text-white font-medium">{lt.name}</td>
                         <td className="py-2.5 px-2">
                           <Badge variant={categoryBadgeVariant(lt.category)}>
                             {lt.category}
                           </Badge>
                         </td>
-                        <td className="py-2.5 px-2 text-foreground">{lt.defaultQuota} days</td>
+                        <td className="py-2.5 px-2 text-white">{lt.defaultQuota} days</td>
                         <td className="py-2.5 px-2 hidden md:table-cell">
                           {lt.carryForward ? (
                             <span className="text-green-600 dark:text-green-400 text-xs font-medium inline-flex items-center gap-1">
                               <Check className="w-3 h-3" /> Up to {lt.maxCarryForward} days
                             </span>
                           ) : (
-                            <span className="text-muted-foreground text-xs">No</span>
+                            <span className="text-white/60 text-xs">No</span>
                           )}
                         </td>
                         <td className="py-2.5 px-2 hidden lg:table-cell">
@@ -767,14 +764,14 @@ function LeaveTypesTab() {
                           <div className="flex items-center justify-end gap-1">
                             <button
                               onClick={() => handleEdit(lt)}
-                              className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                              className="p-1.5 rounded-md text-white/60 hover:text-white hover:bg-white/5 transition-colors"
                               title="Edit"
                             >
                               <Pencil className="w-4 h-4" />
                             </button>
                             <button
                               onClick={() => handleDeleteClick(lt)}
-                              className="p-1.5 rounded-md text-muted-foreground hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                              className="p-1.5 rounded-md text-white/60 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
                               title="Delete"
                             >
                               <Trash2 className="w-4 h-4" />
@@ -788,8 +785,8 @@ function LeaveTypesTab() {
               </table>
             </div>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </GlassPanel>
 
       <AnimatePresence>
         {modalOpen && (
@@ -870,9 +867,9 @@ export default function PolicySettingsPage() {
   if (loading) {
     return (
       <div className="space-y-6 animate-pulse">
-        <div className="h-8 w-48 bg-muted rounded" />
-        <div className="h-10 w-80 bg-muted rounded-lg" />
-        <div className="h-96 bg-muted rounded-xl" />
+        <div className="h-8 w-48 bg-white/5 rounded" />
+        <div className="h-10 w-80 bg-white/5 rounded-lg" />
+        <div className="h-96 bg-white/5 rounded-xl" />
       </div>
     );
   }
@@ -883,49 +880,46 @@ export default function PolicySettingsPage() {
   ];
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-foreground">Policy Settings</h1>
-        <p className="text-muted-foreground mt-1">
-          Configure leave policies and constraint rules for your organization.
-          {policy && (
-            <span className="ml-2 text-xs text-muted-foreground">
-              Policy v{policy.policy_version}
-              {policy.policy_updated_at && (
-                <> &middot; Last updated {new Date(policy.policy_updated_at).toLocaleDateString()}</>
-              )}
-            </span>
-          )}
-        </p>
-      </div>
+    <StaggerContainer className="space-y-6">
+      <PageHeader
+        title="Policy Settings"
+        description={
+          policy
+            ? `Configure leave policies and constraint rules for your organization. Policy v${policy.policy_version}${policy.policy_updated_at ? ` · Last updated ${new Date(policy.policy_updated_at).toLocaleDateString()}` : ''}`
+            : 'Configure leave policies and constraint rules for your organization.'
+        }
+        icon={<Settings className="w-6 h-6 text-primary" />}
+      />
 
       {/* Tab Navigation */}
-      <div className="border-b border-border">
-        <nav className="flex gap-0 -mb-px" aria-label="Policy tabs">
-          {TABS.map((tab) => (
-            <button
-              key={tab.key}
-              onClick={() => setActiveTab(tab.key)}
-              className={`
-                relative px-5 py-2.5 text-sm font-medium transition-colors
-                ${activeTab === tab.key
-                  ? 'text-foreground'
-                  : 'text-muted-foreground hover:text-foreground'
-                }
-              `}
-            >
-              {tab.label}
-              {activeTab === tab.key && (
-                <motion.div
-                  layoutId="active-policy-tab"
-                  className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-full"
-                  transition={{ type: 'spring', stiffness: 380, damping: 30 }}
-                />
-              )}
-            </button>
-          ))}
-        </nav>
-      </div>
+      <FadeIn>
+        <div className="border-b border-white/10">
+          <nav className="flex gap-0 -mb-px" aria-label="Policy tabs">
+            {TABS.map((tab) => (
+              <button
+                key={tab.key}
+                onClick={() => setActiveTab(tab.key)}
+                className={`
+                  relative px-5 py-2.5 text-sm font-medium transition-colors
+                  ${activeTab === tab.key
+                    ? 'text-white'
+                    : 'text-white/60 hover:text-white'
+                  }
+                `}
+              >
+                {tab.label}
+                {activeTab === tab.key && (
+                  <motion.div
+                    layoutId="active-policy-tab"
+                    className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-full"
+                    transition={{ type: 'spring' as const, stiffness: 380, damping: 30 }}
+                  />
+                )}
+              </button>
+            ))}
+          </nav>
+        </div>
+      </FadeIn>
 
       {/* Tab Content */}
       <AnimatePresence mode="wait">
@@ -951,150 +945,154 @@ export default function PolicySettingsPage() {
 
             {/* Leave Type Catalog (summary in rules tab) */}
             {policy && (
-              <Card>
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <CardTitle>
-                      Leave Types ({policy.leave_types.length > 0 ? policy.leave_types.length : '---'})
-                    </CardTitle>
-                    <Badge variant="info">
-                      {policy.leave_types.length > 0 ? 'Company-Specific' : 'None Configured'}
-                    </Badge>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  {policy.leave_types.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">
-                      No leave types configured yet. Complete onboarding to set up leave types.
-                    </p>
-                  ) : (
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-sm">
-                        <thead>
-                          <tr className="border-b border-border">
-                            <th className="text-left py-3 pr-4 text-muted-foreground font-medium">Code</th>
-                            <th className="text-left py-3 px-2 text-muted-foreground font-medium">Name</th>
-                            <th className="text-left py-3 px-2 text-muted-foreground font-medium">Quota</th>
-                            <th className="text-left py-3 px-2 text-muted-foreground font-medium">Category</th>
-                            <th className="text-left py-3 px-2 text-muted-foreground font-medium hidden md:table-cell">Carry Forward</th>
-                            <th className="text-left py-3 pl-2 text-muted-foreground font-medium hidden lg:table-cell">Encashment</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {policy.leave_types.map((lt) => (
-                            <tr key={lt.code} className="border-b border-border hover:bg-muted/50">
-                              <td className="py-2.5 pr-4">
-                                <span className="inline-flex px-2 py-0.5 rounded text-xs font-bold font-mono bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300">
-                                  {lt.code}
-                                </span>
-                              </td>
-                              <td className="py-2.5 px-2 text-foreground">{lt.name}</td>
-                              <td className="py-2.5 px-2 text-foreground font-medium">{lt.default_quota} days</td>
-                              <td className="py-2.5 px-2">
-                                <Badge
-                                  variant={
-                                    lt.category === 'statutory'
-                                      ? 'warning'
-                                      : lt.category === 'special'
-                                        ? 'success'
-                                        : 'default'
-                                  }
-                                >
-                                  {lt.category}
-                                </Badge>
-                              </td>
-                              <td className="py-2.5 px-2 hidden md:table-cell">
-                                {lt.carry_forward ? (
-                                  <span className="text-green-600 dark:text-green-400 text-xs font-medium inline-flex items-center gap-1">
-                                    <Check className="w-3 h-3" /> Up to {lt.max_carry_forward} days
-                                  </span>
-                                ) : (
-                                  <span className="text-muted-foreground text-xs">No</span>
-                                )}
-                              </td>
-                              <td className="py-2.5 pl-2 hidden lg:table-cell">
-                                {lt.encashment_enabled ? (
-                                  <span className="text-green-600 dark:text-green-400 text-xs font-medium inline-flex items-center gap-1">
-                                    <Check className="w-3 h-3" /> Up to {lt.encashment_max_days} days
-                                  </span>
-                                ) : (
-                                  <span className="text-muted-foreground text-xs">No</span>
-                                )}
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
+              <FadeIn>
+                <GlassPanel>
+                  <div className="p-6 border-b border-white/10">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-lg font-semibold text-white">
+                        Leave Types ({policy.leave_types.length > 0 ? policy.leave_types.length : '---'})
+                      </h3>
+                      <Badge variant="info">
+                        {policy.leave_types.length > 0 ? 'Company-Specific' : 'None Configured'}
+                      </Badge>
                     </div>
-                  )}
-                </CardContent>
-              </Card>
+                  </div>
+                  <div className="p-6">
+                    {policy.leave_types.length === 0 ? (
+                      <p className="text-sm text-white/60">
+                        No leave types configured yet. Complete onboarding to set up leave types.
+                      </p>
+                    ) : (
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr className="border-b border-white/10">
+                              <th className="text-left py-3 pr-4 text-white/60 font-medium">Code</th>
+                              <th className="text-left py-3 px-2 text-white/60 font-medium">Name</th>
+                              <th className="text-left py-3 px-2 text-white/60 font-medium">Quota</th>
+                              <th className="text-left py-3 px-2 text-white/60 font-medium">Category</th>
+                              <th className="text-left py-3 px-2 text-white/60 font-medium hidden md:table-cell">Carry Forward</th>
+                              <th className="text-left py-3 pl-2 text-white/60 font-medium hidden lg:table-cell">Encashment</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {policy.leave_types.map((lt) => (
+                              <tr key={lt.code} className="border-b border-white/10 hover:bg-white/5">
+                                <td className="py-2.5 pr-4">
+                                  <span className="inline-flex px-2 py-0.5 rounded text-xs font-bold font-mono bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300">
+                                    {lt.code}
+                                  </span>
+                                </td>
+                                <td className="py-2.5 px-2 text-white">{lt.name}</td>
+                                <td className="py-2.5 px-2 text-white font-medium">{lt.default_quota} days</td>
+                                <td className="py-2.5 px-2">
+                                  <Badge
+                                    variant={
+                                      lt.category === 'statutory'
+                                        ? 'warning'
+                                        : lt.category === 'special'
+                                          ? 'success'
+                                          : 'default'
+                                    }
+                                  >
+                                    {lt.category}
+                                  </Badge>
+                                </td>
+                                <td className="py-2.5 px-2 hidden md:table-cell">
+                                  {lt.carry_forward ? (
+                                    <span className="text-green-600 dark:text-green-400 text-xs font-medium inline-flex items-center gap-1">
+                                      <Check className="w-3 h-3" /> Up to {lt.max_carry_forward} days
+                                    </span>
+                                  ) : (
+                                    <span className="text-white/60 text-xs">No</span>
+                                  )}
+                                </td>
+                                <td className="py-2.5 pl-2 hidden lg:table-cell">
+                                  {lt.encashment_enabled ? (
+                                    <span className="text-green-600 dark:text-green-400 text-xs font-medium inline-flex items-center gap-1">
+                                      <Check className="w-3 h-3" /> Up to {lt.encashment_max_days} days
+                                    </span>
+                                  ) : (
+                                    <span className="text-white/60 text-xs">No</span>
+                                  )}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                </GlassPanel>
+              </FadeIn>
             )}
 
             {/* Constraint Rules */}
             {policy && (
-              <Card>
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <CardTitle>Constraint Rules ({policy.rules.length})</CardTitle>
-                    <Badge variant="warning">
-                      {policy.rules.filter((r) => r.persisted).length} customized
-                    </Badge>
+              <FadeIn>
+                <GlassPanel>
+                  <div className="p-6 border-b border-white/10">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-lg font-semibold text-white">Constraint Rules ({policy.rules.length})</h3>
+                      <Badge variant="warning">
+                        {policy.rules.filter((r) => r.persisted).length} customized
+                      </Badge>
+                    </div>
                   </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    {policy.rules.map((rule) => (
-                      <div
-                        key={rule.rule_id}
-                        className={`p-3 rounded-lg border transition-colors ${rule.is_active ? 'border-border hover:bg-muted/50' : 'border-border bg-muted/50 opacity-60'}`}
-                      >
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <span className="text-xs font-mono text-muted-foreground">{rule.rule_id}</span>
-                              <p className="text-sm font-semibold text-foreground">{rule.name}</p>
-                              <Badge variant={CATEGORY_BADGE[rule.category] ?? 'default'}>
-                                {rule.category}
-                              </Badge>
-                              {rule.is_blocking && (
-                                <span className="text-xs bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 px-2 py-0.5 rounded-full font-medium">
-                                  Blocking
-                                </span>
-                              )}
-                              {!rule.is_active && (
-                                <span className="text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded-full font-medium">
-                                  Disabled
-                                </span>
-                              )}
-                              {rule.persisted && (
-                                <span className="text-xs bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 px-2 py-0.5 rounded-full font-medium">
-                                  Customized
-                                </span>
-                              )}
+                  <div className="p-6">
+                    <div className="space-y-3">
+                      {policy.rules.map((rule) => (
+                        <div
+                          key={rule.rule_id}
+                          className={`p-3 rounded-lg border transition-colors ${rule.is_active ? 'border-white/10 hover:bg-white/5' : 'border-white/10 bg-white/5 opacity-60'}`}
+                        >
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="text-xs font-mono text-white/60">{rule.rule_id}</span>
+                                <p className="text-sm font-semibold text-white">{rule.name}</p>
+                                <Badge variant={CATEGORY_BADGE[rule.category] ?? 'default'}>
+                                  {rule.category}
+                                </Badge>
+                                {rule.is_blocking && (
+                                  <span className="text-xs bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 px-2 py-0.5 rounded-full font-medium">
+                                    Blocking
+                                  </span>
+                                )}
+                                {!rule.is_active && (
+                                  <span className="text-xs bg-white/5 text-white/60 px-2 py-0.5 rounded-full font-medium">
+                                    Disabled
+                                  </span>
+                                )}
+                                {rule.persisted && (
+                                  <span className="text-xs bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 px-2 py-0.5 rounded-full font-medium">
+                                    Customized
+                                  </span>
+                                )}
+                              </div>
+                              <p className="text-xs text-white/60 mt-1">{rule.description}</p>
+                              <ConfigBadges config={rule.config} />
+                              <RuleConfigEditor
+                                rule={rule}
+                                onSave={(ruleId, config, isActive) => saveRule(ruleId, config, isActive)}
+                                saving={saving}
+                              />
                             </div>
-                            <p className="text-xs text-muted-foreground mt-1">{rule.description}</p>
-                            <ConfigBadges config={rule.config} />
-                            <RuleConfigEditor
-                              rule={rule}
-                              onSave={(ruleId, config, isActive) => saveRule(ruleId, config, isActive)}
-                              saving={saving}
-                            />
-                          </div>
-                          <div className="ml-4 shrink-0">
-                            <span className="text-xs text-muted-foreground">Priority {rule.priority}</span>
+                            <div className="ml-4 shrink-0">
+                              <span className="text-xs text-white/60">Priority {rule.priority}</span>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    ))}
+                      ))}
+                    </div>
+                    <p className="text-xs text-white/60 mt-4 flex items-center gap-1.5">
+                      <Lightbulb className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                      Changes are applied immediately. The Python constraint engine reads these rules from the
+                      database on every leave request evaluation — no restart required.
+                    </p>
                   </div>
-                  <p className="text-xs text-muted-foreground mt-4 flex items-center gap-1.5">
-                    <Lightbulb className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-                    Changes are applied immediately. The Python constraint engine reads these rules from the
-                    database on every leave request evaluation — no restart required.
-                  </p>
-                </CardContent>
-              </Card>
+                </GlassPanel>
+              </FadeIn>
             )}
           </motion.div>
         )}
@@ -1111,6 +1109,6 @@ export default function PolicySettingsPage() {
           </motion.div>
         )}
       </AnimatePresence>
-    </div>
+    </StaggerContainer>
   );
 }

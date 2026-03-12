@@ -3,8 +3,9 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { motion } from 'framer-motion';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { StaggerContainer, FadeIn, TiltCard } from '@/components/motion';
+import { PageHeader } from '@/components/page-header';
+import { GlassPanel } from '@/components/glass-panel';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { SkeletonDashboard } from '@/components/ui/skeleton';
@@ -26,9 +27,6 @@ import {
   Server,
   RefreshCw,
 } from 'lucide-react';
-
-const containerVariants = { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { staggerChildren: 0.08 } } } as const;
-const itemVariants = { hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0, transition: { type: 'spring' as const, stiffness: 260, damping: 20 } } } as const;
 
 interface AuditLog {
   id: string;
@@ -190,182 +188,181 @@ export default function AdminDashboardPage() {
     { label: 'Audit Logs', href: '/admin/audit-logs', icon: Shield, color: 'text-amber-500' },
     { label: 'Employees', href: '/hr/employees', icon: Users, color: 'text-blue-500' },
     { label: 'Payroll', href: '/hr/payroll', icon: Wallet, color: 'text-emerald-500' },
-    { label: 'Settings', href: '/hr/settings', icon: Settings, color: 'text-slate-500' },
+    { label: 'Settings', href: '/hr/settings', icon: Settings, color: 'text-slate-400' },
   ];
 
   return (
-    <motion.div
-      variants={containerVariants}
-      initial="hidden"
-      animate="visible"
-      className="space-y-6"
-    >
+    <StaggerContainer className="space-y-6">
       {/* Page Header */}
-      <motion.div variants={itemVariants} className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground tracking-tight">Admin Dashboard</h1>
-          <p className="text-sm text-muted-foreground mt-1">System overview and administrative controls</p>
-        </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handleRefresh}
-          disabled={refreshing}
-        >
-          <RefreshCw className={`w-4 h-4 mr-1.5 ${refreshing ? 'animate-spin' : ''}`} />
-          Refresh
-        </Button>
-      </motion.div>
+      <PageHeader
+        title="Admin Dashboard"
+        description="System overview and administrative controls"
+        icon={<ShieldCheck className="w-6 h-6 text-primary" />}
+        action={
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleRefresh}
+            disabled={refreshing}
+            className="border-white/10 text-white/70 hover:bg-white/5 hover:text-white"
+          >
+            <RefreshCw className={`w-4 h-4 mr-1.5 ${refreshing ? 'animate-spin' : ''}`} />
+            Refresh
+          </Button>
+        }
+      />
 
       {/* Summary Cards */}
-      <motion.div variants={itemVariants} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Total Employees</p>
-                <p className="text-3xl font-bold text-foreground mt-1">{totalEmployees}</p>
+      <FadeIn>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <TiltCard>
+            <GlassPanel className="p-5">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-white/60">Total Employees</p>
+                  <p className="text-3xl font-bold text-white mt-1">{totalEmployees}</p>
+                </div>
+                <div className="w-12 h-12 rounded-xl bg-blue-500/20 flex items-center justify-center shadow-[0_0_15px_rgba(59,130,246,0.3)]">
+                  <Users className="w-6 h-6 text-blue-400" />
+                </div>
               </div>
-              <div className="w-12 h-12 rounded-xl bg-blue-500/10 dark:bg-blue-500/20 flex items-center justify-center">
-                <Users className="w-6 h-6 text-blue-500" />
+              <div className="mt-3 flex items-center gap-1 text-xs text-white/60">
+                <span>Active workforce</span>
               </div>
-            </div>
-            <div className="mt-3 flex items-center gap-1 text-xs text-muted-foreground">
-              <span>Active workforce</span>
-            </div>
-          </CardContent>
-        </Card>
+            </GlassPanel>
+          </TiltCard>
 
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Today Present</p>
-                <p className="text-3xl font-bold text-foreground mt-1">{todayPresent}</p>
+          <TiltCard>
+            <GlassPanel className="p-5">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-white/60">Today Present</p>
+                  <p className="text-3xl font-bold text-white mt-1">{todayPresent}</p>
+                </div>
+                <div className="w-12 h-12 rounded-xl bg-emerald-500/20 flex items-center justify-center shadow-[0_0_15px_rgba(16,185,129,0.3)]">
+                  <Clock className="w-6 h-6 text-emerald-400" />
+                </div>
               </div>
-              <div className="w-12 h-12 rounded-xl bg-emerald-500/10 dark:bg-emerald-500/20 flex items-center justify-center">
-                <Clock className="w-6 h-6 text-emerald-500" />
+              <div className="mt-3 flex items-center gap-1 text-xs text-white/60">
+                <span>Checked in today</span>
               </div>
-            </div>
-            <div className="mt-3 flex items-center gap-1 text-xs text-muted-foreground">
-              <span>Checked in today</span>
-            </div>
-          </CardContent>
-        </Card>
+            </GlassPanel>
+          </TiltCard>
 
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Pending Leaves</p>
-                <p className="text-3xl font-bold text-foreground mt-1">{pendingLeaves}</p>
+          <TiltCard>
+            <GlassPanel className="p-5">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-white/60">Pending Leaves</p>
+                  <p className="text-3xl font-bold text-white mt-1">{pendingLeaves}</p>
+                </div>
+                <div className="w-12 h-12 rounded-xl bg-amber-500/20 flex items-center justify-center shadow-[0_0_15px_rgba(245,158,11,0.3)]">
+                  <ClipboardList className="w-6 h-6 text-amber-400" />
+                </div>
               </div>
-              <div className="w-12 h-12 rounded-xl bg-amber-500/10 dark:bg-amber-500/20 flex items-center justify-center">
-                <ClipboardList className="w-6 h-6 text-amber-500" />
+              <div className="mt-3 flex items-center gap-1 text-xs text-white/60">
+                <span>Awaiting approval</span>
               </div>
-            </div>
-            <div className="mt-3 flex items-center gap-1 text-xs text-muted-foreground">
-              <span>Awaiting approval</span>
-            </div>
-          </CardContent>
-        </Card>
+            </GlassPanel>
+          </TiltCard>
 
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">System Health</p>
-                <div className="mt-1">{getHealthBadge(healthStatus)}</div>
-              </div>
-              <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
-                healthStatus === 'healthy' || healthStatus === 'ok'
-                  ? 'bg-emerald-500/10 dark:bg-emerald-500/20'
-                  : healthStatus === 'degraded'
-                    ? 'bg-amber-500/10 dark:bg-amber-500/20'
-                    : 'bg-red-500/10 dark:bg-red-500/20'
-              }`}>
-                <Activity className={`w-6 h-6 ${
+          <TiltCard>
+            <GlassPanel className="p-5">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-white/60">System Health</p>
+                  <div className="mt-1">{getHealthBadge(healthStatus)}</div>
+                </div>
+                <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
                   healthStatus === 'healthy' || healthStatus === 'ok'
-                    ? 'text-emerald-500'
+                    ? 'bg-emerald-500/20 shadow-[0_0_15px_rgba(16,185,129,0.3)]'
                     : healthStatus === 'degraded'
-                      ? 'text-amber-500'
-                      : 'text-red-500'
-                }`} />
+                      ? 'bg-amber-500/20 shadow-[0_0_15px_rgba(245,158,11,0.3)]'
+                      : 'bg-red-500/20 shadow-[0_0_15px_rgba(239,68,68,0.3)]'
+                }`}>
+                  <Activity className={`w-6 h-6 ${
+                    healthStatus === 'healthy' || healthStatus === 'ok'
+                      ? 'text-emerald-400'
+                      : healthStatus === 'degraded'
+                        ? 'text-amber-400'
+                        : 'text-red-400'
+                  }`} />
+                </div>
               </div>
-            </div>
-            <div className="mt-3">
-              <Link href="/admin/system-health" className="text-xs text-primary hover:underline">
-                View details
-              </Link>
-            </div>
-          </CardContent>
-        </Card>
-      </motion.div>
+              <div className="mt-3">
+                <Link href="/admin/system-health" className="text-xs text-primary hover:underline">
+                  View details
+                </Link>
+              </div>
+            </GlassPanel>
+          </TiltCard>
+        </div>
+      </FadeIn>
 
       {/* Quick Actions */}
-      <motion.div variants={itemVariants}>
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Quick Actions</CardTitle>
-          </CardHeader>
-          <CardContent>
+      <FadeIn>
+        <GlassPanel>
+          <div className="p-6 pb-4">
+            <h2 className="text-lg font-semibold text-white">Quick Actions</h2>
+          </div>
+          <div className="px-6 pb-6">
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
               {quickActions.map((action) => (
                 <Link key={action.href} href={action.href}>
-                  <div className="flex flex-col items-center gap-2 p-4 rounded-xl border border-border/50 hover:border-primary/30 hover:bg-muted/50 dark:hover:bg-slate-800/50 transition-all cursor-pointer group">
+                  <div className="flex flex-col items-center gap-2 p-4 rounded-xl border border-white/10 hover:border-primary/30 hover:bg-white/5 transition-all cursor-pointer group">
                     <action.icon className={`w-5 h-5 ${action.color} group-hover:scale-110 transition-transform`} />
-                    <span className="text-xs font-medium text-muted-foreground group-hover:text-foreground transition-colors text-center">{action.label}</span>
+                    <span className="text-xs font-medium text-white/60 group-hover:text-white transition-colors text-center">{action.label}</span>
                   </div>
                 </Link>
               ))}
             </div>
-          </CardContent>
-        </Card>
-      </motion.div>
+          </div>
+        </GlassPanel>
+      </FadeIn>
 
       {/* Two Column Layout: Audit Logs + Payroll & System Health */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Recent Audit Logs */}
-        <motion.div variants={itemVariants} className="lg:col-span-2">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle className="text-base">Recent Audit Logs</CardTitle>
+        <FadeIn className="lg:col-span-2">
+          <GlassPanel>
+            <div className="p-6 pb-4 flex flex-row items-center justify-between">
+              <h2 className="text-lg font-semibold text-white">Recent Audit Logs</h2>
               <Link href="/admin/audit-logs">
-                <Button variant="ghost" size="sm">
+                <Button variant="ghost" size="sm" className="text-white/60 hover:text-white hover:bg-white/5">
                   View All <ChevronRight className="w-4 h-4 ml-1" />
                 </Button>
               </Link>
-            </CardHeader>
-            <CardContent className="p-0">
+            </div>
+            <div className="px-6 pb-6">
               {auditLogs.length === 0 ? (
-                <div className="px-6 py-8 text-center">
-                  <Shield className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
-                  <p className="text-sm text-muted-foreground">No recent audit activity</p>
+                <div className="py-8 text-center">
+                  <Shield className="w-8 h-8 text-white/30 mx-auto mb-2" />
+                  <p className="text-sm text-white/60">No recent audit activity</p>
                 </div>
               ) : (
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead>
-                      <tr className="border-b border-border/50 text-left">
-                        <th className="px-6 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">Action</th>
-                        <th className="px-6 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">Entity</th>
-                        <th className="px-6 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">Actor</th>
-                        <th className="px-6 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">Time</th>
+                      <tr className="border-b border-white/10 text-left">
+                        <th className="px-4 py-3 text-xs font-medium text-white/40 uppercase tracking-wider">Action</th>
+                        <th className="px-4 py-3 text-xs font-medium text-white/40 uppercase tracking-wider">Entity</th>
+                        <th className="px-4 py-3 text-xs font-medium text-white/40 uppercase tracking-wider">Actor</th>
+                        <th className="px-4 py-3 text-xs font-medium text-white/40 uppercase tracking-wider">Time</th>
                       </tr>
                     </thead>
                     <tbody>
                       {auditLogs.map((log) => (
-                        <tr key={log.id} className="border-b border-border/30 last:border-0 hover:bg-muted/30 dark:hover:bg-slate-800/30 transition-colors">
-                          <td className="px-6 py-3">
-                            <span className="font-medium text-foreground">{log.action}</span>
+                        <tr key={log.id} className="border-b border-white/5 last:border-0 hover:bg-white/5 transition-colors">
+                          <td className="px-4 py-3">
+                            <span className="font-medium text-white">{log.action}</span>
                           </td>
-                          <td className="px-6 py-3 text-muted-foreground">
+                          <td className="px-4 py-3 text-white/60">
                             {log.entity_type ? `${log.entity_type}${log.entity_id ? ` #${log.entity_id.slice(0, 8)}` : ''}` : '-'}
                           </td>
-                          <td className="px-6 py-3 text-muted-foreground">
+                          <td className="px-4 py-3 text-white/60">
                             {log.actor_name || log.actor_email || '-'}
                           </td>
-                          <td className="px-6 py-3 text-muted-foreground whitespace-nowrap">
+                          <td className="px-4 py-3 text-white/60 whitespace-nowrap">
                             {timeAgo(log.created_at)}
                           </td>
                         </tr>
@@ -374,33 +371,33 @@ export default function AdminDashboardPage() {
                   </table>
                 </div>
               )}
-            </CardContent>
-          </Card>
-        </motion.div>
+            </div>
+          </GlassPanel>
+        </FadeIn>
 
         {/* Right Column: Payroll + System Overview */}
-        <motion.div variants={itemVariants} className="space-y-6">
+        <FadeIn className="space-y-6">
           {/* Recent Payroll Runs */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Recent Payroll Runs</CardTitle>
-            </CardHeader>
-            <CardContent>
+          <GlassPanel>
+            <div className="p-6 pb-4">
+              <h2 className="text-lg font-semibold text-white">Recent Payroll Runs</h2>
+            </div>
+            <div className="px-6 pb-6">
               {payrollRuns.length === 0 ? (
                 <div className="text-center py-6">
-                  <Wallet className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
-                  <p className="text-sm text-muted-foreground">No payroll runs found</p>
+                  <Wallet className="w-8 h-8 text-white/30 mx-auto mb-2" />
+                  <p className="text-sm text-white/60">No payroll runs found</p>
                 </div>
               ) : (
                 <div className="space-y-3">
                   {payrollRuns.map((run) => (
-                    <div key={run.id} className="flex items-center justify-between p-3 rounded-lg border border-border/40 hover:bg-muted/30 dark:hover:bg-slate-800/30 transition-colors">
+                    <div key={run.id} className="flex items-center justify-between p-3 rounded-lg border border-white/10 hover:bg-white/5 transition-colors">
                       <div>
-                        <p className="text-sm font-medium text-foreground">
+                        <p className="text-sm font-medium text-white">
                           {run.month} {run.year}
                         </p>
                         {run.employee_count != null && (
-                          <p className="text-xs text-muted-foreground">{run.employee_count} employees</p>
+                          <p className="text-xs text-white/60">{run.employee_count} employees</p>
                         )}
                       </div>
                       {getPayrollStatusBadge(run.status)}
@@ -408,48 +405,48 @@ export default function AdminDashboardPage() {
                   ))}
                 </div>
               )}
-            </CardContent>
-          </Card>
+            </div>
+          </GlassPanel>
 
           {/* System Overview */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">System Overview</CardTitle>
-            </CardHeader>
-            <CardContent>
+          <GlassPanel>
+            <div className="p-6 pb-4">
+              <h2 className="text-lg font-semibold text-white">System Overview</h2>
+            </div>
+            <div className="px-6 pb-6">
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <Server className="w-4 h-4 text-muted-foreground" />
-                    <span className="text-sm text-muted-foreground">API Status</span>
+                    <Server className="w-4 h-4 text-white/60" />
+                    <span className="text-sm text-white/60">API Status</span>
                   </div>
                   {healthStatus === 'healthy' || healthStatus === 'ok' ? (
                     <div className="flex items-center gap-1.5">
                       <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-                      <span className="text-sm text-emerald-600 dark:text-emerald-400 font-medium">Online</span>
+                      <span className="text-sm text-emerald-400 font-medium">Online</span>
                     </div>
                   ) : (
                     <div className="flex items-center gap-1.5">
                       <AlertCircle className="w-4 h-4 text-amber-500" />
-                      <span className="text-sm text-amber-600 dark:text-amber-400 font-medium">Issues</span>
+                      <span className="text-sm text-amber-400 font-medium">Issues</span>
                     </div>
                   )}
                 </div>
 
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <Database className="w-4 h-4 text-muted-foreground" />
-                    <span className="text-sm text-muted-foreground">Database</span>
+                    <Database className="w-4 h-4 text-white/60" />
+                    <span className="text-sm text-white/60">Database</span>
                   </div>
                   {healthData?.database === 'connected' || healthData?.database === 'ok' || (healthStatus === 'healthy' || healthStatus === 'ok') ? (
                     <div className="flex items-center gap-1.5">
                       <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-                      <span className="text-sm text-emerald-600 dark:text-emerald-400 font-medium">Connected</span>
+                      <span className="text-sm text-emerald-400 font-medium">Connected</span>
                     </div>
                   ) : (
                     <div className="flex items-center gap-1.5">
                       <XCircle className="w-4 h-4 text-red-500" />
-                      <span className="text-sm text-red-600 dark:text-red-400 font-medium">Error</span>
+                      <span className="text-sm text-red-400 font-medium">Error</span>
                     </div>
                   )}
                 </div>
@@ -457,10 +454,10 @@ export default function AdminDashboardPage() {
                 {healthData?.uptime != null && (
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <Activity className="w-4 h-4 text-muted-foreground" />
-                      <span className="text-sm text-muted-foreground">Uptime</span>
+                      <Activity className="w-4 h-4 text-white/60" />
+                      <span className="text-sm text-white/60">Uptime</span>
                     </div>
-                    <span className="text-sm font-medium text-foreground">
+                    <span className="text-sm font-medium text-white">
                       {Math.floor(healthData.uptime / 3600)}h {Math.floor((healthData.uptime % 3600) / 60)}m
                     </span>
                   </div>
@@ -469,27 +466,27 @@ export default function AdminDashboardPage() {
                 {healthData?.memory?.heapUsed != null && (
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <Server className="w-4 h-4 text-muted-foreground" />
-                      <span className="text-sm text-muted-foreground">Memory</span>
+                      <Server className="w-4 h-4 text-white/60" />
+                      <span className="text-sm text-white/60">Memory</span>
                     </div>
-                    <span className="text-sm font-medium text-foreground">
+                    <span className="text-sm font-medium text-white">
                       {(healthData.memory.heapUsed / 1024 / 1024).toFixed(1)} MB
                     </span>
                   </div>
                 )}
 
-                <div className="pt-2 border-t border-border/40">
+                <div className="pt-2 border-t border-white/10">
                   <Link href="/admin/system-health">
-                    <Button variant="ghost" size="sm" className="w-full justify-center">
+                    <Button variant="ghost" size="sm" className="w-full justify-center text-white/60 hover:text-white hover:bg-white/5">
                       View Full Health Report <ChevronRight className="w-4 h-4 ml-1" />
                     </Button>
                   </Link>
                 </div>
               </div>
-            </CardContent>
-          </Card>
-        </motion.div>
+            </div>
+          </GlassPanel>
+        </FadeIn>
       </div>
-    </motion.div>
+    </StaggerContainer>
   );
 }

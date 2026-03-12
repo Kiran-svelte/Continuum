@@ -3,7 +3,9 @@
 import { useEffect, useState, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { GlassPanel } from '@/components/glass-panel';
+import { StaggerContainer, FadeIn, TiltCard } from '@/components/motion';
+import { PageHeader } from '@/components/page-header';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Modal } from '@/components/ui/modal';
@@ -334,11 +336,11 @@ export default function RBACPage() {
       {/* Page Header */}
       <motion.div variants={itemVariants} className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-foreground tracking-tight flex items-center gap-2">
+          <h1 className="text-2xl font-bold text-white tracking-tight flex items-center gap-2">
             <ShieldCheck className="w-7 h-7 text-indigo-500" />
             RBAC & Permissions
           </h1>
-          <p className="text-sm text-muted-foreground mt-1">
+          <p className="text-sm text-white/60 mt-1">
             Manage role-based access control across {totalPermissions} permissions and {ROLES.length} roles
           </p>
         </div>
@@ -362,9 +364,9 @@ export default function RBACPage() {
       {/* Feedback Messages */}
       {usingFallback && (
         <motion.div variants={itemVariants}>
-          <div className="flex items-center gap-3 px-4 py-3 rounded-lg bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20">
+          <div className="flex items-center gap-3 px-4 py-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
             <Info className="w-5 h-5 text-amber-500 shrink-0" />
-            <p className="text-sm text-amber-700 dark:text-amber-400">
+            <p className="text-sm text-amber-400">
               RBAC API endpoint is not yet available. Displaying default permission matrix. Changes will be saved once the API is ready.
             </p>
           </div>
@@ -377,9 +379,9 @@ export default function RBACPage() {
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
         >
-          <div className="flex items-center gap-3 px-4 py-3 rounded-lg bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20">
+          <div className="flex items-center gap-3 px-4 py-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
             <Check className="w-5 h-5 text-emerald-500 shrink-0" />
-            <p className="text-sm text-emerald-700 dark:text-emerald-400">Permissions saved successfully.</p>
+            <p className="text-sm text-emerald-400">Permissions saved successfully.</p>
           </div>
         </motion.div>
       )}
@@ -390,9 +392,9 @@ export default function RBACPage() {
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
         >
-          <div className="flex items-center gap-3 px-4 py-3 rounded-lg bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20">
+          <div className="flex items-center gap-3 px-4 py-3 rounded-lg bg-red-500/10 border border-red-500/20">
             <AlertTriangle className="w-5 h-5 text-red-500 shrink-0" />
-            <p className="text-sm text-red-700 dark:text-red-400">{saveError}</p>
+            <p className="text-sm text-red-400">{saveError}</p>
           </div>
         </motion.div>
       )}
@@ -400,21 +402,21 @@ export default function RBACPage() {
       {/* Filters */}
       <motion.div variants={itemVariants} className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/60" />
           <input
             type="text"
             placeholder="Search permissions..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 rounded-lg border border-border bg-card dark:bg-[#0c1021] text-foreground text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/50 transition-all"
+            className="w-full pl-9 pr-4 py-2 rounded-lg border border-white/10 bg-white/5 text-white text-sm placeholder:text-white/60 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/50 transition-all"
           />
         </div>
         <div className="relative">
-          <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/60" />
           <select
             value={selectedModule}
             onChange={(e) => setSelectedModule(e.target.value)}
-            className="pl-9 pr-8 py-2 rounded-lg border border-border bg-card dark:bg-[#0c1021] text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/50 transition-all appearance-none cursor-pointer"
+            className="pl-9 pr-8 py-2 rounded-lg border border-white/10 bg-white/5 text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/50 transition-all appearance-none cursor-pointer"
           >
             <option value="all">All Modules</option>
             {Object.keys(permissions).map(mod => (
@@ -427,21 +429,21 @@ export default function RBACPage() {
       {/* Permission Matrix */}
       {filteredModules.map(([module, perms]) => (
         <motion.div key={module} variants={itemVariants}>
-          <Card>
-            <CardHeader className="flex flex-row items-center gap-3">
+          <GlassPanel>
+            <div className="p-6 border-b border-white/10 flex flex-row items-center gap-3">
               <Badge variant={MODULE_COLORS[module] || 'default'} size="lg">{module}</Badge>
-              <span className="text-xs text-muted-foreground">{perms.length} permission{perms.length !== 1 ? 's' : ''}</span>
-            </CardHeader>
-            <CardContent className="p-0">
+              <span className="text-xs text-white/60">{perms.length} permission{perms.length !== 1 ? 's' : ''}</span>
+            </div>
+            <div className="p-0 relative z-10">
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="border-b border-border/50">
-                      <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider min-w-[200px]">
+                    <tr className="border-b border-white/10">
+                      <th className="px-6 py-3 text-left text-xs font-medium text-white/60 uppercase tracking-wider min-w-[200px]">
                         Permission
                       </th>
                       {ROLES.map(role => (
-                        <th key={role} className="px-3 py-3 text-center text-xs font-medium text-muted-foreground uppercase tracking-wider whitespace-nowrap">
+                        <th key={role} className="px-3 py-3 text-center text-xs font-medium text-white/60 uppercase tracking-wider whitespace-nowrap">
                           {getRoleLabel(role)}
                         </th>
                       ))}
@@ -454,12 +456,12 @@ export default function RBACPage() {
                       return (
                         <tr
                           key={perm}
-                          className="border-b border-border/30 last:border-0 hover:bg-muted/30 dark:hover:bg-slate-800/30 transition-colors"
+                          className="border-b border-white/10 last:border-0 hover:bg-white/5 transition-colors"
                         >
                           <td className="px-6 py-3">
                             <div>
-                              <span className="font-medium text-foreground">{getPermissionLabel(perm)}</span>
-                              <p className="text-xs text-muted-foreground mt-0.5 font-mono">{perm}</p>
+                              <span className="font-medium text-white">{getPermissionLabel(perm)}</span>
+                              <p className="text-xs text-white/60 mt-0.5 font-mono">{perm}</p>
                             </div>
                           </td>
                           {ROLES.map(role => {
@@ -473,10 +475,10 @@ export default function RBACPage() {
                                   className={`
                                     w-8 h-8 rounded-lg flex items-center justify-center transition-all duration-200 mx-auto
                                     ${isGranted
-                                      ? 'bg-indigo-500/15 dark:bg-indigo-500/25 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-500/25'
-                                      : 'bg-muted/50 dark:bg-slate-800/50 text-muted-foreground/40 hover:bg-muted hover:text-muted-foreground'
+                                      ? 'bg-indigo-500/25 text-indigo-400 hover:bg-indigo-500/35'
+                                      : 'bg-white/5 text-white/40 hover:bg-white/10 hover:text-white/60'
                                     }
-                                    ${isChanged ? 'ring-2 ring-amber-400/50 ring-offset-1 ring-offset-background' : ''}
+                                    ${isChanged ? 'ring-2 ring-amber-400/50 ring-offset-1 ring-offset-transparent' : ''}
                                   `}
                                   title={`${isGranted ? 'Revoke' : 'Grant'} "${perm}" for ${getRoleLabel(role)}`}
                                 >
@@ -495,51 +497,51 @@ export default function RBACPage() {
                   </tbody>
                 </table>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </GlassPanel>
         </motion.div>
       ))}
 
       {filteredModules.length === 0 && (
         <motion.div variants={itemVariants}>
-          <Card>
-            <CardContent className="py-12 text-center">
-              <Search className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
-              <p className="text-sm text-muted-foreground">No permissions match your search criteria.</p>
+          <GlassPanel>
+            <div className="p-6 relative z-10 py-12 text-center">
+              <Search className="w-10 h-10 text-white/60 mx-auto mb-3" />
+              <p className="text-sm text-white/60">No permissions match your search criteria.</p>
               <Button variant="ghost" size="sm" className="mt-3" onClick={() => { setSearchQuery(''); setSelectedModule('all'); }}>
                 Clear Filters
               </Button>
-            </CardContent>
-          </Card>
+            </div>
+          </GlassPanel>
         </motion.div>
       )}
 
       {/* Legend */}
       <motion.div variants={itemVariants}>
-        <Card variant="ghost">
-          <CardContent className="py-4">
-            <div className="flex flex-wrap items-center gap-6 text-xs text-muted-foreground">
+        <GlassPanel>
+          <div className="p-6 relative z-10 py-4">
+            <div className="flex flex-wrap items-center gap-6 text-xs text-white/60">
               <div className="flex items-center gap-2">
-                <div className="w-6 h-6 rounded bg-indigo-500/15 dark:bg-indigo-500/25 flex items-center justify-center">
-                  <Check className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+                <div className="w-6 h-6 rounded bg-indigo-500/25 flex items-center justify-center">
+                  <Check className="w-3.5 h-3.5 text-indigo-400" />
                 </div>
                 <span>Permission granted</span>
               </div>
               <div className="flex items-center gap-2">
-                <div className="w-6 h-6 rounded bg-muted/50 dark:bg-slate-800/50 flex items-center justify-center">
-                  <X className="w-3 h-3 text-muted-foreground/40" />
+                <div className="w-6 h-6 rounded bg-white/5 flex items-center justify-center">
+                  <X className="w-3 h-3 text-white/40" />
                 </div>
                 <span>Permission denied</span>
               </div>
               <div className="flex items-center gap-2">
-                <div className="w-6 h-6 rounded ring-2 ring-amber-400/50 ring-offset-1 ring-offset-background flex items-center justify-center bg-muted/50">
+                <div className="w-6 h-6 rounded ring-2 ring-amber-400/50 ring-offset-1 ring-offset-transparent flex items-center justify-center bg-white/5">
                   <span className="w-2 h-2 rounded-full bg-amber-400" />
                 </div>
                 <span>Unsaved change</span>
               </div>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </GlassPanel>
       </motion.div>
 
       {/* Confirmation Modal */}
@@ -551,9 +553,9 @@ export default function RBACPage() {
         size="sm"
       >
         <div className="space-y-4">
-          <div className="flex items-center gap-3 px-4 py-3 rounded-lg bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20">
+          <div className="flex items-center gap-3 px-4 py-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
             <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0" />
-            <p className="text-sm text-amber-700 dark:text-amber-400">
+            <p className="text-sm text-amber-400">
               Changing permissions may lock users out of features they currently have access to. Please review carefully.
             </p>
           </div>

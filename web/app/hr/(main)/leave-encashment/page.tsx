@@ -1,10 +1,13 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { AnimatePresence, motion } from 'framer-motion';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { StaggerContainer, FadeIn } from '@/components/motion';
+import { PageHeader } from '@/components/page-header';
+import { GlassPanel } from '@/components/glass-panel';
+import { TabButton } from '@/components/tab-button';
 import { ensureMe } from '@/lib/client-auth';
 import {
   Banknote,
@@ -54,31 +57,6 @@ const TAB_FILTERS = [
   { value: 'rejected', label: 'Rejected' },
 ] as const;
 
-// ─── Animation Variants ─────────────────────────────────────────────────────
-
-const containerVariants = {
-  hidden: { opacity: 0 },
-  visible: { opacity: 1, transition: { staggerChildren: 0.08 } },
-} as const;
-
-const itemVariants = {
-  hidden: { opacity: 0, y: 20 },
-  visible: { opacity: 1, y: 0, transition: { type: 'spring' as const, stiffness: 260, damping: 20 } },
-} as const;
-
-const fadeInUp = {
-  initial: { opacity: 0, y: 10 },
-  animate: { opacity: 1, y: 0 },
-  exit: { opacity: 0, y: -10 },
-  transition: { type: 'spring' as const, stiffness: 300, damping: 24 },
-};
-
-const messageVariants = {
-  initial: { opacity: 0, y: -10 },
-  animate: { opacity: 1, y: 0 },
-  exit: { opacity: 0, y: -10 },
-};
-
 // ─── Loading Skeleton ───────────────────────────────────────────────────────
 
 function TableSkeleton() {
@@ -86,16 +64,16 @@ function TableSkeleton() {
     <div className="space-y-3 py-4">
       {Array.from({ length: 5 }).map((_, i) => (
         <div key={i} className="flex items-center gap-4 animate-pulse">
-          <div className="w-8 h-8 rounded-full bg-muted" />
+          <div className="w-8 h-8 rounded-full bg-white/10" />
           <div className="flex-1 space-y-2">
-            <div className="h-4 w-32 bg-muted rounded" />
-            <div className="h-3 w-20 bg-muted rounded" />
+            <div className="h-4 w-32 bg-white/10 rounded" />
+            <div className="h-3 w-20 bg-white/10 rounded" />
           </div>
-          <div className="h-4 w-16 bg-muted rounded" />
-          <div className="h-4 w-10 bg-muted rounded" />
-          <div className="h-6 w-16 bg-muted rounded-full" />
-          <div className="h-4 w-20 bg-muted rounded" />
-          <div className="h-8 w-36 bg-muted rounded" />
+          <div className="h-4 w-16 bg-white/10 rounded" />
+          <div className="h-4 w-10 bg-white/10 rounded" />
+          <div className="h-6 w-16 bg-white/10 rounded-full" />
+          <div className="h-4 w-20 bg-white/10 rounded" />
+          <div className="h-8 w-36 bg-white/10 rounded" />
         </div>
       ))}
     </div>
@@ -211,51 +189,43 @@ export default function HRLeaveEncashmentPage() {
   // ─── Render ───────────────────────────────────────────────────────────────
 
   return (
-    <motion.div className="space-y-6" variants={containerVariants} initial="hidden" animate="visible">
+    <StaggerContainer className="space-y-6">
       {/* Header */}
-      <motion.div className="flex items-center justify-between" variants={itemVariants}>
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-emerald-50 dark:bg-emerald-500/10 flex items-center justify-center">
-            <Banknote className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold text-foreground">Leave Encashment</h1>
-            <p className="text-muted-foreground mt-0.5 text-sm">
-              {total > 0 ? `${total} requests` : 'Manage leave encashment requests'}
-            </p>
-          </div>
-        </div>
-      </motion.div>
+      <PageHeader
+        title="Leave Encashment"
+        description={total > 0 ? `${total} requests` : 'Manage leave encashment requests'}
+        icon={<Banknote className="w-6 h-6 text-primary" />}
+      />
 
       {/* Tab Filters */}
-      <motion.div className="flex gap-2 flex-wrap" variants={itemVariants}>
-        {TAB_FILTERS.map((f) => (
-          <button
-            key={f.value}
-            onClick={() => {
-              setStatusFilter(f.value);
-              setPage(1);
-            }}
-            className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
-              statusFilter === f.value
-                ? 'bg-primary text-primary-foreground'
-                : 'bg-muted text-muted-foreground hover:bg-muted/50'
-            }`}
-          >
-            {f.label}
-          </button>
-        ))}
-      </motion.div>
+      <FadeIn>
+        <div className="flex gap-2 flex-wrap">
+          {TAB_FILTERS.map((f) => (
+            <TabButton
+              key={f.value}
+              active={statusFilter === f.value}
+              onClick={() => {
+                setStatusFilter(f.value);
+                setPage(1);
+              }}
+            >
+              {f.label}
+            </TabButton>
+          ))}
+        </div>
+      </FadeIn>
 
       {/* Action Message */}
       <AnimatePresence>
         {actionMessage && (
           <motion.div
-            {...messageVariants}
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
             className={`rounded-lg px-4 py-3 text-sm flex items-center gap-2 ${
               actionMessage.type === 'success'
-                ? 'bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-400'
-                : 'bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400'
+                ? 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-400'
+                : 'bg-red-500/10 border border-red-500/20 text-red-400'
             }`}
           >
             {actionMessage.type === 'success' ? (
@@ -268,195 +238,197 @@ export default function HRLeaveEncashmentPage() {
         )}
       </AnimatePresence>
 
-      {/* Main Content Card */}
-      <motion.div variants={itemVariants}>
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle>
-              {statusFilter
-                ? statusFilter.charAt(0).toUpperCase() + statusFilter.slice(1) + ' '
-                : 'All '}
-              Requests
-            </CardTitle>
-            {statusFilter === 'pending' && total > 0 && (
-              <Badge variant="warning">{total} pending</Badge>
-            )}
-          </div>
-        </CardHeader>
-        <CardContent>
-          {/* Loading Skeleton */}
-          {loading && <TableSkeleton />}
+      {/* Main Content */}
+      <FadeIn>
+        <GlassPanel>
+          <div className="p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-white">
+                {statusFilter
+                  ? statusFilter.charAt(0).toUpperCase() + statusFilter.slice(1) + ' '
+                  : 'All '}
+                Requests
+              </h2>
+              {statusFilter === 'pending' && total > 0 && (
+                <Badge variant="warning">{total} pending</Badge>
+              )}
+            </div>
 
-          {/* Error State */}
-          {error && !loading && (
-            <div className="py-12 text-center space-y-4">
-              <div className="w-10 h-10 rounded-xl bg-red-50 dark:bg-red-500/10 flex items-center justify-center mx-auto">
-                <AlertCircle className="w-5 h-5 text-red-500 dark:text-red-400" />
+            {/* Loading Skeleton */}
+            {loading && <TableSkeleton />}
+
+            {/* Error State */}
+            {error && !loading && (
+              <div className="py-12 text-center space-y-4">
+                <div className="w-10 h-10 rounded-xl bg-red-500/10 flex items-center justify-center mx-auto">
+                  <AlertCircle className="w-5 h-5 text-red-400" />
+                </div>
+                <div>
+                  <p className="text-sm text-red-400">{error}</p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="mt-3"
+                    onClick={() => loadEncashments(page, statusFilter)}
+                  >
+                    <RefreshCw className="w-3.5 h-3.5" />
+                    Retry
+                  </Button>
+                </div>
               </div>
-              <div>
-                <p className="text-sm text-red-700 dark:text-red-400">{error}</p>
+            )}
+
+            {/* Empty State */}
+            {!loading && !error && encashments.length === 0 && (
+              <div className="py-12 text-center">
+                <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center mx-auto">
+                  <Inbox className="w-5 h-5 text-white/40" />
+                </div>
+                <p className="text-white/60 mt-3 text-sm">
+                  No encashment requests found.
+                </p>
+              </div>
+            )}
+
+            {/* Table */}
+            {!loading && !error && encashments.length > 0 && (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-white/10">
+                      <th className="text-left py-3 pr-4 text-white/60 font-medium">
+                        Employee
+                      </th>
+                      <th className="text-left py-3 px-2 text-white/60 font-medium">
+                        Leave Type
+                      </th>
+                      <th className="text-left py-3 px-2 text-white/60 font-medium">
+                        Days
+                      </th>
+                      <th className="text-left py-3 px-2 text-white/60 font-medium">
+                        Amount
+                      </th>
+                      <th className="text-left py-3 px-2 text-white/60 font-medium">
+                        Status
+                      </th>
+                      <th className="text-left py-3 px-2 text-white/60 font-medium">
+                        Date
+                      </th>
+                      <th className="text-left py-3 pl-2 text-white/60 font-medium">
+                        Actions
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <AnimatePresence mode="popLayout">
+                      {encashments.map((req) => (
+                        <motion.tr
+                          key={req.id}
+                          layout
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -10 }}
+                          transition={{ type: 'spring' as const, stiffness: 300, damping: 24 }}
+                          className="border-b border-white/10 hover:bg-white/5 transition-colors"
+                        >
+                          <td className="py-3 pr-4">
+                            <div className="flex items-center gap-2">
+                              <div className="w-7 h-7 bg-primary/10 rounded-full flex items-center justify-center text-xs font-bold text-primary shrink-0">
+                                {req.employee.first_name[0]}
+                                {req.employee.last_name[0]}
+                              </div>
+                              <div>
+                                <p className="font-medium text-white">
+                                  {req.employee.first_name} {req.employee.last_name}
+                                </p>
+                                <p className="text-xs text-white/60">
+                                  {req.employee.department ?? '\u2014'}
+                                </p>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="py-3 px-2 font-medium text-white">
+                            {req.leave_type}
+                          </td>
+                          <td className="py-3 px-2 text-white">{req.days}</td>
+                          <td className="py-3 px-2 text-white/60">
+                            {formatAmount(req.amount)}
+                          </td>
+                          <td className="py-3 px-2">
+                            <Badge variant={STATUS_BADGE[req.status] ?? 'default'}>
+                              {req.status}
+                            </Badge>
+                          </td>
+                          <td className="py-3 px-2 text-white/60">
+                            {formatDate(req.created_at)}
+                          </td>
+                          <td className="py-3 pl-2">
+                            {req.status === 'pending' ? (
+                              <div className="flex gap-2">
+                                <Button
+                                  variant="success"
+                                  size="sm"
+                                  loading={actionLoading === req.id + 'approve'}
+                                  disabled={!!actionLoading}
+                                  onClick={() => handleAction(req.id, 'approve')}
+                                >
+                                  <Check className="w-3.5 h-3.5" />
+                                  Approve
+                                </Button>
+                                <Button
+                                  variant="danger"
+                                  size="sm"
+                                  loading={actionLoading === req.id + 'reject'}
+                                  disabled={!!actionLoading}
+                                  onClick={() => handleAction(req.id, 'reject')}
+                                >
+                                  <X className="w-3.5 h-3.5" />
+                                  Reject
+                                </Button>
+                              </div>
+                            ) : (
+                              <span className="text-xs text-white/60">
+                                {req.approver
+                                  ? `by ${req.approver.first_name} ${req.approver.last_name}`
+                                  : '\u2014'}
+                              </span>
+                            )}
+                          </td>
+                        </motion.tr>
+                      ))}
+                    </AnimatePresence>
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between mt-6 pt-4 border-t border-white/10">
                 <Button
                   variant="outline"
                   size="sm"
-                  className="mt-3"
-                  onClick={() => loadEncashments(page, statusFilter)}
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  disabled={page <= 1}
                 >
-                  <RefreshCw className="w-3.5 h-3.5" />
-                  Retry
+                  Previous
+                </Button>
+                <span className="text-sm text-white/60">
+                  Page {page} of {totalPages}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={page >= totalPages}
+                >
+                  Next
                 </Button>
               </div>
-            </div>
-          )}
-
-          {/* Empty State */}
-          {!loading && !error && encashments.length === 0 && (
-            <div className="py-12 text-center">
-              <div className="w-10 h-10 rounded-xl bg-slate-50 dark:bg-slate-500/10 flex items-center justify-center mx-auto">
-                <Inbox className="w-5 h-5 text-slate-400" />
-              </div>
-              <p className="text-muted-foreground mt-3 text-sm">
-                No encashment requests found.
-              </p>
-            </div>
-          )}
-
-          {/* Table */}
-          {!loading && !error && encashments.length > 0 && (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-border">
-                    <th className="text-left py-3 pr-4 text-muted-foreground font-medium">
-                      Employee
-                    </th>
-                    <th className="text-left py-3 px-2 text-muted-foreground font-medium">
-                      Leave Type
-                    </th>
-                    <th className="text-left py-3 px-2 text-muted-foreground font-medium">
-                      Days
-                    </th>
-                    <th className="text-left py-3 px-2 text-muted-foreground font-medium">
-                      Amount
-                    </th>
-                    <th className="text-left py-3 px-2 text-muted-foreground font-medium">
-                      Status
-                    </th>
-                    <th className="text-left py-3 px-2 text-muted-foreground font-medium">
-                      Date
-                    </th>
-                    <th className="text-left py-3 pl-2 text-muted-foreground font-medium">
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <AnimatePresence mode="popLayout">
-                    {encashments.map((req) => (
-                      <motion.tr
-                        key={req.id}
-                        layout
-                        {...fadeInUp}
-                        className="border-b border-border hover:bg-muted/50 transition-colors"
-                      >
-                        <td className="py-3 pr-4">
-                          <div className="flex items-center gap-2">
-                            <div className="w-7 h-7 bg-primary/10 rounded-full flex items-center justify-center text-xs font-bold text-primary shrink-0">
-                              {req.employee.first_name[0]}
-                              {req.employee.last_name[0]}
-                            </div>
-                            <div>
-                              <p className="font-medium text-foreground">
-                                {req.employee.first_name} {req.employee.last_name}
-                              </p>
-                              <p className="text-xs text-muted-foreground">
-                                {req.employee.department ?? '\u2014'}
-                              </p>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="py-3 px-2 font-medium text-foreground">
-                          {req.leave_type}
-                        </td>
-                        <td className="py-3 px-2 text-foreground">{req.days}</td>
-                        <td className="py-3 px-2 text-muted-foreground">
-                          {formatAmount(req.amount)}
-                        </td>
-                        <td className="py-3 px-2">
-                          <Badge variant={STATUS_BADGE[req.status] ?? 'default'}>
-                            {req.status}
-                          </Badge>
-                        </td>
-                        <td className="py-3 px-2 text-muted-foreground">
-                          {formatDate(req.created_at)}
-                        </td>
-                        <td className="py-3 pl-2">
-                          {req.status === 'pending' ? (
-                            <div className="flex gap-2">
-                              <Button
-                                variant="success"
-                                size="sm"
-                                loading={actionLoading === req.id + 'approve'}
-                                disabled={!!actionLoading}
-                                onClick={() => handleAction(req.id, 'approve')}
-                              >
-                                <Check className="w-3.5 h-3.5" />
-                                Approve
-                              </Button>
-                              <Button
-                                variant="danger"
-                                size="sm"
-                                loading={actionLoading === req.id + 'reject'}
-                                disabled={!!actionLoading}
-                                onClick={() => handleAction(req.id, 'reject')}
-                              >
-                                <X className="w-3.5 h-3.5" />
-                                Reject
-                              </Button>
-                            </div>
-                          ) : (
-                            <span className="text-xs text-muted-foreground">
-                              {req.approver
-                                ? `by ${req.approver.first_name} ${req.approver.last_name}`
-                                : '\u2014'}
-                            </span>
-                          )}
-                        </td>
-                      </motion.tr>
-                    ))}
-                  </AnimatePresence>
-                </tbody>
-              </table>
-            </div>
-          )}
-
-          {/* Pagination */}
-          {totalPages > 1 && (
-            <div className="flex items-center justify-between mt-6 pt-4 border-t border-border">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-                disabled={page <= 1}
-              >
-                Previous
-              </Button>
-              <span className="text-sm text-muted-foreground">
-                Page {page} of {totalPages}
-              </span>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                disabled={page >= totalPages}
-              >
-                Next
-              </Button>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-      </motion.div>
-    </motion.div>
+            )}
+          </div>
+        </GlassPanel>
+      </FadeIn>
+    </StaggerContainer>
   );
 }

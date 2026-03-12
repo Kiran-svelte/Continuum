@@ -45,12 +45,9 @@ export async function POST(request: NextRequest) {
 
     // Clear all auth-related cookies
     const cookiesToClear = [
+      'continuum-session',
       'continuum-role',
       'continuum-roles',
-      'firebase-auth-token',
-      'kc-access-token',
-      'kc-refresh-token',
-      'kc-token-exp',
     ];
 
     const response = NextResponse.json({ success: true });

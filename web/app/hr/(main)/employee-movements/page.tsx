@@ -2,7 +2,9 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { StaggerContainer, FadeIn, TiltCard } from '@/components/motion';
+import { GlassPanel } from '@/components/glass-panel';
+import { PageHeader } from '@/components/page-header';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Modal, ModalFooter } from '@/components/ui/modal';
@@ -112,26 +114,6 @@ const MOVEMENT_TYPE_OPTIONS = [
   { value: 'role_change', label: 'Role Change' },
   { value: 'department_change', label: 'Department Change' },
 ];
-
-// ─── Animation Variants ─────────────────────────────────────────────────────
-
-const containerVariants = {
-  hidden: { opacity: 0 },
-  visible: {
-    opacity: 1,
-    transition: { staggerChildren: 0.06 },
-  },
-};
-
-const itemVariants = {
-  hidden: { opacity: 0, y: 20, scale: 0.95 },
-  visible: {
-    opacity: 1,
-    y: 0,
-    scale: 1,
-    transition: { type: 'spring' as const, damping: 25, stiffness: 300 },
-  },
-};
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -439,7 +421,7 @@ export default function EmployeeMovementsPage() {
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="rounded-xl border border-border bg-card p-6 space-y-3">
+            <div key={i} className="rounded-xl border border-white/10 bg-white/5 p-6 space-y-3">
               <div className="flex items-center justify-between">
                 <Skeleton className="h-4 w-20" />
                 <Skeleton variant="circular" className="w-8 h-8" />
@@ -449,14 +431,14 @@ export default function EmployeeMovementsPage() {
             </div>
           ))}
         </div>
-        <div className="rounded-xl border border-border bg-card">
-          <div className="flex gap-4 p-4 border-b border-border">
+        <div className="rounded-xl border border-white/10 bg-white/5">
+          <div className="flex gap-4 p-4 border-b border-white/10">
             {Array.from({ length: 6 }).map((_, i) => (
               <Skeleton key={i} className="h-4 flex-1" />
             ))}
           </div>
           {Array.from({ length: 5 }).map((_, i) => (
-            <div key={i} className="flex gap-4 p-4 border-b border-border last:border-0">
+            <div key={i} className="flex gap-4 p-4 border-b border-white/10 last:border-0">
               {Array.from({ length: 6 }).map((_, j) => (
                 <Skeleton key={j} className="h-4 flex-1" />
               ))}
@@ -474,115 +456,111 @@ export default function EmployeeMovementsPage() {
       label: 'Total Movements',
       value: summary.total,
       icon: ArrowRightLeft,
-      color: 'text-blue-600 dark:text-blue-400',
-      bg: 'bg-blue-50 dark:bg-blue-500/10',
+      color: 'text-blue-400',
+      bg: 'bg-blue-500/10',
     },
     {
       label: 'Pending',
       value: summary.pending,
       icon: Clock,
-      color: 'text-amber-600 dark:text-amber-400',
-      bg: 'bg-amber-50 dark:bg-amber-500/10',
+      color: 'text-amber-400',
+      bg: 'bg-amber-500/10',
     },
     {
       label: 'Approved',
       value: summary.approvedThisMonth,
       icon: CheckCircle,
-      color: 'text-emerald-600 dark:text-emerald-400',
-      bg: 'bg-emerald-50 dark:bg-emerald-500/10',
+      color: 'text-emerald-400',
+      bg: 'bg-emerald-500/10',
     },
     {
       label: 'Rejected',
       value: summary.rejected,
       icon: X,
-      color: 'text-red-600 dark:text-red-400',
-      bg: 'bg-red-50 dark:bg-red-500/10',
+      color: 'text-red-400',
+      bg: 'bg-red-500/10',
     },
   ];
 
   return (
-    <motion.div
-      className="space-y-6"
-      initial="hidden"
-      animate="visible"
-      variants={containerVariants}
-    >
+    <StaggerContainer className="space-y-6">
       {/* Header */}
-      <motion.div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4" variants={itemVariants}>
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Employee Movements</h1>
-          <p className="text-muted-foreground mt-1">
-            Manage transfers, promotions, role changes, and department changes
-          </p>
-        </div>
-        <Button onClick={openCreateModal}>
-          <Plus className="w-4 h-4" />
-          New Movement
-        </Button>
-      </motion.div>
+      <PageHeader
+        title="Employee Movements"
+        description="Manage transfers, promotions, role changes, and department changes"
+        icon={<ArrowRightLeft className="w-6 h-6 text-primary" />}
+        action={
+          <Button onClick={openCreateModal}>
+            <Plus className="w-4 h-4" />
+            New Movement
+          </Button>
+        }
+      />
 
       {/* Summary Cards */}
-      <motion.div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6" variants={containerVariants}>
-        {SUMMARY_CARDS.map((card) => {
-          const Icon = card.icon;
-          return (
-            <motion.div key={card.label} variants={itemVariants}>
-              <Card>
-                <CardContent className="pt-6 pb-6">
+      <FadeIn>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {SUMMARY_CARDS.map((card) => {
+            const Icon = card.icon;
+            return (
+              <GlassPanel key={card.label} interactive>
+                <div className="p-6">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm text-muted-foreground">{card.label}</p>
-                      <p className="text-2xl font-bold text-foreground mt-1">{card.value}</p>
+                      <p className="text-sm text-white/60">{card.label}</p>
+                      <p className="text-2xl font-bold text-white mt-1">{card.value}</p>
                     </div>
                     <div className={`w-10 h-10 rounded-xl ${card.bg} flex items-center justify-center`}>
                       <Icon className={`w-5 h-5 ${card.color}`} />
                     </div>
                   </div>
-                </CardContent>
-              </Card>
-            </motion.div>
-          );
-        })}
-      </motion.div>
+                </div>
+              </GlassPanel>
+            );
+          })}
+        </div>
+      </FadeIn>
 
       {/* Filters */}
-      <motion.div className="flex flex-wrap items-center gap-3" variants={itemVariants}>
-        {/* Status filter tabs */}
-        <div className="flex gap-2 flex-wrap">
-          {[
-            { value: '', label: 'All' },
-            { value: 'pending', label: 'Pending' },
-            { value: 'approved', label: 'Approved' },
-            { value: 'rejected', label: 'Rejected' },
-          ].map((f) => (
-            <button
-              key={f.value}
-              onClick={() => { setStatusFilter(f.value); setPage(1); }}
-              className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
-                statusFilter === f.value
-                  ? 'bg-primary text-primary-foreground'
-                  : 'bg-muted text-muted-foreground hover:bg-muted/50'
-              }`}
-            >
-              {f.label}
-            </button>
-          ))}
+      <FadeIn>
+        <div className="flex flex-wrap items-center gap-3">
+          {/* Status filter tabs */}
+          <div className="flex gap-2 flex-wrap">
+            {[
+              { value: '', label: 'All' },
+              { value: 'pending', label: 'Pending' },
+              { value: 'approved', label: 'Approved' },
+              { value: 'rejected', label: 'Rejected' },
+            ].map((f) => (
+              <button
+                key={f.value}
+                onClick={() => { setStatusFilter(f.value); setPage(1); }}
+                className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
+                  statusFilter === f.value
+                    ? 'bg-primary text-primary-foreground'
+                    : 'bg-white/5 text-white/60 hover:bg-white/10'
+                }`}
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
+
+          <div className="w-px h-6 bg-white/10 hidden sm:block" />
+
+          {/* Type filter */}
+          <select
+            value={typeFilter}
+            onChange={(e) => { setTypeFilter(e.target.value); setPage(1); }}
+            className="px-3 py-1.5 rounded-lg text-xs font-medium border border-white/10 bg-white/5 text-white focus:outline-none focus:ring-2 focus:ring-primary/50 transition-colors"
+          >
+            <option value="">All Types</option>
+            {MOVEMENT_TYPE_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>{opt.label}</option>
+            ))}
+          </select>
         </div>
-
-        <div className="w-px h-6 bg-border hidden sm:block" />
-
-        {/* Type filter */}
-        <select
-          value={typeFilter}
-          onChange={(e) => { setTypeFilter(e.target.value); setPage(1); }}
-          className="px-3 py-1.5 rounded-lg text-xs font-medium border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-colors"
-        >
-          <option value="">All Types</option>
-          {MOVEMENT_TYPE_OPTIONS.map((opt) => (
-            <option key={opt.value} value={opt.value}>{opt.label}</option>
-          ))}
-        </select>
-      </motion.div>
+      </FadeIn>
 
       {/* Status Message */}
       <AnimatePresence>
@@ -608,22 +586,22 @@ export default function EmployeeMovementsPage() {
       </AnimatePresence>
 
       {/* Table / Content */}
-      <motion.div variants={itemVariants}>
-        <Card>
-          <CardHeader>
+      <FadeIn>
+        <GlassPanel>
+          <div className="p-6 border-b border-white/10">
             <div className="flex items-center justify-between">
-              <CardTitle>
+              <h3 className="text-lg font-semibold text-white">
                 {statusFilter
                   ? statusFilter.charAt(0).toUpperCase() + statusFilter.slice(1) + ' '
                   : 'All '}
                 Movements
-              </CardTitle>
+              </h3>
               {total > 0 && (
-                <span className="text-sm text-muted-foreground">{total} total</span>
+                <span className="text-sm text-white/60">{total} total</span>
               )}
             </div>
-          </CardHeader>
-          <CardContent>
+          </div>
+          <div className="p-6">
             {/* Loading state */}
             {loading && (
               <div className="space-y-4">
@@ -649,10 +627,10 @@ export default function EmployeeMovementsPage() {
             {/* Empty state */}
             {!loading && !error && movements.length === 0 && (
               <div className="py-12 text-center">
-                <div className="w-10 h-10 rounded-xl bg-slate-50 dark:bg-slate-500/10 flex items-center justify-center mx-auto">
-                  <Inbox className="w-5 h-5 text-slate-400" />
+                <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center mx-auto">
+                  <Inbox className="w-5 h-5 text-white/40" />
                 </div>
-                <p className="text-muted-foreground mt-3 text-sm">No movements found.</p>
+                <p className="text-white/60 mt-3 text-sm">No movements found.</p>
                 <Button variant="outline" size="sm" className="mt-3" onClick={openCreateModal}>
                   <Plus className="w-3.5 h-3.5" />
                   Create First Movement
@@ -667,13 +645,13 @@ export default function EmployeeMovementsPage() {
                 <div className="hidden md:block overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead>
-                      <tr className="border-b border-border">
-                        <th className="text-left py-3 pr-4 text-muted-foreground font-medium">Employee</th>
-                        <th className="text-left py-3 px-2 text-muted-foreground font-medium">Type</th>
-                        <th className="text-left py-3 px-2 text-muted-foreground font-medium">From / To</th>
-                        <th className="text-left py-3 px-2 text-muted-foreground font-medium">Effective Date</th>
-                        <th className="text-left py-3 px-2 text-muted-foreground font-medium">Status</th>
-                        <th className="text-left py-3 pl-2 text-muted-foreground font-medium">Actions</th>
+                      <tr className="border-b border-white/10">
+                        <th className="text-left py-3 pr-4 text-white/60 font-medium">Employee</th>
+                        <th className="text-left py-3 px-2 text-white/60 font-medium">Type</th>
+                        <th className="text-left py-3 px-2 text-white/60 font-medium">From / To</th>
+                        <th className="text-left py-3 px-2 text-white/60 font-medium">Effective Date</th>
+                        <th className="text-left py-3 px-2 text-white/60 font-medium">Status</th>
+                        <th className="text-left py-3 pl-2 text-white/60 font-medium">Actions</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -682,7 +660,7 @@ export default function EmployeeMovementsPage() {
                         return (
                           <tr
                             key={mov.id}
-                            className="border-b border-border hover:bg-muted/50 transition-colors"
+                            className="border-b border-white/10 hover:bg-white/5 transition-colors"
                           >
                             <td className="py-3 pr-4">
                               <div className="flex items-center gap-2">
@@ -690,10 +668,10 @@ export default function EmployeeMovementsPage() {
                                   {mov.employee.first_name[0]}{mov.employee.last_name[0]}
                                 </div>
                                 <div>
-                                  <p className="font-medium text-foreground">
+                                  <p className="font-medium text-white">
                                     {mov.employee.first_name} {mov.employee.last_name}
                                   </p>
-                                  <p className="text-xs text-muted-foreground">{mov.employee.department ?? '\u2014'}</p>
+                                  <p className="text-xs text-white/60">{mov.employee.department ?? '\u2014'}</p>
                                 </div>
                               </div>
                             </td>
@@ -704,13 +682,13 @@ export default function EmployeeMovementsPage() {
                               </Badge>
                             </td>
                             <td className="py-3 px-2">
-                              <div className="flex items-center gap-1.5 text-foreground">
-                                <span className="text-muted-foreground">{mov.from_value || '\u2014'}</span>
-                                <ArrowRight className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                              <div className="flex items-center gap-1.5 text-white">
+                                <span className="text-white/60">{mov.from_value || '\u2014'}</span>
+                                <ArrowRight className="w-3.5 h-3.5 text-white/60 shrink-0" />
                                 <span className="font-medium">{mov.to_value}</span>
                               </div>
                             </td>
-                            <td className="py-3 px-2 text-muted-foreground">
+                            <td className="py-3 px-2 text-white/60">
                               {formatDate(mov.effective_date)}
                             </td>
                             <td className="py-3 px-2">
@@ -743,7 +721,7 @@ export default function EmployeeMovementsPage() {
                                   </Button>
                                 </div>
                               ) : (
-                                <span className="text-xs text-muted-foreground">
+                                <span className="text-xs text-white/60">
                                   {mov.approver
                                     ? `by ${mov.approver.first_name} ${mov.approver.last_name}`
                                     : '\u2014'}
@@ -762,18 +740,18 @@ export default function EmployeeMovementsPage() {
                   {movements.map((mov) => {
                     const TypeIcon = TYPE_ICONS[mov.type] ?? ArrowRightLeft;
                     return (
-                      <Card key={mov.id} variant="bordered">
-                        <CardContent className="pt-4 pb-4">
+                      <GlassPanel key={mov.id}>
+                        <div className="p-4">
                           <div className="flex items-start justify-between mb-3">
                             <div className="flex items-center gap-2">
                               <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center text-xs font-bold text-primary shrink-0">
                                 {mov.employee.first_name[0]}{mov.employee.last_name[0]}
                               </div>
                               <div>
-                                <p className="font-medium text-foreground text-sm">
+                                <p className="font-medium text-white text-sm">
                                   {mov.employee.first_name} {mov.employee.last_name}
                                 </p>
-                                <p className="text-xs text-muted-foreground">{mov.employee.department ?? '\u2014'}</p>
+                                <p className="text-xs text-white/60">{mov.employee.department ?? '\u2014'}</p>
                               </div>
                             </div>
                             <Badge variant={STATUS_BADGE[mov.status] ?? 'default'} size="sm">
@@ -789,17 +767,17 @@ export default function EmployeeMovementsPage() {
                               </Badge>
                             </div>
                             <div className="flex items-center gap-1.5 text-sm">
-                              <span className="text-muted-foreground">{mov.from_value || '\u2014'}</span>
-                              <ArrowRight className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-                              <span className="font-medium text-foreground">{mov.to_value}</span>
+                              <span className="text-white/60">{mov.from_value || '\u2014'}</span>
+                              <ArrowRight className="w-3.5 h-3.5 text-white/60 shrink-0" />
+                              <span className="font-medium text-white">{mov.to_value}</span>
                             </div>
-                            <p className="text-xs text-muted-foreground">
+                            <p className="text-xs text-white/60">
                               Effective: {formatDate(mov.effective_date)}
                             </p>
                           </div>
 
                           {mov.status === 'pending' && (
-                            <div className="flex gap-2 pt-2 border-t border-border">
+                            <div className="flex gap-2 pt-2 border-t border-white/10">
                               <Button
                                 variant="success"
                                 size="sm"
@@ -824,8 +802,8 @@ export default function EmployeeMovementsPage() {
                               </Button>
                             </div>
                           )}
-                        </CardContent>
-                      </Card>
+                        </div>
+                      </GlassPanel>
                     );
                   })}
                 </div>
@@ -834,19 +812,19 @@ export default function EmployeeMovementsPage() {
 
             {/* Pagination */}
             {totalPages > 1 && (
-              <div className="flex items-center justify-between mt-6 pt-4 border-t border-border">
+              <div className="flex items-center justify-between mt-6 pt-4 border-t border-white/10">
                 <Button variant="outline" size="sm" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page <= 1}>
                   Previous
                 </Button>
-                <span className="text-sm text-muted-foreground">Page {page} of {totalPages}</span>
+                <span className="text-sm text-white/60">Page {page} of {totalPages}</span>
                 <Button variant="outline" size="sm" onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page >= totalPages}>
                   Next
                 </Button>
               </div>
             )}
-          </CardContent>
-        </Card>
-      </motion.div>
+          </div>
+        </GlassPanel>
+      </FadeIn>
 
       {/* Create Movement Modal */}
       <Modal
@@ -859,9 +837,9 @@ export default function EmployeeMovementsPage() {
         <div className="space-y-4">
           {/* Employee Search */}
           <div className="relative">
-            <label className="block text-sm font-medium text-foreground mb-1.5">Employee</label>
+            <label className="block text-sm font-medium text-white mb-1.5">Employee</label>
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/60" />
               <input
                 type="text"
                 value={employeeSearch}
@@ -873,11 +851,11 @@ export default function EmployeeMovementsPage() {
                 }}
                 onFocus={() => { if (employeeOptions.length > 0) setShowEmployeeDropdown(true); }}
                 placeholder="Search by name or email..."
-                className="w-full pl-9 pr-3 py-2 text-sm rounded-lg border border-border bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors"
+                className="w-full pl-9 pr-3 py-2 text-sm rounded-lg border border-white/10 bg-white/5 text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors"
               />
               {employeeSearchLoading && (
                 <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                  <svg className="animate-spin h-4 w-4 text-muted-foreground" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <svg className="animate-spin h-4 w-4 text-white/60" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                   </svg>
@@ -886,22 +864,22 @@ export default function EmployeeMovementsPage() {
             </div>
             {/* Dropdown */}
             {showEmployeeDropdown && employeeOptions.length > 0 && (
-              <div className="absolute z-20 mt-1 w-full rounded-lg border border-border bg-card shadow-lg max-h-48 overflow-y-auto">
+              <div className="absolute z-20 mt-1 w-full rounded-lg border border-white/10 bg-white/5/90 dark:bg-black/80 backdrop-blur-xl shadow-lg max-h-48 overflow-y-auto">
                 {employeeOptions.map((emp) => (
                   <button
                     key={emp.id}
                     type="button"
                     onClick={() => selectEmployee(emp)}
-                    className="w-full text-left px-3 py-2 text-sm hover:bg-muted/50 transition-colors flex items-center gap-2"
+                    className="w-full text-left px-3 py-2 text-sm hover:bg-white/5 transition-colors flex items-center gap-2"
                   >
                     <div className="w-6 h-6 bg-primary/10 rounded-full flex items-center justify-center text-[10px] font-bold text-primary shrink-0">
                       {emp.first_name[0]}{emp.last_name[0]}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="font-medium text-foreground truncate">
+                      <p className="font-medium text-white truncate">
                         {emp.first_name} {emp.last_name}
                       </p>
-                      <p className="text-xs text-muted-foreground truncate">
+                      <p className="text-xs text-white/60 truncate">
                         {emp.department ?? 'No dept'} &middot; {emp.designation ?? emp.primary_role}
                       </p>
                     </div>
@@ -918,11 +896,11 @@ export default function EmployeeMovementsPage() {
 
           {/* Movement Type */}
           <div>
-            <label className="block text-sm font-medium text-foreground mb-1.5">Type</label>
+            <label className="block text-sm font-medium text-white mb-1.5">Type</label>
             <select
               value={formData.type}
               onChange={(e) => setFormData((prev) => ({ ...prev, type: e.target.value as MovementFormData['type'] }))}
-              className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors"
+              className="w-full px-3 py-2 text-sm rounded-lg border border-white/10 bg-white/5 text-white focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors"
             >
               {MOVEMENT_TYPE_OPTIONS.map((opt) => (
                 <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -932,22 +910,22 @@ export default function EmployeeMovementsPage() {
 
           {/* From Value */}
           <div>
-            <label className="block text-sm font-medium text-foreground mb-1.5">
+            <label className="block text-sm font-medium text-white mb-1.5">
               From Value
-              <span className="text-muted-foreground font-normal ml-1">(auto-filled)</span>
+              <span className="text-white/60 font-normal ml-1">(auto-filled)</span>
             </label>
             <input
               type="text"
               value={formData.from_value}
               onChange={(e) => setFormData((prev) => ({ ...prev, from_value: e.target.value }))}
               placeholder={selectedEmployee ? 'Current value' : 'Select an employee first'}
-              className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-muted/50 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors"
+              className="w-full px-3 py-2 text-sm rounded-lg border border-white/10 bg-white/5 text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors"
             />
           </div>
 
           {/* To Value */}
           <div>
-            <label className="block text-sm font-medium text-foreground mb-1.5">To Value</label>
+            <label className="block text-sm font-medium text-white mb-1.5">To Value</label>
             <input
               type="text"
               value={formData.to_value}
@@ -961,18 +939,18 @@ export default function EmployeeMovementsPage() {
                   ? 'New designation / title'
                   : 'New location or unit'
               }
-              className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors"
+              className="w-full px-3 py-2 text-sm rounded-lg border border-white/10 bg-white/5 text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors"
             />
           </div>
 
           {/* Effective Date */}
           <div>
-            <label className="block text-sm font-medium text-foreground mb-1.5">Effective Date</label>
+            <label className="block text-sm font-medium text-white mb-1.5">Effective Date</label>
             <input
               type="date"
               value={formData.effective_date}
               onChange={(e) => setFormData((prev) => ({ ...prev, effective_date: e.target.value }))}
-              className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors"
+              className="w-full px-3 py-2 text-sm rounded-lg border border-white/10 bg-white/5 text-white focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors"
             />
           </div>
 
@@ -995,6 +973,6 @@ export default function EmployeeMovementsPage() {
           </Button>
         </ModalFooter>
       </Modal>
-    </motion.div>
+    </StaggerContainer>
   );
 }

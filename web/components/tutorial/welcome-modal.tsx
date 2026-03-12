@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { TiltCard } from '@/components/motion';
 import { useTutorial, TutorialConfig } from './tutorial-provider';
 import { X, Play, ArrowRight, Sparkles, CheckCircle } from 'lucide-react';
 
@@ -68,47 +69,51 @@ export function WelcomeModal({ tutorial, userName, roleName = 'Employee' }: Welc
             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
             className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none"
           >
-            <div className="w-full max-w-lg rounded-2xl bg-card shadow-2xl border border-border overflow-hidden pointer-events-auto">
+            <TiltCard rotationIntensity={8}>
+            <div className="w-full max-w-lg bg-black/50 backdrop-blur-2xl border border-white/10 shadow-[0_0_60px_rgba(var(--primary-rgb),0.2),0_25px_50px_rgba(0,0,0,0.5)] rounded-3xl overflow-hidden pointer-events-auto relative">
+              <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-primary via-accent to-primary" />
+              
               {/* Close button */}
               <button
                 onClick={handleMaybeLater}
-                className="absolute top-4 right-4 p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                className="absolute top-4 right-4 p-2 rounded-xl text-white/40 hover:text-white hover:bg-white/10 transition-all duration-200"
               >
                 <X className="w-5 h-5" />
               </button>
 
               {/* Header with animation */}
-              <div className="relative bg-gradient-to-br from-primary/10 via-accent/5 to-primary/10 px-8 pt-10 pb-6 overflow-hidden">
+              <div className="relative bg-black/30 backdrop-blur-md border-b border-white/5 px-8 pt-10 pb-6 overflow-hidden">
                 {/* Animated background elements */}
                 <div className="absolute inset-0 overflow-hidden">
-                  <div className="absolute top-4 left-8 w-20 h-20 bg-primary/10 rounded-full blur-2xl animate-blob" />
-                  <div className="absolute bottom-4 right-8 w-24 h-24 bg-accent/10 rounded-full blur-2xl animate-blob" style={{ animationDelay: '2s' }} />
+                  <div className="absolute top-4 left-8 w-20 h-20 bg-primary/20 rounded-full blur-2xl animate-blob" />
+                  <div className="absolute bottom-4 right-8 w-24 h-24 bg-accent/20 rounded-full blur-2xl animate-blob" style={{ animationDelay: '2s' }} />
                 </div>
 
                 {/* Icon */}
                 <div className="relative flex justify-center mb-4">
                   <div className="relative">
-                    <div className="w-20 h-20 bg-primary/10 rounded-2xl flex items-center justify-center">
-                      <Sparkles className="w-10 h-10 text-primary" />
+                    <div className="w-20 h-20 bg-black/40 backdrop-blur-md shadow-[0_0_30px_rgba(var(--primary-rgb),0.5)] border border-primary/30 rounded-2xl flex items-center justify-center">
+                      <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-white/20 to-transparent pointer-events-none" />
+                      <Sparkles className="w-10 h-10 text-primary drop-shadow-[0_0_15px_rgba(var(--primary-rgb),0.8)]" />
                     </div>
-                    <div className="absolute -inset-2 rounded-3xl bg-primary/5 animate-ping" />
+                    <div className="absolute -inset-2 rounded-3xl bg-primary/20 animate-ping" />
                   </div>
                 </div>
 
                 {/* Welcome text */}
                 <div className="relative text-center">
-                  <h2 className="text-2xl font-bold text-foreground mb-2">
+                  <h2 className="text-2xl font-bold text-white drop-shadow-md mb-2">
                     Welcome{userName ? `, ${userName}` : ''}!
                   </h2>
-                  <p className="text-muted-foreground">
-                    You&apos;re now part of the <span className="font-semibold text-primary">{roleName}</span> portal
+                  <p className="text-white/70">
+                    You&apos;re now part of the <span className="font-semibold text-primary drop-shadow-[0_0_8px_rgba(var(--primary-rgb),0.5)]">{roleName}</span> portal
                   </p>
                 </div>
               </div>
 
               {/* Content */}
-              <div className="px-8 py-6">
-                <p className="text-center text-muted-foreground mb-6">
+              <div className="px-8 py-6 bg-black/10">
+                <p className="text-center text-white/60 mb-6 font-medium">
                   Take a quick interactive tour to learn how to use all the features effectively.
                 </p>
 
@@ -125,9 +130,9 @@ export function WelcomeModal({ tutorial, userName, roleName = 'Employee' }: Welc
                       initial={{ opacity: 0, x: -20 }}
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: 0.1 * index }}
-                      className="flex items-center gap-3 text-sm text-muted-foreground"
+                      className="flex items-center gap-3 text-sm text-white/70 font-medium bg-black/20 p-3 rounded-xl border border-white/5"
                     >
-                      <CheckCircle className="w-4 h-4 text-green-500 shrink-0" />
+                      <CheckCircle className="w-5 h-5 text-green-400 drop-shadow-[0_0_8px_rgba(74,222,128,0.6)] shrink-0" />
                       <span>{feature}</span>
                     </motion.div>
                   ))}
@@ -137,25 +142,26 @@ export function WelcomeModal({ tutorial, userName, roleName = 'Employee' }: Welc
                 <div className="space-y-3">
                   <button
                     onClick={handleStartTutorial}
-                    className="w-full flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-primary text-primary-foreground font-semibold hover:bg-primary/90 transition-all shadow-lg shadow-primary/25 btn-press"
-                  >
+                    className="w-full relative flex items-center justify-center gap-3 px-6 py-4 rounded-xl bg-gradient-to-r from-primary to-blue-600 text-white font-bold text-lg hover:shadow-[0_0_30px_rgba(var(--primary-rgb),0.5)] transform hover:-translate-y-0.5 active:translate-y-0 transition-all dropdown-shadow overflow-hidden group"
+                  ><div className="absolute inset-0 bg-white/20 opacity-0 group-hover:opacity-100 transition-opacity" />
                     <Play className="w-5 h-5" />
                     Start Interactive Tour
                     <ArrowRight className="w-4 h-4" />
                   </button>
                   <button
                     onClick={handleSkip}
-                    className="w-full px-6 py-3 rounded-xl border border-border text-muted-foreground font-medium hover:bg-muted/50 transition-colors"
+                    className="w-full px-6 py-4 rounded-xl glass-panel border border-white/10 text-white/60 font-semibold hover:bg-white/10 hover:text-white transition-colors"
                   >
                     Skip for now
                   </button>
                 </div>
 
-                <p className="text-center text-xs text-muted-foreground mt-4">
+                <p className="text-center text-xs text-white/40 mt-4">
                   You can always restart the tutorial from Settings
                 </p>
               </div>
             </div>
+            </TiltCard>
           </motion.div>
         </>
       )}
@@ -187,7 +193,7 @@ export function FloatingTutorialButton({ tutorial }: FloatingTutorialButtonProps
         onClick={() => startTutorial(tutorial)}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
-        className="group relative flex items-center gap-2 px-4 py-3 bg-primary text-primary-foreground rounded-full shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/30 transition-all btn-press"
+        className="group relative flex items-center gap-2 px-4 py-3 bg-primary text-primary-foreground rounded-full shadow-[0_0_25px_rgba(var(--primary-rgb),0.4)] hover:shadow-[0_0_35px_rgba(var(--primary-rgb),0.6)] hover:scale-105 active:scale-95 transition-all duration-200"
       >
         <Play className="w-5 h-5" />
         <AnimatePresence>

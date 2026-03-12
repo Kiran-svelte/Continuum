@@ -1,8 +1,10 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { AnimatePresence, motion } from 'framer-motion';
+import { StaggerContainer, FadeIn, TiltCard } from '@/components/motion';
+import { PageHeader } from '@/components/page-header';
+import { GlassPanel } from '@/components/glass-panel';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Modal } from '@/components/ui/modal';
@@ -12,6 +14,17 @@ import {
   DollarSign, Users, TrendingUp, Search, Plus, Edit2, Eye, Loader2,
   AlertCircle, CheckCircle, Briefcase,
 } from 'lucide-react';
+
+/* ─── Animation Variants ────────────────────────────────────────────────── */
+
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: { opacity: 1, transition: { staggerChildren: 0.08 } },
+};
+const itemVariants = {
+  hidden: { opacity: 0, y: 20 },
+  visible: { opacity: 1, y: 0, transition: { type: 'spring' as const, stiffness: 100, damping: 12 } },
+};
 
 /* ─── Types ─────────────────────────────────────────────────────────────── */
 
@@ -43,18 +56,6 @@ interface Employee {
   department: string | null;
   designation: string | null;
 }
-
-/* ─── Animation ─────────────────────────────────────────────────────────── */
-
-const containerVariants = {
-  hidden: { opacity: 0 },
-  visible: { opacity: 1, transition: { staggerChildren: 0.08 } },
-} as const;
-
-const itemVariants = {
-  hidden: { opacity: 0, y: 20 },
-  visible: { opacity: 1, y: 0, transition: { type: 'spring' as const, stiffness: 260, damping: 20 } },
-} as const;
 
 /* ─── Helpers ───────────────────────────────────────────────────────────── */
 
@@ -225,29 +226,30 @@ export default function SalaryStructuresPage() {
     : employees;
 
   return (
-    <motion.div className="space-y-6" variants={containerVariants} initial="hidden" animate="visible">
+    <StaggerContainer className="space-y-6">
       {/* Header */}
-      <motion.div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4" variants={itemVariants}>
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Salary Structures</h1>
-          <p className="text-muted-foreground mt-1">Manage employee compensation and CTC breakdowns</p>
-        </div>
-        <div className="flex gap-2">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <input
-              type="text"
-              placeholder="Search employees..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="pl-9 pr-4 py-2 rounded-lg border border-border bg-background text-sm w-56 focus:outline-none focus:ring-2 focus:ring-primary/30"
-            />
+      <PageHeader
+        title="Salary Structures"
+        description="Manage employee compensation and CTC breakdowns"
+        icon={<DollarSign className="w-6 h-6 text-primary" />}
+        action={
+          <div className="flex gap-2">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/60" />
+              <input
+                type="text"
+                placeholder="Search employees..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="pl-9 pr-4 py-2 rounded-lg border border-white/10 bg-black text-sm w-56 focus:outline-none focus:ring-2 focus:ring-primary/30"
+              />
+            </div>
+            <Button variant="primary" onClick={openAdd} className="gap-1">
+              <Plus className="w-4 h-4" /> Add Structure
+            </Button>
           </div>
-          <Button variant="primary" onClick={openAdd} className="gap-1">
-            <Plus className="w-4 h-4" /> Add Structure
-          </Button>
-        </div>
-      </motion.div>
+        }
+      />
 
       {/* Summary cards */}
       <motion.div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4" variants={itemVariants}>
@@ -257,32 +259,32 @@ export default function SalaryStructuresPage() {
           { label: 'Highest CTC', value: fmt(maxCtc), icon: TrendingUp, color: 'amber' },
           { label: 'Total Payroll Cost', value: fmt(totalPayroll), icon: Briefcase, color: 'violet' },
         ].map((card) => (
-          <Card key={card.label}>
-            <CardContent className="pt-5 pb-5">
+          <GlassPanel key={card.label}>
+            <div className="pt-5 pb-5 px-5">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{card.label}</p>
+                  <p className="text-xs font-medium text-white/60 uppercase tracking-wide">{card.label}</p>
                   <p className="text-2xl font-bold mt-1">{card.value}</p>
                 </div>
                 <div className={`flex h-10 w-10 items-center justify-center rounded-xl bg-${card.color}-50 dark:bg-${card.color}-500/10`}>
                   <card.icon className={`h-5 w-5 text-${card.color}-500`} />
                 </div>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </GlassPanel>
         ))}
       </motion.div>
 
       {/* Table */}
       <motion.div variants={itemVariants}>
-        <Card>
-          <CardHeader>
+        <GlassPanel>
+          <div className="p-6 border-b border-white/10">
             <div className="flex items-center justify-between">
-              <CardTitle>All Salary Structures</CardTitle>
+              <h3 className="text-lg font-semibold text-white">All Salary Structures</h3>
               <Badge variant="default" size="sm">{structures.length} record{structures.length !== 1 ? 's' : ''}</Badge>
             </div>
-          </CardHeader>
-          <CardContent className="p-0">
+          </div>
+          <div className="p-0">
             {loading ? (
               <div className="p-6 space-y-3">
                 {[1, 2, 3, 4].map((i) => <Skeleton key={i} className="h-14 w-full" />)}
@@ -290,14 +292,14 @@ export default function SalaryStructuresPage() {
             ) : error ? (
               <div className="py-16 text-center">
                 <AlertCircle className="w-8 h-8 text-destructive mx-auto mb-3" />
-                <p className="text-sm text-muted-foreground">{error}</p>
+                <p className="text-sm text-white/60">{error}</p>
                 <Button variant="outline" size="sm" className="mt-3" onClick={fetchStructures}>Retry</Button>
               </div>
             ) : structures.length === 0 ? (
               <div className="py-16 text-center">
-                <DollarSign className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
+                <DollarSign className="w-10 h-10 text-white/60 mx-auto mb-3" />
                 <h3 className="text-lg font-semibold">No salary structures</h3>
-                <p className="text-sm text-muted-foreground mt-1">Add a salary structure to get started.</p>
+                <p className="text-sm text-white/60 mt-1">Add a salary structure to get started.</p>
                 <Button variant="primary" size="sm" className="mt-4" onClick={openAdd}>Add Structure</Button>
               </div>
             ) : (
@@ -306,32 +308,32 @@ export default function SalaryStructuresPage() {
                 <div className="hidden md:block overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead>
-                      <tr className="border-b border-border bg-muted/20 text-left">
-                        <th className="px-4 py-2.5 font-medium text-muted-foreground">Employee</th>
-                        <th className="px-4 py-2.5 font-medium text-muted-foreground">Department</th>
-                        <th className="px-4 py-2.5 font-medium text-muted-foreground text-right">CTC (Annual)</th>
-                        <th className="px-4 py-2.5 font-medium text-muted-foreground text-right">Basic</th>
-                        <th className="px-4 py-2.5 font-medium text-muted-foreground text-right">HRA</th>
-                        <th className="px-4 py-2.5 font-medium text-muted-foreground text-right">Net Monthly</th>
-                        <th className="px-4 py-2.5 font-medium text-muted-foreground">Effective</th>
-                        <th className="px-4 py-2.5 font-medium text-muted-foreground text-center">Actions</th>
+                      <tr className="border-b border-white/10 bg-white/5/20 text-left">
+                        <th className="px-4 py-2.5 font-medium text-white/60">Employee</th>
+                        <th className="px-4 py-2.5 font-medium text-white/60">Department</th>
+                        <th className="px-4 py-2.5 font-medium text-white/60 text-right">CTC (Annual)</th>
+                        <th className="px-4 py-2.5 font-medium text-white/60 text-right">Basic</th>
+                        <th className="px-4 py-2.5 font-medium text-white/60 text-right">HRA</th>
+                        <th className="px-4 py-2.5 font-medium text-white/60 text-right">Net Monthly</th>
+                        <th className="px-4 py-2.5 font-medium text-white/60">Effective</th>
+                        <th className="px-4 py-2.5 font-medium text-white/60 text-center">Actions</th>
                       </tr>
                     </thead>
                     <tbody>
                       {structures.map((s) => {
                         const monthlyNet = (s.ctc - s.pf_employee - s.esi_employee - s.professional_tax - s.tds) / 12;
                         return (
-                          <tr key={s.id} className="border-b border-border/50 hover:bg-muted/20 transition-colors">
+                          <tr key={s.id} className="border-b border-white/10/50 hover:bg-white/5/20 transition-colors">
                             <td className="px-4 py-2.5">
                               <p className="font-medium">{s.employee_name}</p>
-                              <p className="text-xs text-muted-foreground">{s.designation || '--'}</p>
+                              <p className="text-xs text-white/60">{s.designation || '--'}</p>
                             </td>
-                            <td className="px-4 py-2.5 text-muted-foreground">{s.department || '--'}</td>
+                            <td className="px-4 py-2.5 text-white/60">{s.department || '--'}</td>
                             <td className="px-4 py-2.5 text-right font-bold">{fmtLakhs(s.ctc)}</td>
-                            <td className="px-4 py-2.5 text-right text-muted-foreground">{fmt(s.basic)}</td>
-                            <td className="px-4 py-2.5 text-right text-muted-foreground">{fmt(s.hra)}</td>
+                            <td className="px-4 py-2.5 text-right text-white/60">{fmt(s.basic)}</td>
+                            <td className="px-4 py-2.5 text-right text-white/60">{fmt(s.hra)}</td>
                             <td className="px-4 py-2.5 text-right font-medium text-green-600 dark:text-green-400">{fmt(Math.round(monthlyNet))}</td>
-                            <td className="px-4 py-2.5 text-muted-foreground text-xs">{new Date(s.effective_from).toLocaleDateString('en-IN')}</td>
+                            <td className="px-4 py-2.5 text-white/60 text-xs">{new Date(s.effective_from).toLocaleDateString('en-IN')}</td>
                             <td className="px-4 py-2.5 text-center">
                               <div className="flex justify-center gap-1">
                                 <Button variant="ghost" size="sm" onClick={() => setViewStructure(s)} className="text-xs gap-1">
@@ -358,7 +360,7 @@ export default function SalaryStructuresPage() {
                         <div className="flex items-center justify-between">
                           <div>
                             <p className="font-medium text-sm">{s.employee_name}</p>
-                            <p className="text-xs text-muted-foreground">{s.department || '--'} &middot; {s.designation || '--'}</p>
+                            <p className="text-xs text-white/60">{s.department || '--'} &middot; {s.designation || '--'}</p>
                           </div>
                           <div className="flex gap-1">
                             <Button variant="ghost" size="sm" onClick={() => setViewStructure(s)} className="text-xs"><Eye className="w-3 h-3" /></Button>
@@ -366,9 +368,9 @@ export default function SalaryStructuresPage() {
                           </div>
                         </div>
                         <div className="grid grid-cols-3 gap-2 text-xs">
-                          <div><p className="text-muted-foreground">CTC</p><p className="font-bold">{fmtLakhs(s.ctc)}</p></div>
-                          <div><p className="text-muted-foreground">Basic</p><p className="font-medium">{fmt(s.basic)}</p></div>
-                          <div><p className="text-muted-foreground">Net/Mo</p><p className="font-medium text-green-600 dark:text-green-400">{fmt(Math.round(monthlyNet))}</p></div>
+                          <div><p className="text-white/60">CTC</p><p className="font-bold">{fmtLakhs(s.ctc)}</p></div>
+                          <div><p className="text-white/60">Basic</p><p className="font-medium">{fmt(s.basic)}</p></div>
+                          <div><p className="text-white/60">Net/Mo</p><p className="font-medium text-green-600 dark:text-green-400">{fmt(Math.round(monthlyNet))}</p></div>
                         </div>
                       </div>
                     );
@@ -376,8 +378,8 @@ export default function SalaryStructuresPage() {
                 </div>
               </>
             )}
-          </CardContent>
-        </Card>
+          </div>
+        </GlassPanel>
       </motion.div>
 
       {/* View Modal */}
@@ -385,14 +387,14 @@ export default function SalaryStructuresPage() {
         <Modal isOpen={!!viewStructure} onClose={() => setViewStructure(null)} title={`Salary - ${viewStructure.employee_name}`} size="lg">
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4 text-sm">
-              <div><p className="text-muted-foreground">Employee</p><p className="font-medium">{viewStructure.employee_name}</p></div>
-              <div><p className="text-muted-foreground">Department</p><p className="font-medium">{viewStructure.department || '--'}</p></div>
-              <div><p className="text-muted-foreground">Designation</p><p className="font-medium">{viewStructure.designation || '--'}</p></div>
-              <div><p className="text-muted-foreground">Effective From</p><p className="font-medium">{new Date(viewStructure.effective_from).toLocaleDateString('en-IN')}</p></div>
+              <div><p className="text-white/60">Employee</p><p className="font-medium">{viewStructure.employee_name}</p></div>
+              <div><p className="text-white/60">Department</p><p className="font-medium">{viewStructure.department || '--'}</p></div>
+              <div><p className="text-white/60">Designation</p><p className="font-medium">{viewStructure.designation || '--'}</p></div>
+              <div><p className="text-white/60">Effective From</p><p className="font-medium">{new Date(viewStructure.effective_from).toLocaleDateString('en-IN')}</p></div>
             </div>
 
-            <div className="border border-border rounded-lg overflow-hidden">
-              <div className="bg-muted/30 px-4 py-2 text-xs font-semibold text-muted-foreground flex justify-between">
+            <div className="border border-white/10 rounded-lg overflow-hidden">
+              <div className="bg-white/5/30 px-4 py-2 text-xs font-semibold text-white/60 flex justify-between">
                 <span>Component</span>
                 <span className="flex gap-8"><span>Annual</span><span>Monthly</span></span>
               </div>
@@ -412,8 +414,8 @@ export default function SalaryStructuresPage() {
                 <div
                   key={row.label}
                   className={`flex justify-between px-4 py-2 text-sm ${
-                    row.type === 'total' ? 'bg-blue-50 dark:bg-blue-500/10 font-bold border-b border-border' :
-                    row.type === 'info' ? 'text-muted-foreground italic' : ''
+                    row.type === 'total' ? 'bg-blue-50 dark:bg-blue-500/10 font-bold border-b border-white/10' :
+                    row.type === 'info' ? 'text-white/60 italic' : ''
                   }`}
                 >
                   <span>{row.label}</span>
@@ -426,7 +428,7 @@ export default function SalaryStructuresPage() {
                   </span>
                 </div>
               ))}
-              <div className="flex justify-between px-4 py-2.5 text-sm bg-green-50 dark:bg-green-500/10 font-bold border-t-2 border-border">
+              <div className="flex justify-between px-4 py-2.5 text-sm bg-green-50 dark:bg-green-500/10 font-bold border-t-2 border-white/10">
                 <span>Net Take-Home</span>
                 <span className="flex gap-8 text-green-700 dark:text-green-300">
                   <span className="w-24 text-right">{fmt(viewStructure.ctc - viewStructure.pf_employee - viewStructure.esi_employee - viewStructure.professional_tax - viewStructure.tds)}</span>
@@ -450,17 +452,17 @@ export default function SalaryStructuresPage() {
                 placeholder="Search employee..."
                 value={empSearch}
                 onChange={(e) => setEmpSearch(e.target.value)}
-                className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                className="mt-1 w-full rounded-lg border border-white/10 bg-black px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
               />
               {empSearch && filteredEmployees.length > 0 && !formEmployeeId && (
-                <div className="mt-1 border border-border rounded-lg max-h-32 overflow-y-auto bg-card">
+                <div className="mt-1 border border-white/10 rounded-lg max-h-32 overflow-y-auto bg-white/5">
                   {filteredEmployees.slice(0, 10).map((e) => (
                     <button
                       key={e.id}
-                      className="w-full text-left px-3 py-2 text-sm hover:bg-muted transition-colors"
+                      className="w-full text-left px-3 py-2 text-sm hover:bg-white/5 transition-colors"
                       onClick={() => { setFormEmployeeId(e.id); setEmpSearch(`${e.first_name} ${e.last_name}`); }}
                     >
-                      {e.first_name} {e.last_name} <span className="text-xs text-muted-foreground">{e.department || ''}</span>
+                      {e.first_name} {e.last_name} <span className="text-xs text-white/60">{e.department || ''}</span>
                     </button>
                   ))}
                 </div>
@@ -469,7 +471,7 @@ export default function SalaryStructuresPage() {
             </div>
           )}
           {editStructure && (
-            <div className="text-sm"><span className="text-muted-foreground">Employee:</span> <span className="font-medium">{editStructure.employee_name}</span></div>
+            <div className="text-sm"><span className="text-white/60">Employee:</span> <span className="font-medium">{editStructure.employee_name}</span></div>
           )}
 
           {/* CTC */}
@@ -480,7 +482,7 @@ export default function SalaryStructuresPage() {
               value={formCtc}
               onChange={(e) => handleCtcChange(e.target.value)}
               placeholder="e.g. 600000"
-              className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+              className="mt-1 w-full rounded-lg border border-white/10 bg-black px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
             />
           </div>
 
@@ -498,20 +500,20 @@ export default function SalaryStructuresPage() {
               }}
               className="rounded"
             />
-            <label htmlFor="auto-calc" className="text-sm text-muted-foreground">Auto-calculate breakdown from CTC</label>
+            <label htmlFor="auto-calc" className="text-sm text-white/60">Auto-calculate breakdown from CTC</label>
           </div>
 
           {/* Component breakdown */}
           <div className="grid grid-cols-2 gap-3">
             {(['basic', 'hra', 'da', 'special_allowance', 'pf_employee', 'pf_employer', 'esi_employee', 'esi_employer', 'professional_tax', 'tds'] as const).map((key) => (
               <div key={key}>
-                <label className="text-xs font-medium text-muted-foreground capitalize">{key.replace(/_/g, ' ')}</label>
+                <label className="text-xs font-medium text-white/60 capitalize">{key.replace(/_/g, ' ')}</label>
                 <input
                   type="number"
                   value={formComponents[key]}
                   disabled={formAutoCalc}
                   onChange={(e) => setFormComponents({ ...formComponents, [key]: parseFloat(e.target.value) || 0 })}
-                  className="mt-0.5 w-full rounded-lg border border-border bg-background px-3 py-1.5 text-sm disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-primary/30"
+                  className="mt-0.5 w-full rounded-lg border border-white/10 bg-black px-3 py-1.5 text-sm disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-primary/30"
                 />
               </div>
             ))}
@@ -525,7 +527,7 @@ export default function SalaryStructuresPage() {
                 type="date"
                 value={formEffective}
                 onChange={(e) => setFormEffective(e.target.value)}
-                className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                className="mt-1 w-full rounded-lg border border-white/10 bg-black px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
               />
             </div>
             <div>
@@ -535,18 +537,18 @@ export default function SalaryStructuresPage() {
                 value={formReason}
                 onChange={(e) => setFormReason(e.target.value)}
                 placeholder="e.g. Annual revision"
-                className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                className="mt-1 w-full rounded-lg border border-white/10 bg-black px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
               />
             </div>
           </div>
 
           {/* Preview */}
           {parseFloat(formCtc) > 0 && (
-            <div className="bg-muted/30 rounded-lg p-3 text-xs space-y-1">
+            <div className="bg-white/5/30 rounded-lg p-3 text-xs space-y-1">
               <p className="font-medium text-sm">Preview</p>
               <div className="flex justify-between"><span>Annual CTC</span><span className="font-bold">{fmt(parseFloat(formCtc))}</span></div>
               <div className="flex justify-between"><span>Total Deductions (Employee)</span><span className="text-red-600 dark:text-red-400">{fmt(formComponents.pf_employee + formComponents.esi_employee + formComponents.professional_tax + formComponents.tds)}</span></div>
-              <div className="flex justify-between border-t border-border pt-1 mt-1"><span className="font-medium">Monthly Take-Home</span><span className="font-bold text-green-600 dark:text-green-400">{fmt(Math.round((parseFloat(formCtc) - formComponents.pf_employee - formComponents.esi_employee - formComponents.professional_tax - formComponents.tds) / 12))}</span></div>
+              <div className="flex justify-between border-t border-white/10 pt-1 mt-1"><span className="font-medium">Monthly Take-Home</span><span className="font-bold text-green-600 dark:text-green-400">{fmt(Math.round((parseFloat(formCtc) - formComponents.pf_employee - formComponents.esi_employee - formComponents.professional_tax - formComponents.tds) / 12))}</span></div>
             </div>
           )}
 
@@ -574,6 +576,6 @@ export default function SalaryStructuresPage() {
           </div>
         </div>
       </Modal>
-    </motion.div>
+    </StaggerContainer>
   );
 }

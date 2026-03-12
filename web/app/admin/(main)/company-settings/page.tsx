@@ -2,10 +2,11 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { motion } from 'framer-motion';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { GlassPanel } from '@/components/glass-panel';
+import { PageHeader } from '@/components/page-header';
+import { StaggerContainer, FadeIn } from '@/components/motion';
 import { ensureMe } from '@/lib/client-auth';
 import {
   Building2,
@@ -18,16 +19,6 @@ import {
   AlertCircle,
   Info,
 } from 'lucide-react';
-
-const containerVariants = {
-  hidden: { opacity: 0 },
-  visible: { opacity: 1, transition: { staggerChildren: 0.08 } },
-} as const;
-
-const itemVariants = {
-  hidden: { opacity: 0, y: 20 },
-  visible: { opacity: 1, y: 0, transition: { type: 'spring' as const, stiffness: 260, damping: 20 } },
-} as const;
 
 interface CompanySettings {
   id: string;
@@ -65,15 +56,15 @@ interface SettingRowProps {
 
 function SettingRow({ icon, label, value, description }: SettingRowProps) {
   return (
-    <div className="flex items-start gap-4 px-5 py-4 border-b border-border/30 last:border-0 hover:bg-muted/30 dark:hover:bg-slate-800/30 transition-colors">
-      <div className="w-10 h-10 rounded-lg bg-muted/60 dark:bg-slate-800/60 flex items-center justify-center shrink-0 mt-0.5">
+    <div className="flex items-start gap-4 px-5 py-4 border-b border-white/10 last:border-0 hover:bg-white/5 transition-colors">
+      <div className="w-10 h-10 rounded-lg bg-white/5 flex items-center justify-center shrink-0 mt-0.5">
         {icon}
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium text-muted-foreground">{label}</p>
-        <div className="text-base font-semibold text-foreground mt-0.5">{value}</div>
+        <p className="text-sm font-medium text-white/60">{label}</p>
+        <div className="text-base font-semibold text-white mt-0.5">{value}</div>
         {description && (
-          <p className="text-xs text-muted-foreground mt-1">{description}</p>
+          <p className="text-xs text-white/60 mt-1">{description}</p>
         )}
       </div>
     </div>
@@ -139,17 +130,17 @@ export default function CompanySettingsPage() {
     return (
       <div className="space-y-6">
         <div>
-          <h1 className="text-2xl font-bold text-foreground tracking-tight flex items-center gap-2">
+          <h1 className="text-2xl font-bold text-white tracking-tight flex items-center gap-2">
             <Building2 className="w-7 h-7 text-indigo-500" />
             Company Settings
           </h1>
         </div>
-        <Card>
-          <CardContent className="py-12 text-center">
+        <GlassPanel>
+          <div className="p-6 relative z-10 py-12 text-center">
             <AlertCircle className="w-10 h-10 text-red-500 mx-auto mb-3" />
-            <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
-          </CardContent>
-        </Card>
+            <p className="text-sm text-red-400">{error}</p>
+          </div>
+        </GlassPanel>
       </div>
     );
   }
@@ -157,42 +148,33 @@ export default function CompanySettingsPage() {
   if (!settings) return null;
 
   return (
-    <motion.div
-      variants={containerVariants}
-      initial="hidden"
-      animate="visible"
-      className="space-y-6"
-    >
+    <StaggerContainer className="space-y-6">
       {/* Page Header */}
-      <motion.div variants={itemVariants}>
-        <div>
-          <h1 className="text-2xl font-bold text-foreground tracking-tight flex items-center gap-2">
-            <Building2 className="w-7 h-7 text-indigo-500" />
-            Company Settings
-          </h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            View your organization&apos;s configuration and policies
-          </p>
-        </div>
-      </motion.div>
+      <FadeIn>
+        <PageHeader
+          title="Company Settings"
+          description="View your organization's configuration and policies"
+          icon={<Building2 className="w-6 h-6 text-primary" />}
+        />
+      </FadeIn>
 
       {/* Info Banner */}
-      <motion.div variants={itemVariants}>
-        <div className="flex items-center gap-3 px-4 py-3 rounded-lg bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/20">
+      <FadeIn>
+        <div className="flex items-center gap-3 px-4 py-3 rounded-lg bg-blue-500/10 border border-blue-500/20">
           <Info className="w-5 h-5 text-blue-500 shrink-0" />
-          <p className="text-sm text-blue-700 dark:text-blue-400">
+          <p className="text-sm text-blue-400">
             These settings are read-only. Contact support to modify company configuration.
           </p>
         </div>
-      </motion.div>
+      </FadeIn>
 
       {/* General Information */}
-      <motion.div variants={itemVariants}>
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">General Information</CardTitle>
-          </CardHeader>
-          <CardContent className="p-0">
+      <FadeIn>
+        <GlassPanel>
+          <div className="p-6 border-b border-white/10">
+            <h3 className="text-lg font-semibold text-white">General Information</h3>
+          </div>
+          <div className="p-0 relative z-10">
             <SettingRow
               icon={<Building2 className="w-5 h-5 text-indigo-500" />}
               label="Company Name"
@@ -222,17 +204,17 @@ export default function CompanySettingsPage() {
                 value={settings.industry}
               />
             )}
-          </CardContent>
-        </Card>
-      </motion.div>
+          </div>
+        </GlassPanel>
+      </FadeIn>
 
       {/* Work Configuration */}
-      <motion.div variants={itemVariants}>
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Work Configuration</CardTitle>
-          </CardHeader>
-          <CardContent className="p-0">
+      <FadeIn>
+        <GlassPanel>
+          <div className="p-6 border-b border-white/10">
+            <h3 className="text-lg font-semibold text-white">Work Configuration</h3>
+          </div>
+          <div className="p-0 relative z-10">
             <SettingRow
               icon={<Calendar className="w-5 h-5 text-emerald-500" />}
               label="Work Days"
@@ -245,17 +227,17 @@ export default function CompanySettingsPage() {
               value={settings.leave_year_start || '01-01'}
               description="The date when the annual leave cycle resets (MM-DD)"
             />
-          </CardContent>
-        </Card>
-      </motion.div>
+          </div>
+        </GlassPanel>
+      </FadeIn>
 
       {/* Policy Settings */}
-      <motion.div variants={itemVariants}>
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Policy Settings</CardTitle>
-          </CardHeader>
-          <CardContent className="p-0">
+      <FadeIn>
+        <GlassPanel>
+          <div className="p-6 border-b border-white/10">
+            <h3 className="text-lg font-semibold text-white">Policy Settings</h3>
+          </div>
+          <div className="p-0 relative z-10">
             <SettingRow
               icon={<Timer className="w-5 h-5 text-orange-500" />}
               label="Probation Period"
@@ -286,9 +268,9 @@ export default function CompanySettingsPage() {
               }
               description="Whether employees can take leaves beyond their available balance"
             />
-          </CardContent>
-        </Card>
-      </motion.div>
-    </motion.div>
+          </div>
+        </GlassPanel>
+      </FadeIn>
+    </StaggerContainer>
   );
 }

@@ -1,10 +1,12 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { motion, AnimatePresence } from 'framer-motion';
+import { StaggerContainer, FadeIn } from '@/components/motion';
+import { PageHeader } from '@/components/page-header';
+import { GlassPanel } from '@/components/glass-panel';
 import {
   Calendar,
   Plus,
@@ -50,12 +52,12 @@ function TableSkeleton() {
       {Array.from({ length: 5 }).map((_, i) => (
         <div
           key={i}
-          className="flex items-center gap-4 p-4 rounded-lg bg-muted/30 animate-pulse"
+          className="flex items-center gap-4 p-4 rounded-lg bg-white/5 animate-pulse"
         >
-          <div className="h-4 w-40 bg-muted rounded" />
-          <div className="h-4 w-32 bg-muted rounded" />
-          <div className="h-5 w-16 bg-muted rounded-full" />
-          <div className="ml-auto h-8 w-20 bg-muted rounded" />
+          <div className="h-4 w-40 bg-white/10 rounded" />
+          <div className="h-4 w-32 bg-white/10 rounded" />
+          <div className="h-5 w-16 bg-white/10 rounded-full" />
+          <div className="ml-auto h-8 w-20 bg-white/10 rounded" />
         </div>
       ))}
     </div>
@@ -70,13 +72,13 @@ function EmptyState({ onAdd }: { onAdd: () => void }) {
       animate={{ opacity: 1, y: 0 }}
       className="flex flex-col items-center justify-center py-20 text-center"
     >
-      <div className="w-16 h-16 rounded-full bg-muted/50 flex items-center justify-center mb-4">
-        <CalendarDays className="w-8 h-8 text-muted-foreground" />
+      <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center mb-4">
+        <CalendarDays className="w-8 h-8 text-white/60" />
       </div>
-      <h3 className="text-lg font-semibold text-foreground mb-1">
+      <h3 className="text-lg font-semibold text-white mb-1">
         No holidays found
       </h3>
-      <p className="text-sm text-muted-foreground mb-6 max-w-sm">
+      <p className="text-sm text-white/60 mb-6 max-w-sm">
         There are no upcoming holidays configured. Add custom holidays for your
         organization to keep everyone informed.
       </p>
@@ -110,8 +112,8 @@ function StatusMessage({
       exit={{ opacity: 0, y: -10 }}
       className={`flex items-center gap-2 px-4 py-3 rounded-lg text-sm font-medium ${
         type === 'success'
-          ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
-          : 'bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20'
+          ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+          : 'bg-red-500/10 text-red-400 border border-red-500/20'
       }`}
     >
       {type === 'success' ? (
@@ -122,7 +124,7 @@ function StatusMessage({
       <span className="flex-1">{message}</span>
       <button
         onClick={onDismiss}
-        className="p-0.5 hover:bg-black/5 dark:hover:bg-white/5 rounded"
+        className="p-0.5 hover:bg-white/5 rounded"
       >
         <X className="w-3.5 h-3.5" />
       </button>
@@ -179,27 +181,27 @@ function HolidayFormModal({
         transition={{ type: 'spring', damping: 25, stiffness: 300 }}
         className="relative z-10 w-full max-w-md mx-4"
       >
-        <Card className="border-border/60 shadow-xl">
-          <CardHeader className="pb-4">
+        <GlassPanel className="border-white/10 shadow-xl">
+          <div className="p-6 border-b border-white/10 pb-4">
             <div className="flex items-center justify-between">
-              <CardTitle className="text-lg flex items-center gap-2">
+              <h3 className="text-lg font-semibold text-white flex items-center gap-2">
                 <Calendar className="w-5 h-5 text-primary" />
                 {isEdit ? 'Edit Holiday' : 'Add Holiday'}
-              </CardTitle>
+              </h3>
               <button
                 onClick={onClose}
-                className="p-1.5 hover:bg-muted rounded-lg transition-colors"
+                className="p-1.5 hover:bg-white/5 rounded-lg transition-colors"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
-          </CardHeader>
-          <CardContent>
+          </div>
+          <div className="p-6 relative z-10">
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
                 <label
                   htmlFor="holiday-name"
-                  className="block text-sm font-medium text-foreground mb-1.5"
+                  className="block text-sm font-medium text-white mb-1.5"
                 >
                   Holiday Name
                 </label>
@@ -209,14 +211,14 @@ function HolidayFormModal({
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="e.g. Company Foundation Day"
-                  className="w-full px-3 py-2 rounded-lg border border-border bg-background text-foreground text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-colors"
+                  className="w-full px-3 py-2 rounded-lg border border-white/10 bg-background text-white text-sm placeholder:text-white/60 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-colors"
                   autoFocus
                 />
               </div>
               <div>
                 <label
                   htmlFor="holiday-date"
-                  className="block text-sm font-medium text-foreground mb-1.5"
+                  className="block text-sm font-medium text-white mb-1.5"
                 >
                   Date
                 </label>
@@ -225,7 +227,7 @@ function HolidayFormModal({
                   type="date"
                   value={date}
                   onChange={(e) => setDate(e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg border border-border bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-colors"
+                  className="w-full px-3 py-2 rounded-lg border border-white/10 bg-background text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-colors"
                 />
               </div>
               {error && (
@@ -249,8 +251,8 @@ function HolidayFormModal({
                 </Button>
               </div>
             </form>
-          </CardContent>
-        </Card>
+          </div>
+        </GlassPanel>
       </motion.div>
     </div>
   );
@@ -284,19 +286,19 @@ function DeleteConfirmModal({
         transition={{ type: 'spring', damping: 25, stiffness: 300 }}
         className="relative z-10 w-full max-w-sm mx-4"
       >
-        <Card className="border-border/60 shadow-xl">
-          <CardContent className="pt-6">
+        <GlassPanel className="border-white/10 shadow-xl">
+          <div className="p-6 relative z-10 pt-6">
             <div className="flex flex-col items-center text-center">
               <div className="w-12 h-12 rounded-full bg-red-500/10 flex items-center justify-center mb-4">
                 <Trash2 className="w-5 h-5 text-red-500" />
               </div>
-              <h3 className="text-lg font-semibold text-foreground mb-1">
+              <h3 className="text-lg font-semibold text-white mb-1">
                 Delete Holiday
               </h3>
-              <p className="text-sm text-muted-foreground mb-1">
+              <p className="text-sm text-white/60 mb-1">
                 Are you sure you want to delete this holiday?
               </p>
-              <p className="text-sm font-medium text-foreground mb-6">
+              <p className="text-sm font-medium text-white mb-6">
                 &ldquo;{holiday.name}&rdquo; &mdash; {formatDate(holiday.date)}
               </p>
               <div className="flex items-center gap-3 w-full">
@@ -319,8 +321,8 @@ function DeleteConfirmModal({
                 </Button>
               </div>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </GlassPanel>
       </motion.div>
     </div>
   );
@@ -453,11 +455,11 @@ export default function HolidaysPage() {
         className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4"
       >
         <div>
-          <h1 className="text-2xl font-bold text-foreground flex items-center gap-2.5">
+          <h1 className="text-2xl font-bold text-white flex items-center gap-2.5">
             <CalendarDays className="w-7 h-7 text-primary" />
             Holiday Calendar
           </h1>
-          <p className="text-sm text-muted-foreground mt-1">
+          <p className="text-sm text-white/60 mt-1">
             Manage public and custom holidays for your organization.
           </p>
         </div>
@@ -484,20 +486,20 @@ export default function HolidaysPage() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1 }}
       >
-        <Card className="border-border/40">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base font-semibold flex items-center gap-2">
-              <Calendar className="w-4 h-4 text-muted-foreground" />
+        <GlassPanel className="border-white/10">
+          <div className="p-6 border-b border-white/10 pb-3">
+            <h3 className="text-base font-semibold text-white flex items-center gap-2">
+              <Calendar className="w-4 h-4 text-white/60" />
               Upcoming Holidays
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
+            </h3>
+          </div>
+          <div className="p-6 relative z-10">
             {loading ? (
               <TableSkeleton />
             ) : fetchError ? (
               <div className="flex flex-col items-center justify-center py-16 text-center">
                 <AlertCircle className="w-10 h-10 text-red-400 mb-3" />
-                <p className="text-sm text-muted-foreground mb-4">
+                <p className="text-sm text-white/60 mb-4">
                   {fetchError}
                 </p>
                 <Button
@@ -516,17 +518,17 @@ export default function HolidaysPage() {
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead>
-                    <tr className="border-b border-border/40">
-                      <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider pb-3 pr-4">
+                    <tr className="border-b border-white/10">
+                      <th className="text-left text-xs font-medium text-white/60 uppercase tracking-wider pb-3 pr-4">
                         Name
                       </th>
-                      <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider pb-3 pr-4">
+                      <th className="text-left text-xs font-medium text-white/60 uppercase tracking-wider pb-3 pr-4">
                         Date
                       </th>
-                      <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider pb-3 pr-4">
+                      <th className="text-left text-xs font-medium text-white/60 uppercase tracking-wider pb-3 pr-4">
                         Type
                       </th>
-                      <th className="text-right text-xs font-medium text-muted-foreground uppercase tracking-wider pb-3">
+                      <th className="text-right text-xs font-medium text-white/60 uppercase tracking-wider pb-3">
                         Actions
                       </th>
                     </tr>
@@ -542,17 +544,17 @@ export default function HolidaysPage() {
                             animate={{ opacity: 1, y: 0 }}
                             exit={{ opacity: 0, x: -20 }}
                             transition={{ delay: index * 0.03 }}
-                            className={`border-b border-border/20 last:border-0 group ${
+                            className={`border-b border-white/10 last:border-0 group ${
                               isPast ? 'opacity-50' : ''
                             }`}
                           >
                             <td className="py-3.5 pr-4">
-                              <span className="text-sm font-medium text-foreground">
+                              <span className="text-sm font-medium text-white">
                                 {holiday.name}
                               </span>
                             </td>
                             <td className="py-3.5 pr-4">
-                              <span className="text-sm text-muted-foreground">
+                              <span className="text-sm text-white/60">
                                 {formatDate(holiday.date)}
                               </span>
                             </td>
@@ -572,7 +574,7 @@ export default function HolidaysPage() {
                                 <div className="flex items-center justify-end gap-1 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
                                   <button
                                     onClick={() => handleEdit(holiday)}
-                                    className="p-1.5 hover:bg-muted rounded-md transition-colors text-muted-foreground hover:text-foreground"
+                                    className="p-1.5 hover:bg-white/5 rounded-md transition-colors text-white/60 hover:text-white"
                                     title="Edit holiday"
                                   >
                                     <Pencil className="w-3.5 h-3.5" />
@@ -581,14 +583,14 @@ export default function HolidaysPage() {
                                     onClick={() =>
                                       setDeletingHoliday(holiday)
                                     }
-                                    className="p-1.5 hover:bg-red-500/10 rounded-md transition-colors text-muted-foreground hover:text-red-500"
+                                    className="p-1.5 hover:bg-red-500/10 rounded-md transition-colors text-white/60 hover:text-red-500"
                                     title="Delete holiday"
                                   >
                                     <Trash2 className="w-3.5 h-3.5" />
                                   </button>
                                 </div>
                               ) : (
-                                <span className="text-xs text-muted-foreground/50">
+                                <span className="text-xs text-white/30">
                                   &mdash;
                                 </span>
                               )}
@@ -601,8 +603,8 @@ export default function HolidaysPage() {
                 </table>
               </div>
             )}
-          </CardContent>
-        </Card>
+          </div>
+        </GlassPanel>
       </motion.div>
 
       {/* Add / Edit modal */}

@@ -2,7 +2,10 @@
 
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { StaggerContainer, FadeIn } from '@/components/motion';
+import { PageHeader } from '@/components/page-header';
+import { GlassPanel } from '@/components/glass-panel';
+import { TabButton } from '@/components/tab-button';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -299,48 +302,19 @@ export default function HRLeaveRequestsPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Leave Requests</h1>
-          <p className="text-muted-foreground mt-1">
-            {total > 0 ? `${total} requests` : 'Manage leave requests'}
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => {
-              if (filteredRequests.length === 0) return;
-              downloadCSVLegacy(
-                ['Employee', 'Department', 'Leave Type', 'Start Date', 'End Date', 'Days', 'Status', 'Reason'],
-                filteredRequests.map((r) => [
-                  `${r.employee.first_name} ${r.employee.last_name}`,
-                  r.employee.department ?? '',
-                  r.leave_type,
-                  r.start_date.split('T')[0],
-                  r.end_date.split('T')[0],
-                  r.total_days,
-                  r.status,
-                  r.reason ?? '',
-                ]),
-                `leave-requests-${statusFilter || 'all'}.csv`,
-              );
-            }}
-            disabled={filteredRequests.length === 0}
-            className="inline-flex items-center gap-1.5 border border-border text-foreground px-3 py-2 rounded-lg text-sm font-medium hover:bg-muted/50 transition-colors disabled:opacity-50"
-          >
-            <Download className="w-4 h-4" />
-            CSV
-          </button>
-          <button
-            onClick={() => {
-              if (filteredRequests.length === 0) return;
-              downloadPDF(
-                `Leave Requests — ${statusFilter || 'All'}`,
-                [{
-                  title: `${statusFilter ? statusFilter.charAt(0).toUpperCase() + statusFilter.slice(1) : 'All'} Requests`,
-                  columns: ['Employee', 'Department', 'Type', 'Start', 'End', 'Days', 'Status'],
-                  rows: filteredRequests.map((r) => [
+    <StaggerContainer className="space-y-6">
+      <PageHeader
+        title="Leave Requests"
+        description={total > 0 ? total + ' requests' : 'Manage leave requests'}
+        icon={<Inbox className="w-6 h-6 text-primary" />}
+        action={
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => {
+                if (filteredRequests.length === 0) return;
+                downloadCSVLegacy(
+                  ['Employee', 'Department', 'Leave Type', 'Start Date', 'End Date', 'Days', 'Status', 'Reason'],
+                  filteredRequests.map((r) => [
                     `${r.employee.first_name} ${r.employee.last_name}`,
                     r.employee.department ?? '',
                     r.leave_type,
@@ -348,71 +322,99 @@ export default function HRLeaveRequestsPage() {
                     r.end_date.split('T')[0],
                     r.total_days,
                     r.status,
+                    r.reason ?? '',
                   ]),
-                }],
-                `leave-requests-${statusFilter || 'all'}`,
-                [`Total: ${filteredRequests.length} requests`],
-              );
-            }}
-            disabled={filteredRequests.length === 0}
-            className="inline-flex items-center gap-1.5 border border-border text-foreground px-3 py-2 rounded-lg text-sm font-medium hover:bg-muted/50 transition-colors disabled:opacity-50"
-          >
-            <FileText className="w-4 h-4" />
-            PDF
-          </button>
-        </div>
-      </div>
+                  `leave-requests-${statusFilter || 'all'}.csv`,
+                );
+              }}
+              disabled={filteredRequests.length === 0}
+              className="inline-flex items-center gap-1.5 border border-white/10 text-white px-3 py-2 rounded-lg text-sm font-medium hover:bg-white/5 transition-colors disabled:opacity-50"
+            >
+              <Download className="w-4 h-4" />
+              CSV
+            </button>
+            <button
+              onClick={() => {
+                if (filteredRequests.length === 0) return;
+                downloadPDF(
+                  `Leave Requests — ${statusFilter || 'All'}`,
+                  [{
+                    title: `${statusFilter ? statusFilter.charAt(0).toUpperCase() + statusFilter.slice(1) : 'All'} Requests`,
+                    columns: ['Employee', 'Department', 'Type', 'Start', 'End', 'Days', 'Status'],
+                    rows: filteredRequests.map((r) => [
+                      `${r.employee.first_name} ${r.employee.last_name}`,
+                      r.employee.department ?? '',
+                      r.leave_type,
+                      r.start_date.split('T')[0],
+                      r.end_date.split('T')[0],
+                      r.total_days,
+                      r.status,
+                    ]),
+                  }],
+                  `leave-requests-${statusFilter || 'all'}`,
+                  [`Total: ${filteredRequests.length} requests`],
+                );
+              }}
+              disabled={filteredRequests.length === 0}
+              className="inline-flex items-center gap-1.5 border border-white/10 text-white px-3 py-2 rounded-lg text-sm font-medium hover:bg-white/5 transition-colors disabled:opacity-50"
+            >
+              <FileText className="w-4 h-4" />
+              PDF
+            </button>
+          </div>
+        }
+      />
 
       {/* Search Bar */}
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-        <input
-          type="text"
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder="Search by employee name or department..."
-          className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-border bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors"
-        />
-      </div>
+      <FadeIn>
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/60" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search by employee name or department..."
+            className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-white/10 bg-white/5 text-sm text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors"
+          />
+        </div>
+      </FadeIn>
 
       {/* Status Filters */}
-      <div className="flex items-center gap-4 flex-wrap">
-        <div className="flex gap-2 flex-wrap">
-          {[
-            { value: 'pending', label: 'Pending' },
-            { value: 'escalated', label: 'Escalated' },
-            { value: 'approved', label: 'Approved' },
-            { value: 'rejected', label: 'Rejected' },
-            { value: '', label: 'All' },
-          ].map((f) => (
-            <button
-              key={f.value}
-              onClick={() => { setStatusFilter(f.value); setPage(1); }}
-              className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
-                statusFilter === f.value
-                  ? 'bg-primary text-primary-foreground'
-                  : 'bg-muted text-muted-foreground hover:bg-muted/50'
-              }`}
-            >
-              {f.label}
-            </button>
-          ))}
-        </div>
+      <FadeIn>
+        <div className="flex items-center gap-4 flex-wrap">
+          <div className="flex gap-2 flex-wrap">
+            {[
+              { value: 'pending', label: 'Pending' },
+              { value: 'escalated', label: 'Escalated' },
+              { value: 'approved', label: 'Approved' },
+              { value: 'rejected', label: 'Rejected' },
+              { value: '', label: 'All' },
+            ].map((f) => (
+              <TabButton
+                key={f.value}
+                active={statusFilter === f.value}
+                onClick={() => { setStatusFilter(f.value); setPage(1); }}
+              >
+                {f.label}
+              </TabButton>
+            ))}
+          </div>
 
-        <button
-          onClick={() => setShowFilters(!showFilters)}
-          className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
-            hasActiveFilters
-              ? 'bg-primary/10 text-primary border border-primary/30'
-              : 'bg-muted text-muted-foreground hover:bg-muted/50'
-          }`}
-        >
-          <Filter className="w-3.5 h-3.5" />
-          Filters
-          {hasActiveFilters && <span className="w-1.5 h-1.5 rounded-full bg-primary" />}
-          {showFilters ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-        </button>
-      </div>
+          <button
+            onClick={() => setShowFilters(!showFilters)}
+            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
+              hasActiveFilters
+                ? 'bg-primary/10 text-primary border border-primary/30'
+                : 'bg-white/5 text-white/60 hover:bg-white/10 border border-transparent'
+            }`}
+          >
+            <Filter className="w-3.5 h-3.5" />
+            Filters
+            {hasActiveFilters && <span className="w-1.5 h-1.5 rounded-full bg-primary" />}
+            {showFilters ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+          </button>
+        </div>
+      </FadeIn>
 
       {/* Advanced Filters Panel */}
       <AnimatePresence>
@@ -423,44 +425,44 @@ export default function HRLeaveRequestsPage() {
             exit={{ opacity: 0, height: 0 }}
             transition={{ duration: 0.2 }}
           >
-            <Card>
-              <CardContent className="pt-4 pb-4">
+            <GlassPanel>
+              <div className="p-4">
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                   {/* Date From */}
                   <div>
-                    <label className="block text-xs font-medium text-muted-foreground mb-1.5">
+                    <label className="block text-xs font-medium text-white/60 mb-1.5">
                       From Date
                     </label>
                     <input
                       type="date"
                       value={dateFrom}
                       onChange={(e) => setDateFrom(e.target.value)}
-                      className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors"
+                      className="w-full px-3 py-2 text-sm rounded-lg border border-white/10 bg-white/5 text-white focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors"
                     />
                   </div>
 
                   {/* Date To */}
                   <div>
-                    <label className="block text-xs font-medium text-muted-foreground mb-1.5">
+                    <label className="block text-xs font-medium text-white/60 mb-1.5">
                       To Date
                     </label>
                     <input
                       type="date"
                       value={dateTo}
                       onChange={(e) => setDateTo(e.target.value)}
-                      className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors"
+                      className="w-full px-3 py-2 text-sm rounded-lg border border-white/10 bg-white/5 text-white focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors"
                     />
                   </div>
 
                   {/* Department Filter */}
                   <div>
-                    <label className="block text-xs font-medium text-muted-foreground mb-1.5">
+                    <label className="block text-xs font-medium text-white/60 mb-1.5">
                       Department
                     </label>
                     <select
                       value={departmentFilter}
                       onChange={(e) => setDepartmentFilter(e.target.value)}
-                      className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors"
+                      className="w-full px-3 py-2 text-sm rounded-lg border border-white/10 bg-white/5 text-white focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors"
                     >
                       <option value="">All departments</option>
                       {departments.map((dep) => (
@@ -471,13 +473,13 @@ export default function HRLeaveRequestsPage() {
 
                   {/* Leave Type Filter */}
                   <div>
-                    <label className="block text-xs font-medium text-muted-foreground mb-1.5">
+                    <label className="block text-xs font-medium text-white/60 mb-1.5">
                       Leave Type
                     </label>
                     <select
                       value={leaveTypeFilter}
                       onChange={(e) => setLeaveTypeFilter(e.target.value)}
-                      className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors"
+                      className="w-full px-3 py-2 text-sm rounded-lg border border-white/10 bg-white/5 text-white focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors"
                     >
                       <option value="">All types</option>
                       {leaveTypes.map((type) => (
@@ -489,7 +491,7 @@ export default function HRLeaveRequestsPage() {
 
                 {hasActiveFilters && (
                   <div className="mt-3 flex items-center justify-between">
-                    <p className="text-xs text-muted-foreground">
+                    <p className="text-xs text-white/60">
                       Showing {filteredRequests.length} of {requests.length} loaded requests
                     </p>
                     <button
@@ -500,8 +502,8 @@ export default function HRLeaveRequestsPage() {
                     </button>
                   </div>
                 )}
-              </CardContent>
-            </Card>
+              </div>
+            </GlassPanel>
           </motion.div>
         )}
       </AnimatePresence>
@@ -537,12 +539,12 @@ export default function HRLeaveRequestsPage() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
           >
-            <Card>
-              <CardContent className="py-3">
+            <GlassPanel>
+              <div className="py-3 px-6">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3 text-sm">
                     <CheckCircle className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                    <span className="text-foreground">
+                    <span className="text-white">
                       Bulk {bulkResult.action}:{' '}
                       <span className="font-semibold text-emerald-600 dark:text-emerald-400">{bulkResult.successCount} succeeded</span>
                       {bulkResult.failCount > 0 && (
@@ -552,175 +554,177 @@ export default function HRLeaveRequestsPage() {
                   </div>
                   <button
                     onClick={() => setBulkResult(null)}
-                    className="text-muted-foreground hover:text-foreground transition-colors"
+                    className="text-white/60 hover:text-white transition-colors"
                   >
                     <X className="w-4 h-4" />
                   </button>
                 </div>
-              </CardContent>
-            </Card>
+              </div>
+            </GlassPanel>
           </motion.div>
         )}
       </AnimatePresence>
 
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle>
-              {statusFilter ? statusFilter.charAt(0).toUpperCase() + statusFilter.slice(1) + ' ' : 'All '}
-              Requests
-            </CardTitle>
-            {statusFilter === 'pending' && total > 0 && (
-              <Badge variant="warning">{total} pending</Badge>
-            )}
-          </div>
-        </CardHeader>
-        <CardContent>
-          {loading && <div className="py-12 text-center text-sm text-muted-foreground">Loading...</div>}
-          {error && !loading && (
-            <div className="rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 px-4 py-3 text-sm text-red-700 dark:text-red-400">
-              {error}
-            </div>
-          )}
-          {!loading && !error && filteredRequests.length === 0 && (
-            <div className="py-12 text-center">
-              <div className="w-10 h-10 rounded-xl bg-slate-50 dark:bg-slate-500/10 flex items-center justify-center mx-auto">
-                <Inbox className="w-5 h-5 text-slate-400" />
-              </div>
-              <p className="text-muted-foreground mt-3 text-sm">
-                {hasActiveFilters ? 'No requests match your filters.' : 'No leave requests found.'}
-              </p>
-              {hasActiveFilters && (
-                <button
-                  onClick={clearFilters}
-                  className="text-xs text-primary hover:text-primary/80 font-medium mt-2 transition-colors"
-                >
-                  Clear filters
-                </button>
+      <FadeIn>
+        <GlassPanel>
+          <div className="p-6 pb-0">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-white">
+                {statusFilter ? statusFilter.charAt(0).toUpperCase() + statusFilter.slice(1) + ' ' : 'All '}
+                Requests
+              </h2>
+              {statusFilter === 'pending' && total > 0 && (
+                <Badge variant="warning">{total} pending</Badge>
               )}
             </div>
-          )}
-          {!loading && !error && filteredRequests.length > 0 && (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-border">
-                    {/* Select All checkbox */}
-                    <th className="py-3 pr-2 w-10">
-                      {selectableRequests.length > 0 && (
-                        <input
-                          type="checkbox"
-                          checked={allSelectableSelected}
-                          onChange={toggleSelectAll}
-                          className="h-4 w-4 rounded border-border text-primary focus:ring-primary/50 cursor-pointer accent-primary"
-                          title="Select all pending requests"
-                        />
-                      )}
-                    </th>
-                    <th className="text-left py-3 pr-4 text-muted-foreground font-medium">Employee</th>
-                    <th className="text-left py-3 px-2 text-muted-foreground font-medium">Type</th>
-                    <th className="text-left py-3 px-2 text-muted-foreground font-medium">Dates</th>
-                    <th className="text-left py-3 px-2 text-muted-foreground font-medium">Days</th>
-                    <th className="text-left py-3 px-2 text-muted-foreground font-medium">Status</th>
-                    <th className="text-left py-3 pl-2 text-muted-foreground font-medium">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredRequests.map((req) => {
-                    const isSelectable = req.status === 'pending' || req.status === 'escalated';
-                    const isSelected = selectedIds.has(req.id);
+          </div>
+          <div className="p-6">
+            {loading && <div className="py-12 text-center text-sm text-white/60">Loading...</div>}
+            {error && !loading && (
+              <div className="rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 px-4 py-3 text-sm text-red-700 dark:text-red-400">
+                {error}
+              </div>
+            )}
+            {!loading && !error && filteredRequests.length === 0 && (
+              <div className="py-12 text-center">
+                <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center mx-auto">
+                  <Inbox className="w-5 h-5 text-slate-400" />
+                </div>
+                <p className="text-white/60 mt-3 text-sm">
+                  {hasActiveFilters ? 'No requests match your filters.' : 'No leave requests found.'}
+                </p>
+                {hasActiveFilters && (
+                  <button
+                    onClick={clearFilters}
+                    className="text-xs text-primary hover:text-primary/80 font-medium mt-2 transition-colors"
+                  >
+                    Clear filters
+                  </button>
+                )}
+              </div>
+            )}
+            {!loading && !error && filteredRequests.length > 0 && (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-white/10">
+                      {/* Select All checkbox */}
+                      <th className="py-3 pr-2 w-10">
+                        {selectableRequests.length > 0 && (
+                          <input
+                            type="checkbox"
+                            checked={allSelectableSelected}
+                            onChange={toggleSelectAll}
+                            className="h-4 w-4 rounded border-white/10 text-primary focus:ring-primary/50 cursor-pointer accent-primary"
+                            title="Select all pending requests"
+                          />
+                        )}
+                      </th>
+                      <th className="text-left py-3 pr-4 text-white/60 font-medium">Employee</th>
+                      <th className="text-left py-3 px-2 text-white/60 font-medium">Type</th>
+                      <th className="text-left py-3 px-2 text-white/60 font-medium">Dates</th>
+                      <th className="text-left py-3 px-2 text-white/60 font-medium">Days</th>
+                      <th className="text-left py-3 px-2 text-white/60 font-medium">Status</th>
+                      <th className="text-left py-3 pl-2 text-white/60 font-medium">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredRequests.map((req) => {
+                      const isSelectable = req.status === 'pending' || req.status === 'escalated';
+                      const isSelected = selectedIds.has(req.id);
 
-                    return (
-                      <tr
-                        key={req.id}
-                        className={`border-b border-border transition-colors ${
-                          isSelected
-                            ? 'bg-primary/5 hover:bg-primary/10'
-                            : 'hover:bg-muted/50'
-                        }`}
-                      >
-                        {/* Checkbox */}
-                        <td className="py-3 pr-2">
-                          {isSelectable && (
-                            <input
-                              type="checkbox"
-                              checked={isSelected}
-                              onChange={() => toggleSelect(req.id)}
-                              className="h-4 w-4 rounded border-border text-primary focus:ring-primary/50 cursor-pointer accent-primary"
-                            />
-                          )}
-                        </td>
-                        <td className="py-3 pr-4">
-                          <div className="flex items-center gap-2">
-                            <div className="w-7 h-7 bg-primary/10 rounded-full flex items-center justify-center text-xs font-bold text-primary shrink-0">
-                              {req.employee.first_name[0]}{req.employee.last_name[0]}
+                      return (
+                        <tr
+                          key={req.id}
+                          className={`border-b border-white/10 transition-colors ${
+                            isSelected
+                              ? 'bg-primary/5 hover:bg-primary/10'
+                              : 'hover:bg-white/5'
+                          }`}
+                        >
+                          {/* Checkbox */}
+                          <td className="py-3 pr-2">
+                            {isSelectable && (
+                              <input
+                                type="checkbox"
+                                checked={isSelected}
+                                onChange={() => toggleSelect(req.id)}
+                                className="h-4 w-4 rounded border-white/10 text-primary focus:ring-primary/50 cursor-pointer accent-primary"
+                              />
+                            )}
+                          </td>
+                          <td className="py-3 pr-4">
+                            <div className="flex items-center gap-2">
+                              <div className="w-7 h-7 bg-primary/10 rounded-full flex items-center justify-center text-xs font-bold text-primary shrink-0">
+                                {req.employee.first_name[0]}{req.employee.last_name[0]}
+                              </div>
+                              <div>
+                                <p className="font-medium text-white">
+                                  {req.employee.first_name} {req.employee.last_name}
+                                </p>
+                                <p className="text-xs text-white/60">{req.employee.department ?? '\u2014'}</p>
+                              </div>
                             </div>
-                            <div>
-                              <p className="font-medium text-foreground">
-                                {req.employee.first_name} {req.employee.last_name}
-                              </p>
-                              <p className="text-xs text-muted-foreground">{req.employee.department ?? '\u2014'}</p>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="py-3 px-2 font-medium text-foreground">{req.leave_type}</td>
-                        <td className="py-3 px-2 text-muted-foreground">
-                          {formatDate(req.start_date)}
-                          {req.start_date !== req.end_date && ` \u2013 ${formatDate(req.end_date)}`}
-                        </td>
-                        <td className="py-3 px-2 text-muted-foreground">{req.total_days}</td>
-                        <td className="py-3 px-2">
-                          <Badge variant={STATUS_BADGE[req.status] ?? 'default'}>{req.status}</Badge>
-                        </td>
-                        <td className="py-3 pl-2">
-                          {isSelectable ? (
-                            <div className="flex gap-2">
-                              <Button
-                                variant="success"
-                                size="sm"
-                                loading={actionLoading === req.id + 'approve'}
-                                disabled={!!actionLoading || bulkLoading}
-                                onClick={() => handleAction(req.id, 'approve')}
-                              >
-                                <Check className="w-3.5 h-3.5" />
-                                Approve
-                              </Button>
-                              <Button
-                                variant="danger"
-                                size="sm"
-                                loading={actionLoading === req.id + 'reject'}
-                                disabled={!!actionLoading || bulkLoading}
-                                onClick={() => handleAction(req.id, 'reject')}
-                              >
-                                <X className="w-3.5 h-3.5" />
-                                Reject
-                              </Button>
-                            </div>
-                          ) : (
-                            <span className="text-xs text-muted-foreground">{'\u2014'}</span>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
+                          </td>
+                          <td className="py-3 px-2 font-medium text-white">{req.leave_type}</td>
+                          <td className="py-3 px-2 text-white/60">
+                            {formatDate(req.start_date)}
+                            {req.start_date !== req.end_date && ` \u2013 ${formatDate(req.end_date)}`}
+                          </td>
+                          <td className="py-3 px-2 text-white/60">{req.total_days}</td>
+                          <td className="py-3 px-2">
+                            <Badge variant={STATUS_BADGE[req.status] ?? 'default'}>{req.status}</Badge>
+                          </td>
+                          <td className="py-3 pl-2">
+                            {isSelectable ? (
+                              <div className="flex gap-2">
+                                <Button
+                                  variant="success"
+                                  size="sm"
+                                  loading={actionLoading === req.id + 'approve'}
+                                  disabled={!!actionLoading || bulkLoading}
+                                  onClick={() => handleAction(req.id, 'approve')}
+                                >
+                                  <Check className="w-3.5 h-3.5" />
+                                  Approve
+                                </Button>
+                                <Button
+                                  variant="danger"
+                                  size="sm"
+                                  loading={actionLoading === req.id + 'reject'}
+                                  disabled={!!actionLoading || bulkLoading}
+                                  onClick={() => handleAction(req.id, 'reject')}
+                                >
+                                  <X className="w-3.5 h-3.5" />
+                                  Reject
+                                </Button>
+                              </div>
+                            ) : (
+                              <span className="text-xs text-white/60">{'\u2014'}</span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
 
-          {totalPages > 1 && (
-            <div className="flex items-center justify-between mt-6 pt-4 border-t border-border">
-              <Button variant="outline" size="sm" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page <= 1}>
-                Previous
-              </Button>
-              <span className="text-sm text-muted-foreground">Page {page} of {totalPages}</span>
-              <Button variant="outline" size="sm" onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page >= totalPages}>
-                Next
-              </Button>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between mt-6 pt-4 border-t border-white/10">
+                <Button variant="outline" size="sm" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page <= 1}>
+                  Previous
+                </Button>
+                <span className="text-sm text-white/60">Page {page} of {totalPages}</span>
+                <Button variant="outline" size="sm" onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page >= totalPages}>
+                  Next
+                </Button>
+              </div>
+            )}
+          </div>
+        </GlassPanel>
+      </FadeIn>
 
       {/* Floating Bulk Action Bar */}
       <AnimatePresence>
@@ -729,16 +733,16 @@ export default function HRLeaveRequestsPage() {
             initial={{ opacity: 0, y: 40 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 40 }}
-            transition={{ type: 'spring', stiffness: 300, damping: 24 }}
+            transition={{ type: 'spring' as const, stiffness: 300, damping: 24 }}
             className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50"
           >
-            <Card variant="elevated" className="shadow-2xl border border-border/80">
-              <CardContent className="py-3 px-5">
+            <GlassPanel className="shadow-2xl">
+              <div className="py-3 px-5">
                 <div className="flex items-center gap-4">
-                  <span className="text-sm font-medium text-foreground whitespace-nowrap">
+                  <span className="text-sm font-medium text-white whitespace-nowrap">
                     {selectedIds.size} selected
                   </span>
-                  <div className="w-px h-6 bg-border" />
+                  <div className="w-px h-6 bg-white/10" />
                   <div className="flex items-center gap-2">
                     <Button
                       variant="success"
@@ -761,19 +765,19 @@ export default function HRLeaveRequestsPage() {
                       Reject Selected
                     </Button>
                   </div>
-                  <div className="w-px h-6 bg-border" />
+                  <div className="w-px h-6 bg-white/10" />
                   <button
                     onClick={() => setSelectedIds(new Set())}
-                    className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+                    className="text-xs text-white/60 hover:text-white transition-colors"
                   >
                     Clear
                   </button>
                 </div>
-              </CardContent>
-            </Card>
+              </div>
+            </GlassPanel>
           </motion.div>
         )}
       </AnimatePresence>
-    </div>
+    </StaggerContainer>
   );
 }

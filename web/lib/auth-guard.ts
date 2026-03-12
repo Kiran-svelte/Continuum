@@ -1,14 +1,11 @@
 import { cookies } from 'next/headers';
-import { createClient } from '@supabase/supabase-js';
 import prisma from '@/lib/prisma';
-import { verifyIdToken } from '@/lib/firebase-admin';
-import { getSupabaseServerClient } from '@/lib/supabase-server';
+import { verifySupabaseToken } from '@/lib/supabase-server';
 import {
-  verifyKeycloakToken,
-  isKeycloakEnabled,
-  KEYCLOAK_TOKEN_COOKIE,
-  KEYCLOAK_REFRESH_COOKIE,
-} from '@/lib/keycloak';
+  verifySessionToken,
+  SESSION_COOKIE_NAME,
+  type SessionPayload,
+} from '@/lib/session';
 import {
   getUserPermissions,
   hasPermission,
@@ -51,151 +48,76 @@ export class AuthError extends Error {
   }
 }
 
-// ─── Supabase Auth Constants ────────────────────────────────────────────────
-
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-
-// Create admin client for server-side JWT verification
-function getSupabaseAdmin() {
-  return createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false,
-    },
-  });
-}
-
-// ─── Supabase Auth Helpers ──────────────────────────────────────────────────
+// ─── Token Verification Helpers ─────────────────────────────────────────────
 
 /**
- * Verifies a Supabase JWT token and returns the user
+ * Verifies a Supabase access token and returns the user.
  */
-async function verifySupabaseToken(token: string): Promise<DecodedUser> {
-  const supabase = getSupabaseAdmin();
-  
-  const { data: { user }, error } = await supabase.auth.getUser(token);
-  
-  if (error || !user) {
-    throw new Error(error?.message || 'Invalid token');
-  }
-  
+async function verifyBearerToken(token: string): Promise<DecodedUser> {
+  const user = await verifySupabaseToken(token);
+  if (!user) throw new Error('Invalid Supabase token');
   return {
     uid: user.id,
     email: user.email,
   };
 }
 
-/**
- * Verifies a Firebase ID token and returns the user
- */
-async function verifyFirebaseToken(token: string): Promise<DecodedUser> {
-  const decoded = await verifyIdToken(token);
-  return {
-    uid: decoded.uid,
-    email: decoded.email,
-  };
-}
+// ─── Request-Level Auth (for API routes that receive raw requests) ───────────
 
 /**
- * Verifies a token by trying Keycloak first (if enabled), then Firebase, then Supabase.
- */
-async function verifyToken(token: string): Promise<DecodedUser> {
-  // Try Keycloak first if enabled
-  if (isKeycloakEnabled()) {
-    try {
-      return await verifyKeycloakToken(token);
-    } catch {
-      // Fall through to Firebase
-    }
-  }
-
-  // Try Firebase
-  try {
-    return await verifyFirebaseToken(token);
-  } catch {
-    // Fall back to Supabase
-    return await verifySupabaseToken(token);
-  }
-}
-
-/**
- * Gets the authenticated user from either Bearer token (Authorization header) or cookies.
- * Tries Firebase verification first, then falls back to Supabase.
- * Prefers Bearer token if present.
+ * Gets the authenticated user from either Bearer token (Authorization header)
+ * or session cookie.
+ *
+ * Auth resolution order:
+ * 1. Bearer token → verify via Supabase Admin API
+ * 2. continuum-session cookie → verify signed JWT locally (no network call)
  */
 export async function getAuthUserFromRequest(request: Request): Promise<{ user: DecodedUser | null; error: Error | null }> {
+  // 1. Check Authorization header first
   const authHeader = request.headers.get('Authorization');
-  
   if (authHeader?.startsWith('Bearer ')) {
     const token = authHeader.slice(7);
     try {
-      const user = await verifyToken(token);
+      const user = await verifyBearerToken(token);
       return { user, error: null };
     } catch (err) {
       return { user: null, error: err instanceof Error ? err : new Error('Invalid token') };
     }
   }
 
-  // Fall back to cookie-based auth
+  // 2. Check session cookie
   const cookieHeader = request.headers.get('cookie');
   if (cookieHeader) {
-    const cookies = Object.fromEntries(
+    const cookieMap = Object.fromEntries(
       cookieHeader.split('; ').map(c => {
         const [key, ...val] = c.split('=');
         return [key, val.join('=')];
       })
     );
 
-    // Try Firebase session cookie first
-    const firebaseToken = cookies['firebase-auth-token'];
-    if (firebaseToken) {
+    // Try continuum-session JWT (primary — no network call needed)
+    const sessionToken = cookieMap[SESSION_COOKIE_NAME];
+    if (sessionToken) {
       try {
-        const decoded = decodeURIComponent(firebaseToken);
-        const user = await verifyFirebaseToken(decoded);
-        return { user, error: null };
+        const session = await verifySessionToken(sessionToken);
+        return { user: { uid: session.uid, email: session.email }, error: null };
       } catch {
-        // Firebase cookie invalid, fall through to Supabase
-      }
-    }
-
-    // Fall back to Supabase access token in cookies
-    // Dynamically find the Supabase auth cookie by looking for sb-*-auth-token pattern
-    const supabaseCookieKey = Object.keys(cookies).find(key => key.startsWith('sb-') && key.endsWith('-auth-token'));
-    const accessToken = supabaseCookieKey ? cookies[supabaseCookieKey] : undefined;
-    if (accessToken) {
-      try {
-        // Parse the cookie JSON structure
-        const tokenData = JSON.parse(decodeURIComponent(accessToken));
-        const token = tokenData.access_token || tokenData;
-        if (typeof token === 'string') {
-          const user = await verifySupabaseToken(token);
-          return { user, error: null };
-        }
-      } catch (err) {
-        return { user: null, error: err instanceof Error ? err : new Error('Invalid token') };
+        // Session JWT invalid/expired, fall through
       }
     }
   }
-  
+
   return { user: null, error: new Error('No authentication token found') };
 }
 
-// ─── Auth Guards ─────────────────────────────────────────────────────────────
+// ─── Auth Guards (Server Components / Route Handlers via cookies()) ─────────
 
 /**
- * Extracts the Supabase project ID from the URL for cookie name construction
- */
-function getSupabaseProjectId(): string {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-  // URL format: https://<project-id>.supabase.co
-  const match = url.match(/https:\/\/([^.]+)\.supabase/);
-  return match?.[1] || 'default';
-}
-
-/**
- * Extracts auth from Firebase or Supabase, looks up Employee via Prisma.
- * Tries Firebase session cookie first, then falls back to Supabase server client.
+ * Extracts auth from session cookie, looks up Employee via Prisma.
+ *
+ * Auth resolution order:
+ * 1. continuum-session JWT cookie → verify locally (no network call)
+ *
  * Returns the authenticated employee with role, company, and permissions.
  */
 export async function getAuthEmployee(): Promise<AuthEmployee> {
@@ -203,49 +125,19 @@ export async function getAuthEmployee(): Promise<AuthEmployee> {
 
   let decodedUser: DecodedUser | null = null;
 
-  // 1. Try Keycloak token first (if enabled)
-  if (isKeycloakEnabled()) {
-    const kcCookie = cookieStore.get(KEYCLOAK_TOKEN_COOKIE);
-    if (kcCookie?.value) {
-      try {
-        decodedUser = await verifyKeycloakToken(kcCookie.value);
-      } catch {
-        // Keycloak token invalid, fall through to other providers
-      }
-    }
-  }
-
-  // 2. Try Firebase session cookie
-  if (!decodedUser) {
-    const firebaseCookie = cookieStore.get('firebase-auth-token');
-    if (firebaseCookie?.value) {
-      try {
-        const token = decodeURIComponent(firebaseCookie.value);
-        decodedUser = await verifyFirebaseToken(token);
-      } catch {
-        // Firebase cookie invalid, fall through to Supabase
-      }
-    }
-  }
-
-  // Fall back to Supabase server client (handles cookies automatically)
-  if (!decodedUser) {
+  // Try continuum-session JWT (primary — fast, no network call)
+  const sessionCookie = cookieStore.get(SESSION_COOKIE_NAME);
+  if (sessionCookie?.value) {
     try {
-      const supabase = await getSupabaseServerClient();
-      const { data: { user }, error } = await supabase.auth.getUser();
-      
-      if (error || !user) {
-        throw new AuthError('Authentication required', 401);
-      }
-      
-      decodedUser = {
-        uid: user.id,
-        email: user.email,
-      };
-    } catch (err) {
-      if (err instanceof AuthError) throw err;
-      throw new AuthError('Invalid or expired token', 401);
+      const session = await verifySessionToken(sessionCookie.value);
+      decodedUser = { uid: session.uid, email: session.email };
+    } catch {
+      // Session JWT invalid/expired
     }
+  }
+
+  if (!decodedUser) {
+    throw new AuthError('Authentication required', 401);
   }
 
   const employee = await prisma.employee.findUnique({

@@ -1,27 +1,21 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Modal, ModalFooter } from '@/components/ui/modal';
-import { Button } from '@/components/ui/button';
-import { Skeleton, SkeletonTable } from '@/components/ui/skeleton';
-import { motion } from 'framer-motion';
-import { ensureMe } from '@/lib/client-auth';
+import { useEffect, useState, useCallback, useMemo } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
-  GitBranch,
-  Layers,
-  Plus,
-  Pencil,
-  Trash2,
-  ArrowRight,
-  Users,
-  ShieldCheck,
-  AlertCircle,
+  GitBranch, Layers, Plus, Pencil, Trash2, ArrowRight, Users, ShieldCheck,
+  AlertCircle, Search, X, ChevronsUpDown, Check, Loader2,
 } from 'lucide-react';
+import { useDebounce } from '@/lib/use-debounce';
+import { StaggerContainer, FadeIn } from '@/components/motion';
+import { PageHeader } from '@/components/page-header';
+import { TabButton } from '@/components/tab-button';
+import { GlassPanel } from '@/components/glass-panel';
+import { Button } from '@/components/ui/button';
+import { Modal } from '@/components/ui/modal';
+import { Skeleton } from '@/components/ui/skeleton';
 
-// ─── Types ──────────────────────────────────────────────────────────────────
-
+// --- Types ---
 interface EmployeeSummary {
   id: string;
   first_name: string;
@@ -32,14 +26,11 @@ interface EmployeeSummary {
 interface ApprovalHierarchy {
   id: string;
   emp_id: string;
-  company_id: string;
   level1_approver: string | null;
   level2_approver: string | null;
   level3_approver: string | null;
   level4_approver: string | null;
   hr_partner: string | null;
-  created_at: string;
-  updated_at: string;
   employee: EmployeeSummary;
   level1: EmployeeSummary | null;
   level2: EmployeeSummary | null;
@@ -50,43 +41,20 @@ interface ApprovalHierarchy {
 
 interface JobLevel {
   id: string;
-  company_id: string;
   name: string;
   rank: number;
   description: string | null;
-  created_at: string;
 }
 
-interface ApprovalFormData {
-  emp_id: string;
-  level1_approver: string;
-  level2_approver: string;
-  level3_approver: string;
-  level4_approver: string;
-  hr_partner: string;
+interface FormData<T> {
+  data: T;
+  isOpen: boolean;
+  isEditing: boolean;
+  isSaving: boolean;
+  id: string | null;
 }
 
-interface JobLevelFormData {
-  name: string;
-  rank: string;
-  description: string;
-}
-
-// ─── Animation Variants ─────────────────────────────────────────────────────
-
-const containerVariants = {
-  hidden: { opacity: 0 },
-  visible: { opacity: 1, transition: { staggerChildren: 0.08 } },
-} as const;
-
-const itemVariants = {
-  hidden: { opacity: 0, y: 20 },
-  visible: { opacity: 1, y: 0, transition: { type: 'spring' as const, stiffness: 260, damping: 20 } },
-} as const;
-
-// ─── Constants ──────────────────────────────────────────────────────────────
-
-const EMPTY_APPROVAL_FORM: ApprovalFormData = {
+const EMPTY_APPROVAL_FORM = {
   emp_id: '',
   level1_approver: '',
   level2_approver: '',
@@ -95,845 +63,509 @@ const EMPTY_APPROVAL_FORM: ApprovalFormData = {
   hr_partner: '',
 };
 
-const EMPTY_JOB_LEVEL_FORM: JobLevelFormData = {
+const EMPTY_JOB_LEVEL_FORM = {
   name: '',
   rank: '',
   description: '',
 };
 
-type TabKey = 'approvals' | 'levels';
+// --- Helper Components ---
 
-// ─── Helper ─────────────────────────────────────────────────────────────────
+const EmptyState = ({ icon: Icon, title, message, onAction, actionLabel }: any) => (
+  <GlassPanel className="text-center py-12">
+    <Icon className="w-12 h-12 mx-auto text-slate-500 mb-3" />
+    <h3 className="text-lg font-semibold text-slate-300">{title}</h3>
+    <p className="text-slate-400 mb-4 text-sm">{message}</p>
+    <Button onClick={onAction} variant="primary" size="sm">
+      <Plus className="w-4 h-4 mr-1" />
+      {actionLabel}
+    </Button>
+  </GlassPanel>
+);
 
-function empName(e: EmployeeSummary | null): string {
-  if (!e) return '-';
-  return `${e.first_name} ${e.last_name}`;
-}
+const ErrorDisplay = ({ message }: { message: string }) => (
+  <GlassPanel className="flex items-center gap-3 text-red-400 py-8 justify-center">
+    <AlertCircle className="w-5 h-5" />
+    <span>{message}</span>
+  </GlassPanel>
+);
 
-// ─── Page Component ─────────────────────────────────────────────────────────
+const LoadingSkeleton = () => (
+  <div className="space-y-2">
+    {[...Array(5)].map((_, i) => (
+      <Skeleton key={i} className="h-12 w-full bg-slate-800/50" />
+    ))}
+  </div>
+);
 
-export default function ApprovalConfigPage() {
-  // ── Auth ────────────────────────────────────────────────────────────
-  const [authed, setAuthed] = useState(false);
+const Combobox = ({ options, value, onChange, placeholder }: any) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const debouncedSearchTerm = useDebounce(searchTerm, 300);
 
-  // ── Tab ─────────────────────────────────────────────────────────────
-  const [activeTab, setActiveTab] = useState<TabKey>('approvals');
+  const filteredOptions = useMemo(() =>
+    options.filter((option: any) =>
+      `${option.first_name} ${option.last_name} ${option.email}`
+        .toLowerCase()
+        .includes(debouncedSearchTerm.toLowerCase())
+    ), [options, debouncedSearchTerm]);
 
-  // ── Approval Hierarchy state ────────────────────────────────────────
-  const [hierarchies, setHierarchies] = useState<ApprovalHierarchy[]>([]);
-  const [loadingH, setLoadingH] = useState(true);
-  const [errorH, setErrorH] = useState('');
-  const [showApprovalModal, setShowApprovalModal] = useState(false);
-  const [editingApproval, setEditingApproval] = useState<ApprovalHierarchy | null>(null);
-  const [approvalForm, setApprovalForm] = useState<ApprovalFormData>(EMPTY_APPROVAL_FORM);
-  const [savingApproval, setSavingApproval] = useState(false);
-  const [deletingApprovalId, setDeletingApprovalId] = useState<string | null>(null);
-
-  // ── Job Levels state ────────────────────────────────────────────────
-  const [jobLevels, setJobLevels] = useState<JobLevel[]>([]);
-  const [loadingJ, setLoadingJ] = useState(true);
-  const [errorJ, setErrorJ] = useState('');
-  const [showLevelModal, setShowLevelModal] = useState(false);
-  const [editingLevel, setEditingLevel] = useState<JobLevel | null>(null);
-  const [levelForm, setLevelForm] = useState<JobLevelFormData>(EMPTY_JOB_LEVEL_FORM);
-  const [savingLevel, setSavingLevel] = useState(false);
-  const [deletingLevelId, setDeletingLevelId] = useState<string | null>(null);
-
-  // ── Employees for dropdowns ─────────────────────────────────────────
-  const [employees, setEmployees] = useState<EmployeeSummary[]>([]);
-
-  // ── Fetch helpers ───────────────────────────────────────────────────
-
-  const fetchHierarchies = useCallback(async () => {
-    try {
-      setLoadingH(true);
-      const res = await fetch('/api/approval-hierarchy', { credentials: 'include' });
-      if (!res.ok) throw new Error('Failed to load approval hierarchies');
-      const data = await res.json();
-      setHierarchies(data.hierarchies ?? []);
-      setErrorH('');
-    } catch (err) {
-      setErrorH(err instanceof Error ? err.message : 'Unknown error');
-    } finally {
-      setLoadingH(false);
-    }
-  }, []);
-
-  const fetchJobLevels = useCallback(async () => {
-    try {
-      setLoadingJ(true);
-      const res = await fetch('/api/job-levels', { credentials: 'include' });
-      if (!res.ok) throw new Error('Failed to load job levels');
-      const data = await res.json();
-      setJobLevels(data.jobLevels ?? []);
-      setErrorJ('');
-    } catch (err) {
-      setErrorJ(err instanceof Error ? err.message : 'Unknown error');
-    } finally {
-      setLoadingJ(false);
-    }
-  }, []);
-
-  const fetchEmployees = useCallback(async () => {
-    try {
-      const res = await fetch('/api/employees?limit=100', { credentials: 'include' });
-      if (!res.ok) return;
-      const data = await res.json();
-      setEmployees(
-        (data.employees ?? []).map((e: Record<string, string>) => ({
-          id: e.id,
-          first_name: e.first_name,
-          last_name: e.last_name,
-          email: e.email,
-        }))
-      );
-    } catch {
-      // non-critical
-    }
-  }, []);
-
-  // ── Init ────────────────────────────────────────────────────────────
-
-  useEffect(() => {
-    (async () => {
-      const me = await ensureMe();
-      if (!me) {
-        window.location.href = '/sign-in';
-        return;
-      }
-      setAuthed(true);
-      fetchHierarchies();
-      fetchJobLevels();
-      fetchEmployees();
-    })();
-  }, [fetchHierarchies, fetchJobLevels, fetchEmployees]);
-
-  // ── Approval CRUD ──────────────────────────────────────────────────
-
-  function openAddApproval() {
-    setEditingApproval(null);
-    setApprovalForm(EMPTY_APPROVAL_FORM);
-    setShowApprovalModal(true);
-  }
-
-  function openEditApproval(h: ApprovalHierarchy) {
-    setEditingApproval(h);
-    setApprovalForm({
-      emp_id: h.emp_id,
-      level1_approver: h.level1_approver ?? '',
-      level2_approver: h.level2_approver ?? '',
-      level3_approver: h.level3_approver ?? '',
-      level4_approver: h.level4_approver ?? '',
-      hr_partner: h.hr_partner ?? '',
-    });
-    setShowApprovalModal(true);
-  }
-
-  async function saveApproval() {
-    setSavingApproval(true);
-    try {
-      const isEdit = !!editingApproval;
-      const payload = isEdit
-        ? {
-            id: editingApproval!.id,
-            level1_approver: approvalForm.level1_approver || null,
-            level2_approver: approvalForm.level2_approver || null,
-            level3_approver: approvalForm.level3_approver || null,
-            level4_approver: approvalForm.level4_approver || null,
-            hr_partner: approvalForm.hr_partner || null,
-          }
-        : {
-            emp_id: approvalForm.emp_id,
-            level1_approver: approvalForm.level1_approver || null,
-            level2_approver: approvalForm.level2_approver || null,
-            level3_approver: approvalForm.level3_approver || null,
-            level4_approver: approvalForm.level4_approver || null,
-            hr_partner: approvalForm.hr_partner || null,
-          };
-
-      const res = await fetch('/api/approval-hierarchy', {
-        method: isEdit ? 'PATCH' : 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify(payload),
-      });
-
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || 'Failed to save');
-      }
-
-      setShowApprovalModal(false);
-      fetchHierarchies();
-    } catch (err) {
-      alert(err instanceof Error ? err.message : 'Error saving approval hierarchy');
-    } finally {
-      setSavingApproval(false);
-    }
-  }
-
-  async function deleteApproval(id: string) {
-    if (!confirm('Remove this approval chain?')) return;
-    setDeletingApprovalId(id);
-    try {
-      const res = await fetch('/api/approval-hierarchy', {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ id }),
-      });
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || 'Failed to delete');
-      }
-      fetchHierarchies();
-    } catch (err) {
-      alert(err instanceof Error ? err.message : 'Error deleting');
-    } finally {
-      setDeletingApprovalId(null);
-    }
-  }
-
-  // ── Job Level CRUD ─────────────────────────────────────────────────
-
-  function openAddLevel() {
-    setEditingLevel(null);
-    setLevelForm(EMPTY_JOB_LEVEL_FORM);
-    setShowLevelModal(true);
-  }
-
-  function openEditLevel(jl: JobLevel) {
-    setEditingLevel(jl);
-    setLevelForm({
-      name: jl.name,
-      rank: String(jl.rank),
-      description: jl.description ?? '',
-    });
-    setShowLevelModal(true);
-  }
-
-  async function saveLevel() {
-    setSavingLevel(true);
-    try {
-      const isEdit = !!editingLevel;
-      const rankNum = parseInt(levelForm.rank, 10);
-
-      if (!levelForm.name.trim()) throw new Error('Name is required');
-      if (isNaN(rankNum)) throw new Error('Rank must be a number');
-
-      const payload = isEdit
-        ? {
-            id: editingLevel!.id,
-            name: levelForm.name.trim(),
-            rank: rankNum,
-            description: levelForm.description.trim() || null,
-          }
-        : {
-            name: levelForm.name.trim(),
-            rank: rankNum,
-            description: levelForm.description.trim() || null,
-          };
-
-      const res = await fetch('/api/job-levels', {
-        method: isEdit ? 'PATCH' : 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify(payload),
-      });
-
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || 'Failed to save');
-      }
-
-      setShowLevelModal(false);
-      fetchJobLevels();
-    } catch (err) {
-      alert(err instanceof Error ? err.message : 'Error saving job level');
-    } finally {
-      setSavingLevel(false);
-    }
-  }
-
-  async function deleteLevel(id: string) {
-    if (!confirm('Delete this job level?')) return;
-    setDeletingLevelId(id);
-    try {
-      const res = await fetch('/api/job-levels', {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ id }),
-      });
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || 'Failed to delete');
-      }
-      fetchJobLevels();
-    } catch (err) {
-      alert(err instanceof Error ? err.message : 'Error deleting');
-    } finally {
-      setDeletingLevelId(null);
-    }
-  }
-
-  // ── Loading / auth gate ────────────────────────────────────────────
-
-  if (!authed) {
-    return (
-      <div className="space-y-6 p-6">
-        <Skeleton className="h-8 w-64" />
-        <Skeleton className="h-4 w-96" />
-        <SkeletonTable rows={5} columns={6} />
-      </div>
-    );
-  }
-
-  // ── Render ─────────────────────────────────────────────────────────
+  const selectedOption = options.find((o: any) => o.id === value);
 
   return (
-    <motion.div
-      className="space-y-6"
-      variants={containerVariants}
-      initial="hidden"
-      animate="visible"
-    >
-      {/* ── Page Header ─────────────────────────────────────────────── */}
-      <motion.div
-        className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4"
-        variants={itemVariants}
+    <div className="relative">
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        className="w-full text-left form-input flex items-center justify-between"
       >
-        <div>
-          <h1 className="text-2xl font-bold text-foreground dark:text-white">
-            Approval Configuration
-          </h1>
-          <p className="text-sm text-muted-foreground dark:text-slate-400 mt-1">
-            Manage approval chains and job level grades for your organization.
-          </p>
-        </div>
-      </motion.div>
+        <span className="truncate">
+          {selectedOption ? `${selectedOption.first_name} ${selectedOption.last_name}` : placeholder}
+        </span>
+        <ChevronsUpDown className="w-4 h-4 text-slate-400" />
+      </button>
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="absolute z-10 w-full mt-1 bg-slate-800/80 backdrop-blur-lg border border-slate-700 rounded-lg shadow-xl"
+          >
+            <div className="p-2">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Search employees..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full form-input pl-9"
+                />
+              </div>
+            </div>
+            <ul className="max-h-60 overflow-y-auto p-1">
+              {filteredOptions.map((option: any) => (
+                <li
+                  key={option.id}
+                  onClick={() => {
+                    onChange(option.id);
+                    setIsOpen(false);
+                    setSearchTerm('');
+                  }}
+                  className="p-2 text-sm rounded-md hover:bg-emerald-500/10 flex items-center justify-between cursor-pointer"
+                >
+                  <span>{option.first_name} {option.last_name} <span className="text-xs text-slate-400">{option.email}</span></span>
+                  {value === option.id && <Check className="w-4 h-4 text-emerald-400" />}
+                </li>
+              ))}
+            </ul>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+};
 
-      {/* ── Tabs ────────────────────────────────────────────────────── */}
-      <motion.div variants={itemVariants}>
-        <div className="flex border-b border-border dark:border-slate-700">
-          <button
+
+// --- Main Page Component ---
+export default function ApprovalConfigPage() {
+  const [activeTab, setActiveTab] = useState<'approvals' | 'levels'>('approvals');
+  const [hierarchies, setHierarchies] = useState<ApprovalHierarchy[]>([]);
+  const [jobLevels, setJobLevels] = useState<JobLevel[]>([]);
+  const [employees, setEmployees] = useState<EmployeeSummary[]>([]);
+  const [loading, setLoading] = useState({ h: true, j: true, e: true });
+  const [error, setError] = useState({ h: '', j: '' });
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  const [approvalModal, setApprovalModal] = useState<FormData<typeof EMPTY_APPROVAL_FORM>>({
+    data: EMPTY_APPROVAL_FORM, isOpen: false, isEditing: false, isSaving: false, id: null
+  });
+  const [levelModal, setLevelModal] = useState<FormData<typeof EMPTY_JOB_LEVEL_FORM>>({
+    data: EMPTY_JOB_LEVEL_FORM, isOpen: false, isEditing: false, isSaving: false, id: null
+  });
+
+  const fetchData = useCallback(async (endpoint: string, key: 'h' | 'j' | 'e') => {
+    try {
+      setLoading(l => ({ ...l, [key]: true }));
+      const res = await fetch(`/api/${endpoint}`, { credentials: 'include' });
+      if (!res.ok) throw new Error(`Failed to load data from ${endpoint}`);
+      const data = await res.json();
+      
+      if (key === 'h') setHierarchies(data.hierarchies ?? []);
+      if (key === 'j') setJobLevels(data.jobLevels ?? []);
+      if (key === 'e') setEmployees(data.employees?.map((e: any) => ({ id: e.id, first_name: e.first_name, last_name: e.last_name, email: e.email })) ?? []);
+      
+      setError(e => ({ ...e, [key]: '' }));
+    } catch (err: any) {
+      setError(e => ({ ...e, [key]: err.message }));
+    } finally {
+      setLoading(l => ({ ...l, [key]: false }));
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchData('approval-hierarchy', 'h');
+    fetchData('job-levels', 'j');
+    fetchData('employees?limit=500', 'e');
+  }, [fetchData]);
+
+  const handleSave = async (type: 'approval' | 'level') => {
+    const isApproval = type === 'approval';
+    const modalState = isApproval ? approvalModal : levelModal;
+    const setModal = isApproval ? setApprovalModal : setLevelModal;
+    const endpoint = isApproval ? 'approval-hierarchy' : 'job-levels';
+    const refreshData = isApproval ? () => fetchData('approval-hierarchy', 'h') : () => fetchData('job-levels', 'j');
+
+    setModal((m: any) => ({ ...m, isSaving: true }));
+    try {
+      let payload: any;
+      if (isApproval) {
+        const { emp_id, ...rest } = modalState.data as any;
+        payload = modalState.isEditing ? { id: modalState.id, ...rest } : modalState.data;
+      } else {
+        const { name, rank, description } = levelModal.data;
+        if (!name.trim()) throw new Error('Name is required');
+        const rankNum = parseInt(rank, 10);
+        if (isNaN(rankNum)) throw new Error('Rank must be a number');
+        payload = { name: name.trim(), rank: rankNum, description: description.trim() || null };
+        if (levelModal.isEditing) payload.id = levelModal.id;
+      }
+      
+      Object.keys(payload).forEach(k => {
+        if (payload[k] === '') payload[k] = null;
+      });
+
+      const res = await fetch(`/api/${endpoint}`, {
+        method: modalState.isEditing ? 'PATCH' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Failed to save');
+      }
+
+      setModal((m: any) => ({ ...m, isOpen: false }));
+      refreshData();
+    } catch (err: any) {
+      alert(`Error: ${err.message}`);
+    } finally {
+      setModal((m: any) => ({ ...m, isSaving: false }));
+    }
+  };
+
+  const handleDelete = async (type: 'approval' | 'level', id: string) => {
+    if (!confirm(`Are you sure you want to delete this ${type}?`)) return;
+    setDeletingId(id);
+    const endpoint = type === 'approval' ? 'approval-hierarchy' : 'job-levels';
+    const refreshData = type === 'approval' ? () => fetchData('approval-hierarchy', 'h') : () => fetchData('job-levels', 'j');
+    
+    try {
+      const res = await fetch(`/api/${endpoint}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ id }),
+      });
+      if (!res.ok) throw new Error('Failed to delete');
+      refreshData();
+    } catch (err: any) {
+      alert(`Error: ${err.message}`);
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  const openModal = (type: 'approval' | 'level', isEditing = false, item: any = null) => {
+    if (type === 'approval') {
+      setApprovalModal({
+        isOpen: true,
+        isEditing,
+        isSaving: false,
+        id: isEditing ? item.id : null,
+        data: isEditing ? {
+          emp_id: item.emp_id,
+          level1_approver: item.level1_approver ?? '',
+          level2_approver: item.level2_approver ?? '',
+          level3_approver: item.level3_approver ?? '',
+          level4_approver: item.level4_approver ?? '',
+          hr_partner: item.hr_partner ?? '',
+        } : EMPTY_APPROVAL_FORM,
+      });
+    } else {
+      setLevelModal({
+        isOpen: true,
+        isEditing,
+        isSaving: false,
+        id: isEditing ? item.id : null,
+        data: isEditing ? {
+          name: item.name,
+          rank: String(item.rank),
+          description: item.description ?? '',
+        } : EMPTY_JOB_LEVEL_FORM,
+      });
+    }
+  };
+
+  const empName = (e: EmployeeSummary | null) => e ? `${e.first_name} ${e.last_name}` : <span className="text-slate-500">-</span>;
+
+  return (
+    <StaggerContainer>
+      <FadeIn>
+        <PageHeader
+          title="Approval Configuration"
+          description="Manage approval chains and job level grades for your organization."
+        />
+      </FadeIn>
+
+      <FadeIn>
+        <div className="flex border-b border-slate-700 mb-6">
+          <TabButton
+            active={activeTab === 'approvals'}
             onClick={() => setActiveTab('approvals')}
-            className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium transition-colors border-b-2 -mb-px ${
-              activeTab === 'approvals'
-                ? 'border-primary text-primary dark:text-blue-400 dark:border-blue-400'
-                : 'border-transparent text-muted-foreground hover:text-foreground dark:text-slate-400 dark:hover:text-white'
-            }`}
           >
             <GitBranch className="w-4 h-4" />
             Approval Chains
-            <Badge variant="default" size="sm">
-              {hierarchies.length}
-            </Badge>
-          </button>
-          <button
+            <span className="ml-1 text-xs bg-white/10 px-2 py-0.5 rounded-full">{hierarchies.length}</span>
+          </TabButton>
+          <TabButton
+            active={activeTab === 'levels'}
             onClick={() => setActiveTab('levels')}
-            className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium transition-colors border-b-2 -mb-px ${
-              activeTab === 'levels'
-                ? 'border-primary text-primary dark:text-blue-400 dark:border-blue-400'
-                : 'border-transparent text-muted-foreground hover:text-foreground dark:text-slate-400 dark:hover:text-white'
-            }`}
           >
             <Layers className="w-4 h-4" />
             Job Levels
-            <Badge variant="default" size="sm">
-              {jobLevels.length}
-            </Badge>
-          </button>
+            <span className="ml-1 text-xs bg-white/10 px-2 py-0.5 rounded-full">{jobLevels.length}</span>
+          </TabButton>
         </div>
-      </motion.div>
+      </FadeIn>
 
-      {/* ── Approval Chains Tab ─────────────────────────────────────── */}
-      {activeTab === 'approvals' && (
-        <motion.div variants={itemVariants} className="space-y-4">
-          <div className="flex items-center justify-between">
-            <p className="text-sm text-muted-foreground dark:text-slate-400">
-              Define who approves leave, reimbursements, and other requests for each employee.
-            </p>
-            <Button size="sm" onClick={openAddApproval}>
-              <Plus className="w-4 h-4 mr-1" />
-              Add Chain
-            </Button>
-          </div>
-
-          {loadingH ? (
-            <SkeletonTable rows={5} columns={6} />
-          ) : errorH ? (
-            <Card>
-              <CardContent>
-                <div className="flex items-center gap-2 text-red-500 dark:text-red-400 py-8 justify-center">
-                  <AlertCircle className="w-5 h-5" />
-                  <span>{errorH}</span>
-                </div>
-              </CardContent>
-            </Card>
-          ) : hierarchies.length === 0 ? (
-            <Card>
-              <CardContent>
-                <div className="text-center py-12">
-                  <GitBranch className="w-12 h-12 mx-auto text-muted-foreground dark:text-slate-500 mb-3" />
-                  <p className="text-muted-foreground dark:text-slate-400 mb-4">
-                    No approval chains configured yet.
-                  </p>
-                  <Button size="sm" onClick={openAddApproval}>
-                    <Plus className="w-4 h-4 mr-1" />
-                    Create First Chain
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          ) : (
-            <Card>
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-border dark:border-slate-700 bg-muted/50 dark:bg-slate-800/50">
-                      <th className="text-left px-4 py-3 font-medium text-muted-foreground dark:text-slate-400">
-                        Employee
-                      </th>
-                      <th className="text-left px-4 py-3 font-medium text-muted-foreground dark:text-slate-400">
-                        L1 Approver
-                      </th>
-                      <th className="text-left px-4 py-3 font-medium text-muted-foreground dark:text-slate-400">
-                        L2 Approver
-                      </th>
-                      <th className="text-left px-4 py-3 font-medium text-muted-foreground dark:text-slate-400">
-                        L3 Approver
-                      </th>
-                      <th className="text-left px-4 py-3 font-medium text-muted-foreground dark:text-slate-400">
-                        L4 Approver
-                      </th>
-                      <th className="text-left px-4 py-3 font-medium text-muted-foreground dark:text-slate-400">
-                        HR Partner
-                      </th>
-                      <th className="text-right px-4 py-3 font-medium text-muted-foreground dark:text-slate-400">
-                        Actions
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {hierarchies.map((h) => (
-                      <tr
-                        key={h.id}
-                        className="border-b border-border/50 dark:border-slate-800 hover:bg-muted/30 dark:hover:bg-slate-800/30 transition-colors"
-                      >
-                        <td className="px-4 py-3">
-                          <div className="flex items-center gap-2">
-                            <Users className="w-4 h-4 text-primary dark:text-blue-400" />
-                            <div>
-                              <p className="font-medium text-foreground dark:text-white">
-                                {empName(h.employee)}
-                              </p>
-                              <p className="text-xs text-muted-foreground dark:text-slate-500">
-                                {h.employee.email}
-                              </p>
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={activeTab}
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -20 }}
+          transition={{ duration: 0.2 }}
+        >
+          {activeTab === 'approvals' && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <p className="text-sm text-slate-400">
+                  Define who approves requests for each employee.
+                </p>
+                <Button size="sm" variant="primary" onClick={() => openModal('approval')}>
+                  <Plus className="w-4 h-4 mr-1" />
+                  Add Chain
+                </Button>
+              </div>
+              {loading.h ? <LoadingSkeleton /> : error.h ? <ErrorDisplay message={error.h} /> : hierarchies.length === 0 ? (
+                <EmptyState icon={GitBranch} title="No Approval Chains" message="Create the first approval chain for your organization." onAction={() => openModal('approval')} actionLabel="Create First Chain" />
+              ) : (
+                <GlassPanel className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead className="border-b border-slate-700">
+                      <tr>
+                        {['Employee', 'L1 Approver', 'L2 Approver', 'L3 Approver', 'L4 Approver', 'HR Partner', ''].map(h => (
+                          <th key={h} className="text-left px-4 py-3 font-medium text-slate-400">{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {hierarchies.map((h) => (
+                        <tr key={h.id} className="border-b border-slate-800 hover:bg-slate-800/50 transition-colors">
+                          <td className="px-4 py-3">
+                            <div className="flex items-center gap-2">
+                              <Users className="w-4 h-4 text-emerald-400" />
+                              <div>
+                                <p className="font-medium text-slate-200">{empName(h.employee)}</p>
+                                <p className="text-xs text-slate-500">{h.employee.email}</p>
+                              </div>
                             </div>
-                          </div>
-                        </td>
-                        <td className="px-4 py-3 text-foreground dark:text-slate-300">
-                          <div className="flex items-center gap-1">
-                            {h.level1 && <ArrowRight className="w-3 h-3 text-muted-foreground" />}
-                            {empName(h.level1)}
-                          </div>
-                        </td>
-                        <td className="px-4 py-3 text-foreground dark:text-slate-300">
-                          <div className="flex items-center gap-1">
-                            {h.level2 && <ArrowRight className="w-3 h-3 text-muted-foreground" />}
-                            {empName(h.level2)}
-                          </div>
-                        </td>
-                        <td className="px-4 py-3 text-foreground dark:text-slate-300">
-                          <div className="flex items-center gap-1">
-                            {h.level3 && <ArrowRight className="w-3 h-3 text-muted-foreground" />}
-                            {empName(h.level3)}
-                          </div>
-                        </td>
-                        <td className="px-4 py-3 text-foreground dark:text-slate-300">
-                          <div className="flex items-center gap-1">
-                            {h.level4 && <ArrowRight className="w-3 h-3 text-muted-foreground" />}
-                            {empName(h.level4)}
-                          </div>
-                        </td>
-                        <td className="px-4 py-3 text-foreground dark:text-slate-300">
-                          <div className="flex items-center gap-1">
-                            {h.hr && <ShieldCheck className="w-3 h-3 text-emerald-500" />}
-                            {empName(h.hr)}
-                          </div>
-                        </td>
-                        <td className="px-4 py-3 text-right">
-                          <div className="flex items-center justify-end gap-1">
-                            <button
-                              onClick={() => openEditApproval(h)}
-                              className="p-1.5 rounded-lg hover:bg-muted dark:hover:bg-slate-700 text-muted-foreground hover:text-foreground dark:hover:text-white transition-colors"
-                              title="Edit"
-                            >
-                              <Pencil className="w-4 h-4" />
-                            </button>
-                            <button
-                              onClick={() => deleteApproval(h.id)}
-                              disabled={deletingApprovalId === h.id}
-                              className="p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-500/10 text-muted-foreground hover:text-red-600 dark:hover:text-red-400 transition-colors disabled:opacity-50"
-                              title="Delete"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                          </td>
+                          {[h.level1, h.level2, h.level3, h.level4].map((approver, i) => (
+                            <td key={i} className="px-4 py-3 text-slate-300">
+                              <div className="flex items-center gap-1.5">
+                                {approver && <ArrowRight className="w-3 h-3 text-slate-500" />}
+                                {empName(approver)}
+                              </div>
+                            </td>
+                          ))}
+                          <td className="px-4 py-3 text-slate-300">
+                            <div className="flex items-center gap-1.5">
+                              {h.hr && <ShieldCheck className="w-3 h-3 text-emerald-500" />}
+                              {empName(h.hr)}
+                            </div>
+                          </td>
+                          <td className="px-4 py-3 text-right">
+                            <div className="flex items-center justify-end gap-1">
+                              <Button variant="ghost" size="sm" onClick={() => openModal('approval', true, h)}><Pencil className="w-4 h-4" /></Button>
+                              <Button variant="ghost" size="sm" onClick={() => handleDelete('approval', h.id)} disabled={deletingId === h.id}>
+                                {deletingId === h.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                              </Button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </GlassPanel>
+              )}
+            </div>
+          )}
+
+          {activeTab === 'levels' && (
+             <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <p className="text-sm text-slate-400">
+                  Define job level grades used across your organization.
+                </p>
+                <Button size="sm" variant="primary" onClick={() => openModal('level')}>
+                  <Plus className="w-4 h-4 mr-1" />
+                  Add Level
+                </Button>
               </div>
-            </Card>
+              {loading.j ? <LoadingSkeleton /> : error.j ? <ErrorDisplay message={error.j} /> : jobLevels.length === 0 ? (
+                <EmptyState icon={Layers} title="No Job Levels" message="Define the first job level for your organization." onAction={() => openModal('level')} actionLabel="Create First Level" />
+              ) : (
+                <GlassPanel className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead className="border-b border-slate-700">
+                      <tr>
+                        {['Rank', 'Name', 'Description', ''].map(h => (
+                          <th key={h} className="text-left px-4 py-3 font-medium text-slate-400">{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {jobLevels.sort((a, b) => a.rank - b.rank).map((jl) => (
+                        <tr key={jl.id} className="border-b border-slate-800 hover:bg-slate-800/50 transition-colors">
+                          <td className="px-4 py-3">
+                            <span className="font-mono text-xs bg-emerald-900/50 text-emerald-300 rounded px-2 py-1">{jl.rank}</span>
+                          </td>
+                          <td className="px-4 py-3 font-medium text-slate-200">{jl.name}</td>
+                          <td className="px-4 py-3 text-slate-400 max-w-xs truncate">{jl.description || <span className="text-slate-600">-</span>}</td>
+                          <td className="px-4 py-3 text-right">
+                            <div className="flex items-center justify-end gap-1">
+                              <Button variant="ghost" size="sm" onClick={() => openModal('level', true, jl)}><Pencil className="w-4 h-4" /></Button>
+                              <Button variant="ghost" size="sm" onClick={() => handleDelete('level', jl.id)} disabled={deletingId === jl.id}>
+                                {deletingId === jl.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                              </Button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </GlassPanel>
+              )}
+            </div>
           )}
         </motion.div>
-      )}
+      </AnimatePresence>
 
-      {/* ── Job Levels Tab ──────────────────────────────────────────── */}
-      {activeTab === 'levels' && (
-        <motion.div variants={itemVariants} className="space-y-4">
-          <div className="flex items-center justify-between">
-            <p className="text-sm text-muted-foreground dark:text-slate-400">
-              Define job level grades used across your organization hierarchy.
-            </p>
-            <Button size="sm" onClick={openAddLevel}>
-              <Plus className="w-4 h-4 mr-1" />
-              Add Level
-            </Button>
-          </div>
-
-          {loadingJ ? (
-            <SkeletonTable rows={5} columns={4} />
-          ) : errorJ ? (
-            <Card>
-              <CardContent>
-                <div className="flex items-center gap-2 text-red-500 dark:text-red-400 py-8 justify-center">
-                  <AlertCircle className="w-5 h-5" />
-                  <span>{errorJ}</span>
-                </div>
-              </CardContent>
-            </Card>
-          ) : jobLevels.length === 0 ? (
-            <Card>
-              <CardContent>
-                <div className="text-center py-12">
-                  <Layers className="w-12 h-12 mx-auto text-muted-foreground dark:text-slate-500 mb-3" />
-                  <p className="text-muted-foreground dark:text-slate-400 mb-4">
-                    No job levels defined yet.
-                  </p>
-                  <Button size="sm" onClick={openAddLevel}>
-                    <Plus className="w-4 h-4 mr-1" />
-                    Create First Level
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          ) : (
-            <Card>
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-border dark:border-slate-700 bg-muted/50 dark:bg-slate-800/50">
-                      <th className="text-left px-4 py-3 font-medium text-muted-foreground dark:text-slate-400">
-                        Rank
-                      </th>
-                      <th className="text-left px-4 py-3 font-medium text-muted-foreground dark:text-slate-400">
-                        Name
-                      </th>
-                      <th className="text-left px-4 py-3 font-medium text-muted-foreground dark:text-slate-400">
-                        Description
-                      </th>
-                      <th className="text-right px-4 py-3 font-medium text-muted-foreground dark:text-slate-400">
-                        Actions
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {jobLevels.map((jl) => (
-                      <tr
-                        key={jl.id}
-                        className="border-b border-border/50 dark:border-slate-800 hover:bg-muted/30 dark:hover:bg-slate-800/30 transition-colors"
-                      >
-                        <td className="px-4 py-3">
-                          <Badge variant="info" size="sm">
-                            {jl.rank}
-                          </Badge>
-                        </td>
-                        <td className="px-4 py-3 font-medium text-foreground dark:text-white">
-                          {jl.name}
-                        </td>
-                        <td className="px-4 py-3 text-muted-foreground dark:text-slate-400 max-w-xs truncate">
-                          {jl.description || '-'}
-                        </td>
-                        <td className="px-4 py-3 text-right">
-                          <div className="flex items-center justify-end gap-1">
-                            <button
-                              onClick={() => openEditLevel(jl)}
-                              className="p-1.5 rounded-lg hover:bg-muted dark:hover:bg-slate-700 text-muted-foreground hover:text-foreground dark:hover:text-white transition-colors"
-                              title="Edit"
-                            >
-                              <Pencil className="w-4 h-4" />
-                            </button>
-                            <button
-                              onClick={() => deleteLevel(jl.id)}
-                              disabled={deletingLevelId === jl.id}
-                              className="p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-500/10 text-muted-foreground hover:text-red-600 dark:hover:text-red-400 transition-colors disabled:opacity-50"
-                              title="Delete"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </Card>
-          )}
-        </motion.div>
-      )}
-
-      {/* ── Approval Hierarchy Modal ────────────────────────────────── */}
+      {/* Modals */}
       <Modal
-        isOpen={showApprovalModal}
-        onClose={() => setShowApprovalModal(false)}
-        title={editingApproval ? 'Edit Approval Chain' : 'Add Approval Chain'}
-        description="Configure the approval chain for an employee."
+        isOpen={approvalModal.isOpen}
+        onClose={() => setApprovalModal(m => ({ ...m, isOpen: false }))}
+        title={approvalModal.isEditing ? 'Edit Approval Chain' : 'Add Approval Chain'}
         size="lg"
       >
         <div className="space-y-4">
-          {/* Employee select (only for new entries) */}
-          {!editingApproval && (
+          {approvalModal.isEditing ? (
+            <div className="form-display-field">
+              <label>Employee</label>
+              <p>{empName(hierarchies.find(h => h.id === approvalModal.id)?.employee ?? null)}</p>
+            </div>
+          ) : (
             <div>
-              <label className="block text-sm font-medium text-foreground dark:text-slate-300 mb-1">
-                Employee <span className="text-red-500">*</span>
-              </label>
-              <select
-                value={approvalForm.emp_id}
-                onChange={(e) => setApprovalForm((f) => ({ ...f, emp_id: e.target.value }))}
-                className="w-full rounded-lg border border-border dark:border-slate-700 bg-background dark:bg-slate-800 text-foreground dark:text-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-              >
-                <option value="">Select employee...</option>
-                {employees.map((e) => (
-                  <option key={e.id} value={e.id}>
-                    {e.first_name} {e.last_name} ({e.email})
-                  </option>
-                ))}
-              </select>
+              <label className="form-label">Employee <span className="text-red-500">*</span></label>
+              <Combobox
+                options={employees.filter(e => !hierarchies.some(h => h.emp_id === e.id))}
+                value={approvalModal.data.emp_id}
+                onChange={(val: string) => setApprovalModal(m => ({ ...m, data: { ...m.data, emp_id: val } }))}
+                placeholder="Select employee..."
+              />
             </div>
           )}
-
-          {editingApproval && (
-            <div className="bg-muted/50 dark:bg-slate-800 rounded-lg p-3">
-              <p className="text-sm text-muted-foreground dark:text-slate-400">Employee</p>
-              <p className="font-medium text-foreground dark:text-white">
-                {empName(editingApproval.employee)}
-              </p>
+          
+          {[1, 2, 3, 4].map(level => (
+            <div key={level}>
+              <label className="form-label">{`Level ${level} Approver`}</label>
+              <Combobox
+                options={employees}
+                value={(approvalModal.data as any)[`level${level}_approver`]}
+                onChange={(val: string) => setApprovalModal(m => ({ ...m, data: { ...m.data, [`level${level}_approver`]: val } }))}
+                placeholder="None"
+              />
             </div>
-          )}
+          ))}
 
-          {/* Level 1 */}
           <div>
-            <label className="block text-sm font-medium text-foreground dark:text-slate-300 mb-1">
-              Level 1 Approver
-            </label>
-            <select
-              value={approvalForm.level1_approver}
-              onChange={(e) =>
-                setApprovalForm((f) => ({ ...f, level1_approver: e.target.value }))
-              }
-              className="w-full rounded-lg border border-border dark:border-slate-700 bg-background dark:bg-slate-800 text-foreground dark:text-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-            >
-              <option value="">None</option>
-              {employees.map((e) => (
-                <option key={e.id} value={e.id}>
-                  {e.first_name} {e.last_name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Level 2 */}
-          <div>
-            <label className="block text-sm font-medium text-foreground dark:text-slate-300 mb-1">
-              Level 2 Approver
-            </label>
-            <select
-              value={approvalForm.level2_approver}
-              onChange={(e) =>
-                setApprovalForm((f) => ({ ...f, level2_approver: e.target.value }))
-              }
-              className="w-full rounded-lg border border-border dark:border-slate-700 bg-background dark:bg-slate-800 text-foreground dark:text-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-            >
-              <option value="">None</option>
-              {employees.map((e) => (
-                <option key={e.id} value={e.id}>
-                  {e.first_name} {e.last_name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Level 3 */}
-          <div>
-            <label className="block text-sm font-medium text-foreground dark:text-slate-300 mb-1">
-              Level 3 Approver
-            </label>
-            <select
-              value={approvalForm.level3_approver}
-              onChange={(e) =>
-                setApprovalForm((f) => ({ ...f, level3_approver: e.target.value }))
-              }
-              className="w-full rounded-lg border border-border dark:border-slate-700 bg-background dark:bg-slate-800 text-foreground dark:text-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-            >
-              <option value="">None</option>
-              {employees.map((e) => (
-                <option key={e.id} value={e.id}>
-                  {e.first_name} {e.last_name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Level 4 */}
-          <div>
-            <label className="block text-sm font-medium text-foreground dark:text-slate-300 mb-1">
-              Level 4 Approver
-            </label>
-            <select
-              value={approvalForm.level4_approver}
-              onChange={(e) =>
-                setApprovalForm((f) => ({ ...f, level4_approver: e.target.value }))
-              }
-              className="w-full rounded-lg border border-border dark:border-slate-700 bg-background dark:bg-slate-800 text-foreground dark:text-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-            >
-              <option value="">None</option>
-              {employees.map((e) => (
-                <option key={e.id} value={e.id}>
-                  {e.first_name} {e.last_name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* HR Partner */}
-          <div>
-            <label className="block text-sm font-medium text-foreground dark:text-slate-300 mb-1">
-              HR Partner
-            </label>
-            <select
-              value={approvalForm.hr_partner}
-              onChange={(e) =>
-                setApprovalForm((f) => ({ ...f, hr_partner: e.target.value }))
-              }
-              className="w-full rounded-lg border border-border dark:border-slate-700 bg-background dark:bg-slate-800 text-foreground dark:text-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-            >
-              <option value="">None</option>
-              {employees.map((e) => (
-                <option key={e.id} value={e.id}>
-                  {e.first_name} {e.last_name}
-                </option>
-              ))}
-            </select>
+            <label className="form-label">HR Partner</label>
+            <Combobox
+              options={employees}
+              value={approvalModal.data.hr_partner}
+              onChange={(val: string) => setApprovalModal(m => ({ ...m, data: { ...m.data, hr_partner: val } }))}
+              placeholder="None"
+            />
           </div>
         </div>
-
-        <ModalFooter>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setShowApprovalModal(false)}
-            disabled={savingApproval}
-          >
-            Cancel
+        <div className="flex justify-end gap-3 mt-6">
+          <Button variant="secondary" onClick={() => setApprovalModal(m => ({ ...m, isOpen: false }))}>Cancel</Button>
+          <Button variant="primary" onClick={() => handleSave('approval')} loading={approvalModal.isSaving} disabled={!approvalModal.isEditing && !approvalModal.data.emp_id}>
+            {approvalModal.isEditing ? 'Update' : 'Create'}
           </Button>
-          <Button
-            size="sm"
-            onClick={saveApproval}
-            loading={savingApproval}
-            disabled={!editingApproval && !approvalForm.emp_id}
-          >
-            {editingApproval ? 'Update' : 'Create'}
-          </Button>
-        </ModalFooter>
+        </div>
       </Modal>
 
-      {/* ── Job Level Modal ─────────────────────────────────────────── */}
       <Modal
-        isOpen={showLevelModal}
-        onClose={() => setShowLevelModal(false)}
-        title={editingLevel ? 'Edit Job Level' : 'Add Job Level'}
-        description="Define a grade level for your organization."
-        size="md"
+        isOpen={levelModal.isOpen}
+        onClose={() => setLevelModal(m => ({ ...m, isOpen: false }))}
+        title={levelModal.isEditing ? 'Edit Job Level' : 'Add Job Level'}
       >
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-foreground dark:text-slate-300 mb-1">
-              Name <span className="text-red-500">*</span>
-            </label>
+            <label className="form-label">Name <span className="text-red-500">*</span></label>
             <input
               type="text"
-              value={levelForm.name}
-              onChange={(e) => setLevelForm((f) => ({ ...f, name: e.target.value }))}
+              value={levelModal.data.name}
+              onChange={(e) => setLevelModal(m => ({ ...m, data: { ...m.data, name: e.target.value } }))}
               placeholder="e.g. Senior Engineer"
-              className="w-full rounded-lg border border-border dark:border-slate-700 bg-background dark:bg-slate-800 text-foreground dark:text-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+              className="form-input"
             />
           </div>
-
           <div>
-            <label className="block text-sm font-medium text-foreground dark:text-slate-300 mb-1">
-              Rank <span className="text-red-500">*</span>
-            </label>
+            <label className="form-label">Rank <span className="text-red-500">*</span></label>
             <input
               type="number"
-              value={levelForm.rank}
-              onChange={(e) => setLevelForm((f) => ({ ...f, rank: e.target.value }))}
+              value={levelModal.data.rank}
+              onChange={(e) => setLevelModal(m => ({ ...m, data: { ...m.data, rank: e.target.value } }))}
               placeholder="e.g. 5"
-              className="w-full rounded-lg border border-border dark:border-slate-700 bg-background dark:bg-slate-800 text-foreground dark:text-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+              className="form-input"
             />
-            <p className="text-xs text-muted-foreground dark:text-slate-500 mt-1">
-              Lower rank = higher seniority. Levels are sorted by rank ascending.
-            </p>
+            <p className="text-xs text-slate-500 mt-1">Lower rank = higher seniority.</p>
           </div>
-
           <div>
-            <label className="block text-sm font-medium text-foreground dark:text-slate-300 mb-1">
-              Description
-            </label>
+            <label className="form-label">Description</label>
             <textarea
-              value={levelForm.description}
-              onChange={(e) => setLevelForm((f) => ({ ...f, description: e.target.value }))}
+              value={levelModal.data.description}
+              onChange={(e) => setLevelModal(m => ({ ...m, data: { ...m.data, description: e.target.value } }))}
               rows={3}
-              placeholder="Optional description of this level..."
-              className="w-full rounded-lg border border-border dark:border-slate-700 bg-background dark:bg-slate-800 text-foreground dark:text-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary resize-none"
+              placeholder="Optional description..."
+              className="form-input"
             />
           </div>
         </div>
-
-        <ModalFooter>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setShowLevelModal(false)}
-            disabled={savingLevel}
-          >
-            Cancel
+        <div className="flex justify-end gap-3 mt-6">
+          <Button variant="secondary" onClick={() => setLevelModal(m => ({ ...m, isOpen: false }))}>Cancel</Button>
+          <Button variant="primary" onClick={() => handleSave('level')} loading={levelModal.isSaving} disabled={!levelModal.data.name.trim() || !levelModal.data.rank}>
+            {levelModal.isEditing ? 'Update' : 'Create'}
           </Button>
-          <Button
-            size="sm"
-            onClick={saveLevel}
-            loading={savingLevel}
-            disabled={!levelForm.name.trim() || !levelForm.rank}
-          >
-            {editingLevel ? 'Update' : 'Create'}
-          </Button>
-        </ModalFooter>
+        </div>
       </Modal>
-    </motion.div>
+    </StaggerContainer>
   );
 }

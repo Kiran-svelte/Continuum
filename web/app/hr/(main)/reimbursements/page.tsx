@@ -1,8 +1,11 @@
 'use client';
 
 import { useEffect, useState, useCallback, useMemo } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { AnimatePresence, motion } from 'framer-motion';
+import { StaggerContainer, FadeIn, TiltCard } from '@/components/motion';
+import { PageHeader } from '@/components/page-header';
+import { GlassPanel } from '@/components/glass-panel';
+import { TabButton } from '@/components/tab-button';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Modal, ModalFooter } from '@/components/ui/modal';
@@ -90,30 +93,11 @@ const CATEGORY_ICONS: Record<string, React.ReactNode> = {
 };
 
 const CATEGORY_COLORS: Record<string, string> = {
-  travel: 'bg-blue-500/10 text-blue-600 dark:text-blue-400',
-  medical: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400',
-  equipment: 'bg-purple-500/10 text-purple-600 dark:text-purple-400',
-  food: 'bg-orange-500/10 text-orange-600 dark:text-orange-400',
-  other: 'bg-slate-500/10 text-slate-600 dark:text-slate-400',
-};
-
-// ─── Animation Variants ──────────────────────────────────────────────────────
-
-const containerVariants = {
-  hidden: { opacity: 0 },
-  visible: {
-    opacity: 1,
-    transition: { staggerChildren: 0.08, delayChildren: 0.1 },
-  },
-};
-
-const itemVariants = {
-  hidden: { opacity: 0, y: 20 },
-  visible: {
-    opacity: 1,
-    y: 0,
-    transition: { type: 'spring' as const, stiffness: 300, damping: 24 },
-  },
+  travel: 'bg-blue-500/10 text-blue-400',
+  medical: 'bg-emerald-500/10 text-emerald-400',
+  equipment: 'bg-purple-500/10 text-purple-400',
+  food: 'bg-orange-500/10 text-orange-400',
+  other: 'bg-slate-500/10 text-slate-400',
 };
 
 // ─── Component ───────────────────────────────────────────────────────────────
@@ -282,17 +266,16 @@ export default function HRReimbursementsPage() {
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="rounded-xl border border-border bg-card p-6 space-y-3">
+            <GlassPanel key={i} className="p-6 space-y-3">
               <Skeleton className="h-4 w-24" />
               <Skeleton className="h-8 w-16" />
               <Skeleton className="h-3 w-20" />
-            </div>
+            </GlassPanel>
           ))}
         </div>
-        <Card>
-          <CardContent className="py-6">
+        <GlassPanel className="p-6">
             {Array.from({ length: 5 }).map((_, i) => (
-              <div key={i} className="flex items-center gap-4 py-4 border-b border-border last:border-0">
+              <div key={i} className="flex items-center gap-4 py-4 border-b border-white/10 last:border-0">
                 <Skeleton className="w-8 h-8 rounded-full" />
                 <div className="flex-1 space-y-2">
                   <Skeleton className="h-4 w-3/4" />
@@ -302,90 +285,80 @@ export default function HRReimbursementsPage() {
                 <Skeleton className="h-8 w-20" />
               </div>
             ))}
-          </CardContent>
-        </Card>
+        </GlassPanel>
       </div>
     );
   }
 
   return (
-    <motion.div
-      className="space-y-6"
-      variants={containerVariants}
-      initial="hidden"
-      animate="visible"
-    >
+    <StaggerContainer className="space-y-6">
       {/* Header */}
-      <motion.div className="flex items-center justify-between" variants={itemVariants}>
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Reimbursement Management</h1>
-          <p className="text-muted-foreground mt-1">
-            Review and process employee reimbursement requests
-          </p>
-        </div>
-      </motion.div>
+      <PageHeader title="Reimbursement Management" description="Review and process employee reimbursement requests" icon={<Receipt className="w-6 h-6 text-primary" />} />
 
       {/* Summary Cards */}
-      <motion.div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4" variants={itemVariants}>
-        <Card>
-          <CardContent className="pt-6 pb-6">
+      <FadeIn>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <TiltCard>
+          <GlassPanel className="p-5">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-lg bg-blue-500/10 flex items-center justify-center">
-                <Users className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                <Users className="w-5 h-5 text-blue-400" />
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">Total Requests</p>
-                <p className="text-2xl font-bold text-foreground">{summary.totalRequests}</p>
+                <p className="text-sm text-white/60">Total Requests</p>
+                <p className="text-2xl font-bold text-white">{summary.totalRequests}</p>
               </div>
             </div>
-          </CardContent>
-        </Card>
+          </GlassPanel>
+        </TiltCard>
 
-        <Card>
-          <CardContent className="pt-6 pb-6">
+        <TiltCard>
+          <GlassPanel className="p-5">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-lg bg-amber-500/10 flex items-center justify-center">
-                <Clock className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+                <Clock className="w-5 h-5 text-amber-400" />
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">Pending Review</p>
-                <p className="text-2xl font-bold text-foreground">{summary.pendingReview}</p>
+                <p className="text-sm text-white/60">Pending Review</p>
+                <p className="text-2xl font-bold text-white">{summary.pendingReview}</p>
               </div>
             </div>
-          </CardContent>
-        </Card>
+          </GlassPanel>
+        </TiltCard>
 
-        <Card>
-          <CardContent className="pt-6 pb-6">
+        <TiltCard>
+          <GlassPanel className="p-5">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-lg bg-emerald-500/10 flex items-center justify-center">
-                <CheckCircle2 className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+                <CheckCircle2 className="w-5 h-5 text-emerald-400" />
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">Total Approved</p>
-                <p className="text-2xl font-bold text-foreground">{formatCurrency(summary.totalApprovedAmount)}</p>
+                <p className="text-sm text-white/60">Total Approved</p>
+                <p className="text-2xl font-bold text-white">{formatCurrency(summary.totalApprovedAmount)}</p>
               </div>
             </div>
-          </CardContent>
-        </Card>
+          </GlassPanel>
+        </TiltCard>
 
-        <Card>
-          <CardContent className="pt-6 pb-6">
+        <TiltCard>
+          <GlassPanel className="p-5">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-lg bg-purple-500/10 flex items-center justify-center">
-                <Banknote className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+                <Banknote className="w-5 h-5 text-purple-400" />
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">Total Processed</p>
-                <p className="text-2xl font-bold text-foreground">{formatCurrency(summary.totalProcessedAmount)}</p>
+                <p className="text-sm text-white/60">Total Processed</p>
+                <p className="text-2xl font-bold text-white">{formatCurrency(summary.totalProcessedAmount)}</p>
               </div>
             </div>
-          </CardContent>
-        </Card>
-      </motion.div>
+          </GlassPanel>
+        </TiltCard>
+        </div>
+      </FadeIn>
 
       {/* Status Filter Tabs */}
-      <motion.div className="flex items-center gap-2 flex-wrap" variants={itemVariants}>
+      <FadeIn>
+        <div className="flex items-center gap-2 flex-wrap">
         {[
           { value: '', label: 'All' },
           { value: 'pending', label: 'Pending' },
@@ -393,22 +366,19 @@ export default function HRReimbursementsPage() {
           { value: 'rejected', label: 'Rejected' },
           { value: 'processed', label: 'Processed' },
         ].map((f) => (
-          <button
+          <TabButton
             key={f.value}
+            active={statusFilter === f.value}
             onClick={() => {
               setStatusFilter(f.value);
               setPage(1);
             }}
-            className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
-              statusFilter === f.value
-                ? 'bg-primary text-primary-foreground'
-                : 'bg-muted text-muted-foreground hover:bg-muted/50'
-            }`}
           >
             {f.label}
-          </button>
+          </TabButton>
         ))}
-      </motion.div>
+        </div>
+      </FadeIn>
 
       {/* Action Message */}
       <AnimatePresence>
@@ -419,8 +389,8 @@ export default function HRReimbursementsPage() {
             exit={{ opacity: 0, y: -10 }}
             className={`rounded-lg px-4 py-3 text-sm flex items-center gap-2 ${
               actionMessage.type === 'success'
-                ? 'bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-400'
-                : 'bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400'
+                ? 'bg-emerald-500/10 border border-emerald-800 text-emerald-400'
+                : 'bg-red-500/10 border border-red-800 text-red-400'
             }`}
           >
             {actionMessage.type === 'success' ? (
@@ -435,32 +405,30 @@ export default function HRReimbursementsPage() {
 
       {/* Error State */}
       {error && (
-        <motion.div variants={itemVariants}>
-          <div className="rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 px-4 py-3 text-sm text-red-700 dark:text-red-400 flex items-center gap-2">
+        <FadeIn>
+          <div className="rounded-lg bg-red-900/20 border border-red-800 px-4 py-3 text-sm text-red-400 flex items-center gap-2">
             <AlertCircle className="w-4 h-4 shrink-0" />
             {error}
           </div>
-        </motion.div>
+        </FadeIn>
       )}
 
       {/* Main Table / Cards */}
-      <motion.div variants={itemVariants}>
-        <Card>
-          <CardHeader>
-            <CardTitle>
+      <FadeIn>
+        <GlassPanel>
+          <div className="p-6">
+            <h2 className="text-lg font-semibold text-white mb-4">
               {statusFilter
                 ? statusFilter.charAt(0).toUpperCase() + statusFilter.slice(1) + ' '
                 : 'All '}
               Reimbursements
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
+            </h2>
             {!loading && !error && reimbursements.length === 0 && (
               <div className="py-12 text-center">
-                <div className="w-12 h-12 rounded-xl bg-slate-50 dark:bg-slate-500/10 flex items-center justify-center mx-auto">
+                <div className="w-12 h-12 rounded-xl bg-slate-500/10 flex items-center justify-center mx-auto">
                   <Inbox className="w-6 h-6 text-slate-400" />
                 </div>
-                <p className="text-muted-foreground mt-3 text-sm">
+                <p className="text-white/60 mt-3 text-sm">
                   No reimbursement requests found.
                 </p>
               </div>
@@ -472,21 +440,21 @@ export default function HRReimbursementsPage() {
                 <div className="hidden md:block overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead>
-                      <tr className="border-b border-border">
-                        <th className="text-left py-3 pr-4 text-muted-foreground font-medium">Employee</th>
-                        <th className="text-left py-3 px-2 text-muted-foreground font-medium">Category</th>
-                        <th className="text-left py-3 px-2 text-muted-foreground font-medium">Amount</th>
-                        <th className="text-left py-3 px-2 text-muted-foreground font-medium">Description</th>
-                        <th className="text-left py-3 px-2 text-muted-foreground font-medium">Status</th>
-                        <th className="text-left py-3 px-2 text-muted-foreground font-medium">Date</th>
-                        <th className="text-left py-3 pl-2 text-muted-foreground font-medium">Actions</th>
+                      <tr className="border-b border-white/10">
+                        <th className="text-left py-3 pr-4 text-white/60 font-medium">Employee</th>
+                        <th className="text-left py-3 px-2 text-white/60 font-medium">Category</th>
+                        <th className="text-left py-3 px-2 text-white/60 font-medium">Amount</th>
+                        <th className="text-left py-3 px-2 text-white/60 font-medium">Description</th>
+                        <th className="text-left py-3 px-2 text-white/60 font-medium">Status</th>
+                        <th className="text-left py-3 px-2 text-white/60 font-medium">Date</th>
+                        <th className="text-left py-3 pl-2 text-white/60 font-medium">Actions</th>
                       </tr>
                     </thead>
                     <tbody>
                       {reimbursements.map((r) => (
                         <tr
                           key={r.id}
-                          className="border-b border-border hover:bg-muted/50 transition-colors"
+                          className="border-b border-white/10 hover:bg-white/5 transition-colors"
                         >
                           {/* Employee */}
                           <td className="py-3 pr-4">
@@ -496,10 +464,10 @@ export default function HRReimbursementsPage() {
                                 {r.employee.last_name[0]}
                               </div>
                               <div>
-                                <p className="font-medium text-foreground">
+                                <p className="font-medium text-white">
                                   {r.employee.first_name} {r.employee.last_name}
                                 </p>
-                                <p className="text-xs text-muted-foreground">
+                                <p className="text-xs text-white/60">
                                   {r.employee.department ?? '\u2014'}
                                 </p>
                               </div>
@@ -512,19 +480,19 @@ export default function HRReimbursementsPage() {
                               <span className={`w-6 h-6 rounded flex items-center justify-center ${CATEGORY_COLORS[r.category] || CATEGORY_COLORS.other}`}>
                                 {CATEGORY_ICONS[r.category] || CATEGORY_ICONS.other}
                               </span>
-                              <span className="text-foreground">
+                              <span className="text-white">
                                 {CATEGORY_LABELS[r.category] || r.category}
                               </span>
                             </div>
                           </td>
 
                           {/* Amount */}
-                          <td className="py-3 px-2 font-semibold text-foreground">
+                          <td className="py-3 px-2 font-semibold text-white">
                             {formatCurrency(r.amount)}
                           </td>
 
                           {/* Description */}
-                          <td className="py-3 px-2 text-muted-foreground max-w-[200px]">
+                          <td className="py-3 px-2 text-white/60 max-w-[200px]">
                             <span className="line-clamp-1">
                               {r.description || '\u2014'}
                             </span>
@@ -538,7 +506,7 @@ export default function HRReimbursementsPage() {
                           </td>
 
                           {/* Date */}
-                          <td className="py-3 px-2 text-muted-foreground whitespace-nowrap">
+                          <td className="py-3 px-2 text-white/60 whitespace-nowrap">
                             {formatDate(r.created_at)}
                           </td>
 
@@ -582,7 +550,7 @@ export default function HRReimbursementsPage() {
                                 </Button>
                               )}
                               {(r.status === 'rejected' || r.status === 'processed') && (
-                                <span className="text-xs text-muted-foreground">{'\u2014'}</span>
+                                <span className="text-xs text-white/60">{'\u2014'}</span>
                               )}
                             </div>
                           </td>
@@ -599,7 +567,7 @@ export default function HRReimbursementsPage() {
                       key={r.id}
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
-                      className="p-4 rounded-lg border border-border hover:bg-muted/30 transition-colors"
+                      className="p-4 rounded-lg border border-white/10 hover:bg-white/5 transition-colors"
                     >
                       {/* Top row: Employee + Status */}
                       <div className="flex items-start justify-between gap-2 mb-3">
@@ -609,10 +577,10 @@ export default function HRReimbursementsPage() {
                             {r.employee.last_name[0]}
                           </div>
                           <div>
-                            <p className="font-medium text-foreground text-sm">
+                            <p className="font-medium text-white text-sm">
                               {r.employee.first_name} {r.employee.last_name}
                             </p>
-                            <p className="text-xs text-muted-foreground">
+                            <p className="text-xs text-white/60">
                               {r.employee.department ?? '\u2014'}
                             </p>
                           </div>
@@ -625,28 +593,28 @@ export default function HRReimbursementsPage() {
                       {/* Details grid */}
                       <div className="grid grid-cols-2 gap-2 text-sm mb-3">
                         <div>
-                          <p className="text-xs text-muted-foreground">Category</p>
+                          <p className="text-xs text-white/60">Category</p>
                           <div className="flex items-center gap-1 mt-0.5">
                             <span className={`w-5 h-5 rounded flex items-center justify-center ${CATEGORY_COLORS[r.category] || CATEGORY_COLORS.other}`}>
                               {CATEGORY_ICONS[r.category] || CATEGORY_ICONS.other}
                             </span>
-                            <span className="text-foreground">
+                            <span className="text-white">
                               {CATEGORY_LABELS[r.category] || r.category}
                             </span>
                           </div>
                         </div>
                         <div>
-                          <p className="text-xs text-muted-foreground">Amount</p>
-                          <p className="font-semibold text-foreground mt-0.5">{formatCurrency(r.amount)}</p>
+                          <p className="text-xs text-white/60">Amount</p>
+                          <p className="font-semibold text-white mt-0.5">{formatCurrency(r.amount)}</p>
                         </div>
                         <div>
-                          <p className="text-xs text-muted-foreground">Date</p>
-                          <p className="text-foreground mt-0.5">{formatDate(r.created_at)}</p>
+                          <p className="text-xs text-white/60">Date</p>
+                          <p className="text-white mt-0.5">{formatDate(r.created_at)}</p>
                         </div>
                         {r.description && (
                           <div>
-                            <p className="text-xs text-muted-foreground">Description</p>
-                            <p className="text-foreground mt-0.5 line-clamp-1">{r.description}</p>
+                            <p className="text-xs text-white/60">Description</p>
+                            <p className="text-white mt-0.5 line-clamp-1">{r.description}</p>
                           </div>
                         )}
                       </div>
@@ -665,7 +633,7 @@ export default function HRReimbursementsPage() {
                       )}
 
                       {/* Actions */}
-                      <div className="flex items-center gap-2 pt-2 border-t border-border">
+                      <div className="flex items-center gap-2 pt-2 border-t border-white/10">
                         {r.status === 'pending' && (
                           <>
                             <Button
@@ -706,7 +674,7 @@ export default function HRReimbursementsPage() {
                           </Button>
                         )}
                         {(r.status === 'rejected' || r.status === 'processed') && (
-                          <span className="text-xs text-muted-foreground">No actions available</span>
+                          <span className="text-xs text-white/60">No actions available</span>
                         )}
                       </div>
                     </motion.div>
@@ -717,7 +685,7 @@ export default function HRReimbursementsPage() {
 
             {/* Pagination */}
             {pagination && pagination.pages > 1 && (
-              <div className="flex items-center justify-between mt-6 pt-4 border-t border-border">
+              <div className="flex items-center justify-between mt-6 pt-4 border-t border-white/10">
                 <Button
                   variant="outline"
                   size="sm"
@@ -727,7 +695,7 @@ export default function HRReimbursementsPage() {
                   <ChevronLeft className="w-4 h-4" />
                   Previous
                 </Button>
-                <span className="text-sm text-muted-foreground">
+                <span className="text-sm text-white/60">
                   Page {page} of {pagination.pages}
                 </span>
                 <Button
@@ -741,9 +709,9 @@ export default function HRReimbursementsPage() {
                 </Button>
               </div>
             )}
-          </CardContent>
-        </Card>
-      </motion.div>
+          </div>
+        </GlassPanel>
+      </FadeIn>
 
       {/* Reject Confirmation Modal */}
       <Modal
@@ -759,7 +727,7 @@ export default function HRReimbursementsPage() {
       >
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-foreground mb-1.5">
+            <label className="block text-sm font-medium text-white mb-1.5">
               Reason for Rejection
             </label>
             <textarea
@@ -768,9 +736,9 @@ export default function HRReimbursementsPage() {
               placeholder="Enter the reason for rejection..."
               maxLength={500}
               rows={3}
-              className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors resize-none"
+              className="w-full px-3 py-2 text-sm rounded-lg border border-white/10 bg-white/5 text-white focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors resize-none"
             />
-            <p className="text-xs text-muted-foreground mt-1 text-right">
+            <p className="text-xs text-white/60 mt-1 text-right">
               {rejectReason.length}/500
             </p>
           </div>
@@ -798,6 +766,6 @@ export default function HRReimbursementsPage() {
           </ModalFooter>
         </div>
       </Modal>
-    </motion.div>
+    </StaggerContainer>
   );
 }

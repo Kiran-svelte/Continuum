@@ -1,9 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { firebaseSignOut } from '@/lib/firebase';
 import { supabaseSignOut } from '@/lib/supabase';
-import { keycloakSignOut, isKeycloakClientEnabled } from '@/lib/keycloak-client';
 import { LogOut } from 'lucide-react';
 
 interface SignOutButtonProps {
@@ -22,36 +20,20 @@ export function SignOutButton({ variant = 'sidebar' }: SignOutButtonProps) {
     }
 
     // 2. Clear all auth/role cookies client-side (backup for API response cookies)
+    document.cookie = 'continuum-session=; path=/; max-age=0';
     document.cookie = 'continuum-role=; path=/; max-age=0';
     document.cookie = 'continuum-roles=; path=/; max-age=0';
-    document.cookie = 'firebase-auth-token=; path=/; max-age=0';
-    document.cookie = 'kc-access-token=; path=/; max-age=0';
-    document.cookie = 'kc-refresh-token=; path=/; max-age=0';
-    document.cookie = 'kc-token-exp=; path=/; max-age=0';
     localStorage.removeItem('preferred_portal');
 
-    // If Keycloak is active, use its logout flow (clears cookies + SSO session)
-    if (isKeycloakClientEnabled()) {
-      try {
-        await keycloakSignOut();
-        return; // keycloakSignOut redirects the browser
-      } catch {
-        // Fall through to legacy sign-out
-      }
-    }
-
+    // Clear Supabase client-side auth state
     try {
       await supabaseSignOut();
     } catch {
       // ignore
     }
+
+    // Clear session cookie server-side
     try {
-      await firebaseSignOut();
-    } catch {
-      // ignore
-    }
-    try {
-      // Clear Firebase HTTP-only session cookie if present
       await fetch('/api/auth/session', { method: 'DELETE' });
     } catch {
       // ignore

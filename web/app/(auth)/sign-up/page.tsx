@@ -2,12 +2,11 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { getSupabaseBrowserClient } from '@/lib/supabase';
-import { isKeycloakClientEnabled, keycloakSignUp } from '@/lib/keycloak-client';
-import { useSearchParams } from 'next/navigation';
-import { Zap, CheckCircle, Building2, Users, KeyRound, Check, X, Mail } from 'lucide-react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { supabaseSignUp, supabaseSignIn, supabaseSignInWithGoogle, supabaseGetSession } from '@/lib/supabase';
+import { Zap, CheckCircle, Building2, Users, Check, X, Mail, ArrowRight } from 'lucide-react';
 import { validatePassword, getPasswordRequirements } from '@/lib/password-validation';
+import { AmbientBackground, TiltCard, FadeIn } from '@/components/motion';
 
 type Mode = 'select' | 'admin' | 'employee';
 
@@ -38,8 +37,6 @@ export default function SignUpPage() {
   const [success, setSuccess] = useState(false);
   const [inviteData, setInviteData] = useState<InviteData | null>(null);
   const [inviteError, setInviteError] = useState('');
-
-  const supabase = getSupabaseBrowserClient();
 
   // Check if user is already logged in
   useEffect(() => {
@@ -98,6 +95,28 @@ export default function SignUpPage() {
     })();
   }, [inviteToken]);
 
+  /**
+   * Creates a server session by sending the Supabase access token to the server.
+   * Returns true if session was created successfully.
+   */
+  async function createSession(accessToken: string): Promise<boolean> {
+    const sessionController = new AbortController();
+    const sessionTimeout = setTimeout(() => sessionController.abort(), 8000);
+    try {
+      const sessionRes = await fetch('/api/auth/session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ accessToken }),
+        signal: sessionController.signal,
+      });
+      return sessionRes.ok;
+    } catch {
+      return false;
+    } finally {
+      clearTimeout(sessionTimeout);
+    }
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError('');
@@ -132,156 +151,69 @@ export default function SignUpPage() {
         setCompanyCodeName(codeData.companyName || '');
       }
 
-      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || window.location.origin;
       const intent = mode === 'admin' ? 'hr' : 'employee';
       const inviteParam = inviteToken ? `&invite=${encodeURIComponent(inviteToken)}` : '';
-      const redirectUrl = `${baseUrl}/auth/callback?next=${encodeURIComponent(`/onboarding?intent=${intent}&firstName=${encodeURIComponent(firstName)}&lastName=${encodeURIComponent(lastName)}${mode === 'employee' ? `&companyCode=${encodeURIComponent(companyCode)}` : ''}${inviteParam}`)}`;
-      const { error: signUpError } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            full_name: `${firstName} ${lastName}`,
-            role: intent,
-          },
-          emailRedirectTo: redirectUrl,
-        },
-      });
+      const onboardingUrl = `/onboarding?intent=${intent}&firstName=${encodeURIComponent(firstName)}&lastName=${encodeURIComponent(lastName)}${mode === 'employee' ? `&companyCode=${encodeURIComponent(companyCode)}` : ''}${inviteParam}`;
 
-      if (signUpError) {
-        const code = (signUpError as unknown as { code?: string }).code;
-        if (code === 'auth/network-request-failed') {
-          setError('Network error. Please check your connection.');
-          setLoading(false);
-          return;
-        }
-        if (code === 'auth/too-many-requests') {
-          setError('Too many failed attempts. Please try again later.');
-          setLoading(false);
-          return;
-        }
+      // Use Supabase for sign-up
+      try {
+        const { data, error: signUpError } = await supabaseSignUp(email, password);
 
-        // Check if user already exists
-        if (signUpError.message.includes('already registered')) {
-          // Try to sign in instead
-          const { error: signInError } = await supabase.auth.signInWithPassword({
-            email,
-            password,
-          });
-
-          if (signInError) {
-            const signInCode = (signInError as unknown as { code?: string }).code;
-            if (signInCode === 'auth/network-request-failed') {
-              setError('Network error. Please check your connection.');
+        if (signUpError) {
+          // If user already exists, try signing in
+          if (signUpError.message?.includes('already registered') || signUpError.message?.includes('already been registered')) {
+            try {
+              const { data: signInData, error: signInError } = await supabaseSignIn(email, password);
+              if (signInError) {
+                if (signInError.message?.includes('Invalid login credentials')) {
+                  setError('This email is already registered with a different password. Please sign in instead.');
+                } else {
+                  setError('This email is already registered. Please sign in instead.');
+                }
+                setLoading(false);
+                return;
+              }
+              if (signInData.session) {
+                await createSession(signInData.session.access_token);
+                router.push(onboardingUrl);
+              }
+              return;
+            } catch {
+              setError('This email is already registered. Please sign in instead.');
               setLoading(false);
               return;
             }
-            if (signInCode === 'auth/too-many-requests') {
-              setError('Too many failed attempts. Please try again later.');
-              setLoading(false);
-              return;
-            }
-            if (signInError.message.includes('Invalid login credentials')) {
-              setError('This email is already registered with a different password. Please sign in instead.');
-            } else {
-              setError(signInError.message);
-            }
+          }
+
+          // Handle other Supabase errors
+          setError(signUpError.message || 'Registration failed. Please try again.');
+          setLoading(false);
+          return;
+        }
+
+        if (data.session) {
+          // Session exists = email confirmation not required
+          await createSession(data.session.access_token);
+          router.push(onboardingUrl);
+        } else if (data.user && !data.session) {
+          // Email confirmation required — auto sign-in since we just created the account
+          const { data: signInData, error: signInError } = await supabaseSignIn(email, password);
+          if (signInError || !signInData.session) {
+            // If auto-confirm is off, user needs to verify email first
+            setSuccess(true);
             setLoading(false);
             return;
           }
-
-          // Successfully signed in - redirect to onboarding
-          router.push(`/onboarding?intent=${intent}`);
-          return;
+          await createSession(signInData.session.access_token);
+          router.push(onboardingUrl);
         }
-
-        // Check if email sending failed - fallback to dev API
-        if (
-          signUpError.message.includes('sending confirmation email') ||
-          signUpError.message.includes('email not confirmed')
-        ) {
-          // Try dev-create-user API (auto-confirms user)
-          try {
-            const devRes = await fetch('/api/auth/dev-create-user', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ email, password }),
-            });
-
-            if (devRes.ok) {
-              // User created with auto-confirm, now sign them in
-              const { error: signInErr } = await supabase.auth.signInWithPassword({
-                email,
-                password,
-              });
-              if (!signInErr) {
-                router.push(`/onboarding?intent=${intent}&firstName=${encodeURIComponent(firstName)}&lastName=${encodeURIComponent(lastName)}${mode === 'employee' ? `&companyCode=${encodeURIComponent(companyCode)}` : ''}`);
-                return;
-              }
-            }
-
-            const devData = await devRes.json().catch(() => ({}));
-            if (devRes.status === 404) {
-              // Fallback endpoint not available
-              setError('Account creation temporarily unavailable. Please contact support or try again later.');
-            } else if (devRes.status === 501 && devData.error?.includes('SUPABASE_SERVICE_ROLE_KEY')) {
-              // Service role key missing
-              setError('Email service configuration incomplete. Please contact your administrator.');
-            } else if (devData.error) {
-              setError(devData.error);
-            } else {
-              setError('Failed to create account. Please try again.');
-            }
-          } catch {
-            setError('Failed to create account. Please try again.');
-          }
-          setLoading(false);
-          return;
-        }
-
-        setError(signUpError.message);
+        return;
+      } catch (err) {
+        console.error('Sign-up error:', err);
+        setError('Registration failed. Please try again.');
         setLoading(false);
         return;
       }
-
-      // Supabase signUp succeeded — but confirmation email is unreliable (Supabase free tier).
-      // Auto-confirm via admin API and sign in immediately for a seamless experience.
-      // (reuse `intent` declared above)
-      const onboardingUrl = `/onboarding?intent=${intent}&firstName=${encodeURIComponent(firstName)}&lastName=${encodeURIComponent(lastName)}${mode === 'employee' ? `&companyCode=${encodeURIComponent(companyCode)}` : ''}${inviteParam}`;
-
-      try {
-        // Try to auto-confirm via admin API
-        const confirmRes = await fetch('/api/auth/dev-create-user', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email, password }),
-        });
-
-        if (confirmRes.ok || confirmRes.status === 409) {
-          // User auto-confirmed (or already existed) — sign in now
-          const { error: signInErr } = await supabase.auth.signInWithPassword({ email, password });
-          if (!signInErr) {
-            router.push(onboardingUrl);
-            return;
-          }
-        }
-      } catch {
-        // Auto-confirm failed — fall through to email verification screen
-      }
-
-      // If auto-confirm path failed, try direct sign-in (in case Supabase auto-confirmed)
-      try {
-        const { error: directSignInErr } = await supabase.auth.signInWithPassword({ email, password });
-        if (!directSignInErr) {
-          router.push(onboardingUrl);
-          return;
-        }
-      } catch {
-        // Fall through to email screen
-      }
-
-      // Last resort: show email verification screen with resend option
-      setSuccess(true);
     } catch (err) {
       console.error('Sign up error:', err);
       setError('Registration failed. Please try again.');
@@ -299,63 +231,23 @@ export default function SignUpPage() {
     );
   }
 
-  // Success state - email verification (last resort, rarely shown now)
+  // Success state (only shown if somehow needed for email verification)
   if (success) {
-    const intent = mode === 'admin' ? 'hr' : 'employee';
-
-    async function handleResend() {
-      setError('');
-      setLoading(true);
-      try {
-        // Try auto-confirm path again
-        const res = await fetch('/api/auth/dev-create-user', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email, password }),
-        });
-        if (res.ok || res.status === 409) {
-          const { error: signInErr } = await supabase.auth.signInWithPassword({ email, password });
-          if (!signInErr) {
-            router.push(`/onboarding?intent=${intent}&firstName=${encodeURIComponent(firstName)}&lastName=${encodeURIComponent(lastName)}${mode === 'employee' ? `&companyCode=${encodeURIComponent(companyCode)}` : ''}`);
-            return;
-          }
-        }
-        // Fallback: resend Supabase confirmation
-        await supabase.auth.resend({ type: 'signup', email });
-        setError('Verification email resent! Check your inbox and spam folder.');
-      } catch {
-        setError('Failed to resend. Please try again.');
-      } finally {
-        setLoading(false);
-      }
-    }
-
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 flex items-center justify-center p-4 dark:bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))]">
         <div className="w-full max-w-md text-center">
           <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-green-500/20 flex items-center justify-center">
             <CheckCircle className="w-10 h-10 text-green-400" />
           </div>
-          <h1 className="text-2xl font-bold text-foreground mb-2">Almost there!</h1>
-          <p className="text-muted-foreground mb-4">
-            We&apos;re setting up your account for <span className="text-foreground font-medium">{email}</span>.
-            If you&apos;re not redirected automatically, click the button below.
+          <h1 className="text-2xl font-bold text-white mb-2">Account created!</h1>
+          <p className="text-white/60 mb-4">
+            Your account for <span className="text-white font-medium">{email}</span> has been created.
           </p>
-          {error && (
-            <p className="text-sm text-yellow-600 dark:text-yellow-400 mb-4">{error}</p>
-          )}
-          <button
-            onClick={handleResend}
-            disabled={loading}
-            className="w-full h-11 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold rounded-xl transition-all disabled:opacity-50 mb-3"
-          >
-            {loading ? 'Retrying...' : 'Continue to Onboarding'}
-          </button>
           <Link
             href="/sign-in"
-            className="inline-flex items-center gap-2 text-primary hover:text-primary/80 font-medium text-sm"
+            className="inline-flex items-center gap-2 px-6 py-3 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold rounded-xl transition-all"
           >
-            ← Back to sign in
+            Sign in to continue
           </Link>
         </div>
       </div>
@@ -365,299 +257,309 @@ export default function SignUpPage() {
   // Mode selection screen
   if (mode === 'select') {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 flex items-center justify-center p-4 dark:bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))]">
-        <div className="w-full max-w-2xl">
+      <>
+      <AmbientBackground />
+        <FadeIn className="w-full max-w-2xl px-4">
           <div className="text-center mb-8">
-            <div className="w-12 h-12 mx-auto mb-4 rounded-xl bg-primary/20 flex items-center justify-center">
-              <Zap className="w-6 h-6 text-primary" />
+            <div className="w-12 h-12 mx-auto mb-4 rounded-xl bg-primary/20 backdrop-blur-xl flex items-center justify-center border border-primary/30 shadow-[0_0_15px_rgba(var(--primary-rgb),0.5)]">
+              <Zap className="w-6 h-6 text-primary drop-shadow-[0_0_8px_rgba(var(--primary-rgb),0.8)]" />
             </div>
-            <h1 className="text-3xl font-bold text-foreground mb-2">Create your account</h1>
-            <p className="text-muted-foreground">Get started with Continuum today</p>
+            <h1 className="text-4xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-primary/80 drop-shadow-[0_0_10px_rgba(var(--primary-rgb),0.5)] mb-2">Create your account</h1>
+            <p className="text-white/60 text-lg">Get started with Continuum today</p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <button
-              onClick={() => setMode('admin')}
-              className="group bg-card dark:bg-slate-900/80 dark:backdrop-blur-xl hover:bg-muted/50 dark:hover:bg-slate-800/80 border border-border dark:border-slate-800/50 hover:border-primary/50 dark:hover:border-blue-500/50 rounded-2xl p-6 transition-all text-left shadow-lg dark:shadow-black/20"
-            >
-              <div className="w-12 h-12 bg-primary/20 rounded-xl flex items-center justify-center mb-4">
-                <Building2 className="w-6 h-6 text-primary" />
-              </div>
-              <h3 className="text-lg font-semibold text-foreground mb-2">Start a Company</h3>
-              <p className="text-muted-foreground text-sm mb-3">
-                For HR/Admin. Create your company workspace and invite employees.
-              </p>
-              <span className="text-primary text-sm font-medium group-hover:translate-x-1 transition-transform inline-flex items-center gap-1">
-                Get started →
-              </span>
-            </button>
+            <TiltCard>
+              <button
+                onClick={() => setMode('admin')}
+                className="group w-full glass-panel hover:bg-white/10 dark:hover:bg-slate-800/80 border border-white/20 dark:border-slate-800/50 hover:border-primary/50 dark:hover:border-primary/50 hover:shadow-[0_0_20px_rgba(var(--primary-rgb),0.2)] rounded-3xl p-8 transition-all text-left relative overflow-hidden h-full flex flex-col items-start justify-center"
+              >
+                <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                <div className="w-14 h-14 bg-primary/10 rounded-2xl flex items-center justify-center mb-6 relative z-10 border border-primary/20 group-hover:border-primary/50 transition-colors">
+                  <Building2 className="w-7 h-7 text-primary group-hover:drop-shadow-[0_0_8px_rgba(var(--primary-rgb),0.8)] transition-all" />
+                </div>
+                <h3 className="text-xl font-bold text-white mb-3 relative z-10">Start a Company</h3>
+                <p className="text-white/60 text-sm mb-6 relative z-10 font-medium leading-relaxed flex-grow">
+                  For HR/Admin. Create your company workspace and invite employees.
+                </p>
+                <div className="text-primary text-sm font-bold flex items-center gap-2 group-hover:translate-x-2 transition-transform duration-300 relative z-10">
+                  <span>Get started</span>
+                  <ArrowRight className="w-4 h-4 ml-1 opacity-0 group-hover:opacity-100 transition-opacity" />
+                </div>
+              </button>
+            </TiltCard>
 
-            <button
-              onClick={() => setMode('employee')}
-              className="group bg-card dark:bg-slate-900/80 dark:backdrop-blur-xl hover:bg-muted/50 dark:hover:bg-slate-800/80 border border-border dark:border-slate-800/50 hover:border-cyan-500/50 rounded-2xl p-6 transition-all text-left shadow-lg dark:shadow-black/20"
-            >
-              <div className="w-12 h-12 bg-cyan-500/20 rounded-xl flex items-center justify-center mb-4">
-                <Users className="w-6 h-6 text-cyan-500 dark:text-cyan-400" />
-              </div>
-              <h3 className="text-lg font-semibold text-foreground mb-2">Join a Company</h3>
-              <p className="text-muted-foreground text-sm mb-3">
-                For Employees. Join your company using the code from HR.
-              </p>
-              <span className="text-cyan-600 dark:text-cyan-400 text-sm font-medium group-hover:translate-x-1 transition-transform inline-flex items-center gap-1">
-                Join team →
-              </span>
-            </button>
+            <TiltCard>
+              <button
+                onClick={() => setMode('employee')}
+                className="group w-full glass-panel hover:bg-white/10 dark:hover:bg-slate-800/80 border border-white/20 dark:border-slate-800/50 hover:border-cyan-500/50 hover:shadow-[0_0_20px_rgba(34,211,238,0.2)] rounded-3xl p-8 transition-all text-left relative overflow-hidden h-full flex flex-col items-start justify-center"
+              >
+                <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/10 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                <div className="w-14 h-14 bg-cyan-500/10 rounded-2xl flex items-center justify-center mb-6 relative z-10 border border-cyan-500/20 group-hover:border-cyan-500/50 transition-colors">
+                  <Users className="w-7 h-7 text-cyan-500 group-hover:drop-shadow-[0_0_8px_rgba(34,211,238,0.8)] transition-all" />
+                </div>
+                <h3 className="text-xl font-bold text-white mb-3 relative z-10">Join a Company</h3>
+                <p className="text-white/60 text-sm mb-6 relative z-10 font-medium leading-relaxed flex-grow">
+                  For Employees. Join your company using the code from HR.
+                </p>
+                <div className="text-cyan-500 text-sm font-bold flex items-center gap-2 group-hover:translate-x-2 transition-transform duration-300 relative z-10">
+                  <span>Join team</span>
+                  <ArrowRight className="w-4 h-4 ml-1 opacity-0 group-hover:opacity-100 transition-opacity" />
+                </div>
+              </button>
+            </TiltCard>
           </div>
 
-          <p className="text-center mt-8 text-muted-foreground text-sm">
+          <p className="text-center mt-12 text-white/60 text-sm font-medium">
             Already have an account?{' '}
-            <Link href="/sign-in" className="text-primary hover:text-primary/80 font-medium">
+            <Link href="/sign-in" className="text-primary hover:text-primary/80 font-bold hover:underline underline-offset-4 transition-all">
               Sign in
             </Link>
           </p>
-
-          {isKeycloakClientEnabled() && (
-            <div className="mt-4 text-center">
-              <button
-                onClick={() => keycloakSignUp()}
-                className="inline-flex items-center gap-2 px-6 py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-foreground font-medium rounded-lg transition-colors border border-border dark:border-slate-700 text-sm"
-              >
-                <KeyRound className="w-4 h-4 text-primary" />
-                Sign up with SSO
-              </button>
-            </div>
-          )}
-        </div>
-      </div>
+        </FadeIn>
+      </>
     );
   }
 
   // Sign-up form
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 flex items-center justify-center p-4 dark:bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))]">
-      <div className="w-full max-w-md">
+    <>
+    <AmbientBackground />
+      <FadeIn className="w-full max-w-md px-4 mt-8 md:mt-24 mb-16 relative z-10">
         <div className="text-center mb-8">
-          <div className="w-12 h-12 mx-auto mb-4 rounded-xl bg-primary/20 flex items-center justify-center">
-            <Zap className="w-6 h-6 text-primary" />
+          <div className="w-16 h-16 mx-auto mb-6 rounded-2xl bg-primary/20 backdrop-blur-xl flex items-center justify-center border border-primary/30 shadow-[0_0_15px_rgba(var(--primary-rgb),0.5)]">
+            <Zap className="w-8 h-8 text-primary drop-shadow-[0_0_8px_rgba(var(--primary-rgb),0.8)]" />
           </div>
-          <h1 className="text-2xl font-bold text-foreground mb-1">Create your account</h1>
-          <p className="text-muted-foreground text-sm">
+          <h1 className="text-4xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-primary/80 drop-shadow-[0_0_10px_rgba(var(--primary-rgb),0.5)]">Create your account</h1>
+          <p className="text-white/60 text-lg mt-3">
             {mode === 'admin' ? 'Register your company' : 'Join your team'}
           </p>
         </div>
 
-        {/* Mode Tabs */}
-        <div className="flex mb-6 bg-muted rounded-lg p-1">
-          <button
-            type="button"
-            onClick={() => setMode('admin')}
-            className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${
-              mode === 'admin'
-                ? 'bg-primary text-primary-foreground'
-                : 'text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            Start a Company
-          </button>
-          <button
-            type="button"
-            onClick={() => setMode('employee')}
-            className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${
-              mode === 'employee'
-                ? 'bg-cyan-600 text-white dark:bg-cyan-600'
-                : 'text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            Join a Company
-          </button>
-        </div>
+        <TiltCard>
+          <div className="glass-panel p-8 md:p-10 rounded-3xl relative overflow-hidden shadow-2xl dark:shadow-black/50 border border-white/20 dark:border-white/10">
+            {/* Ambient inner glow */}
+            <div className={`absolute top-0 right-0 w-64 h-64 ${mode === 'admin' ? 'bg-primary/10' : 'bg-cyan-500/10'} rounded-full blur-3xl -z-10 transform translate-x-1/2 -translate-y-1/2`} />
+            
+            {/* Mode Tabs */}
+            <div className="flex mb-8 bg-black/20 dark:bg-black/40 backdrop-blur-md rounded-xl p-1.5 border border-white/10">
+              <button
+                type="button"
+                onClick={() => setMode('admin')}
+                className={`flex-1 py-2.5 px-4 rounded-lg text-sm font-bold transition-all duration-300 ${
+                  mode === 'admin'
+                    ? 'bg-primary text-white shadow-[0_0_15px_rgba(var(--primary-rgb),0.4)] relative z-10'
+                    : 'text-white/60 hover:text-white hover:bg-white/5'
+                }`}
+              >
+                Start a Company
+              </button>
+              <button
+                type="button"
+                onClick={() => setMode('employee')}
+                className={`flex-1 py-2.5 px-4 rounded-lg text-sm font-bold transition-all duration-300 ${
+                  mode === 'employee'
+                    ? 'bg-cyan-600 text-white shadow-[0_0_15px_rgba(8,145,178,0.4)] relative z-10'
+                    : 'text-white/60 hover:text-white hover:bg-white/5'
+                }`}
+              >
+                Join a Company
+              </button>
+            </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Invite Banner */}
-          {inviteData && (
-            <div className="p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg flex items-start gap-3">
-              <Mail className="w-5 h-5 text-blue-500 mt-0.5 shrink-0" />
-              <div className="text-sm">
-                <p className="font-medium text-foreground">Invited to {inviteData.company_name}</p>
-                <p className="text-muted-foreground">
-                  Role: <span className="text-foreground">{inviteData.role.replace(/_/g, ' ')}</span>
-                  {inviteData.department && <> &middot; Dept: <span className="text-foreground">{inviteData.department}</span></>}
-                </p>
+            <form onSubmit={handleSubmit} className="space-y-5">
+              {/* Invite Banner */}
+              {inviteData && (
+                <div className="p-4 bg-blue-500/10 border border-blue-500/30 rounded-xl flex items-start gap-3 backdrop-blur-sm">
+                  <Mail className="w-5 h-5 text-blue-400 mt-0.5 shrink-0 drop-shadow-[0_0_8px_rgba(59,130,246,0.8)]" />
+                  <div className="text-sm">
+                    <p className="font-bold text-white mb-1">Invited to {inviteData.company_name}</p>
+                    <p className="text-blue-200/80 font-medium">
+                      Role: <span className="text-white">{inviteData.role.replace(/_/g, ' ')}</span>
+                      {inviteData.department && <> &middot; Dept: <span className="text-white">{inviteData.department}</span></>}
+                    </p>
+                  </div>
+                </div>
+              )}
+              {inviteError && (
+                <div className="p-4 bg-red-500/10 border border-red-500/30 rounded-xl backdrop-blur-sm">
+                  <p className="text-sm text-red-400 font-medium flex items-center gap-2">
+                    <X className="w-4 h-4" />
+                    {inviteError}
+                  </p>
+                </div>
+              )}
+              {/* Name Fields */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="block text-sm font-bold text-white/80">First Name</label>
+                  <input
+                    type="text"
+                    value={firstName}
+                    onChange={(e) => setFirstName(e.target.value)}
+                    className="w-full px-4 py-3 bg-black/20 dark:bg-black/40 border border-white/10 rounded-xl text-white placeholder:text-white/30 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/50 transition-all backdrop-blur-sm shadow-inner"
+                    placeholder="John"
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="block text-sm font-bold text-white/80">Last Name</label>
+                  <input
+                    type="text"
+                    value={lastName}
+                    onChange={(e) => setLastName(e.target.value)}
+                    className="w-full px-4 py-3 bg-black/20 dark:bg-black/40 border border-white/10 rounded-xl text-white placeholder:text-white/30 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/50 transition-all backdrop-blur-sm shadow-inner"
+                    placeholder="Doe"
+                    required
+                  />
+                </div>
               </div>
-            </div>
-          )}
-          {inviteError && (
-            <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-lg">
-              <p className="text-sm text-red-400">{inviteError}</p>
-            </div>
-          )}
-          {/* Name Fields */}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-1">First Name</label>
-              <input
-                type="text"
-                value={firstName}
-                onChange={(e) => setFirstName(e.target.value)}
-                className="w-full px-4 py-2.5 bg-background border border-border rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-                placeholder="John"
-                required
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-1">Last Name</label>
-              <input
-                type="text"
-                value={lastName}
-                onChange={(e) => setLastName(e.target.value)}
-                className="w-full px-4 py-2.5 bg-background border border-border rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-                placeholder="Doe"
-                required
-              />
-            </div>
-          </div>
 
-          {/* Email */}
-          <div>
-            <label className="block text-sm font-medium text-foreground mb-1">Email address</label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-4 py-2.5 bg-background border border-border rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent disabled:opacity-60 disabled:cursor-not-allowed"
-              placeholder="you@company.com"
-              required
-              disabled={!!inviteData}
-            />
-          </div>
-
-          {/* Password */}
-          <div>
-            <label className="block text-sm font-medium text-foreground mb-1">Password</label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-4 py-2.5 bg-background border border-border rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-              placeholder="••••••••"
-              required
-              minLength={8}
-            />
-            {password && (
-              <div className="mt-2 space-y-1">
-                {getPasswordRequirements().map((req, i) => {
-                  const checks = [
-                    password.length >= 8,
-                    /[A-Z]/.test(password),
-                    /[a-z]/.test(password),
-                    /[0-9]/.test(password),
-                    /[!@#$%^&*()_+\-=\[\]{}|;:,.<>?]/.test(password),
-                  ];
-                  const passed = checks[i];
-                  return (
-                    <div key={i} className={`flex items-center gap-1.5 text-xs ${passed ? 'text-green-500' : 'text-muted-foreground'}`}>
-                      {passed ? <Check className="w-3 h-3" /> : <X className="w-3 h-3 opacity-50" />}
-                      {req}
-                    </div>
-                  );
-                })}
+              {/* Email */}
+              <div className="space-y-2">
+                <label className="block text-sm font-bold text-white/80">Email address</label>
+                <div className="relative group">
+                  <Mail className="w-5 h-5 absolute left-3.5 top-1/2 -translate-y-1/2 text-white/40 group-focus-within:text-primary transition-colors" />
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="w-full pl-11 pr-4 py-3 bg-black/20 dark:bg-black/40 border border-white/10 rounded-xl text-white placeholder:text-white/30 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/50 transition-all backdrop-blur-sm shadow-inner disabled:opacity-60 disabled:cursor-not-allowed"
+                    placeholder="you@company.com"
+                    required
+                    disabled={!!inviteData}
+                  />
+                </div>
               </div>
-            )}
-          </div>
 
-          {/* Confirm Password */}
-          <div>
-            <label className="block text-sm font-medium text-foreground mb-1">Confirm Password</label>
-            <input
-              type="password"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              className="w-full px-4 py-2.5 bg-background border border-border rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-              placeholder="••••••••"
-              required
-              minLength={8}
-            />
-          </div>
+              {/* Password */}
+              <div className="space-y-2">
+                <label className="block text-sm font-bold text-white/80">Password</label>
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full px-4 py-3 bg-black/20 dark:bg-black/40 border border-white/10 rounded-xl text-white placeholder:text-white/30 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/50 transition-all backdrop-blur-sm shadow-inner"
+                  placeholder="••••••••"
+                  required
+                  minLength={8}
+                />
+                {password && (
+                  <div className="mt-4 space-y-2 bg-black/20 p-3 rounded-xl border border-white/5">
+                    {getPasswordRequirements().map((req, i) => {
+                      const checks = [
+                        password.length >= 8,
+                        /[A-Z]/.test(password),
+                        /[a-z]/.test(password),
+                        /[0-9]/.test(password),
+                        /[!@#$%^&*()_+\-=\[\]{}|;:,.<>?]/.test(password),
+                      ];
+                      const passed = checks[i];
+                      return (
+                        <div key={i} className={`flex items-center gap-2 text-xs font-medium transition-colors ${passed ? 'text-green-400 drop-shadow-[0_0_5px_rgba(74,222,128,0.5)]' : 'text-white/40'}`}>
+                          {passed ? <CheckCircle className="w-3.5 h-3.5" /> : <div className="w-1.5 h-1.5 rounded-full bg-white/20 ml-1" />}
+                          {req}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
 
-          {/* Company Code (for employee mode) */}
-          {mode === 'employee' && (
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-1">Company Code</label>
-              <input
-                type="text"
-                value={companyCode}
-                onChange={(e) => setCompanyCode(e.target.value.toUpperCase())}
-                className="w-full px-4 py-2.5 bg-background border border-border rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent uppercase"
-                placeholder="ABCD1234"
-                required
-                maxLength={8}
-              />
-              <p className="mt-1 text-xs text-muted-foreground">
-                Enter the 8-character code from your HR
-                {companyCodeValid === true && companyCodeName && (
-                  <span className="text-green-500 ml-1">— {companyCodeName}</span>
-                )}
-                {companyCodeValid === false && (
-                  <span className="text-red-400 ml-1">— Invalid code</span>
-                )}
+              {/* Confirm Password */}
+              <div className="space-y-2">
+                <label className="block text-sm font-bold text-white/80">Confirm Password</label>
+                <input
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  className="w-full px-4 py-3 bg-black/20 dark:bg-black/40 border border-white/10 rounded-xl text-white placeholder:text-white/30 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/50 transition-all backdrop-blur-sm shadow-inner"
+                  placeholder="••••••••"
+                  required
+                  minLength={8}
+                />
+              </div>
+
+              {/* Company Code (for employee mode) */}
+              {mode === 'employee' && !inviteToken && (
+                <div className="space-y-2">
+                  <label className="block text-sm font-bold text-cyan-400">Company Access Code</label>
+                  <input
+                    type="text"
+                    value={companyCode}
+                    onChange={(e) => setCompanyCode(e.target.value.toUpperCase())}
+                    className="w-full px-4 py-3 bg-cyan-950/30 border border-cyan-500/30 rounded-xl text-white placeholder:text-cyan-500/50 focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500/50 transition-all backdrop-blur-sm shadow-inner uppercase font-mono tracking-widest text-center text-lg"
+                    placeholder="ABCD1234"
+                    required
+                    maxLength={8}
+                  />
+                  <p className="mt-2 text-xs text-cyan-200/60 font-medium text-center">
+                    Enter the 8-character code from your HR team
+                    {companyCodeValid === true && companyCodeName && (
+                      <span className="text-green-400 ml-2 drop-shadow-[0_0_5px_rgba(74,222,128,0.8)]">&mdash; {companyCodeName}</span>
+                    )}
+                    {companyCodeValid === false && (
+                      <span className="text-red-400 ml-2 drop-shadow-[0_0_5px_rgba(248,113,113,0.8)]">&mdash; Invalid code</span>
+                    )}
+                  </p>
+                </div>
+              )}
+
+              {/* Error Message */}
+              {error && (
+                <div className="p-4 bg-red-500/10 border border-red-500/30 rounded-xl backdrop-blur-sm">
+                  <p className="text-sm text-red-400 font-medium flex items-center gap-2">
+                    <X className="w-4 h-4" />
+                    {error}
+                  </p>
+                </div>
+              )}
+
+              {/* Submit Button */}
+              <button
+                type="submit"
+                disabled={loading}
+                className={`w-full py-4 px-4 rounded-xl font-bold transition-all flex items-center justify-center gap-2 group relative overflow-hidden ${
+                  mode === 'admin'
+                    ? 'bg-primary hover:bg-white text-white hover:text-primary shadow-[0_0_20px_rgba(var(--primary-rgb),0.5)] hover:shadow-[0_0_30px_rgba(255,255,255,0.8)]'
+                    : 'bg-cyan-500 hover:bg-white text-white hover:text-cyan-600 shadow-[0_0_20px_rgba(6,182,212,0.5)] hover:shadow-[0_0_30px_rgba(255,255,255,0.8)]'
+                } disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-primary disabled:hover:text-white`}
+              >
+                <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300 ease-out" />
+                <span className="relative z-10 flex items-center gap-2">
+                  {loading ? (
+                    <>
+                      <div className="animate-spin rounded-full h-5 w-5 border-2 border-current border-t-transparent" />
+                      Creating account...
+                    </>
+                  ) : (
+                    <>
+                      Create account
+                      <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                    </>
+                  )}
+                </span>
+              </button>
+            </form>
+
+            <div className="mt-8 text-center pt-6 border-t border-white/10">
+              <p className="text-white/60 text-sm font-medium">
+                Already have an account?{' '}
+                <Link href="/sign-in" className="text-primary hover:text-white font-bold transition-colors underline-offset-4 hover:underline">
+                  Sign in
+                </Link>
               </p>
             </div>
-          )}
+          </div>
+        </TiltCard>
 
-          {/* Error Message */}
-          {error && (
-            <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-lg">
-              <p className="text-sm text-red-400">{error}</p>
-            </div>
-          )}
-
-          {/* Submit Button */}
-          <button
-            type="submit"
-            disabled={loading}
-            className={`w-full py-3 px-4 rounded-lg font-medium transition-colors flex items-center justify-center gap-2 ${
-              mode === 'admin'
-                ? 'bg-primary hover:bg-primary/90 text-primary-foreground'
-                : 'bg-cyan-600 hover:bg-cyan-500 text-white'
-            } disabled:opacity-50 disabled:cursor-not-allowed`}
-          >
-            {loading ? (
-              <>
-                <div className="animate-spin rounded-full h-4 w-4 border-2 border-primary-foreground border-t-transparent" />
-                Creating account...
-              </>
-            ) : (
-              'Create account'
-            )}
-          </button>
-        </form>
-
-        <div className="mt-6 text-center">
-          <p className="text-muted-foreground text-sm">
-            Already have an account?{' '}
-            <Link href="/sign-in" className="text-primary hover:text-primary/80 font-medium">
-              Sign in
-            </Link>
-          </p>
-          {isKeycloakClientEnabled() && (
-            <button
-              type="button"
-              onClick={() => keycloakSignUp()}
-              className="mt-3 inline-flex items-center gap-2 px-5 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-foreground font-medium rounded-lg transition-colors border border-border dark:border-slate-700 text-sm"
-            >
-              <KeyRound className="w-4 h-4 text-primary" />
-              Sign up with SSO
-            </button>
-          )}
-        </div>
-
-        <p className="mt-6 text-center text-xs text-muted-foreground">
+        <p className="mt-8 text-center text-xs text-white/60/60 font-medium pb-8">
           By creating an account, you agree to our{' '}
-          <Link href="/terms" className="text-muted-foreground hover:text-foreground">Terms of Service</Link>
+          <Link href="/terms" className="text-white/60 hover:text-white transition-colors underline underline-offset-4">Terms of Service</Link>
           {' '}and{' '}
-          <Link href="/privacy" className="text-muted-foreground hover:text-foreground">Privacy Policy</Link>
+          <Link href="/privacy" className="text-white/60 hover:text-white transition-colors underline underline-offset-4">Privacy Policy</Link>
         </p>
-      </div>
-    </div>
+      </FadeIn>
+    </>
   );
 }

@@ -2,7 +2,9 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { ThemeToggle } from '@/components/theme-toggle';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { FadeIn, StaggerContainer, AmbientBackground } from '@/components/motion';
+import { PageHeader } from '@/components/page-header';
+import { GlassPanel } from '@/components/glass-panel';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -15,10 +17,11 @@ import {
   Shield,
   Mail,
   MailX,
+  Settings,
   Smartphone,
   Loader2,
 } from 'lucide-react';
-import { getFirebaseAuth, firebaseSendPasswordResetEmail } from '@/lib/firebase';
+import { supabaseGetUser, supabaseSendPasswordResetEmail } from '@/lib/supabase';
 
 interface Profile {
   first_name: string;
@@ -67,7 +70,7 @@ function ToggleSwitch({
       onClick={() => !disabled && onChange(!value)}
       className={`relative w-12 h-6 rounded-full transition-all duration-300 ${
         disabled ? 'opacity-50 cursor-not-allowed' : ''
-      } ${value ? 'bg-primary' : 'bg-muted'}`}
+      } ${value ? 'bg-primary' : 'bg-white/5'}`}
     >
       <span
         className={`absolute top-1 left-1 w-4 h-4 rounded-full bg-white shadow-md transition-transform duration-300 ${
@@ -80,78 +83,81 @@ function ToggleSwitch({
 
 function SettingsLoadingSkeleton() {
   return (
-    <div className="space-y-8">
-      {/* Header skeleton */}
-      <div>
-        <Skeleton className="h-8 w-32 mb-2" />
-        <Skeleton className="h-4 w-64" />
-      </div>
-
-      <div className="grid gap-6 md:grid-cols-2">
-        {/* Appearance card skeleton */}
-        <div className="rounded-xl border border-border bg-card p-6 space-y-4">
-          <div className="flex items-center gap-3">
-            <Skeleton variant="circular" className="w-9 h-9" />
-            <div className="space-y-2">
-              <Skeleton className="h-5 w-24" />
-              <Skeleton className="h-3 w-40" />
-            </div>
-          </div>
-          <Skeleton className="h-10 w-full" />
-          <Skeleton className="h-3 w-56" />
+    <div className="p-4 sm:p-8 pb-32 max-w-4xl mx-auto">
+      <AmbientBackground />
+      <div className="space-y-10">
+        {/* Header skeleton */}
+        <div>
+          <Skeleton className="h-8 w-32 mb-2 bg-white/10" />
+          <Skeleton className="h-4 w-64 bg-white/10" />
         </div>
 
-        {/* Profile card skeleton */}
-        <div className="rounded-xl border border-border bg-card p-6 space-y-4">
-          <div className="flex items-center gap-3">
-            <Skeleton variant="circular" className="w-9 h-9" />
-            <div className="space-y-2">
-              <Skeleton className="h-5 w-16" />
-              <Skeleton className="h-3 w-48" />
-            </div>
-          </div>
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="p-3 rounded-lg border border-border space-y-2">
-              <Skeleton className="h-3 w-20" />
-              <Skeleton className="h-4 w-36" />
-            </div>
-          ))}
-        </div>
-
-        {/* Notifications card skeleton */}
-        <div className="rounded-xl border border-border bg-card p-6 space-y-4">
-          <div className="flex items-center gap-3">
-            <Skeleton variant="circular" className="w-9 h-9" />
-            <div className="space-y-2">
-              <Skeleton className="h-5 w-28" />
-              <Skeleton className="h-3 w-52" />
-            </div>
-          </div>
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="flex items-center justify-between p-3 rounded-lg border border-border">
-              <div className="flex items-center gap-3">
-                <Skeleton variant="circular" className="w-5 h-5" />
-                <div className="space-y-1">
-                  <Skeleton className="h-4 w-32" />
-                  <Skeleton className="h-3 w-48" />
-                </div>
+        <div className="grid gap-8 md:grid-cols-2">
+          {/* Appearance card skeleton */}
+          <div className="glass-panel rounded-2xl border border-white/10 p-6 space-y-4">
+            <div className="flex items-center gap-4">
+              <Skeleton className="w-10 h-10 rounded-lg bg-white/10" />
+              <div className="space-y-2">
+                <Skeleton className="h-5 w-24 bg-white/10" />
+                <Skeleton className="h-3 w-40 bg-white/10" />
               </div>
-              <Skeleton className="h-6 w-12 rounded-full" />
             </div>
-          ))}
-        </div>
-      </div>
+            <Skeleton className="h-10 w-full bg-white/10" />
+            <Skeleton className="h-3 w-56 bg-white/10" />
+          </div>
 
-      {/* Security card skeleton */}
-      <div className="rounded-xl border border-border bg-card p-6 space-y-4">
-        <div className="flex items-center gap-3">
-          <Skeleton variant="circular" className="w-9 h-9" />
-          <div className="space-y-2">
-            <Skeleton className="h-5 w-20" />
-            <Skeleton className="h-3 w-48" />
+          {/* Profile card skeleton */}
+          <div className="glass-panel rounded-2xl border border-white/10 p-6 space-y-4">
+            <div className="flex items-center gap-4">
+              <Skeleton className="w-10 h-10 rounded-lg bg-white/10" />
+              <div className="space-y-2">
+                <Skeleton className="h-5 w-16 bg-white/10" />
+                <Skeleton className="h-3 w-48 bg-white/10" />
+              </div>
+            </div>
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="p-4 rounded-xl bg-black/20 space-y-2">
+                <Skeleton className="h-3 w-20 bg-white/10" />
+                <Skeleton className="h-4 w-36 bg-white/10" />
+              </div>
+            ))}
+          </div>
+
+          {/* Notifications card skeleton */}
+          <div className="glass-panel rounded-2xl border border-white/10 p-6 space-y-4 md:col-span-2">
+            <div className="flex items-center gap-4">
+              <Skeleton className="w-10 h-10 rounded-lg bg-white/10" />
+              <div className="space-y-2">
+                <Skeleton className="h-5 w-28 bg-white/10" />
+                <Skeleton className="h-3 w-52 bg-white/10" />
+              </div>
+            </div>
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="flex items-center justify-between p-4 rounded-xl bg-black/20">
+                <div className="flex items-center gap-4">
+                  <Skeleton className="w-6 h-6 rounded-md bg-white/10" />
+                  <div className="space-y-1">
+                    <Skeleton className="h-4 w-32 bg-white/10" />
+                    <Skeleton className="h-3 w-48 bg-white/10" />
+                  </div>
+                </div>
+                <Skeleton className="h-6 w-12 rounded-full bg-white/10" />
+              </div>
+            ))}
           </div>
         </div>
-        <Skeleton variant="button" className="w-full h-16" />
+
+        {/* Security card skeleton */}
+        <div className="glass-panel rounded-2xl border border-white/10 p-6 space-y-4">
+          <div className="flex items-center gap-4">
+            <Skeleton className="w-10 h-10 rounded-lg bg-white/10" />
+            <div className="space-y-2">
+              <Skeleton className="h-5 w-20 bg-white/10" />
+              <Skeleton className="h-3 w-48 bg-white/10" />
+            </div>
+          </div>
+          <Skeleton className="w-full h-16 bg-white/10" />
+        </div>
       </div>
     </div>
   );
@@ -271,21 +277,21 @@ export default function SettingsPage() {
 
   if (settingsError && !profile) {
     return (
-      <div className="space-y-8">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Settings</h1>
-          <p className="text-muted-foreground mt-1">Customize your experience</p>
-        </div>
-        <div className="rounded-xl px-4 py-3 text-sm font-medium bg-red-50 text-red-700 border border-red-200 dark:bg-red-500/10 dark:text-red-400 dark:border-red-500/20 flex items-center gap-2">
-          <AlertCircle className="w-4 h-4 shrink-0" />
-          <span className="flex-1">{settingsError}</span>
-          <button
-            type="button"
-            onClick={loadSettingsData}
-            className="ml-2 text-sm underline hover:no-underline shrink-0"
-          >
-            Retry
-          </button>
+      <div className="p-4 sm:p-8 pb-32 max-w-4xl mx-auto">
+        <AmbientBackground />
+        <div className="space-y-8">
+          <PageHeader title="Settings" description="Manage your preferences" icon={<Settings className="w-6 h-6 text-primary" />} />
+          <div className="glass-panel p-6 rounded-2xl border border-red-500/30 text-red-300/90 flex items-center gap-4">
+            <AlertCircle className="w-6 h-6" />
+            <span className="flex-1">{settingsError}</span>
+            <Button
+              type="button"
+              onClick={loadSettingsData}
+              className="ml-2 text-sm underline hover:no-underline shrink-0 bg-red-500/20 hover:bg-red-500/30 px-3 py-1 rounded-md"
+            >
+              Retry
+            </Button>
+          </div>
         </div>
       </div>
     );
@@ -322,189 +328,210 @@ export default function SettingsPage() {
   ];
 
   return (
-    <div className="animate-fade-in space-y-8">
-      {/* Header */}
-      <div className="flex items-center justify-between animate-slide-up">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Settings</h1>
-          <p className="text-muted-foreground mt-1">Customize your experience</p>
-        </div>
-        {feedback && (
-          <div
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg animate-fade-in ${
-              feedback.type === 'success'
-                ? 'bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400'
-                : 'bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400'
-            }`}
-          >
-            {feedback.type === 'success' ? (
-              <CheckCircle className="w-4 h-4" />
-            ) : (
-              <AlertCircle className="w-4 h-4" />
-            )}
-            <span className="text-sm font-medium">{feedback.message}</span>
-          </div>
-        )}
-      </div>
+    <div className="p-4 sm:p-8 pb-32 max-w-4xl mx-auto">
+      <AmbientBackground />
+      <StaggerContainer className="space-y-6">
+        {/* Header */}
+        <PageHeader
+          title="Settings"
+          description="Manage your preferences"
+          icon={<Settings className="w-6 h-6 text-primary" />}
+          action={
+            feedback ? (
+              <div
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg ${
+                  feedback.type === 'success'
+                    ? 'bg-green-500/80 border border-green-400/50 text-white'
+                    : 'bg-red-500/80 border border-red-400/50 text-white'
+                }`}
+              >
+                {feedback.type === 'success' ? (
+                  <CheckCircle className="w-5 h-5" />
+                ) : (
+                  <AlertCircle className="w-5 h-5" />
+                )}
+                <span className="text-sm font-medium">{feedback.message}</span>
+              </div>
+            ) : undefined
+          }
+        />
 
-      <div className="grid gap-6 md:grid-cols-2 stagger">
-        {/* Appearance */}
-        <Card className="animate-slide-up bg-card border-border">
-          <CardHeader>
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-primary/10 rounded-lg">
-                <Palette className="w-5 h-5 text-primary" />
-              </div>
-              <div>
-                <CardTitle>Appearance</CardTitle>
-                <CardDescription>Choose your preferred theme</CardDescription>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <label className="text-sm font-medium text-foreground mb-3 block">Color Theme</label>
-              <ThemeToggle variant="button" />
-            </div>
-            <div className="pt-3 border-t border-border">
-              <p className="text-xs text-muted-foreground">
-                Your theme preference is saved automatically and persists across sessions.
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Profile */}
-        <Card className="animate-slide-up bg-card border-border">
-          <CardHeader>
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-blue-500/10 rounded-lg">
-                <User className="w-5 h-5 text-blue-500" />
-              </div>
-              <div>
-                <CardTitle>Profile</CardTitle>
-                <CardDescription>Manage your personal information</CardDescription>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-3">
-              <div className="p-3 rounded-lg border border-border bg-muted/30">
-                <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Display Name</p>
-                <p className="text-sm font-medium text-foreground">{profile ? `${profile.first_name} ${profile.last_name}` : '--'}</p>
-              </div>
-              <div className="p-3 rounded-lg border border-border bg-muted/30">
-                <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Email</p>
-                <p className="text-sm font-medium text-foreground">{profile?.email || '--'}</p>
-              </div>
-              <div className="p-3 rounded-lg border border-border bg-muted/30">
-                <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Department</p>
-                <p className="text-sm font-medium text-foreground">{profile?.department || '--'}</p>
-              </div>
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Contact HR to update your profile information.
-            </p>
-          </CardContent>
-        </Card>
-
-        {/* Notifications */}
-        <Card className="animate-slide-up bg-card border-border">
-          <CardHeader>
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-orange-500/10 rounded-lg">
-                <Bell className="w-5 h-5 text-orange-500" />
-              </div>
-              <div>
-                <CardTitle>Notifications</CardTitle>
-                <CardDescription>Manage your notification preferences</CardDescription>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {notificationItems.map(({ key, label, description, iconOn: IconOn, iconOff: IconOff }) => {
-              const value = prefs[key];
-              const isSaving = savingField === key;
-              const isSaved = savedField === key;
-
-              return (
-                <div
-                  key={key}
-                  className="flex items-center justify-between p-3 rounded-lg border border-border hover:bg-muted/30 transition-colors"
-                >
-                  <div className="flex items-center gap-3">
-                    {value ? (
-                      <IconOn className="w-5 h-5 text-primary" />
-                    ) : (
-                      <IconOff className="w-5 h-5 text-muted-foreground" />
-                    )}
-                    <div>
-                      <p className="text-sm font-medium text-foreground">{label}</p>
-                      <p className="text-xs text-muted-foreground">{description}</p>
-                    </div>
+        <div className="grid gap-8 md:grid-cols-2">
+          {/* Appearance */}
+          <FadeIn>
+            <GlassPanel interactive>
+              <div className="p-6 pb-4">
+                <div className="flex items-center gap-4">
+                  <div className="p-3 rounded-lg bg-primary/20 shadow-[0_0_10px_rgba(var(--primary-rgb),0.3)]">
+                    <Palette className="w-6 h-6 text-primary" />
                   </div>
-                  <div className="flex items-center gap-2">
-                    {isSaving && (
-                      <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
-                    )}
-                    {isSaved && !isSaving && (
-                      <span className="text-xs text-green-500 dark:text-green-400 font-medium animate-fade-in">
-                        Saved
-                      </span>
-                    )}
-                    <ToggleSwitch
-                      value={value}
-                      onChange={(v) => handleToggle(key, v)}
-                      label={label}
-                      disabled={isSaving}
-                    />
+                  <div>
+                    <h2 className="text-lg font-semibold text-white flex items-center gap-2">Appearance</h2>
+                    <p className="text-white/60 text-sm">Choose your preferred theme</p>
                   </div>
                 </div>
-              );
-            })}
-            <p className="text-xs text-muted-foreground pt-2">
-              Changes are saved automatically when you toggle a setting.
-            </p>
-          </CardContent>
-        </Card>
-      </div>
+              </div>
+              <div className="px-6 pb-6 space-y-4">
+                <div>
+                  <label className="text-sm font-medium text-white/80 mb-3 block">Color Theme</label>
+                  <ThemeToggle variant="button" />
+                </div>
+                <div className="pt-4 border-t border-white/10">
+                  <p className="text-xs text-white/50">
+                    Your theme preference is saved automatically and persists across sessions.
+                  </p>
+                </div>
+              </div>
+            </GlassPanel>
+          </FadeIn>
 
-      {/* Security Section */}
-      <Card className="animate-slide-up bg-card border-border">
-        <CardHeader>
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-red-500/10 rounded-lg">
-              <Shield className="w-5 h-5 text-red-500" />
+          {/* Profile */}
+          <FadeIn>
+            <GlassPanel interactive>
+              <div className="p-6 pb-4">
+                <div className="flex items-center gap-4">
+                  <div className="p-3 rounded-lg bg-blue-500/20 shadow-[0_0_10px_rgba(59,130,246,0.3)]">
+                    <User className="w-6 h-6 text-blue-300" />
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-semibold text-white flex items-center gap-2">Profile</h2>
+                    <p className="text-white/60 text-sm">Manage your personal information</p>
+                  </div>
+                </div>
+              </div>
+              <div className="px-6 pb-6 space-y-3">
+                <div className="p-4 rounded-xl bg-white/5 border border-white/10 shadow-inner">
+                  <p className="text-xs text-white/50 uppercase tracking-wider mb-1">Display Name</p>
+                  <p className="text-sm font-medium text-white">{profile ? `${profile.first_name} ${profile.last_name}` : '--'}</p>
+                </div>
+                <div className="p-4 rounded-xl bg-white/5 border border-white/10 shadow-inner">
+                  <p className="text-xs text-white/50 uppercase tracking-wider mb-1">Email</p>
+                  <p className="text-sm font-medium text-white">{profile?.email || '--'}</p>
+                </div>
+                <div className="p-4 rounded-xl bg-white/5 border border-white/10 shadow-inner">
+                  <p className="text-xs text-white/50 uppercase tracking-wider mb-1">Department</p>
+                  <p className="text-sm font-medium text-white">{profile?.department || '--'}</p>
+                </div>
+                <p className="text-xs text-white/50 pt-2">
+                  Contact HR to update your profile information.
+                </p>
+              </div>
+            </GlassPanel>
+          </FadeIn>
+
+          {/* Notifications */}
+          <FadeIn className="md:col-span-2">
+            <GlassPanel interactive>
+              <div className="p-6 pb-4">
+                <div className="flex items-center gap-4">
+                  <div className="p-3 rounded-lg bg-orange-500/20 shadow-[0_0_10px_rgba(249,115,22,0.3)]">
+                    <Bell className="w-6 h-6 text-orange-300" />
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-semibold text-white flex items-center gap-2">Notifications</h2>
+                    <p className="text-white/60 text-sm">Manage your notification preferences</p>
+                  </div>
+                </div>
+              </div>
+              <div className="px-6 pb-6 space-y-3">
+                {notificationItems.map(({ key, label, description, iconOn: IconOn, iconOff: IconOff }) => {
+                  const value = prefs[key];
+                  const isSaving = savingField === key;
+                  const isSaved = savedField === key;
+
+                  return (
+                    <div
+                      key={key}
+                      className="flex items-center justify-between p-4 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 transition-colors"
+                    >
+                      <div className="flex items-center gap-4">
+                        {value ? (
+                          <IconOn className="w-5 h-5 text-primary" />
+                        ) : (
+                          <IconOff className="w-5 h-5 text-white/40" />
+                        )}
+                        <div>
+                          <p className="text-sm font-medium text-white">{label}</p>
+                          <p className="text-xs text-white/60">{description}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        {isSaving && (
+                          <Loader2 className="w-4 h-4 animate-spin text-white/50" />
+                        )}
+                        {isSaved && !isSaving && (
+                          <span className="text-xs text-green-400 font-medium animate-fade-in">
+                            Saved
+                          </span>
+                        )}
+                        <ToggleSwitch
+                          value={value}
+                          onChange={(v) => handleToggle(key, v)}
+                          label={label}
+                          disabled={isSaving}
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+                <p className="text-xs text-white/50 pt-2">
+                  Changes are saved automatically when you toggle a setting.
+                </p>
+              </div>
+            </GlassPanel>
+          </FadeIn>
+        </div>
+
+        {/* Security Section */}
+        <FadeIn>
+          <GlassPanel interactive>
+            <div className="p-6 pb-4">
+              <div className="flex items-center gap-4">
+                <div className="p-3 rounded-lg bg-red-500/20 shadow-[0_0_10px_rgba(239,68,68,0.3)]">
+                  <Shield className="w-6 h-6 text-red-400" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-semibold text-white flex items-center gap-2">Security</h2>
+                  <p className="text-white/60 text-sm">Manage your account security settings</p>
+                </div>
+              </div>
             </div>
-            <div>
-              <CardTitle>Security</CardTitle>
-              <CardDescription>Manage your account security settings</CardDescription>
+            <div className="px-6 pb-6">
+              <Button
+                variant="outline"
+                className="justify-start gap-4 h-auto p-4 w-full bg-white/5 border-white/10 text-white/80 hover:bg-white/10 hover:text-white rounded-xl"
+                onClick={async () => {
+                  try {
+                    const user = await supabaseGetUser();
+                    if (!user?.email) {
+                      showFeedback('error', 'Unable to determine your email address. Please sign in again.');
+                      return;
+                    }
+                    const { error: resetErr } = await supabaseSendPasswordResetEmail(user.email);
+                    if (resetErr) {
+                      showFeedback('error', resetErr.message || 'Failed to send password reset email.');
+                      return;
+                    }
+                    showFeedback('success', 'Password reset email sent! Check your inbox.', 5000);
+                  } catch {
+                    showFeedback('error', 'Failed to send password reset email. Please try again.');
+                  }
+                }}
+              >
+                <div className="p-2 bg-red-500/20 rounded-md">
+                  <Mail className="w-5 h-5 text-red-400" />
+                </div>
+                <div>
+                  <p className="font-semibold text-left">Send Password Reset Email</p>
+                  <p className="text-xs text-white/60 text-left">
+                    You will receive a link to create a new password via email.
+                  </p>
+                </div>
+              </Button>
             </div>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <Button variant="outline" className="justify-start gap-3 h-auto py-4 w-full md:w-auto" onClick={async () => {
-            try {
-              const auth = getFirebaseAuth();
-              const user = auth.currentUser;
-              if (!user?.email) {
-                showFeedback('error', 'Unable to determine your email address. Please sign in again.');
-                return;
-              }
-              await firebaseSendPasswordResetEmail(user.email);
-              showFeedback('success', 'Password reset email sent! Check your inbox.', 5000);
-            } catch {
-              showFeedback('error', 'Failed to send password reset email. Please try again.');
-            }
-          }}>
-            <Shield className="w-5 h-5 text-muted-foreground" />
-            <div className="text-left">
-              <p className="font-medium">Change Password</p>
-              <p className="text-xs text-muted-foreground">Send a password reset link to your email</p>
-            </div>
-          </Button>
-        </CardContent>
-      </Card>
+          </GlassPanel>
+        </FadeIn>
+      </StaggerContainer>
     </div>
   );
 }

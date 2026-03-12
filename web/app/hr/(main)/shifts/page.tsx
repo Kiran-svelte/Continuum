@@ -2,7 +2,9 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { StaggerContainer, FadeIn, TiltCard } from '@/components/motion';
+import { GlassPanel } from '@/components/glass-panel';
+import { PageHeader } from '@/components/page-header';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Modal } from '@/components/ui/modal';
@@ -41,18 +43,6 @@ interface Employee {
   department: string | null;
   designation: string | null;
 }
-
-/* ─── Animation ─────────────────────────────────────────────────────────── */
-
-const containerVariants = {
-  hidden: { opacity: 0 },
-  visible: { opacity: 1, transition: { staggerChildren: 0.08 } },
-} as const;
-
-const itemVariants = {
-  hidden: { opacity: 0, y: 20 },
-  visible: { opacity: 1, y: 0, transition: { type: 'spring' as const, stiffness: 260, damping: 20 } },
-} as const;
 
 /* ─── Helpers ───────────────────────────────────────────────────────────── */
 
@@ -311,65 +301,68 @@ export default function ShiftsPage() {
   /* ─── Render ─────────────────────────────────────────────────────────── */
 
   return (
-    <motion.div className="space-y-6" variants={containerVariants} initial="hidden" animate="visible">
+    <StaggerContainer className="space-y-6">
       {/* Header */}
-      <motion.div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4" variants={itemVariants}>
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Shift Management</h1>
-          <p className="text-muted-foreground mt-1">Create and manage employee work shifts</p>
-        </div>
-        <div className="flex gap-2">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <input
-              type="text"
-              placeholder="Search shifts..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="pl-9 pr-4 py-2 rounded-lg border border-border bg-background text-sm w-56 focus:outline-none focus:ring-2 focus:ring-primary/30 dark:bg-slate-900 dark:text-slate-300"
-            />
+      <PageHeader
+        title="Shift Management"
+        description="Create and manage employee work shifts"
+        icon={<Clock className="w-6 h-6 text-primary" />}
+        action={
+          <div className="flex gap-2">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/60" />
+              <input
+                type="text"
+                placeholder="Search shifts..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="pl-9 pr-4 py-2 rounded-lg border border-white/10 bg-white/5 text-sm text-white w-56 placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-primary/30"
+              />
+            </div>
+            <Button variant="primary" onClick={openAdd} className="gap-1">
+              <Plus className="w-4 h-4" /> Add Shift
+            </Button>
           </div>
-          <Button variant="primary" onClick={openAdd} className="gap-1">
-            <Plus className="w-4 h-4" /> Add Shift
-          </Button>
-        </div>
-      </motion.div>
+        }
+      />
 
       {/* Summary Cards */}
-      <motion.div className="grid grid-cols-1 sm:grid-cols-3 gap-4" variants={itemVariants}>
-        {[
-          { label: 'Total Shifts', value: totalShifts, icon: Clock, color: 'blue' },
-          { label: 'Night Shifts', value: nightShiftCount, icon: Moon, color: 'violet' },
-          { label: 'Employees Assigned', value: totalAssigned, icon: Users, color: 'green' },
-        ].map((card) => (
-          <Card key={card.label}>
-            <CardContent className="pt-5 pb-5">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{card.label}</p>
-                  <p className="text-2xl font-bold mt-1 dark:text-slate-100">{card.value}</p>
-                </div>
-                <div className={`flex h-10 w-10 items-center justify-center rounded-xl bg-${card.color}-50 dark:bg-${card.color}-500/10`}>
-                  <card.icon className={`h-5 w-5 text-${card.color}-500`} />
+      <FadeIn>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          {[
+            { label: 'Total Shifts', value: totalShifts, icon: Clock, color: 'blue' },
+            { label: 'Night Shifts', value: nightShiftCount, icon: Moon, color: 'violet' },
+            { label: 'Employees Assigned', value: totalAssigned, icon: Users, color: 'green' },
+          ].map((card) => (
+            <GlassPanel key={card.label} interactive>
+              <div className="p-5">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-medium text-white/60 uppercase tracking-wide">{card.label}</p>
+                    <p className="text-2xl font-bold mt-1 text-white">{card.value}</p>
+                  </div>
+                  <div className={`flex h-10 w-10 items-center justify-center rounded-xl bg-${card.color}-500/10`}>
+                    <card.icon className={`h-5 w-5 text-${card.color}-500`} />
+                  </div>
                 </div>
               </div>
-            </CardContent>
-          </Card>
-        ))}
-      </motion.div>
+            </GlassPanel>
+          ))}
+        </div>
+      </FadeIn>
 
       {/* Shifts Table / Card List */}
-      <motion.div variants={itemVariants}>
-        <Card>
-          <CardHeader>
+      <FadeIn>
+        <GlassPanel>
+          <div className="p-6 border-b border-white/10">
             <div className="flex items-center justify-between">
-              <CardTitle>All Shifts</CardTitle>
+              <h3 className="text-lg font-semibold text-white">All Shifts</h3>
               <Badge variant="default" size="sm">
                 {filteredShifts.length} shift{filteredShifts.length !== 1 ? 's' : ''}
               </Badge>
             </div>
-          </CardHeader>
-          <CardContent className="p-0">
+          </div>
+          <div>
             {loading ? (
               <div className="p-6 space-y-3">
                 {[1, 2, 3, 4].map((i) => (
@@ -378,17 +371,17 @@ export default function ShiftsPage() {
               </div>
             ) : error ? (
               <div className="py-16 text-center">
-                <AlertCircle className="w-8 h-8 text-destructive mx-auto mb-3" />
-                <p className="text-sm text-muted-foreground">{error}</p>
+                <AlertCircle className="w-8 h-8 text-red-400 mx-auto mb-3" />
+                <p className="text-sm text-white/60">{error}</p>
                 <Button variant="outline" size="sm" className="mt-3" onClick={fetchShifts}>
                   Retry
                 </Button>
               </div>
             ) : filteredShifts.length === 0 ? (
               <div className="py-16 text-center">
-                <Clock className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
-                <h3 className="text-lg font-semibold dark:text-slate-100">No shifts found</h3>
-                <p className="text-sm text-muted-foreground mt-1">
+                <Clock className="w-10 h-10 text-white/60 mx-auto mb-3" />
+                <h3 className="text-lg font-semibold text-white">No shifts found</h3>
+                <p className="text-sm text-white/60 mt-1">
                   {search ? 'Try a different search term.' : 'Create your first shift to get started.'}
                 </p>
                 {!search && (
@@ -403,14 +396,14 @@ export default function ShiftsPage() {
                 <div className="hidden md:block overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead>
-                      <tr className="border-b border-border bg-muted/20 text-left">
-                        <th className="px-4 py-2.5 font-medium text-muted-foreground">Shift Name</th>
-                        <th className="px-4 py-2.5 font-medium text-muted-foreground">Start Time</th>
-                        <th className="px-4 py-2.5 font-medium text-muted-foreground">End Time</th>
-                        <th className="px-4 py-2.5 font-medium text-muted-foreground">Type</th>
-                        <th className="px-4 py-2.5 font-medium text-muted-foreground text-center">Assigned</th>
-                        <th className="px-4 py-2.5 font-medium text-muted-foreground text-center">Status</th>
-                        <th className="px-4 py-2.5 font-medium text-muted-foreground text-center">Actions</th>
+                      <tr className="border-b border-white/10 bg-white/5 text-left">
+                        <th className="px-4 py-2.5 font-medium text-white/60">Shift Name</th>
+                        <th className="px-4 py-2.5 font-medium text-white/60">Start Time</th>
+                        <th className="px-4 py-2.5 font-medium text-white/60">End Time</th>
+                        <th className="px-4 py-2.5 font-medium text-white/60">Type</th>
+                        <th className="px-4 py-2.5 font-medium text-white/60 text-center">Assigned</th>
+                        <th className="px-4 py-2.5 font-medium text-white/60 text-center">Status</th>
+                        <th className="px-4 py-2.5 font-medium text-white/60 text-center">Actions</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -419,38 +412,38 @@ export default function ShiftsPage() {
                         return (
                           <tr
                             key={s.id}
-                            className="border-b border-border/50 hover:bg-muted/20 transition-colors"
+                            className="border-b border-white/5 hover:bg-white/5 transition-colors"
                           >
                             <td className="px-4 py-2.5">
-                              <p className="font-medium dark:text-slate-100">{s.name}</p>
+                              <p className="font-medium text-white">{s.name}</p>
                             </td>
-                            <td className="px-4 py-2.5 text-muted-foreground">
+                            <td className="px-4 py-2.5 text-white/60">
                               {fmtTime(s.start_time)}
                             </td>
-                            <td className="px-4 py-2.5 text-muted-foreground">
+                            <td className="px-4 py-2.5 text-white/60">
                               {fmtTime(s.end_time)}
                             </td>
                             <td className="px-4 py-2.5">
                               {night ? (
-                                <Badge variant="default" size="sm" className="bg-violet-100 text-violet-700 dark:bg-violet-500/20 dark:text-violet-300">
+                                <Badge variant="default" size="sm" className="bg-violet-500/20 text-violet-300">
                                   <Moon className="w-3 h-3 mr-1" /> Night
                                 </Badge>
                               ) : (
-                                <Badge variant="default" size="sm" className="bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300">
+                                <Badge variant="default" size="sm" className="bg-amber-500/20 text-amber-300">
                                   <Sun className="w-3 h-3 mr-1" /> Day
                                 </Badge>
                               )}
                             </td>
                             <td className="px-4 py-2.5 text-center">
-                              <span className="font-semibold dark:text-slate-100">{s.assigned_count}</span>
+                              <span className="font-semibold text-white">{s.assigned_count}</span>
                             </td>
                             <td className="px-4 py-2.5 text-center">
                               {s.is_default ? (
-                                <Badge variant="default" size="sm" className="bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-300">
+                                <Badge variant="success" size="sm">
                                   Default
                                 </Badge>
                               ) : (
-                                <span className="text-xs text-muted-foreground">--</span>
+                                <span className="text-xs text-white/60">--</span>
                               )}
                             </td>
                             <td className="px-4 py-2.5 text-center">
@@ -477,7 +470,7 @@ export default function ShiftsPage() {
                                   variant="ghost"
                                   size="sm"
                                   onClick={() => setDeleteShift(s)}
-                                  className="text-xs gap-1 text-red-600 hover:text-red-700 dark:text-red-400"
+                                  className="text-xs gap-1 text-red-400 hover:text-red-300"
                                   title="Delete shift"
                                 >
                                   <Trash2 className="w-3 h-3" />
@@ -492,25 +485,25 @@ export default function ShiftsPage() {
                 </div>
 
                 {/* Mobile Cards */}
-                <div className="md:hidden divide-y divide-border">
+                <div className="md:hidden divide-y divide-white/10">
                   {filteredShifts.map((s) => {
                     const night = isNightShift(s.start_time, s.end_time);
                     return (
                       <div key={s.id} className="p-4 space-y-3">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2">
-                            <p className="font-medium text-sm dark:text-slate-100">{s.name}</p>
+                            <p className="font-medium text-sm text-white">{s.name}</p>
                             {night ? (
-                              <Badge variant="default" size="sm" className="bg-violet-100 text-violet-700 dark:bg-violet-500/20 dark:text-violet-300">
+                              <Badge variant="default" size="sm" className="bg-violet-500/20 text-violet-300">
                                 <Moon className="w-3 h-3 mr-1" /> Night
                               </Badge>
                             ) : (
-                              <Badge variant="default" size="sm" className="bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300">
+                              <Badge variant="default" size="sm" className="bg-amber-500/20 text-amber-300">
                                 <Sun className="w-3 h-3 mr-1" /> Day
                               </Badge>
                             )}
                             {s.is_default && (
-                              <Badge variant="default" size="sm" className="bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-300">
+                              <Badge variant="success" size="sm">
                                 Default
                               </Badge>
                             )}
@@ -526,7 +519,7 @@ export default function ShiftsPage() {
                               variant="ghost"
                               size="sm"
                               onClick={() => setDeleteShift(s)}
-                              className="text-xs text-red-600 dark:text-red-400"
+                              className="text-xs text-red-400"
                             >
                               <Trash2 className="w-3 h-3" />
                             </Button>
@@ -534,20 +527,20 @@ export default function ShiftsPage() {
                         </div>
                         <div className="grid grid-cols-3 gap-2 text-xs">
                           <div>
-                            <p className="text-muted-foreground">Start</p>
-                            <p className="font-medium dark:text-slate-300">{fmtTime(s.start_time)}</p>
+                            <p className="text-white/60">Start</p>
+                            <p className="font-medium text-white">{fmtTime(s.start_time)}</p>
                           </div>
                           <div>
-                            <p className="text-muted-foreground">End</p>
-                            <p className="font-medium dark:text-slate-300">{fmtTime(s.end_time)}</p>
+                            <p className="text-white/60">End</p>
+                            <p className="font-medium text-white">{fmtTime(s.end_time)}</p>
                           </div>
                           <div>
-                            <p className="text-muted-foreground">Assigned</p>
-                            <p className="font-semibold dark:text-slate-300">{s.assigned_count}</p>
+                            <p className="text-white/60">Assigned</p>
+                            <p className="font-semibold text-white">{s.assigned_count}</p>
                           </div>
                         </div>
                         {s.assigned_employees.length > 0 && (
-                          <div className="text-xs text-muted-foreground">
+                          <div className="text-xs text-white/60">
                             {s.assigned_employees.slice(0, 3).map((ae) => ae.employee_name).join(', ')}
                             {s.assigned_employees.length > 3 && ` +${s.assigned_employees.length - 3} more`}
                           </div>
@@ -558,9 +551,9 @@ export default function ShiftsPage() {
                 </div>
               </>
             )}
-          </CardContent>
-        </Card>
-      </motion.div>
+          </div>
+        </GlassPanel>
+      </FadeIn>
 
       {/* ─── Add / Edit Shift Modal ──────────────────────────────────────── */}
       <Modal
@@ -572,48 +565,48 @@ export default function ShiftsPage() {
         <div className="space-y-4">
           {/* Shift Name */}
           <div>
-            <label className="text-sm font-medium dark:text-slate-300">Shift Name</label>
+            <label className="text-sm font-medium text-white">Shift Name</label>
             <input
               type="text"
               value={formName}
               onChange={(e) => setFormName(e.target.value)}
               placeholder="e.g. Morning Shift"
-              className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 dark:bg-slate-900 dark:text-slate-300"
+              className="mt-1 w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-primary/30"
             />
           </div>
 
           {/* Time inputs */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-sm font-medium dark:text-slate-300">Start Time</label>
+              <label className="text-sm font-medium text-white">Start Time</label>
               <input
                 type="time"
                 value={formStartTime}
                 onChange={(e) => setFormStartTime(e.target.value)}
-                className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 dark:bg-slate-900 dark:text-slate-300"
+                className="mt-1 w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-primary/30"
               />
             </div>
             <div>
-              <label className="text-sm font-medium dark:text-slate-300">End Time</label>
+              <label className="text-sm font-medium text-white">End Time</label>
               <input
                 type="time"
                 value={formEndTime}
                 onChange={(e) => setFormEndTime(e.target.value)}
-                className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 dark:bg-slate-900 dark:text-slate-300"
+                className="mt-1 w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-primary/30"
               />
             </div>
           </div>
 
           {/* Preview */}
           {formStartTime && formEndTime && (
-            <div className="bg-muted/30 dark:bg-slate-800/50 rounded-lg p-3 text-xs space-y-1">
+            <div className="bg-white/5 rounded-lg p-3 text-xs space-y-1">
               <div className="flex items-center gap-2">
                 {isNightShift(formStartTime, formEndTime) ? (
                   <Moon className="w-4 h-4 text-violet-500" />
                 ) : (
                   <Sun className="w-4 h-4 text-amber-500" />
                 )}
-                <span className="font-medium text-sm dark:text-slate-300">
+                <span className="font-medium text-sm text-white">
                   {fmtTime(formStartTime)} - {fmtTime(formEndTime)}
                 </span>
                 <Badge
@@ -621,8 +614,8 @@ export default function ShiftsPage() {
                   size="sm"
                   className={
                     isNightShift(formStartTime, formEndTime)
-                      ? 'bg-violet-100 text-violet-700 dark:bg-violet-500/20 dark:text-violet-300'
-                      : 'bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300'
+                      ? 'bg-violet-500/20 text-violet-300'
+                      : 'bg-amber-500/20 text-amber-300'
                   }
                 >
                   {isNightShift(formStartTime, formEndTime) ? 'Night Shift' : 'Day Shift'}
@@ -640,7 +633,7 @@ export default function ShiftsPage() {
               onChange={(e) => setFormIsDefault(e.target.checked)}
               className="rounded"
             />
-            <label htmlFor="is-default" className="text-sm text-muted-foreground">
+            <label htmlFor="is-default" className="text-sm text-white/60">
               Set as default shift
             </label>
           </div>
@@ -652,7 +645,7 @@ export default function ShiftsPage() {
                 initial={{ opacity: 0, y: -5 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0 }}
-                className={`text-sm flex items-center gap-2 ${formMessage.type === 'success' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}
+                className={`text-sm flex items-center gap-2 ${formMessage.type === 'success' ? 'text-green-400' : 'text-red-400'}`}
               >
                 {formMessage.type === 'success' ? (
                   <CheckCircle className="w-4 h-4" />
@@ -687,17 +680,17 @@ export default function ShiftsPage() {
           {/* Currently assigned */}
           {assignShift && assignShift.assigned_employees.length > 0 && (
             <div>
-              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">
+              <p className="text-xs font-medium text-white/60 uppercase tracking-wide mb-2">
                 Currently Assigned ({assignShift.assigned_count})
               </p>
               <div className="max-h-32 overflow-y-auto space-y-1">
                 {assignShift.assigned_employees.map((ae) => (
                   <div
                     key={ae.assignment_id}
-                    className="flex items-center justify-between px-3 py-1.5 rounded-lg bg-muted/30 dark:bg-slate-800/50 text-xs"
+                    className="flex items-center justify-between px-3 py-1.5 rounded-lg bg-white/5 text-xs"
                   >
-                    <span className="font-medium dark:text-slate-300">{ae.employee_name}</span>
-                    <span className="text-muted-foreground">
+                    <span className="font-medium text-white">{ae.employee_name}</span>
+                    <span className="text-white/60">
                       {ae.department || '--'} &middot; from{' '}
                       {new Date(ae.effective_from).toLocaleDateString('en-IN')}
                     </span>
@@ -709,7 +702,7 @@ export default function ShiftsPage() {
 
           {/* Employee search */}
           <div>
-            <label className="text-sm font-medium dark:text-slate-300">Employee</label>
+            <label className="text-sm font-medium text-white">Employee</label>
             <input
               type="text"
               placeholder="Search employee by name..."
@@ -718,40 +711,40 @@ export default function ShiftsPage() {
                 setEmpSearch(e.target.value);
                 setAssignEmployeeId('');
               }}
-              className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 dark:bg-slate-900 dark:text-slate-300"
+              className="mt-1 w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-primary/30"
             />
             {empSearch && filteredEmployees.length > 0 && !assignEmployeeId && (
-              <div className="mt-1 border border-border rounded-lg max-h-32 overflow-y-auto bg-card dark:bg-slate-900">
+              <div className="mt-1 border border-white/10 rounded-lg max-h-32 overflow-y-auto bg-black/60 backdrop-blur-xl">
                 {filteredEmployees.slice(0, 10).map((e) => (
                   <button
                     key={e.id}
-                    className="w-full text-left px-3 py-2 text-sm hover:bg-muted dark:hover:bg-slate-800 transition-colors"
+                    className="w-full text-left px-3 py-2 text-sm hover:bg-white/10 transition-colors"
                     onClick={() => {
                       setAssignEmployeeId(e.id);
                       setEmpSearch(`${e.first_name} ${e.last_name}`);
                     }}
                   >
-                    <span className="dark:text-slate-300">
+                    <span className="text-white">
                       {e.first_name} {e.last_name}
                     </span>{' '}
-                    <span className="text-xs text-muted-foreground">{e.department || ''}</span>
+                    <span className="text-xs text-white/60">{e.department || ''}</span>
                   </button>
                 ))}
               </div>
             )}
             {assignEmployeeId && (
-              <p className="text-xs text-green-600 dark:text-green-400 mt-1">Employee selected</p>
+              <p className="text-xs text-green-400 mt-1">Employee selected</p>
             )}
           </div>
 
           {/* Effective date */}
           <div>
-            <label className="text-sm font-medium dark:text-slate-300">Effective From</label>
+            <label className="text-sm font-medium text-white">Effective From</label>
             <input
               type="date"
               value={assignEffectiveFrom}
               onChange={(e) => setAssignEffectiveFrom(e.target.value)}
-              className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 dark:bg-slate-900 dark:text-slate-300"
+              className="mt-1 w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-primary/30"
             />
           </div>
 
@@ -762,7 +755,7 @@ export default function ShiftsPage() {
                 initial={{ opacity: 0, y: -5 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0 }}
-                className={`text-sm flex items-center gap-2 ${assignMessage.type === 'success' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}
+                className={`text-sm flex items-center gap-2 ${assignMessage.type === 'success' ? 'text-green-400' : 'text-red-400'}`}
               >
                 {assignMessage.type === 'success' ? (
                   <CheckCircle className="w-4 h-4" />
@@ -794,14 +787,14 @@ export default function ShiftsPage() {
         showCloseButton={false}
       >
         <div className="text-center py-4">
-          <div className="mx-auto w-12 h-12 rounded-full flex items-center justify-center mb-4 bg-red-100 dark:bg-red-500/20">
-            <Trash2 className="w-6 h-6 text-red-600 dark:text-red-400" />
+          <div className="mx-auto w-12 h-12 rounded-full flex items-center justify-center mb-4 bg-red-500/20">
+            <Trash2 className="w-6 h-6 text-red-400" />
           </div>
-          <h3 className="text-lg font-semibold text-foreground mb-2">Delete Shift</h3>
-          <p className="text-sm text-muted-foreground">
-            Are you sure you want to delete <strong>{deleteShift?.name}</strong>?
+          <h3 className="text-lg font-semibold text-white mb-2">Delete Shift</h3>
+          <p className="text-sm text-white/60">
+            Are you sure you want to delete <strong className="text-white">{deleteShift?.name}</strong>?
             {deleteShift && deleteShift.assigned_count > 0 && (
-              <span className="block mt-1 text-red-600 dark:text-red-400">
+              <span className="block mt-1 text-red-400">
                 This shift has {deleteShift.assigned_count} assigned employee(s). Reassign them first.
               </span>
             )}
@@ -811,7 +804,7 @@ export default function ShiftsPage() {
           <button
             onClick={() => setDeleteShift(null)}
             disabled={deleting}
-            className="flex-1 px-4 py-2 rounded-lg border border-border text-foreground hover:bg-muted transition-colors disabled:opacity-50"
+            className="flex-1 px-4 py-2 rounded-lg border border-white/10 text-white hover:bg-white/5 transition-colors disabled:opacity-50"
           >
             Cancel
           </button>
@@ -824,6 +817,6 @@ export default function ShiftsPage() {
           </button>
         </div>
       </Modal>
-    </motion.div>
+    </StaggerContainer>
   );
 }

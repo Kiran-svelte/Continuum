@@ -5,204 +5,192 @@ import { fileURLToPath } from 'node:url';
 // ─── CSP Configuration Tests ─────────────────────────────────────────────────
 
 describe('Content-Security-Policy Configuration', () => {
-  // Read the CSP values from the config files to verify they include Firebase domains
-  
-  it('next.config.ts CSP includes Firebase googleapis domain', async () => {
-    const fs = await import('node:fs');
-    const configPath = fileURLToPath(new URL('../next.config.ts', import.meta.url));
-    const content = fs.readFileSync(configPath, 'utf-8');
-    
-    assert.ok(
-      content.includes('https://*.googleapis.com'),
-      'next.config.ts CSP connect-src should include https://*.googleapis.com for Firebase Auth API'
-    );
-  });
-
-  it('next.config.ts CSP includes Firebase firebaseio domain', async () => {
-    const fs = await import('node:fs');
-    const configPath = fileURLToPath(new URL('../next.config.ts', import.meta.url));
-    const content = fs.readFileSync(configPath, 'utf-8');
-    
-    assert.ok(
-      content.includes('https://*.firebaseio.com'),
-      'next.config.ts CSP connect-src should include https://*.firebaseio.com for Firebase services'
-    );
-  });
-
-  it('next.config.ts CSP includes Firebase firebaseapp domain', async () => {
-    const fs = await import('node:fs');
-    const configPath = fileURLToPath(new URL('../next.config.ts', import.meta.url));
-    const content = fs.readFileSync(configPath, 'utf-8');
-    
-    assert.ok(
-      content.includes('https://*.firebaseapp.com'),
-      'next.config.ts CSP connect-src should include https://*.firebaseapp.com for Firebase Auth'
-    );
-  });
-
   it('next.config.ts CSP includes Supabase domain', async () => {
     const fs = await import('node:fs');
     const configPath = fileURLToPath(new URL('../next.config.ts', import.meta.url));
     const content = fs.readFileSync(configPath, 'utf-8');
-    
+
     assert.ok(
       content.includes('https://*.supabase.co'),
       'next.config.ts CSP connect-src should include https://*.supabase.co for Supabase auth'
     );
   });
 
-  it('middleware.ts CSP includes Firebase domains', async () => {
+  it('middleware.ts CSP includes Supabase domains', async () => {
     const fs = await import('node:fs');
     const middlewarePath = fileURLToPath(new URL('../middleware.ts', import.meta.url));
     const content = fs.readFileSync(middlewarePath, 'utf-8');
-    
+
     assert.ok(
-      content.includes('https://*.googleapis.com'),
-      'middleware.ts CSP should include https://*.googleapis.com'
-    );
-    assert.ok(
-      content.includes('https://*.firebaseio.com'),
-      'middleware.ts CSP should include https://*.firebaseio.com'
-    );
-    assert.ok(
-      content.includes('https://*.firebaseapp.com'),
-      'middleware.ts CSP should include https://*.firebaseapp.com'
+      content.includes('https://*.supabase.co'),
+      'middleware.ts CSP should include https://*.supabase.co'
     );
   });
 
-  it('CSP connect-src is consistent between next.config.ts and middleware.ts', async () => {
+  it('CSP should not reference Firebase domains', async () => {
     const fs = await import('node:fs');
     const configPath = fileURLToPath(new URL('../next.config.ts', import.meta.url));
     const middlewarePath = fileURLToPath(new URL('../middleware.ts', import.meta.url));
     const configContent = fs.readFileSync(configPath, 'utf-8');
     const middlewareContent = fs.readFileSync(middlewarePath, 'utf-8');
-    
-    // Extract connect-src values from both files
-    const configMatch = configContent.match(/connect-src\s+([^;]+);/);
-    const middlewareMatch = middlewareContent.match(/connect-src\s+([^;]+);/);
-    
-    assert.ok(configMatch, 'next.config.ts should have a connect-src directive');
-    assert.ok(middlewareMatch, 'middleware.ts should have a connect-src directive');
-    
-    // Normalize and compare the domains
-    const configDomains = Array.from(new Set(configMatch![1].trim().split(/\s+/))).sort();
-    const middlewareDomains = Array.from(new Set(middlewareMatch![1].trim().split(/\s+/))).sort();
-    
-    assert.deepStrictEqual(
-      configDomains,
-      middlewareDomains,
-      'CSP connect-src domains should be consistent between next.config.ts and middleware.ts'
+
+    assert.ok(
+      !configContent.includes('firebaseio.com') && !configContent.includes('firebaseapp.com'),
+      'next.config.ts CSP should not reference Firebase domains'
+    );
+    assert.ok(
+      !middlewareContent.includes('firebaseio.com') && !middlewareContent.includes('firebaseapp.com'),
+      'middleware.ts CSP should not reference Firebase domains'
     );
   });
 });
 
-// ─── Firebase Admin Credential Validation Tests ─────────────────────────────
+// ─── Auth Library Tests ─────────────────────────────────────────────────────
 
-describe('Firebase Admin SDK Credential Validation', () => {
-  it('firebase-admin.ts should validate credentials before initialization', async () => {
+describe('Auth Libraries', () => {
+  it('should not have any Firebase imports in app code', async () => {
     const fs = await import('node:fs');
-    const adminPath = fileURLToPath(new URL('../lib/firebase-admin.ts', import.meta.url));
-    const content = fs.readFileSync(adminPath, 'utf-8');
-    
-    // Verify that the file checks for missing credentials
-    assert.ok(
-      content.includes('!projectId') && content.includes('!privateKey') && content.includes('!clientEmail'),
-      'firebase-admin.ts should check for missing projectId, privateKey, and clientEmail'
-    );
-    
-    // Verify it throws an error with a helpful message
-    assert.ok(
-      content.includes('Firebase Admin SDK credentials are not configured'),
-      'firebase-admin.ts should throw a descriptive error when credentials are missing'
-    );
+    const path = await import('node:path');
+
+    const filesToCheck = [
+      '../lib/supabase.ts',
+      '../lib/supabase-server.ts',
+      '../lib/auth-guard.ts',
+      '../lib/client-auth.ts',
+      '../lib/session.ts',
+      '../app/(auth)/sign-in/page.tsx',
+      '../app/(auth)/sign-up/page.tsx',
+      '../app/api/auth/session/route.ts',
+      '../components/sign-out-button.tsx',
+    ];
+
+    for (const file of filesToCheck) {
+      const filePath = fileURLToPath(new URL(file, import.meta.url));
+      if (fs.existsSync(filePath)) {
+        const content = fs.readFileSync(filePath, 'utf-8');
+        assert.ok(
+          !content.includes("from '@/lib/firebase'") && !content.includes("from '@/lib/firebase-admin'"),
+          `${file} should not import from Firebase libraries`
+        );
+      }
+    }
+  });
+
+  it('firebase.ts and firebase-admin.ts should not exist', async () => {
+    const fs = await import('node:fs');
+    const firebasePath = fileURLToPath(new URL('../lib/firebase.ts', import.meta.url));
+    const firebaseAdminPath = fileURLToPath(new URL('../lib/firebase-admin.ts', import.meta.url));
+
+    assert.ok(!fs.existsSync(firebasePath), 'lib/firebase.ts should be deleted');
+    assert.ok(!fs.existsSync(firebaseAdminPath), 'lib/firebase-admin.ts should be deleted');
   });
 });
 
-// ─── Sign-up Page Timeout Tests ─────────────────────────────────────────────
+// ─── Sign-up Page Tests ─────────────────────────────────────────────────────
 
-describe('Sign-up Page Timeout Handling', () => {
-  it('sign-up page should have timeout on session fetch', async () => {
+describe('Sign-up Page', () => {
+  it('should use Supabase for sign-up', async () => {
     const fs = await import('node:fs');
     const signUpPath = fileURLToPath(new URL('../app/(auth)/sign-up/page.tsx', import.meta.url));
     const content = fs.readFileSync(signUpPath, 'utf-8');
-    
-    // Check that session fetch uses AbortController
+
+    assert.ok(
+      content.includes('supabaseSignUp'),
+      'sign-up page should use supabaseSignUp'
+    );
+    assert.ok(
+      !content.includes('firebaseSignUp'),
+      'sign-up page should not reference firebaseSignUp'
+    );
+  });
+
+  it('should have timeout on session fetch', async () => {
+    const fs = await import('node:fs');
+    const signUpPath = fileURLToPath(new URL('../app/(auth)/sign-up/page.tsx', import.meta.url));
+    const content = fs.readFileSync(signUpPath, 'utf-8');
+
     assert.ok(
       content.includes('sessionController') && content.includes('AbortController'),
       'sign-up page should use AbortController for session fetch'
     );
-    assert.ok(
-      content.includes('signal: sessionController.signal'),
-      'sign-up page session fetch should use the AbortController signal'
-    );
-  });
-
-  it('sign-up page should handle network errors', async () => {
-    const fs = await import('node:fs');
-    const signUpPath = fileURLToPath(new URL('../app/(auth)/sign-up/page.tsx', import.meta.url));
-    const content = fs.readFileSync(signUpPath, 'utf-8');
-    
-    assert.ok(
-      content.includes('auth/network-request-failed'),
-      'sign-up page should handle auth/network-request-failed error'
-    );
-    assert.ok(
-      content.includes('auth/too-many-requests'),
-      'sign-up page should handle auth/too-many-requests error'
-    );
   });
 });
 
-// ─── Sign-in Page Timeout Tests ─────────────────────────────────────────────
+// ─── Sign-in Page Tests ─────────────────────────────────────────────────────
 
-describe('Sign-in Page Timeout Handling', () => {
-  it('sign-in page should have timeout on session fetch', async () => {
+describe('Sign-in Page', () => {
+  it('should use Supabase for sign-in', async () => {
     const fs = await import('node:fs');
     const signInPath = fileURLToPath(new URL('../app/(auth)/sign-in/page.tsx', import.meta.url));
     const content = fs.readFileSync(signInPath, 'utf-8');
-    
-    // Check that session fetch uses AbortController
+
+    assert.ok(
+      content.includes('supabaseSignIn'),
+      'sign-in page should use supabaseSignIn'
+    );
+    assert.ok(
+      content.includes('supabaseSignInWithGoogle'),
+      'sign-in page should have Google sign-in via Supabase'
+    );
+  });
+
+  it('should have timeout on session fetch', async () => {
+    const fs = await import('node:fs');
+    const signInPath = fileURLToPath(new URL('../app/(auth)/sign-in/page.tsx', import.meta.url));
+    const content = fs.readFileSync(signInPath, 'utf-8');
+
     assert.ok(
       content.includes('sessionController') && content.includes('AbortController'),
       'sign-in page should use AbortController for session fetch'
     );
-    assert.ok(
-      content.includes('signal: sessionController.signal'),
-      'sign-in page session fetch should use the AbortController signal'
-    );
   });
 
-  it('sign-in page should have timeout on auth/me fetch', async () => {
+  it('should handle common auth errors', async () => {
     const fs = await import('node:fs');
     const signInPath = fileURLToPath(new URL('../app/(auth)/sign-in/page.tsx', import.meta.url));
     const content = fs.readFileSync(signInPath, 'utf-8');
-    
-    assert.ok(
-      content.includes('meController') && content.includes('AbortController'),
-      'sign-in page should use AbortController for auth/me fetch'
-    );
-    assert.ok(
-      content.includes('signal: meController.signal'),
-      'sign-in page auth/me fetch should use the AbortController signal'
-    );
-  });
 
-  it('sign-in page should handle common Firebase auth errors', async () => {
-    const fs = await import('node:fs');
-    const signInPath = fileURLToPath(new URL('../app/(auth)/sign-in/page.tsx', import.meta.url));
-    const content = fs.readFileSync(signInPath, 'utf-8');
-    
     assert.ok(
-      content.includes('auth/wrong-password') || content.includes('auth/invalid-credential'),
-      'sign-in page should handle wrong password / invalid credential errors'
-    );
-    assert.ok(
-      content.includes('auth/user-not-found'),
-      'sign-in page should handle user not found error'
+      content.includes('Invalid login credentials'),
+      'sign-in page should handle invalid credentials error'
     );
     assert.ok(
       content.includes('AbortError'),
       'sign-in page should handle timeout AbortError'
+    );
+  });
+});
+
+// ─── Session Management Tests ─────────────────────────────────────────────
+
+describe('Session Management', () => {
+  it('session API should use Supabase token verification', async () => {
+    const fs = await import('node:fs');
+    const sessionPath = fileURLToPath(new URL('../app/api/auth/session/route.ts', import.meta.url));
+    const content = fs.readFileSync(sessionPath, 'utf-8');
+
+    assert.ok(
+      content.includes('verifySupabaseToken'),
+      'session API should use verifySupabaseToken'
+    );
+    assert.ok(
+      content.includes('accessToken'),
+      'session API should accept accessToken (not idToken)'
+    );
+  });
+
+  it('session.ts should require SESSION_SECRET', async () => {
+    const fs = await import('node:fs');
+    const sessionPath = fileURLToPath(new URL('../lib/session.ts', import.meta.url));
+    const content = fs.readFileSync(sessionPath, 'utf-8');
+
+    assert.ok(
+      content.includes('SESSION_SECRET'),
+      'session.ts should reference SESSION_SECRET'
+    );
+    assert.ok(
+      content.includes('HS256'),
+      'session.ts should use HS256 algorithm'
     );
   });
 });

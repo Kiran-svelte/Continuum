@@ -1,8 +1,11 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { ThemeToggle } from '@/components/theme-toggle';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { TiltCard, FadeIn, StaggerContainer } from '@/components/motion';
+import { GlassPanel } from '@/components/glass-panel';
+import { PageHeader } from '@/components/page-header';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -20,7 +23,7 @@ import {
   Loader2,
   AlertCircle,
 } from 'lucide-react';
-import { getFirebaseAuth, firebaseSendPasswordResetEmail } from '@/lib/firebase';
+import { supabaseGetUser, supabaseSendPasswordResetEmail } from '@/lib/supabase';
 
 interface Profile {
   first_name: string;
@@ -49,7 +52,17 @@ const defaultPreferences: NotificationPreferences = {
   reminderTiming: null,
 };
 
-function ToggleSwitch({
+/* ------------------------------------------------------------------ */
+/*  Animated Toggle Switch                                             */
+/* ------------------------------------------------------------------ */
+
+const spring = {
+  type: 'spring' as const,
+  stiffness: 700,
+  damping: 30,
+};
+
+function AnimatedToggleSwitch({
   value,
   onChange,
   label,
@@ -68,18 +81,63 @@ function ToggleSwitch({
       aria-label={label}
       disabled={disabled}
       onClick={() => !disabled && onChange(!value)}
-      className={`relative w-12 h-6 rounded-full transition-all duration-300 ${
+      className={`relative w-14 h-8 rounded-full transition-colors duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-black ${
         disabled ? 'opacity-50 cursor-not-allowed' : ''
-      } ${value ? 'bg-primary' : 'bg-muted'}`}
+      } ${value ? 'bg-primary' : 'bg-black/30'}`}
     >
-      <span
-        className={`absolute top-1 left-1 w-4 h-4 rounded-full bg-white shadow-md transition-transform duration-300 ${
-          value ? 'translate-x-6' : 'translate-x-0'
-        }`}
+      <motion.div
+        className="absolute top-1 left-1 w-6 h-6 rounded-full bg-white shadow-md"
+        layout
+        transition={spring}
+        style={{
+          translateX: value ? '1.5rem' : '0rem',
+        }}
       />
     </button>
   );
 }
+
+/* ------------------------------------------------------------------ */
+/*  Loading Skeleton                                                   */
+/* ------------------------------------------------------------------ */
+
+function SettingsSkeleton() {
+  return (
+    <div className="p-4 sm:p-6 pb-32">
+      <div className="space-y-8">
+        {/* Header skeleton */}
+        <div className="space-y-2">
+          <Skeleton className="h-8 w-56 bg-white/10" />
+          <Skeleton className="h-4 w-72 bg-white/10" />
+        </div>
+
+        {/* Settings cards skeleton */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {[...Array(4)].map((_, i) => (
+            <GlassPanel key={i} className="p-6 space-y-6">
+              <div className="flex items-center gap-4">
+                <Skeleton className="h-12 w-12 rounded-xl bg-white/10" />
+                <div className="space-y-2">
+                  <Skeleton className="h-5 w-32 bg-white/10" />
+                  <Skeleton className="h-4 w-40 bg-white/10" />
+                </div>
+              </div>
+              <div className="space-y-4">
+                <Skeleton className="h-12 w-full bg-black/20 rounded-lg" />
+                <Skeleton className="h-12 w-full bg-black/20 rounded-lg" />
+              </div>
+            </GlassPanel>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
+/* ------------------------------------------------------------------ */
+/*  Component                                                          */
+/* ------------------------------------------------------------------ */
 
 export default function ManagerSettingsPage() {
   const [loading, setLoading] = useState(true);
@@ -186,39 +244,35 @@ export default function ManagerSettingsPage() {
   );
 
   if (loading) {
-    return (
-      <div className="space-y-6">
-        <div>
-          <Skeleton className="h-8 w-48 mb-2" />
-          <Skeleton className="h-4 w-64" />
-        </div>
-        <div className="grid gap-6 md:grid-cols-2">
-          {[1, 2, 3, 4].map((i) => (
-            <Skeleton key={i} className="h-64 rounded-xl" />
-          ))}
-        </div>
-      </div>
-    );
+    return <SettingsSkeleton />;
   }
 
   if (loadError && !profile) {
     return (
-      <div className="space-y-8">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Manager Settings</h1>
-          <p className="text-muted-foreground mt-1">Customize your experience and team preferences</p>
-        </div>
-        <div className="rounded-xl px-4 py-3 text-sm font-medium bg-red-50 text-red-700 border border-red-200 dark:bg-red-500/10 dark:text-red-400 dark:border-red-500/20 flex items-center gap-2">
-          <AlertCircle className="w-4 h-4 shrink-0" />
-          <span className="flex-1">{loadError}</span>
-          <button
-            type="button"
-            onClick={loadAll}
-            className="ml-2 text-sm underline hover:no-underline shrink-0"
-          >
-            Retry
-          </button>
-        </div>
+      <div className="p-4 sm:p-6">
+        <FadeIn>
+          <PageHeader
+            title="Manager Settings"
+            description="Customize your experience and team preferences"
+          />
+          <TiltCard>
+            <GlassPanel className="border-red-500/30 p-12 text-center">
+              <div className="w-16 h-16 rounded-full bg-red-500/10 flex items-center justify-center mx-auto ring-4 ring-red-500/20">
+                <AlertCircle className="w-8 h-8 text-red-400" />
+              </div>
+              <p className="text-white font-semibold mt-6 text-xl">Unable to load settings</p>
+              <p className="text-white/60 text-sm mt-2 max-w-sm mx-auto">{loadError}</p>
+              <Button
+                variant="outline"
+                className="mt-6 bg-white/5 border-white/20 text-white/80 hover:bg-white/10 hover:text-white"
+                onClick={loadAll}
+              >
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Retry
+              </Button>
+            </GlassPanel>
+          </TiltCard>
+        </FadeIn>
       </div>
     );
   }
@@ -254,197 +308,218 @@ export default function ManagerSettingsPage() {
   ];
 
   return (
-    <div className="animate-fade-in space-y-8">
-      {/* Header */}
-      <div className="flex items-center justify-between animate-slide-up">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Manager Settings</h1>
-          <p className="text-muted-foreground mt-1">Customize your experience and team preferences</p>
-        </div>
-        {feedback && (
-          <div
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg animate-fade-in ${
-              feedback.type === 'success'
-                ? 'bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400'
-                : 'bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400'
-            }`}
-          >
-            {feedback.type === 'success' ? (
-              <CheckCircle className="w-4 h-4" />
-            ) : (
-              <AlertCircle className="w-4 h-4" />
-            )}
-            <span className="text-sm font-medium">{feedback.message}</span>
-          </div>
-        )}
-      </div>
-
-      <div className="grid gap-6 md:grid-cols-2 stagger">
-        {/* Appearance */}
-        <Card className="animate-slide-up bg-card border-border">
-          <CardHeader>
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
-                <Palette className="w-5 h-5 text-primary" />
-              </div>
-              <div>
-                <CardTitle>Appearance</CardTitle>
-                <CardDescription>Choose your preferred theme</CardDescription>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <label className="text-sm font-medium text-foreground mb-3 block">Color Theme</label>
-              <ThemeToggle variant="button" />
-            </div>
-            <div className="pt-3 border-t border-border">
-              <p className="text-xs text-muted-foreground">
-                Your theme preference is saved automatically and persists across sessions.
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Team Notifications -- DB-backed */}
-        <Card className="animate-slide-up bg-card border-border">
-          <CardHeader>
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-orange-50 dark:bg-orange-500/10 flex items-center justify-center">
-                <Bell className="w-5 h-5 text-orange-500" />
-              </div>
-              <div>
-                <CardTitle>Notifications</CardTitle>
-                <CardDescription>Manage your notification preferences</CardDescription>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {notificationItems.map(({ key, label, description, iconOn: IconOn, iconOff: IconOff }) => {
-              const value = prefs[key];
-              const isSaving = savingField === key;
-              const isSaved = savedField === key;
-
-              return (
-                <div
-                  key={key}
-                  className="flex items-center justify-between p-3 rounded-lg border border-border hover:bg-muted/30 transition-colors"
+    <div className="p-4 sm:p-6 pb-32">
+      <StaggerContainer>
+        {/* Header */}
+        <PageHeader
+          title="Manager Settings"
+          description="Customize your experience and team preferences"
+          action={
+            <AnimatePresence>
+              {feedback && (
+                <motion.div
+                  initial={{ opacity: 0, y: -20, scale: 0.95 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, x: 30, scale: 0.95 }}
+                  className={`flex items-center gap-3 px-4 py-3 rounded-xl shadow-lg ${
+                    feedback.type === 'success'
+                      ? 'bg-green-500/10 border border-green-500/30 text-green-300 shadow-green-500/10'
+                      : 'bg-red-500/10 border border-red-500/30 text-red-300 shadow-red-500/10'
+                  }`}
                 >
-                  <div className="flex items-center gap-3">
-                    {value ? (
-                      <IconOn className="w-5 h-5 text-primary" />
-                    ) : (
-                      <IconOff className="w-5 h-5 text-muted-foreground" />
-                    )}
-                    <div>
-                      <p className="text-sm font-medium text-foreground">{label}</p>
-                      <p className="text-xs text-muted-foreground">{description}</p>
+                  {feedback.type === 'success' ? (
+                    <CheckCircle className="w-5 h-5" />
+                  ) : (
+                    <AlertCircle className="w-5 h-5" />
+                  )}
+                  <span className="text-sm font-medium">{feedback.message}</span>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          }
+        />
+
+        <div className="grid gap-6 md:grid-cols-2 mt-8">
+          {/* Appearance */}
+          <SettingsCard
+            icon={Palette}
+            iconColor="bg-sky-500/10 text-sky-400"
+            title="Appearance"
+            description="Choose your preferred theme"
+          >
+            <div className="p-4 bg-black/20 rounded-lg">
+              <label className="text-sm font-medium text-white/80 mb-3 block">Color Theme</label>
+              <ThemeToggle variant="icon" />
+            </div>
+            <p className="text-xs text-white/50 pt-3">
+              Your theme preference is saved automatically and persists across sessions.
+            </p>
+          </SettingsCard>
+
+          {/* Team Notifications */}
+          <SettingsCard
+            icon={Bell}
+            iconColor="bg-orange-500/10 text-orange-400"
+            title="Notifications"
+            description="Manage your notification preferences"
+          >
+            <div className="space-y-3">
+              {notificationItems.map(({ key, label, description, iconOn: IconOn, iconOff: IconOff }) => {
+                const value = prefs[key];
+                const isSaving = savingField === key;
+                const isSaved = savedField === key;
+
+                return (
+                  <div
+                    key={key}
+                    className="flex items-center justify-between p-3 rounded-lg bg-black/20 border border-white/10"
+                  >
+                    <div className="flex items-center gap-4">
+                      {value ? (
+                        <IconOn className="w-5 h-5 text-primary" />
+                      ) : (
+                        <IconOff className="w-5 h-5 text-white/40" />
+                      )}
+                      <div>
+                        <p className="text-sm font-medium text-white/90">{label}</p>
+                        <p className="text-xs text-white/60">{description}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      {isSaving && <Loader2 className="w-4 h-4 animate-spin text-white/50" />}
+                      {isSaved && !isSaving && (
+                        <motion.span
+                          initial={{ opacity: 0, width: 0 }}
+                          animate={{ opacity: 1, width: 'auto' }}
+                          className="text-xs text-green-400 font-medium overflow-hidden"
+                        >
+                          Saved
+                        </motion.span>
+                      )}
+                      <AnimatedToggleSwitch
+                        value={value}
+                        onChange={(v) => handleToggle(key, v)}
+                        label={label}
+                        disabled={isSaving}
+                      />
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    {isSaving && (
-                      <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
-                    )}
-                    {isSaved && !isSaving && (
-                      <span className="text-xs text-green-500 dark:text-green-400 font-medium animate-fade-in">
-                        Saved
-                      </span>
-                    )}
-                    <ToggleSwitch
-                      value={value}
-                      onChange={(v) => handleToggle(key, v)}
-                      label={label}
-                      disabled={isSaving}
-                    />
-                  </div>
-                </div>
-              );
-            })}
-            <p className="text-xs text-muted-foreground pt-2">
+                );
+              })}
+            </div>
+            <p className="text-xs text-white/50 pt-3">
               Changes are saved automatically when you toggle a setting.
             </p>
-          </CardContent>
-        </Card>
+          </SettingsCard>
 
-        {/* Sound & Accessibility */}
-        <Card className="animate-slide-up bg-card border-border">
-          <CardHeader>
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-500/10 flex items-center justify-center">
-                <Volume2 className="w-5 h-5 text-blue-500" />
-              </div>
-              <div>
-                <CardTitle>Sound & Accessibility</CardTitle>
-                <CardDescription>Configure audio and display settings</CardDescription>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-center justify-between p-3 rounded-lg border border-border hover:bg-muted/30 transition-colors">
-              <div className="flex items-center gap-3">
-                {soundEnabled ? (
-                  <Volume2 className="w-5 h-5 text-primary" />
-                ) : (
-                  <VolumeX className="w-5 h-5 text-muted-foreground" />
-                )}
-                <div>
-                  <p className="text-sm font-medium text-foreground">Sound Alerts</p>
-                  <p className="text-xs text-muted-foreground">Play sound for notifications</p>
+          {/* Sound & Accessibility */}
+          <SettingsCard
+            icon={Volume2}
+            iconColor="bg-blue-500/10 text-blue-400"
+            title="Sound & Accessibility"
+            description="Configure audio and display settings"
+          >
+            <div className="space-y-3">
+              <div className="flex items-center justify-between p-3 rounded-lg bg-black/20 border border-white/10">
+                <div className="flex items-center gap-4">
+                  {soundEnabled ? (
+                    <Volume2 className="w-5 h-5 text-primary" />
+                  ) : (
+                    <VolumeX className="w-5 h-5 text-white/40" />
+                  )}
+                  <div>
+                    <p className="text-sm font-medium text-white/90">Sound Alerts</p>
+                    <p className="text-xs text-white/60">Play sound for notifications</p>
+                  </div>
                 </div>
+                <AnimatedToggleSwitch value={soundEnabled} onChange={setSoundEnabled} label="Sound Alerts" />
               </div>
-              <ToggleSwitch value={soundEnabled} onChange={setSoundEnabled} label="Sound Alerts" />
-            </div>
-            <div className="p-3 rounded-lg bg-muted/30 border border-border">
-              <div className="flex items-center gap-3">
-                <Globe className="w-5 h-5 text-muted-foreground" />
-                <div>
-                  <p className="text-sm font-medium text-foreground">Timezone</p>
-                  <p className="text-xs text-muted-foreground">{profile?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone}</p>
+              <div className="p-3 rounded-lg bg-black/20 border border-white/10">
+                <div className="flex items-center gap-4">
+                  <Globe className="w-5 h-5 text-white/40" />
+                  <div>
+                    <p className="text-sm font-medium text-white/90">Timezone</p>
+                    <p className="text-xs text-white/60">{profile?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone}</p>
+                  </div>
                 </div>
               </div>
             </div>
-          </CardContent>
-        </Card>
+          </SettingsCard>
 
-        {/* Security */}
-        <Card className="animate-slide-up bg-card border-border">
-          <CardHeader>
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-red-50 dark:bg-red-500/10 flex items-center justify-center">
-                <Shield className="w-5 h-5 text-red-500" />
-              </div>
-              <div>
-                <CardTitle>Security</CardTitle>
-                <CardDescription>Manage your account security</CardDescription>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="grid gap-3">
-              <Button variant="outline" className="justify-start gap-3 h-auto py-4" onClick={async () => {
+          {/* Security */}
+          <SettingsCard
+            icon={Shield}
+            iconColor="bg-red-500/10 text-red-400"
+            title="Security"
+            description="Manage your account security"
+          >
+            <Button
+              variant="outline"
+              className="w-full justify-start gap-4 h-auto py-4 bg-black/20 border-white/10 text-white/80 hover:bg-white/10 hover:text-white"
+              onClick={async () => {
                 try {
-                  const auth = getFirebaseAuth();
-                  const user = auth.currentUser;
+                  const user = await supabaseGetUser();
                   if (!user?.email) {
-                    showFeedback('error', 'Unable to determine your email address. Please sign in again.');
+                    showFeedback('error', 'Unable to determine your email address.');
                     return;
                   }
-                  await firebaseSendPasswordResetEmail(user.email);
-                  showFeedback('success', 'Password reset email sent! Check your inbox.', 5000);
+                  const { error: resetErr } = await supabaseSendPasswordResetEmail(user.email);
+                  if (resetErr) {
+                    showFeedback('error', resetErr.message || 'Failed to send email.');
+                    return;
+                  }
+                  showFeedback('success', 'Password reset email sent!', 5000);
                 } catch {
-                  showFeedback('error', 'Failed to send password reset email. Please try again.');
+                  showFeedback('error', 'Failed to send password reset email.');
                 }
-              }}>
-                <Shield className="w-5 h-5 text-muted-foreground" />
-                <div className="text-left">
-                  <p className="font-medium">Change Password</p>
-                  <p className="text-xs text-muted-foreground">Update your password</p>
-                </div>
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+              }}
+            >
+              <Shield className="w-6 h-6 text-red-400" />
+              <div className="text-left">
+                <p className="font-semibold text-base">Change Password</p>
+                <p className="text-xs text-white/60">Send a password reset link to your email</p>
+              </div>
+            </Button>
+          </SettingsCard>
+        </div>
+      </StaggerContainer>
     </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Settings Card Wrapper                                              */
+/* ------------------------------------------------------------------ */
+
+function SettingsCard({
+  icon: Icon,
+  iconColor,
+  title,
+  description,
+  children,
+}: {
+  icon: React.ElementType;
+  iconColor: string;
+  title: string;
+  description: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <FadeIn>
+      <TiltCard>
+        <GlassPanel className="p-6 h-full">
+          <div className="flex items-center gap-4 mb-6">
+            <div className={`w-12 h-12 rounded-xl flex items-center justify-center shadow-lg ${iconColor}`}>
+              <Icon className="w-6 h-6" />
+            </div>
+            <div>
+              <h3 className="text-lg font-bold text-white">{title}</h3>
+              <p className="text-sm text-white/60">{description}</p>
+            </div>
+          </div>
+          {children}
+        </GlassPanel>
+      </TiltCard>
+    </FadeIn>
   );
 }

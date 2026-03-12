@@ -1,26 +1,20 @@
 // ─── Test User Seed Script ─────────────────────────────────────────────────
 // Run with: npx ts-node prisma/seed-test-users.ts
 //
-// This creates test users for all roles with Firebase auth.
+// This creates test users for all roles with Supabase auth.
 // Password for all test users: Test@123
 
 import { PrismaClient, Role, Gender, EmployeeStatus } from '@prisma/client';
-import * as admin from 'firebase-admin';
+import { createClient } from '@supabase/supabase-js';
 
 const prisma = new PrismaClient();
 
-// Firebase Admin SDK initialization
-const serviceAccount = {
-  projectId: process.env.FIREBASE_PROJECT_ID || 'continuum-239d3',
-  privateKey: (process.env.FIREBASE_PRIVATE_KEY || '').replace(/\\n/g, '\n'),
-  clientEmail: process.env.FIREBASE_CLIENT_EMAIL || 'firebase-adminsdk-fbsvc@continuum-239d3.iam.gserviceaccount.com',
-};
-
-if (admin.apps.length === 0) {
-  admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount as admin.ServiceAccount),
-  });
-}
+// Supabase Admin client (service role)
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL || '',
+  process.env.SUPABASE_SERVICE_ROLE_KEY || '',
+  { auth: { autoRefreshToken: false, persistSession: false } }
+);
 
 const TEST_PASSWORD = 'Test@123';
 
@@ -84,25 +78,24 @@ const TEST_USERS: TestUser[] = [
   },
 ];
 
-async function createFirebaseUser(email: string, password: string): Promise<string> {
-  try {
-    // Check if user already exists
-    const existingUser = await admin.auth().getUserByEmail(email);
-    console.log(`  Firebase user already exists: ${email}`);
-    return existingUser.uid;
-  } catch (error: any) {
-    if (error.code === 'auth/user-not-found') {
-      // Create new user
-      const newUser = await admin.auth().createUser({
-        email,
-        password,
-        emailVerified: true,
-      });
-      console.log(`  Created Firebase user: ${email}`);
-      return newUser.uid;
-    }
-    throw error;
+async function createSupabaseUser(email: string, password: string): Promise<string> {
+  // Check if user already exists
+  const { data: existingUsers } = await supabase.auth.admin.listUsers();
+  const existing = existingUsers?.users?.find(u => u.email === email);
+  if (existing) {
+    console.log(`  Supabase user already exists: ${email}`);
+    return existing.id;
   }
+
+  // Create new user
+  const { data, error } = await supabase.auth.admin.createUser({
+    email,
+    password,
+    email_confirm: true,
+  });
+  if (error) throw error;
+  console.log(`  Created Supabase user: ${email}`);
+  return data.user.id;
 }
 
 async function main() {
@@ -169,8 +162,8 @@ async function main() {
       continue;
     }
 
-    // Create Firebase user
-    const authId = await createFirebaseUser(testUser.email, TEST_PASSWORD);
+    // Create Supabase user
+    const authId = await createSupabaseUser(testUser.email, TEST_PASSWORD);
 
     // Create employee
     const employee = await prisma.employee.create({

@@ -1,8 +1,9 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { motion } from 'framer-motion';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { StaggerContainer, FadeIn, TiltCard } from '@/components/motion';
+import { PageHeader } from '@/components/page-header';
+import { GlassPanel } from '@/components/glass-panel';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -35,20 +36,6 @@ interface LeaveRequest {
   escalation_count: number;
   created_at: string;
 }
-
-/* ------------------------------------------------------------------ */
-/*  Constants                                                          */
-/* ------------------------------------------------------------------ */
-
-const containerVariants = {
-  hidden: { opacity: 0 },
-  visible: { opacity: 1, transition: { staggerChildren: 0.06 } },
-} as const;
-
-const itemVariants = {
-  hidden: { opacity: 0, y: 15 },
-  visible: { opacity: 1, y: 0, transition: { type: 'spring' as const, stiffness: 280, damping: 22 } },
-} as const;
 
 /* ------------------------------------------------------------------ */
 /*  Page                                                               */
@@ -124,20 +111,19 @@ export default function EscalationPage() {
   }
 
   return (
-    <motion.div className="space-y-6" variants={containerVariants} initial="hidden" animate="visible">
+    <StaggerContainer className="space-y-6">
 
       {/* Header */}
-      <motion.div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4" variants={itemVariants}>
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Escalations</h1>
-          <p className="text-muted-foreground mt-1">SLA-breached and escalated leave requests requiring immediate attention</p>
-        </div>
-        <div className="flex gap-2">
+      <PageHeader
+        title="Escalations"
+        description="SLA-breached and escalated leave requests requiring immediate attention"
+        icon={<AlertTriangle className="w-6 h-6 text-primary" />}
+        action={
           <Button variant="outline" size="sm" onClick={fetchEscalated} className="gap-1">
             <RotateCcw className="w-3.5 h-3.5" /> Refresh
           </Button>
-        </div>
-      </motion.div>
+        }
+      />
 
       {/* Feedback */}
       {feedback && (
@@ -163,7 +149,11 @@ export default function EscalationPage() {
       {/* Loading skeleton */}
       {loading && !error && (
         <div className="space-y-3">
-          {[1, 2, 3].map((i) => <Skeleton key={i} className="h-24 rounded-xl" />)}
+          {[1, 2, 3].map((i) => (
+            <GlassPanel key={i}>
+              <Skeleton className="h-24 rounded-xl" />
+            </GlassPanel>
+          ))}
         </div>
       )}
 
@@ -171,71 +161,73 @@ export default function EscalationPage() {
       {!loading && !error && (
         <>
           {/* Summary */}
-          <motion.div className="grid grid-cols-1 md:grid-cols-3 gap-4" variants={itemVariants}>
-            <Card>
-              <CardContent className="pt-5 pb-5">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-xs font-medium text-muted-foreground uppercase">Total Escalated</p>
-                    <p className="text-2xl font-bold text-red-600 dark:text-red-400 mt-1">{requests.length}</p>
+          <FadeIn>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <TiltCard>
+                <GlassPanel className="p-5">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs font-medium text-white/60 uppercase">Total Escalated</p>
+                      <p className="text-2xl font-bold text-red-600 dark:text-red-400 mt-1">{requests.length}</p>
+                    </div>
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-red-50 dark:bg-red-500/10">
+                      <AlertTriangle className="h-5 w-5 text-red-500" />
+                    </div>
                   </div>
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-red-50 dark:bg-red-500/10">
-                    <AlertTriangle className="h-5 w-5 text-red-500" />
+                </GlassPanel>
+              </TiltCard>
+              <TiltCard>
+                <GlassPanel className="p-5">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs font-medium text-white/60 uppercase">SLA Breached</p>
+                      <p className="text-2xl font-bold text-amber-600 dark:text-amber-400 mt-1">
+                        {requests.filter((r) => r.sla_breached).length}
+                      </p>
+                    </div>
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-50 dark:bg-amber-500/10">
+                      <Clock className="h-5 w-5 text-amber-500" />
+                    </div>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="pt-5 pb-5">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-xs font-medium text-muted-foreground uppercase">SLA Breached</p>
-                    <p className="text-2xl font-bold text-amber-600 dark:text-amber-400 mt-1">
-                      {requests.filter((r) => r.sla_breached).length}
-                    </p>
+                </GlassPanel>
+              </TiltCard>
+              <TiltCard>
+                <GlassPanel className="p-5">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs font-medium text-white/60 uppercase">Avg Escalation Count</p>
+                      <p className="text-2xl font-bold text-white mt-1">
+                        {requests.length > 0
+                          ? (requests.reduce((s, r) => s + (r.escalation_count || 0), 0) / requests.length).toFixed(1)
+                          : '0'}
+                      </p>
+                    </div>
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-purple-50 dark:bg-purple-500/10">
+                      <AlertTriangle className="h-5 w-5 text-purple-500" />
+                    </div>
                   </div>
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-50 dark:bg-amber-500/10">
-                    <Clock className="h-5 w-5 text-amber-500" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="pt-5 pb-5">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-xs font-medium text-muted-foreground uppercase">Avg Escalation Count</p>
-                    <p className="text-2xl font-bold mt-1">
-                      {requests.length > 0
-                        ? (requests.reduce((s, r) => s + (r.escalation_count || 0), 0) / requests.length).toFixed(1)
-                        : '0'}
-                    </p>
-                  </div>
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-purple-50 dark:bg-purple-500/10">
-                    <AlertTriangle className="h-5 w-5 text-purple-500" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </motion.div>
+                </GlassPanel>
+              </TiltCard>
+            </div>
+          </FadeIn>
 
           {/* Request list */}
-          <motion.div variants={itemVariants}>
-            <Card>
-              <CardHeader>
-                <CardTitle>Escalated Requests</CardTitle>
-              </CardHeader>
-              <CardContent className="p-0">
+          <FadeIn>
+            <GlassPanel>
+              <div className="px-6 py-4 border-b border-white/10">
+                <h3 className="text-lg font-semibold text-white">Escalated Requests</h3>
+              </div>
+              <div>
                 {requests.length === 0 ? (
                   <div className="flex flex-col items-center justify-center py-16 text-center px-4">
                     <CheckCircle className="h-10 w-10 text-green-500 mb-3" />
-                    <h3 className="text-base font-semibold">All clear</h3>
-                    <p className="text-sm text-muted-foreground mt-1">No escalated or SLA-breached requests at the moment.</p>
+                    <h3 className="text-base font-semibold text-white">All clear</h3>
+                    <p className="text-sm text-white/60 mt-1">No escalated or SLA-breached requests at the moment.</p>
                   </div>
                 ) : (
-                  <div className="divide-y divide-border">
+                  <div className="divide-y divide-white/10">
                     {requests.map((req) => (
-                      <div key={req.id} className="px-4 py-4 hover:bg-muted/20 transition-colors">
+                      <div key={req.id} className="px-4 py-4 hover:bg-white/5 transition-colors">
                         <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
                           <div className="flex items-start gap-3">
                             <div className={`mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${
@@ -245,12 +237,12 @@ export default function EscalationPage() {
                             </div>
                             <div className="min-w-0">
                               <div className="flex items-center gap-2 flex-wrap">
-                                <p className="font-medium text-sm">{req.employee.first_name} {req.employee.last_name}</p>
+                                <p className="font-medium text-sm text-white">{req.employee.first_name} {req.employee.last_name}</p>
                                 <Badge variant={req.sla_breached ? 'danger' : 'warning'} size="sm">
                                   {req.sla_breached ? 'SLA Breached' : 'Escalated'}
                                 </Badge>
                               </div>
-                              <p className="text-xs text-muted-foreground mt-0.5">
+                              <p className="text-xs text-white/60 mt-0.5">
                                 {req.leave_type} &middot; {req.total_days} day{req.total_days !== 1 ? 's' : ''} &middot;{' '}
                                 {new Date(req.start_date).toLocaleDateString('en-IN', { month: 'short', day: 'numeric' })}
                                 {req.start_date !== req.end_date && ` - ${new Date(req.end_date).toLocaleDateString('en-IN', { month: 'short', day: 'numeric' })}`}
@@ -261,7 +253,7 @@ export default function EscalationPage() {
                                 </p>
                               )}
                               {req.reason && (
-                                <p className="text-xs text-muted-foreground mt-1 line-clamp-1">{req.reason}</p>
+                                <p className="text-xs text-white/60 mt-1 line-clamp-1">{req.reason}</p>
                               )}
                             </div>
                           </div>
@@ -292,11 +284,11 @@ export default function EscalationPage() {
                     ))}
                   </div>
                 )}
-              </CardContent>
-            </Card>
-          </motion.div>
+              </div>
+            </GlassPanel>
+          </FadeIn>
         </>
       )}
-    </motion.div>
+    </StaggerContainer>
   );
 }

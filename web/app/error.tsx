@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { GlassPanel } from "@/components/glass-panel";
 import { Button } from '@/components/ui/button';
 import { useErrorHandling } from '@/lib/error-handling';
 
@@ -34,15 +34,15 @@ export default function ErrorPage({ error, reset }: ErrorPageProps) {
                         !navigator?.onLine;
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-4">
+    <div className="min-h-screen bg-black flex items-center justify-center p-4">
       <motion.div
         initial={{ opacity: 0, scale: 0.9, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         transition={{ duration: 0.4 }}
         className="w-full max-w-lg"
       >
-        <Card className="border-destructive/20">
-          <CardHeader className="text-center">
+        <GlassPanel>
+          <div className="p-6 border-b border-white/10 text-center">
             <motion.div
               initial={{ scale: 0 }}
               animate={{ scale: 1 }}
@@ -51,19 +51,19 @@ export default function ErrorPage({ error, reset }: ErrorPageProps) {
             >
               {isChunkLoadError ? '🔄' : isNetworkError ? '🌐' : '💥'}
             </motion.div>
-            <CardTitle className="text-xl">
+            <h3 className="text-xl font-semibold text-white">
               {isChunkLoadError 
                 ? 'App Update Available' 
                 : isNetworkError 
                   ? 'Connection Problem'
                   : 'Something went wrong'
               }
-            </CardTitle>
-          </CardHeader>
+            </h3>
+          </div>
           
-          <CardContent className="space-y-6">
+          <div className="p-6 space-y-6">
             <div className="text-center space-y-2">
-              <p className="text-muted-foreground">
+              <p className="text-white/60">
                 {isChunkLoadError 
                   ? 'The application has been updated. Please refresh to get the latest version.'
                   : isNetworkError
@@ -73,7 +73,7 @@ export default function ErrorPage({ error, reset }: ErrorPageProps) {
               </p>
               
               {error.id && (
-                <p className="text-xs text-muted-foreground font-mono">
+                <p className="text-xs text-white/60 font-mono">
                   Error ID: {error.id}
                 </p>
               )}
@@ -82,25 +82,25 @@ export default function ErrorPage({ error, reset }: ErrorPageProps) {
             {/* Error details for development */}
             {process.env.NODE_ENV === 'development' && (
               <details className="space-y-2">
-                <summary className="cursor-pointer text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+                <summary className="cursor-pointer text-sm font-medium text-white/60 hover:text-white transition-colors">
                   Technical Details (Development)
                 </summary>
-                <div className="bg-muted rounded-lg p-3 space-y-2">
+                <div className="bg-white/5 rounded-lg p-3 space-y-2">
                   <div>
                     <span className="text-xs font-semibold text-destructive">Error:</span>
-                    <pre className="text-xs text-foreground mt-1 overflow-auto">
+                    <pre className="text-xs text-white mt-1 overflow-auto">
                       {error.message}
                     </pre>
                   </div>
                   {error.stack && (
                     <div>
                       <span className="text-xs font-semibold text-destructive">Stack Trace:</span>
-                      <pre className="text-xs text-muted-foreground mt-1 overflow-auto max-h-32">
+                      <pre className="text-xs text-white/60 mt-1 overflow-auto max-h-32">
                         {error.stack}
                       </pre>
                     </div>
                   )}
-                  <div className="text-xs text-muted-foreground">
+                  <div className="text-xs text-white/60">
                     <strong>URL:</strong> {window.location.href}<br />
                     <strong>Time:</strong> {new Date().toISOString()}<br />
                     <strong>User Agent:</strong> {navigator.userAgent}
@@ -146,12 +146,12 @@ export default function ErrorPage({ error, reset }: ErrorPageProps) {
             </div>
 
             <div className="text-center">
-              <p className="text-xs text-muted-foreground">
+              <p className="text-xs text-white/60">
                 If the problem persists, please contact support.
               </p>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </GlassPanel>
       </motion.div>
     </div>
   );

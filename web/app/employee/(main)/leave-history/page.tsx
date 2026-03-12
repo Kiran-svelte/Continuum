@@ -3,11 +3,13 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Modal } from '@/components/ui/modal';
 import { Skeleton } from '@/components/ui/skeleton';
+import { AmbientBackground, TiltCard, FadeIn, StaggerContainer } from '@/components/motion';
+import { PageHeader } from '@/components/page-header';
+import { GlassPanel } from '@/components/glass-panel';
 import {
   FilePlus,
   Inbox,
@@ -17,6 +19,7 @@ import {
   X,
   Download,
   Calendar,
+  CalendarDays,
   Filter,
   Eye,
   Clock,
@@ -111,23 +114,6 @@ const STATUS_ICON: Record<string, typeof Clock> = {
   draft: FileText,
 };
 
-const containerVariants = {
-  hidden: { opacity: 0 },
-  visible: {
-    opacity: 1,
-    transition: { staggerChildren: 0.06 },
-  },
-};
-
-const itemVariants = {
-  hidden: { opacity: 0, y: 15 },
-  visible: {
-    opacity: 1,
-    y: 0,
-    transition: { type: 'spring' as const, stiffness: 300, damping: 24 },
-  },
-};
-
 /* ------------------------------------------------------------------ */
 /*  Helpers                                                            */
 /* ------------------------------------------------------------------ */
@@ -181,10 +167,10 @@ function TimelineEntry({
         <Icon className="w-3.5 h-3.5" />
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium text-foreground">{label}</p>
-        <p className="text-xs text-muted-foreground">{formatDateTime(date)}</p>
+        <p className="text-sm font-medium text-white">{label}</p>
+        <p className="text-xs text-white/60">{formatDateTime(date)}</p>
         {detail && (
-          <p className="text-xs text-muted-foreground mt-0.5 italic">{detail}</p>
+          <p className="text-xs text-white/60 mt-0.5 italic">{detail}</p>
         )}
       </div>
     </div>
@@ -429,113 +415,112 @@ export default function LeaveHistoryPage() {
   /* ================================================================ */
 
   return (
-    <motion.div
-      className="space-y-6"
-      initial="hidden"
-      animate="visible"
-      variants={containerVariants}
-    >
+    <StaggerContainer className="space-y-6">
       {/* ---- Header ---- */}
-      <motion.div className="flex items-center justify-between flex-wrap gap-3" variants={itemVariants}>
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Leave History</h1>
-          <p className="text-muted-foreground mt-1">All your leave requests for this year</p>
-        </div>
-        <div className="flex items-center gap-2 flex-wrap">
-          {/* Date range filter */}
-          <div className="flex items-center gap-1.5">
-            <label htmlFor="header-from-date" className="sr-only">From date</label>
-            <div className="relative">
-              <Calendar className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
-              <input
-                id="header-from-date"
-                type="date"
-                value={startDateFilter}
-                onChange={(e) => setStartDateFilter(e.target.value)}
-                placeholder="From"
-                className="pl-8 pr-2 py-2 rounded-lg border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary transition-colors w-[150px]"
-                title="Filter from date"
-              />
+      <PageHeader
+        title="Leave History"
+        description="View your past leave applications"
+        icon={<CalendarDays className="w-6 h-6 text-primary" />}
+        action={
+          <div className="flex items-center gap-3 flex-wrap">
+            {/* Date range filter */}
+            <div className="flex items-center gap-2 bg-black/20 p-1.5 rounded-xl border border-white/10 backdrop-blur-sm">
+              <label htmlFor="header-from-date" className="sr-only">From date</label>
+              <div className="relative group">
+                <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40 group-focus-within:text-primary transition-colors pointer-events-none" />
+                <input
+                  id="header-from-date"
+                  type="date"
+                  value={startDateFilter}
+                  onChange={(e) => setStartDateFilter(e.target.value)}
+                  placeholder="From"
+                  className="pl-9 pr-3 py-2 rounded-lg border border-transparent bg-transparent text-sm text-white focus:outline-none focus:ring-2 focus:ring-primary/50 focus:bg-black/40 transition-all w-[140px] [color-scheme:dark]"
+                  title="Filter from date"
+                />
+              </div>
+              <span className="text-white/30 font-bold">&ndash;</span>
+              <label htmlFor="header-to-date" className="sr-only">To date</label>
+              <div className="relative group">
+                <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40 group-focus-within:text-primary transition-colors pointer-events-none" />
+                <input
+                  id="header-to-date"
+                  type="date"
+                  value={endDateFilter}
+                  onChange={(e) => setEndDateFilter(e.target.value)}
+                  min={startDateFilter || undefined}
+                  placeholder="To"
+                  className="pl-9 pr-3 py-2 rounded-lg border border-transparent bg-transparent text-sm text-white focus:outline-none focus:ring-2 focus:ring-primary/50 focus:bg-black/40 transition-all w-[140px] [color-scheme:dark]"
+                  title="Filter to date"
+                />
+              </div>
+              {(startDateFilter || endDateFilter) && (
+                <button
+                  onClick={() => { setStartDateFilter(''); setEndDateFilter(''); }}
+                  className="p-2 rounded-lg text-white/40 hover:text-white hover:bg-white/10 transition-all bg-black/20"
+                  title="Clear date range"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
             </div>
-            <span className="text-xs text-muted-foreground">&ndash;</span>
-            <label htmlFor="header-to-date" className="sr-only">To date</label>
-            <div className="relative">
-              <Calendar className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
-              <input
-                id="header-to-date"
-                type="date"
-                value={endDateFilter}
-                onChange={(e) => setEndDateFilter(e.target.value)}
-                min={startDateFilter || undefined}
-                placeholder="To"
-                className="pl-8 pr-2 py-2 rounded-lg border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary transition-colors w-[150px]"
-                title="Filter to date"
-              />
-            </div>
-            {(startDateFilter || endDateFilter) && (
-              <button
-                onClick={() => { setStartDateFilter(''); setEndDateFilter(''); }}
-                className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-                title="Clear date range"
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
-            )}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleExportCsv}
+              disabled={filteredRequests.length === 0}
+              className="gap-2 h-11 px-4 rounded-xl border-white/20 bg-black/20 hover:bg-white/10 text-white font-bold transition-all shadow-inner"
+            >
+              <Download className="w-4 h-4" />
+              Export CSV
+            </Button>
+            <Link
+              href="/employee/request-leave"
+              className="inline-flex items-center gap-2 bg-primary text-white px-5 py-2.5 rounded-xl text-sm font-bold hover:bg-white hover:text-primary transition-all shadow-[0_0_20px_rgba(var(--primary-rgb),0.3)] hover:shadow-[0_0_30px_rgba(255,255,255,0.6)] group relative overflow-hidden"
+            >
+              <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300 ease-out" />
+              <FilePlus className="w-4 h-4 relative z-10" />
+              <span className="relative z-10">New Request</span>
+            </Link>
           </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleExportCsv}
-            disabled={filteredRequests.length === 0}
-            className="gap-1.5"
-          >
-            <Download className="w-4 h-4" />
-            Export CSV
-          </Button>
-          <Link
-            href="/employee/request-leave"
-            className="inline-flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2.5 rounded-xl text-sm font-medium hover:bg-primary/90 transition-all shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/30"
-          >
-            <FilePlus className="w-4 h-4" />
-            New Request
-          </Link>
-        </div>
-      </motion.div>
+        }
+      />
 
       {/* ---- Status Filters ---- */}
-      <motion.div className="flex gap-2 flex-wrap items-center" variants={itemVariants}>
-        {['', 'pending', 'approved', 'rejected', 'cancelled'].map((s) => (
-          <button
-            key={s}
-            onClick={() => { setStatusFilter(s); setPage(1); }}
-            className={`px-3.5 py-1.5 rounded-full text-xs font-medium transition-all ${
-              statusFilter === s
-                ? 'bg-primary text-primary-foreground shadow-md shadow-primary/20'
-                : 'bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground'
-            }`}
-          >
-            {s === '' ? 'All' : s.charAt(0).toUpperCase() + s.slice(1)}
-          </button>
-        ))}
+      <FadeIn>
+        <div className="flex gap-2 flex-wrap items-center">
+          {['', 'pending', 'approved', 'rejected', 'cancelled'].map((s) => (
+            <button
+              key={s}
+              onClick={() => { setStatusFilter(s); setPage(1); }}
+              className={`px-5 py-2 rounded-xl text-sm font-bold transition-all duration-300 ${
+                statusFilter === s
+                  ? 'bg-primary text-white shadow-[0_0_15px_rgba(var(--primary-rgb),0.5)] scale-105'
+                  : 'bg-black/20 text-white/60 hover:bg-white/10 hover:text-white border border-white/5'
+              }`}
+            >
+              {s === '' ? 'All' : s.charAt(0).toUpperCase() + s.slice(1)}
+            </button>
+          ))}
 
-        <div className="ml-auto">
-          <button
-            onClick={() => setShowFilters((v) => !v)}
-            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
-              showFilters || hasActiveFilters
-                ? 'bg-primary/10 text-primary border border-primary/30'
-                : 'bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground'
-            }`}
-          >
-            <Filter className="w-3.5 h-3.5" />
-            Filters
-            {hasActiveFilters && (
-              <span className="ml-0.5 w-1.5 h-1.5 rounded-full bg-primary" />
-            )}
-            <ChevronDown className={`w-3 h-3 transition-transform ${showFilters ? 'rotate-180' : ''}`} />
-          </button>
+          <div className="ml-auto">
+            <button
+              onClick={() => setShowFilters((v) => !v)}
+              className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all duration-300 ${
+                showFilters || hasActiveFilters
+                  ? 'bg-primary/20 text-primary border border-primary/50 shadow-[0_0_15px_rgba(var(--primary-rgb),0.3)]'
+                  : 'bg-black/20 text-white/60 hover:bg-white/10 hover:text-white border border-white/5'
+              }`}
+            >
+              <Filter className="w-4 h-4" />
+              Filters
+              {hasActiveFilters && (
+                <span className="ml-1 w-2 h-2 rounded-full bg-primary drop-shadow-[0_0_5px_rgba(var(--primary-rgb),0.8)]" />
+              )}
+              <ChevronDown className={`w-4 h-4 transition-transform ${showFilters ? 'rotate-180' : ''}`} />
+            </button>
+          </div>
         </div>
-      </motion.div>
+      </FadeIn>
 
       {/* ---- Advanced Filters Panel ---- */}
       <AnimatePresence>
@@ -544,102 +529,106 @@ export default function LeaveHistoryPage() {
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.2, ease: 'easeInOut' }}
+            transition={{ duration: 0.3, ease: 'easeInOut' }}
             className="overflow-hidden"
           >
-            <Card className="border-0 shadow-md">
-              <CardContent className="p-4">
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-end">
-                  {/* Date range - start */}
-                  <div className="space-y-1.5">
-                    <label htmlFor="filter-start-date" className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
-                      <Calendar className="w-3.5 h-3.5" />
-                      From Date
-                    </label>
-                    <input
-                      id="filter-start-date"
-                      type="date"
-                      value={startDateFilter}
-                      onChange={(e) => setStartDateFilter(e.target.value)}
-                      className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary transition-colors"
-                    />
+            <TiltCard>
+              <GlassPanel className="mt-4">
+                <div className="absolute top-0 right-0 w-64 h-64 bg-primary/10 rounded-full blur-3xl -z-10 translate-x-1/2 -translate-y-1/2 pointer-events-none" />
+                <div className="p-6 relative z-10">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-5 items-end">
+                    {/* Date range - start */}
+                    <div className="space-y-2">
+                      <label htmlFor="filter-start-date" className="text-sm font-bold text-white/80 flex items-center gap-2">
+                        <Calendar className="w-4 h-4 text-primary" />
+                        From Date
+                      </label>
+                      <input
+                        id="filter-start-date"
+                        type="date"
+                        value={startDateFilter}
+                        onChange={(e) => setStartDateFilter(e.target.value)}
+                        className="w-full rounded-xl bg-black/40 border border-white/10 px-4 py-3 text-sm text-white focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/50 transition-all shadow-inner [color-scheme:dark]"
+                      />
+                    </div>
+
+                    {/* Date range - end */}
+                    <div className="space-y-2">
+                      <label htmlFor="filter-end-date" className="text-sm font-bold text-white/80 flex items-center gap-2">
+                        <Calendar className="w-4 h-4 text-cyan-400" />
+                        To Date
+                      </label>
+                      <input
+                        id="filter-end-date"
+                        type="date"
+                        value={endDateFilter}
+                        onChange={(e) => setEndDateFilter(e.target.value)}
+                        min={startDateFilter || undefined}
+                        className="w-full rounded-xl bg-black/40 border border-white/10 px-4 py-3 text-sm text-white focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/50 transition-all shadow-inner [color-scheme:dark]"
+                      />
+                    </div>
+
+                    {/* Leave type dropdown */}
+                    <div className="space-y-2">
+                      <label htmlFor="filter-leave-type" className="text-sm font-bold text-white/80 flex items-center gap-2">
+                        <FileText className="w-4 h-4 text-primary" />
+                        Leave Type
+                      </label>
+                      <select
+                        id="filter-leave-type"
+                        value={leaveTypeFilter}
+                        onChange={(e) => setLeaveTypeFilter(e.target.value)}
+                        className="w-full rounded-xl bg-black/40 border border-white/10 px-4 py-3 text-sm text-white focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/50 transition-all appearance-none cursor-pointer [color-scheme:dark]"
+                      >
+                        <option value="">All types</option>
+                        {leaveTypes.map((lt) => (
+                          <option key={lt.code} value={lt.code}>
+                            {lt.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
                   </div>
 
-                  {/* Date range - end */}
-                  <div className="space-y-1.5">
-                    <label htmlFor="filter-end-date" className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
-                      <Calendar className="w-3.5 h-3.5" />
-                      To Date
-                    </label>
-                    <input
-                      id="filter-end-date"
-                      type="date"
-                      value={endDateFilter}
-                      onChange={(e) => setEndDateFilter(e.target.value)}
-                      min={startDateFilter || undefined}
-                      className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary transition-colors"
-                    />
-                  </div>
-
-                  {/* Leave type dropdown */}
-                  <div className="space-y-1.5">
-                    <label htmlFor="filter-leave-type" className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
-                      <FileText className="w-3.5 h-3.5" />
-                      Leave Type
-                    </label>
-                    <select
-                      id="filter-leave-type"
-                      value={leaveTypeFilter}
-                      onChange={(e) => setLeaveTypeFilter(e.target.value)}
-                      className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary transition-colors appearance-none cursor-pointer"
-                    >
-                      <option value="">All types</option>
-                      {leaveTypes.map((lt) => (
-                        <option key={lt.code} value={lt.code}>
-                          {lt.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+                  {hasActiveFilters && (
+                    <div className="mt-3 flex items-center justify-between">
+                      <p className="text-xs text-white/60">
+                        Showing {filteredRequests.length} of {requests.length} results on this page
+                      </p>
+                      <button
+                        onClick={clearFilters}
+                        className="inline-flex items-center gap-1 text-xs text-primary hover:text-primary/80 font-medium transition-colors"
+                      >
+                        <RotateCcw className="w-3 h-3" />
+                        Clear filters
+                      </button>
+                    </div>
+                  )}
                 </div>
-
-                {hasActiveFilters && (
-                  <div className="mt-3 flex items-center justify-between">
-                    <p className="text-xs text-muted-foreground">
-                      Showing {filteredRequests.length} of {requests.length} results on this page
-                    </p>
-                    <button
-                      onClick={clearFilters}
-                      className="inline-flex items-center gap-1 text-xs text-primary hover:text-primary/80 font-medium transition-colors"
-                    >
-                      <RotateCcw className="w-3 h-3" />
-                      Clear filters
-                    </button>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+              </GlassPanel>
+            </TiltCard>
           </motion.div>
         )}
       </AnimatePresence>
 
       {/* ---- Requests Table ---- */}
-      <motion.div variants={itemVariants}>
-        <Card className="border-0 shadow-md overflow-hidden">
-          <CardHeader className="border-b border-border/50 bg-muted/30">
+      <FadeIn>
+        <GlassPanel>
+          <div className="absolute top-0 left-1/4 w-96 h-96 bg-primary/5 rounded-full blur-3xl -z-10 pointer-events-none" />
+          <div className="border-b border-white/10 bg-black/20 px-6 py-4 rounded-t-2xl">
             <div className="flex items-center justify-between">
-              <CardTitle className="text-base">Leave Requests</CardTitle>
+              <h2 className="text-xl font-bold text-white">Leave Requests</h2>
               {hasActiveFilters && (
-                <Badge variant="info" size="sm">
+                <Badge variant="info" size="sm" className="bg-primary/20 text-primary border border-primary/30 shadow-[0_0_10px_rgba(var(--primary-rgb),0.2)]">
                   {filteredRequests.length} match{filteredRequests.length !== 1 ? 'es' : ''}
                 </Badge>
               )}
             </div>
-          </CardHeader>
-          <CardContent className="p-0">
+          </div>
+          <div className="relative z-10">
             {/* Loading skeletons */}
             {loading && (
-              <div className="divide-y divide-border/50">
+              <div className="divide-y divide-white/10">
                 {[1, 2, 3, 4, 5].map((i) => (
                   <div key={i} className="px-6 py-4 animate-pulse">
                     <div className="flex items-start justify-between gap-4">
@@ -668,12 +657,12 @@ export default function LeaveHistoryPage() {
             {/* Empty state */}
             {!loading && !error && filteredRequests.length === 0 && (
               <div className="py-16 text-center">
-                <div className="w-12 h-12 rounded-xl bg-muted/50 flex items-center justify-center mx-auto mb-3">
-                  <Inbox className="w-6 h-6 text-muted-foreground" />
+                <div className="w-12 h-12 rounded-xl bg-white/5 flex items-center justify-center mx-auto mb-3">
+                  <Inbox className="w-6 h-6 text-white/60" />
                 </div>
                 {hasActiveFilters ? (
                   <>
-                    <p className="text-muted-foreground mt-3 text-sm">No requests match your filters.</p>
+                    <p className="text-white/60 mt-3 text-sm">No requests match your filters.</p>
                     <button
                       onClick={clearFilters}
                       className="mt-3 inline-flex items-center gap-1.5 text-primary text-sm font-medium hover:underline"
@@ -684,7 +673,7 @@ export default function LeaveHistoryPage() {
                   </>
                 ) : (
                   <>
-                    <p className="text-muted-foreground mt-3 text-sm">No leave requests found.</p>
+                    <p className="text-white/60 mt-3 text-sm">No leave requests found.</p>
                     <Link
                       href="/employee/request-leave"
                       className="mt-3 inline-block text-primary text-sm font-medium hover:underline"
@@ -698,111 +687,106 @@ export default function LeaveHistoryPage() {
 
             {/* Request rows */}
             {!loading && !error && filteredRequests.length > 0 && (
-              <motion.div
-                className="divide-y divide-border/50"
-                initial="hidden"
-                animate="visible"
-                variants={containerVariants}
-              >
+              <div className="divide-y divide-white/10">
                 {filteredRequests.map((req) => {
                   const StatusIcon = STATUS_ICON[req.status] || Clock;
                   return (
-                    <motion.div
-                      key={req.id}
-                      variants={itemVariants}
-                      className="px-6 py-4 hover:bg-muted/30 transition-colors cursor-pointer group"
-                      onClick={() => openDetail(req)}
-                      role="button"
-                      tabIndex={0}
-                      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') openDetail(req); }}
-                    >
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <span className="text-sm font-semibold text-foreground">
-                              {req.leave_type}
-                            </span>
-                            {req.is_half_day && (
-                              <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full">
-                                Half day
+                    <FadeIn key={req.id}>
+                      <div
+                        className="px-6 py-4 hover:bg-white/5 transition-colors cursor-pointer group"
+                        onClick={() => openDetail(req)}
+                        role="button"
+                        tabIndex={0}
+                        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') openDetail(req); }}
+                      >
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="text-sm font-semibold text-white">
+                                {req.leave_type}
                               </span>
+                              {req.is_half_day && (
+                                <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full shadow-[0_0_8px_rgba(var(--primary-rgb),0.2)]">
+                                  Half day
+                                </span>
+                              )}
+                              <Badge variant={STATUS_BADGE[req.status] ?? 'default'}>
+                                {req.status}
+                              </Badge>
+                            </div>
+                            <p className="text-sm text-white/60 mt-1">
+                              {formatDate(req.start_date)}
+                              {req.start_date !== req.end_date && ` \u2013 ${formatDate(req.end_date)}`}
+                              {' \u00B7 '}
+                              <span className="font-medium text-white">
+                                {req.total_days} day{req.total_days !== 1 ? 's' : ''}
+                              </span>
+                            </p>
+                            {req.reason && (
+                              <p className="text-xs text-white/60 mt-1 truncate max-w-md">
+                                {req.reason}
+                              </p>
                             )}
-                            <Badge variant={STATUS_BADGE[req.status] ?? 'default'}>
-                              {req.status}
-                            </Badge>
+                            {req.approver_comments && (
+                              <p className="text-xs mt-1.5 flex items-start gap-1.5 max-w-lg">
+                                <MessageSquare className="w-3.5 h-3.5 shrink-0 mt-0.5 text-primary/60" />
+                                <span className="text-white/60">
+                                  <span className="font-medium text-white/80">
+                                    {req.approver?.first_name} {req.approver?.last_name}:
+                                  </span>{' '}
+                                  <span className="italic">{req.approver_comments}</span>
+                                </span>
+                              </p>
+                            )}
                           </div>
-                          <p className="text-sm text-muted-foreground mt-1">
-                            {formatDate(req.start_date)}
-                            {req.start_date !== req.end_date && ` \u2013 ${formatDate(req.end_date)}`}
-                            {' \u00B7 '}
-                            <span className="font-medium text-foreground">
-                              {req.total_days} day{req.total_days !== 1 ? 's' : ''}
-                            </span>
-                          </p>
-                          {req.reason && (
-                            <p className="text-xs text-muted-foreground mt-1 truncate max-w-md">
-                              {req.reason}
+                          <div className="flex flex-col items-end gap-2 shrink-0">
+                            <p className="text-xs text-white/60">
+                              {formatDate(req.created_at)}
                             </p>
-                          )}
-                          {req.approver_comments && (
-                            <p className="text-xs mt-1.5 flex items-start gap-1.5 max-w-lg">
-                              <MessageSquare className="w-3.5 h-3.5 shrink-0 mt-0.5 text-primary/60" />
-                              <span className="text-muted-foreground">
-                                <span className="font-medium text-foreground/80">
-                                  {req.approver?.first_name} {req.approver?.last_name}:
-                                </span>{' '}
-                                <span className="italic">{req.approver_comments}</span>
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs text-white/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
+                                <Eye className="w-3 h-3" />
+                                View
                               </span>
-                            </p>
-                          )}
-                        </div>
-                        <div className="flex flex-col items-end gap-2 shrink-0">
-                          <p className="text-xs text-muted-foreground">
-                            {formatDate(req.created_at)}
-                          </p>
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
-                              <Eye className="w-3 h-3" />
-                              View
-                            </span>
-                            {(req.status === 'pending' || req.status === 'escalated') && (
-                              <button
-                                onClick={(e) => { e.stopPropagation(); handleCancel(req.id); }}
-                                disabled={cancellingId === req.id}
-                                className="text-xs text-destructive hover:text-destructive/80 font-medium hover:underline disabled:opacity-50 transition-colors flex items-center gap-1"
-                              >
-                                {cancellingId === req.id ? (
-                                  'Cancelling...'
-                                ) : (
-                                  <>
-                                    <X className="w-3.5 h-3.5" /> Cancel
-                                  </>
-                                )}
-                              </button>
-                            )}
+                              {(req.status === 'pending' || req.status === 'escalated') && (
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); handleCancel(req.id); }}
+                                  disabled={cancellingId === req.id}
+                                  className="text-xs text-destructive hover:text-destructive/80 font-medium hover:underline disabled:opacity-50 transition-colors flex items-center gap-1"
+                                >
+                                  {cancellingId === req.id ? (
+                                    'Cancelling...'
+                                  ) : (
+                                    <>
+                                      <X className="w-3.5 h-3.5" /> Cancel
+                                    </>
+                                  )}
+                                </button>
+                              )}
+                            </div>
                           </div>
                         </div>
                       </div>
-                    </motion.div>
+                    </FadeIn>
                   );
                 })}
-              </motion.div>
+              </div>
             )}
 
             {/* Pagination */}
             {totalPages > 1 && (
-              <div className="flex items-center justify-between px-6 py-4 border-t border-border/50 bg-muted/20">
+              <div className="flex items-center justify-between px-6 py-4 border-t border-white/10 bg-white/5">
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={() => setPage((p) => Math.max(1, p - 1))}
                   disabled={page <= 1}
-                  className="gap-1.5"
+                  className="gap-1.5 border-white/10 bg-black/20 hover:bg-white/10 text-white"
                 >
                   <ChevronLeft className="w-4 h-4" />
                   Previous
                 </Button>
-                <span className="text-sm text-muted-foreground">
+                <span className="text-sm text-white/60">
                   Page {page} of {totalPages}
                 </span>
                 <Button
@@ -810,16 +794,16 @@ export default function LeaveHistoryPage() {
                   size="sm"
                   onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                   disabled={page >= totalPages}
-                  className="gap-1.5"
+                  className="gap-1.5 border-white/10 bg-black/20 hover:bg-white/10 text-white"
                 >
                   Next
                   <ChevronRight className="w-4 h-4" />
                 </Button>
               </div>
             )}
-          </CardContent>
-        </Card>
-      </motion.div>
+          </div>
+        </GlassPanel>
+      </FadeIn>
 
       {/* ================================================================ */}
       {/*  DETAIL MODAL                                                    */}
@@ -836,16 +820,16 @@ export default function LeaveHistoryPage() {
             <div className="flex items-start justify-between gap-4">
               <div>
                 <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-lg font-semibold text-foreground">
+                  <span className="text-lg font-semibold text-white">
                     {selectedRequest.leave_type}
                   </span>
                   {selectedRequest.is_half_day && (
-                    <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full">
+                    <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full shadow-[0_0_8px_rgba(var(--primary-rgb),0.2)]">
                       Half day
                     </span>
                   )}
                 </div>
-                <p className="text-sm text-muted-foreground mt-1">
+                <p className="text-sm text-white/60 mt-1">
                   {formatDate(selectedRequest.start_date)}
                   {selectedRequest.start_date !== selectedRequest.end_date &&
                     ` \u2013 ${formatDate(selectedRequest.end_date)}`}
@@ -860,42 +844,42 @@ export default function LeaveHistoryPage() {
             </div>
 
             {/* ---- Key Details Grid ---- */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 rounded-xl bg-muted/40 p-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 rounded-xl bg-white/5 border border-white/10 p-4">
               <div>
-                <p className="text-xs text-muted-foreground">Total Days</p>
-                <p className="text-sm font-semibold text-foreground mt-0.5">
+                <p className="text-xs text-white/60">Total Days</p>
+                <p className="text-sm font-semibold text-white mt-0.5">
                   {selectedRequest.total_days} day{selectedRequest.total_days !== 1 ? 's' : ''}
                 </p>
               </div>
               <div>
-                <p className="text-xs text-muted-foreground">Submitted</p>
-                <p className="text-sm font-medium text-foreground mt-0.5">
+                <p className="text-xs text-white/60">Submitted</p>
+                <p className="text-sm font-medium text-white mt-0.5">
                   {formatDate(selectedRequest.created_at)}
                 </p>
               </div>
               {selectedRequest.approved_at && (
                 <div>
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-xs text-white/60">
                     {selectedRequest.status === 'approved' ? 'Approved' : 'Reviewed'}
                   </p>
-                  <p className="text-sm font-medium text-foreground mt-0.5">
+                  <p className="text-sm font-medium text-white mt-0.5">
                     {formatDate(selectedRequest.approved_at)}
                   </p>
                 </div>
               )}
               {selectedRequest.approver && (
                 <div>
-                  <p className="text-xs text-muted-foreground">Approver</p>
-                  <p className="text-sm font-medium text-foreground mt-0.5 flex items-center gap-1">
-                    <User className="w-3.5 h-3.5 text-muted-foreground" />
+                  <p className="text-xs text-white/60">Approver</p>
+                  <p className="text-sm font-medium text-white mt-0.5 flex items-center gap-1">
+                    <User className="w-3.5 h-3.5 text-white/60" />
                     {selectedRequest.approver.first_name} {selectedRequest.approver.last_name}
                   </p>
                 </div>
               )}
               {selectedRequest.sla_deadline && (
                 <div>
-                  <p className="text-xs text-muted-foreground">SLA Deadline</p>
-                  <p className={`text-sm font-medium mt-0.5 ${selectedRequest.sla_breached ? 'text-red-600 dark:text-red-400' : 'text-foreground'}`}>
+                  <p className="text-xs text-white/60">SLA Deadline</p>
+                  <p className={`text-sm font-medium mt-0.5 ${selectedRequest.sla_breached ? 'text-red-400 drop-shadow-[0_0_6px_rgba(239,68,68,0.5)]' : 'text-white'}`}>
                     {formatDate(selectedRequest.sla_deadline)}
                     {selectedRequest.sla_breached && ' (Breached)'}
                   </p>
@@ -903,8 +887,8 @@ export default function LeaveHistoryPage() {
               )}
               {selectedRequest.escalation_count > 0 && (
                 <div>
-                  <p className="text-xs text-muted-foreground">Escalations</p>
-                  <p className="text-sm font-semibold text-amber-600 dark:text-amber-400 mt-0.5">
+                  <p className="text-xs text-white/60">Escalations</p>
+                  <p className="text-sm font-semibold text-amber-400 drop-shadow-[0_0_6px_rgba(251,191,36,0.5)] mt-0.5">
                     {selectedRequest.escalation_count}
                   </p>
                 </div>
@@ -914,11 +898,11 @@ export default function LeaveHistoryPage() {
             {/* ---- Reason ---- */}
             {selectedRequest.reason && (
               <div>
-                <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1.5">
+                <h4 className="text-xs font-medium text-white/60 uppercase tracking-wide mb-1.5">
                   Reason
                 </h4>
-                <div className="rounded-lg bg-muted/30 border border-border/50 px-4 py-3">
-                  <p className="text-sm text-foreground whitespace-pre-wrap">
+                <div className="rounded-lg bg-white/5 border border-white/10 px-4 py-3">
+                  <p className="text-sm text-white whitespace-pre-wrap">
                     {selectedRequest.reason}
                   </p>
                 </div>
@@ -928,18 +912,18 @@ export default function LeaveHistoryPage() {
             {/* ---- Approver Comments ---- */}
             {selectedRequest.approver_comments && (
               <div>
-                <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1.5">
+                <h4 className="text-xs font-medium text-white/60 uppercase tracking-wide mb-1.5">
                   Approver Comments
                 </h4>
-                <div className="rounded-lg bg-muted/30 border border-border/50 px-4 py-3 flex items-start gap-2">
+                <div className="rounded-lg bg-white/5 border border-white/10 px-4 py-3 flex items-start gap-2">
                   <MessageSquare className="w-4 h-4 text-primary/60 shrink-0 mt-0.5" />
                   <div>
                     {selectedRequest.approver && (
-                      <p className="text-xs font-medium text-foreground/80 mb-1">
+                      <p className="text-xs font-medium text-white/80 mb-1">
                         {selectedRequest.approver.first_name} {selectedRequest.approver.last_name}
                       </p>
                     )}
-                    <p className="text-sm text-foreground italic">
+                    <p className="text-sm text-white italic">
                       {selectedRequest.approver_comments}
                     </p>
                   </div>
@@ -950,11 +934,11 @@ export default function LeaveHistoryPage() {
             {/* ---- Cancel Reason ---- */}
             {selectedRequest.cancel_reason && (
               <div>
-                <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1.5">
+                <h4 className="text-xs font-medium text-white/60 uppercase tracking-wide mb-1.5">
                   Cancel Reason
                 </h4>
-                <div className="rounded-lg bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 px-4 py-3">
-                  <p className="text-sm text-red-700 dark:text-red-400">
+                <div className="rounded-lg bg-red-500/10 border border-red-500/20 px-4 py-3">
+                  <p className="text-sm text-red-400">
                     {selectedRequest.cancel_reason}
                   </p>
                 </div>
@@ -964,15 +948,15 @@ export default function LeaveHistoryPage() {
             {/* ---- Constraint Engine Results ---- */}
             {selectedRequest.constraint_result && (
               <div>
-                <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1.5">
+                <h4 className="text-xs font-medium text-white/60 uppercase tracking-wide mb-1.5">
                   Constraint Engine Results
                 </h4>
-                <div className="rounded-lg border border-border/50 overflow-hidden">
+                <div className="rounded-lg border border-white/10 overflow-hidden">
                   {/* Overall result */}
                   <div className={`px-4 py-2.5 flex items-center justify-between text-sm font-medium ${
                     selectedRequest.constraint_result.passed
-                      ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400'
-                      : 'bg-red-50 text-red-700 dark:bg-red-500/10 dark:text-red-400'
+                      ? 'bg-emerald-500/10 text-emerald-400'
+                      : 'bg-red-500/10 text-red-400'
                   }`}>
                     <span className="flex items-center gap-1.5">
                       {selectedRequest.constraint_result.passed ? (
@@ -992,20 +976,20 @@ export default function LeaveHistoryPage() {
                   {/* Individual checks */}
                   {Array.isArray(selectedRequest.constraint_result.checks) &&
                     selectedRequest.constraint_result.checks.length > 0 && (
-                      <div className="divide-y divide-border/50">
+                      <div className="divide-y divide-white/10">
                         {selectedRequest.constraint_result.checks.map((check, idx) => (
-                          <div key={idx} className="px-4 py-2.5 flex items-start gap-2 text-sm bg-muted/20">
+                          <div key={idx} className="px-4 py-2.5 flex items-start gap-2 text-sm bg-white/5">
                             {check.passed ? (
-                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
                             ) : (
-                              <XCircle className="w-3.5 h-3.5 text-red-600 dark:text-red-400 shrink-0 mt-0.5" />
+                              <XCircle className="w-3.5 h-3.5 text-red-400 shrink-0 mt-0.5" />
                             )}
                             <div className="min-w-0">
-                              <p className="font-medium text-foreground text-xs">
+                              <p className="font-medium text-white text-xs">
                                 {check.name || check.rule || `Check ${idx + 1}`}
                               </p>
                               {(check.message || check.details) && (
-                                <p className="text-xs text-muted-foreground mt-0.5">
+                                <p className="text-xs text-white/60 mt-0.5">
                                   {check.message || check.details}
                                 </p>
                               )}
@@ -1021,11 +1005,11 @@ export default function LeaveHistoryPage() {
             {/* ---- AI Recommendation ---- */}
             {selectedRequest.ai_recommendation && selectedRequest.ai_recommendation.recommendation && (
               <div>
-                <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1.5">
+                <h4 className="text-xs font-medium text-white/60 uppercase tracking-wide mb-1.5">
                   AI Recommendation
                 </h4>
-                <div className="rounded-lg bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/20 px-4 py-3">
-                  <p className="text-sm text-blue-700 dark:text-blue-400 font-medium">
+                <div className="rounded-lg bg-blue-500/10 border border-blue-500/20 px-4 py-3">
+                  <p className="text-sm text-blue-400 font-medium">
                     {selectedRequest.ai_recommendation.recommendation}
                     {selectedRequest.ai_recommendation.confidence !== undefined && (
                       <span className="ml-2 text-xs opacity-70">
@@ -1034,7 +1018,7 @@ export default function LeaveHistoryPage() {
                     )}
                   </p>
                   {selectedRequest.ai_recommendation.reason && (
-                    <p className="text-xs text-blue-600/80 dark:text-blue-400/80 mt-1">
+                    <p className="text-xs text-blue-400/80 mt-1">
                       {selectedRequest.ai_recommendation.reason}
                     </p>
                   )}
@@ -1044,10 +1028,10 @@ export default function LeaveHistoryPage() {
 
             {/* ---- Timeline / Audit Trail ---- */}
             <div>
-              <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">
+              <h4 className="text-xs font-medium text-white/60 uppercase tracking-wide mb-2">
                 Timeline
               </h4>
-              <div className="space-y-3 relative before:absolute before:left-[13px] before:top-4 before:bottom-4 before:w-px before:bg-border">
+              <div className="space-y-3 relative before:absolute before:left-[13px] before:top-4 before:bottom-4 before:w-px before:bg-white/10">
                 {buildTimeline(selectedRequest).map((entry, idx) => (
                   <TimelineEntry key={idx} {...entry} />
                 ))}
@@ -1057,7 +1041,7 @@ export default function LeaveHistoryPage() {
             {/* ---- Attachment ---- */}
             {selectedRequest.attachment_url && (
               <div>
-                <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1.5">
+                <h4 className="text-xs font-medium text-white/60 uppercase tracking-wide mb-1.5">
                   Attachment
                 </h4>
                 <a
@@ -1073,8 +1057,8 @@ export default function LeaveHistoryPage() {
             )}
 
             {/* ---- Modal Footer Actions ---- */}
-            <div className="flex items-center justify-between pt-2 border-t border-border/50">
-              <p className="text-xs text-muted-foreground">
+            <div className="flex items-center justify-between pt-2 border-t border-white/10">
+              <p className="text-xs text-white/60">
                 ID: {selectedRequest.id.slice(0, 8)}...
               </p>
               <div className="flex items-center gap-2">
@@ -1100,6 +1084,6 @@ export default function LeaveHistoryPage() {
           </div>
         )}
       </Modal>
-    </motion.div>
+    </StaggerContainer>
   );
 }
