@@ -39,7 +39,7 @@
 │                                                                         │
 │  ┌─────────────┐    ┌──────────────┐    ┌────────────────────────────┐  │
 │  │  Marketing   │    │  Auth Layer  │    │     Next.js 16 Frontend    │  │
-│  │  Landing     │───▶│  Supabase    │───▶│  (App Router / RSC)        │  │
+│  │  Landing     │───▶│  Custom JWT  │───▶│  (App Router / RSC)        │  │
 │  │  Page        │    │  + Middleware │    │                            │  │
 │  └─────────────┘    └──────┬───────┘    │  ┌────────┐ ┌───────────┐  │  │
 │                            │            │  │Employee│ │  HR       │  │  │
@@ -49,26 +49,31 @@
 │                            │            │  │Manager │ │  Admin    │  │  │
 │                            │            │  │Portal  │ │  Portal   │  │  │
 │                            │            │  └────────┘ └───────────┘  │  │
+│                            │            │  ┌────────────────────────┐│  │
+│                            │            │  │Super Admin Portal      ││  │
+│                            │            │  │(/super-admin/*)        ││  │
+│                            │            │  └────────────────────────┘│  │
 │                            │            └────────────┬───────────────┘  │
 │                            │                         │                  │
 │                     ┌──────▼─────────────────────────▼───────────┐      │
 │                     │          Next.js API Routes                │      │
 │                     │   /api/leaves  /api/attendance  /api/hr    │      │
 │                     │   /api/policies /api/payroll /api/reports  │      │
-│                     │   /api/security /api/billing /api/cron     │      │
+│                     │   /api/super-admin /api/invite /api/company│      │
+│                     │   /api/auth/signin /api/auth/refresh       │      │
 │                     └──────────┬──────────────┬─────────────────┘      │
 │                                │              │                         │
 │          ┌─────────────────────▼──┐    ┌──────▼────────────────┐       │
 │          │    RBAC Engine         │    │  Constraint Policy    │       │
 │          │    (lib/rbac.ts)       │    │  Engine               │       │
 │          │    40+ permissions     │    │  (Python Flask 8001)  │       │
-│          │    6 roles             │    │  13+ constraint rules │       │
+│          │    7 roles + super_admin│    │  13+ constraint rules │       │
 │          │    Company-specific    │    │  Per-company config   │       │
 │          └────────────────────────┘    └───────────────────────┘       │
 │                                │              │                         │
 │                     ┌──────────▼──────────────▼──────────────┐         │
-│                     │        PostgreSQL (Supabase)            │         │
-│                     │  32 models · Multi-tenant · ACID        │         │
+│                     │        PostgreSQL (Neon)                │         │
+│                     │  50+ models · Multi-tenant · ACID       │         │
 │                     │  Integrity hash chains · Audit logs     │         │
 │                     │  Ledger-based leave tracking            │         │
 │                     └────────────────────────────────────────┘         │
@@ -86,13 +91,13 @@
 |---------|------|------|---------|
 | **Web Frontend** | Next.js 16 (App Router, RSC) | 3000 | All UI portals + API routes |
 | **Constraint Engine** | Python Flask | 8001 | Leave policy constraint evaluation |
-| **Database** | PostgreSQL (Supabase) | 5432 | Primary data store, Row-Level Security |
+| **Database** | PostgreSQL (Neon) | 5432 | Primary data store, Multi-tenant |
 | **Real-time** | Pusher | — | Live notifications, audit feed |
 | **Email** | Gmail OAuth2 / SMTP | — | Transactional emails |
 | **Payments** | Razorpay (India) / Stripe | — | Subscription billing |
-| **Auth** | Supabase Auth | — | JWT + Session management |
+| **Auth** | Custom JWT (jose + bcrypt) | — | Access + Refresh tokens |
 | **Monitoring** | Prometheus + Grafana | 9090/3001 | Metrics & dashboards |
-| **Cache** | Redis | 6379 | Session store, rate limiting |
+| **Cache** | Redis (Upstash) | 6379 | Session store, rate limiting |
 
 ---
 
@@ -105,7 +110,11 @@
 │                  ROLE HIERARCHY                      │
 ├─────────────────────────────────────────────────────┤
 │                                                      │
+│  super_admin ──────────────── PLATFORM OWNER        │
+│    │                          (manages all companies)│
+│    │                                                 │
 │  admin ──────────────────────────────── ALL ACCESS   │
+│    │                          (company owner)        │
 │    │                                                 │
 │  hr ─────────────────────── Company-wide operations  │
 │    │                                                 │
@@ -116,6 +125,9 @@
 │  team_lead ──────────────── Team-level approvals     │
 │    │                                                 │
 │  employee ───────────────── Self-service only        │
+│                                                      │
+│  NOTE: Companies can enable/disable roles dynamically│
+│  via the `enabled_roles` configuration.              │
 │                                                      │
 └─────────────────────────────────────────────────────┘
 ```
@@ -1501,17 +1513,20 @@ docker-compose --profile production --profile monitoring up -d
 |-----------|---------|---------|
 | Next.js API Routes | 16.x | REST API endpoints |
 | Prisma ORM | 6.19.x | Type-safe database access |
-| PostgreSQL | 15+ | Primary database (via Supabase) |
+| PostgreSQL | 15+ | Primary database (via Neon) |
 | Python Flask | 3.x | Constraint evaluation engine |
 | Pusher | 5.2 | Real-time WebSocket events |
 | Nodemailer | 7.x | Email dispatch (Gmail OAuth2) |
 | Zod | (via integrity/) | Runtime schema validation |
+| jose | 6.x | JWT token signing/verification |
+| bcrypt | 5.x | Password hashing |
 
 ### 16.3 Infrastructure
 
 | Technology | Purpose |
 |-----------|---------|
-| Supabase | Auth + Database + Storage + PITR |
+| Neon PostgreSQL | Database (serverless, auto-scaling) |
+| Upstash Redis | Session cache, rate limiting |
 | Vercel | Frontend deployment + Serverless functions |
 | Railway | Python service deployment |
 | Docker | Local development orchestration |
@@ -1631,75 +1646,213 @@ This section provides deep technical explanations of every major subsystem for n
 
 ---
 
-### 17.1 Authentication & Registration Flow
+### 17.1 Authentication & User Invitation Flow
 
-#### Company Admin Registration
+> **NEW AUTH SYSTEM**: Continuum now uses an invitation-based authentication system. No self-registration is allowed. All users are created by authorized personnel in a hierarchical manner.
 
-When a new company signs up, the following happens in strict order:
+#### Authentication Architecture
 
-1. **Client-side** (`/sign-up`, "Start a Company" mode): The user fills in their name, email, password, company name, industry, size, and timezone. On submit, the page calls `supabase.auth.signUp({ email, password })` using the Supabase browser client. This creates an auth user in Supabase and sets a session cookie automatically.
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                    INVITATION-BASED AUTH HIERARCHY                       │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                          │
+│  SUPER ADMIN (Platform Owner)                                            │
+│       │                                                                  │
+│       └── Creates Company Admins (invited via email)                    │
+│              │                                                           │
+│  COMPANY ADMIN                                                           │
+│       ├── Creates Company (onboarding)                                  │
+│       ├── Configures roles (dynamic: HR, manager, etc.)                 │
+│       └── Invites HR / Managers                                         │
+│              │                                                           │
+│  HR (Optional per company)                                               │
+│       ├── Invites Team Leads / Employees                                │
+│       ├── Bulk CSV import                                                │
+│       └── Manages employee lifecycle                                    │
+│              │                                                           │
+│  MANAGER / TEAM_LEAD                                                     │
+│       └── Can approve/reject leaves (no user creation)                  │
+│              │                                                           │
+│  EMPLOYEE                                                                │
+│       └── Self-service only                                              │
+│                                                                          │
+└─────────────────────────────────────────────────────────────────────────┘
+```
 
-2. **API call** (`POST /api/auth/register`): With the Supabase session cookie already set, the client calls this endpoint with the company details. The server:
-   - Reads the authenticated Supabase user via `createSupabaseServerClient().auth.getUser()`
-   - Validates that no `Employee` record exists for this `auth_id` yet (prevents double-registration)
-   - Runs a **single database transaction** that atomically:
-     - Creates a `Company` record with a randomly generated 8-character `join_code` (e.g., `A1B2C3D4`)
-     - Creates an `Employee` record with `primary_role: 'admin'` linked to the new company
-     - Seeds all 16 leave types from `LEAVE_TYPE_CATALOG` as `LeaveType` records
-     - Seeds `LeaveBalance` records for the admin employee (one per leave type for the current year)
-     - Seeds 13 default `LeaveRule` records from `DEFAULT_CONSTRAINT_RULES`
-   - Creates an audit log entry with SHA-256 hash chain integrity
-   - Returns `{ company_id, employee_id, join_code }`
+#### Tech Stack Change
 
-3. **Client redirects** to `/onboarding` for the wizard.
+| Component | Old | New |
+|-----------|-----|-----|
+| Database | Supabase PostgreSQL | Neon PostgreSQL |
+| Auth | Supabase Auth | Custom JWT (jose library) |
+| Sessions | Supabase session | Access + Refresh tokens (httpOnly cookies) |
+| Password | Supabase managed | bcrypt hashing (12 rounds) |
 
-**Why a transaction?** All-or-nothing semantics: if any step fails, the entire registration rolls back. No partial company records or orphaned employees.
+#### Super Admin Creating Users
 
-**Why generate `join_code` at registration?** Employees need a code immediately. The admin can share it before finishing onboarding.
+1. **Super Admin Login** (`/admin/login`):
+   - Authenticates with email/password
+   - Custom JWT issued (access + refresh tokens)
+   - Redirects to `/super-admin/dashboard`
 
-#### Employee Join Flow
+2. **Create User** (`POST /api/super-admin/users`):
+   - Super Admin fills: email, name, role (typically `admin` for company owners)
+   - System generates a unique invite token (32-char hex)
+   - Creates `UserInvite` record with 7-day expiry
+   - Sends email with invite link: `/invite/accept/[token]`
 
-Employees join an existing company using the code their HR admin shares:
+3. **User Accepts Invitation** (`/invite/accept/[token]`):
+   - Validates token exists and hasn't expired
+   - User sets their password (strength validation required)
+   - `POST /api/invite/accept` creates `Employee` record with `password_hash`
+   - Auto-login with new JWT tokens
+   - Redirects to `/onboarding/company` (if admin) or `/employee/dashboard`
 
-1. **Client-side** (`/sign-up`, "Join a Company" mode): Employee enters name, email, password, company code, and their role. On submit:
-   - `supabase.auth.signUp()` creates the auth user and sets session cookie
-   - Client calls `POST /api/auth/join` with the company code and profile data
+#### Company Admin Onboarding
 
-2. **API call** (`POST /api/auth/join`): The server:
-   - Authenticates via Supabase session cookie
-   - Looks up `Company` by `join_code` (case-insensitive after toUpperCase normalization)
-   - Runs a **transaction** that:
-     - Creates the `Employee` record with `status: 'onboarding'`
-     - Seeds `LeaveBalance` rows using the company's active `LeaveType` records (falls back to `LEAVE_TYPE_CATALOG` if no custom types are configured yet)
-   - Creates an audit log entry
-   - Returns `{ employee_id, company_id, company_name }`
+After accepting invite, company admins go through onboarding:
 
-3. **Client redirects** to `/employee/dashboard`.
+1. **Create Company** (`/onboarding/company`):
+   - Step 1: Basic info (name, industry, size, timezone)
+   - Step 2: Role configuration (dynamic: HR, manager hierarchy)
+   - Step 3: Review and create
+   - `POST /api/company/create` creates company with unique `join_code`
 
-**Why `status: 'onboarding'`?** Employees start in onboarding status — the HR team can update this to `active` after verification.
+2. **Invite Team** (`/onboarding/invite-team`):
+   - Admin invites HR and/or managers
+   - `POST /api/company/invite-user` sends invitations
+   - Each role gets appropriate permissions
 
-**Why fall back to the catalog?** If the admin hasn't completed onboarding yet, the company may not have custom leave types. The fallback ensures employees always get initial balances.
+#### Dynamic Role System
+
+Companies can configure which roles they use:
+
+```typescript
+// Company model
+{
+  enabled_roles: ['employee', 'hr', 'manager', 'admin'],  // Flexible
+  requires_hr: true,       // HR role is active
+  requires_manager: true,  // Manager hierarchy is active
+}
+```
+
+**Role Skip Logic**: If a company doesn't have managers, the approval chain skips directly to HR or Admin. The `ApprovalChain` resolver handles this dynamically.
+
+#### HR/Admin Inviting Employees
+
+1. **Single Invite** (`/hr/employees/invite`):
+   - HR enters: email, name, role, department
+   - System sends invitation email
+   - Employee sets password and joins
+
+2. **Bulk Invite** (CSV):
+   - Format: `email,firstName,lastName,role,department`
+   - Processes line by line
+   - Reports success/failure per row
+
+#### JWT Token Structure
+
+```typescript
+// Access Token (15 min expiry)
+{
+  sub: "employee-uuid",
+  email: "user@company.com",
+  role: "hr",
+  roles: ["hr", "manager"],  // secondary roles
+  org_id: "company-uuid",
+  iat: 1234567890,
+  exp: 1234567890
+}
+
+// Refresh Token (7 days expiry)
+{
+  sub: "employee-uuid",
+  jti: "unique-token-id",  // for revocation
+  iat: 1234567890,
+  exp: 1234567890
+}
+```
+
+**Cookies**:
+- `continuum-access`: HttpOnly, SameSite=Lax, 15min
+- `continuum-refresh`: HttpOnly, SameSite=Strict, Path=/api/auth, 7 days
+
+#### Guided Tutorials
+
+Each role receives a contextual tutorial on first login:
+
+| Role | Tutorial Content |
+|------|------------------|
+| Super Admin | Platform overview, user creation, company monitoring |
+| Admin | Company setup, team building, policy configuration |
+| HR | Employee management, leave approvals, payroll |
+| Manager | Team view, approval workflow, calendar |
+| Employee | Dashboard, leave application, attendance |
+
+**Progress Tracking**: `TutorialProgress` model tracks completion per user per tutorial.
+
+**Why no self-registration?** Enterprise security requirement. Only authorized personnel can add users to the system, ensuring proper vetting and role assignment.
 
 ---
 
 ### 17.2 Onboarding Wizard — Step-by-Step
 
-The wizard at `/onboarding` is only visited by company admins post-registration. It has 6 steps:
+The onboarding flow is now invitation-based and split into multiple phases:
+
+#### Phase 1: Super Admin Creates User
+
+1. Super Admin logs in at `/admin/login`
+2. Navigates to `/super-admin/users/new`
+3. Creates invitation for new company admin
+4. System emails invite link
+
+#### Phase 2: Company Admin Accepts & Creates Company
+
+1. Admin clicks invite link → `/invite/accept/[token]`
+2. Sets password with strength validation
+3. Auto-logged in, redirected to `/onboarding/company`
+
+**Company Creation Wizard** (`/onboarding/company`):
 
 | Step | UI Label | What it configures | What saves to DB |
 |------|----------|--------------------|-----------------|
-| 1 | Company Setup | Name, industry, size, timezone | `Company` fields updated |
-| 2 | Leave Types | Enable/disable leave types, quotas | New `LeaveType` rows (skips already-seeded codes) |
-| 3 | Constraint Rules | View/acknowledge defaults | Already seeded at registration — no DB write here |
-| 4 | Holidays | Select public holidays | `PublicHoliday` rows (custom, per company) |
-| 5 | Notifications | Email alerts, manager alerts, SLA alerts | `CompanySettings.email_notifications` upserted |
-| 6 | Complete | Display join code | `Company.onboarding_completed = true` |
+| 1 | Company Info | Name, industry, size, timezone | `Company` fields |
+| 2 | Role Configuration | Enable/disable HR, managers, etc. | `Company.enabled_roles`, `requires_hr`, `requires_manager` |
+| 3 | Review & Create | Confirm all settings | Creates `Company`, links `Employee`, generates `join_code` |
 
-**Save trigger**: All data is collected in React state across steps. A **single API call** (`POST /api/onboarding/complete`) saves everything when the user clicks "Finish Setup" on step 5. The transaction inside the route ensures partial saves don't occur.
+#### Phase 3: Invite Team Members
 
-**Join Code display**: After `POST /api/onboarding/complete` succeeds, the route returns the company's existing `join_code`. The Complete step displays it prominently so the admin can share it with employees.
+After company creation, admin goes to `/onboarding/invite-team`:
 
-**Why not save each step individually?** To keep the wizard recoverable. If the admin closes the browser mid-wizard, they can re-open it and all state is re-enterable. Only the final "Finish Setup" writes to the database.
+1. Invite HR (if enabled)
+2. Invite managers (if enabled)
+3. Skip to dashboard if solo admin
+
+#### Phase 4: HR Onboards Employees
+
+HR (or admin if no HR) invites employees via:
+
+1. **Single invite**: `/hr/employees/invite`
+2. **Bulk CSV import**: Same page, bulk tab
+
+**Leave Balance Auto-Seeding**: When employee accepts invite:
+- System seeds `LeaveBalance` rows using company's active `LeaveType` records
+- Falls back to `LEAVE_TYPE_CATALOG` if no custom types configured
+- `annual_entitlement` = leave type's `default_quota`
+
+#### Phase 5: Policy Configuration (Optional)
+
+Admin/HR configures policies at `/hr/policy-settings`:
+
+| Config | Description |
+|--------|-------------|
+| Leave Types | Enable/disable types, quotas, carry-forward rules |
+| Constraint Rules | 13 default rules, customizable per company |
+| Holiday Calendar | Public holidays per location |
+| Approval Chain | Multi-level approval configuration |
+
+**Why invite-based?** Enterprise security — no random self-registration. Every user is vetted and assigned proper role by authorized personnel.
 
 ---
 
