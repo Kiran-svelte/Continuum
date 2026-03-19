@@ -47,7 +47,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const otp = await generateOTP(employee.id, employee.org_id, action as OTPAction);
+    const otp = await generateOTP(employee.id, employee.org_id!, action as OTPAction);
 
     // Send OTP via email
     try {
@@ -94,7 +94,7 @@ export async function PUT(request: NextRequest) {
     }
 
     const { action, code } = parsed.data;
-    const valid = await verifyOTP(employee.id, employee.org_id, action as OTPAction, code);
+    const valid = await verifyOTP(employee.id, employee.org_id!, action as OTPAction, code);
 
     if (!valid) {
       return NextResponse.json({ error: 'Invalid or expired OTP' }, { status: 400 });

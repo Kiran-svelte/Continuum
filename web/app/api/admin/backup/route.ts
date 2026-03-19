@@ -26,7 +26,10 @@ export async function POST(request: NextRequest) {
     const employee = await getAuthEmployee();
     requireRole(employee, 'admin');
 
-    const companyId = employee.org_id;
+    const companyId = employee.org_id!;
+    if (!companyId) {
+      return NextResponse.json({ error: 'No company associated' }, { status: 400 });
+    }
 
     // Fetch all company data in parallel
     const [

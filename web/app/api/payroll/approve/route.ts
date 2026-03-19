@@ -40,7 +40,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Payroll run not found' }, { status: 404 });
     }
 
-    if (payrollRun.company_id !== employee.org_id) {
+    if (payrollRun.company_id !== employee.org_id!) {
       return NextResponse.json({ error: 'Access denied' }, { status: 403 });
     }
 
@@ -60,7 +60,7 @@ export async function POST(request: NextRequest) {
     });
 
     await createAuditLog({
-      companyId: employee.org_id,
+      companyId: employee.org_id!,
       actorId: employee.id,
       action: AUDIT_ACTIONS.PAYROLL_APPROVE,
       entityType: 'PayrollRun',

@@ -49,7 +49,7 @@ export async function POST(request: NextRequest) {
       // Log failed login attempt (only for employees, not super admins)
       if (result.employee?.id && result.employee?.org_id) {
         void createAuditLog({
-          companyId: result.employee.org_id,
+          companyId: result.employee.org_id!,
           actorId: result.employee.id,
           action: AUDIT_ACTIONS.LOGIN_FAILED,
           entityType: 'Employee',

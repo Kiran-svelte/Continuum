@@ -3,11 +3,13 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { ArrowLeft, UserPlus, Loader2, CheckCircle, Copy, AlertCircle, Info } from 'lucide-react';
 
 /**
  * Create New User Form (Super Admin)
  * 
  * Creates a new company owner/admin user and sends them an invitation.
+ * Updated with clean, professional design system.
  */
 export default function CreateUserPage() {
   const router = useRouter();
@@ -56,73 +58,88 @@ export default function CreateUserPage() {
     }
   };
 
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+  };
+
   if (success) {
     return (
       <div className="max-w-2xl mx-auto space-y-6">
-        <div className="bg-green-500/10 border border-green-500/30 rounded-xl p-6">
-          <h2 className="text-xl font-bold text-green-400 mb-4">✓ User Created Successfully</h2>
-          
-          <div className="space-y-4 text-slate-300">
-            <p>The user has been created and an invitation has been generated.</p>
-            
-            <div className="bg-slate-800 rounded-lg p-4 space-y-3">
-              <div>
-                <label className="text-sm text-slate-400">Invite URL:</label>
-                <div className="flex gap-2 mt-1">
-                  <input
-                    type="text"
-                    readOnly
-                    value={success.inviteUrl}
-                    className="flex-1 bg-slate-700 text-white px-3 py-2 rounded text-sm"
-                  />
-                  <button
-                    onClick={() => navigator.clipboard.writeText(success.inviteUrl)}
-                    className="px-3 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded text-sm"
-                  >
-                    Copy
-                  </button>
-                </div>
-              </div>
-
-              {success.tempPassword && (
+        <div className="card p-6">
+          <div className="flex items-start gap-4">
+            <div className="w-12 h-12 bg-success/10 rounded-xl flex items-center justify-center flex-shrink-0">
+              <CheckCircle className="w-6 h-6 text-success" />
+            </div>
+            <div className="flex-1">
+              <h2 className="text-xl font-semibold text-foreground mb-2">User Created Successfully</h2>
+              <p className="text-muted mb-6">
+                The user has been created and an invitation has been generated.
+              </p>
+              
+              <div className="space-y-4 bg-surface-alt rounded-lg p-4">
                 <div>
-                  <label className="text-sm text-slate-400">Temporary Password (Development Only):</label>
+                  <label className="input-label">Invite URL</label>
                   <div className="flex gap-2 mt-1">
                     <input
                       type="text"
                       readOnly
-                      value={success.tempPassword}
-                      className="flex-1 bg-slate-700 text-white px-3 py-2 rounded text-sm font-mono"
+                      value={success.inviteUrl}
+                      className="input flex-1 text-sm"
                     />
                     <button
-                      onClick={() => navigator.clipboard.writeText(success.tempPassword!)}
-                      className="px-3 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded text-sm"
+                      onClick={() => copyToClipboard(success.inviteUrl)}
+                      className="btn-secondary flex items-center gap-1"
                     >
+                      <Copy className="w-4 h-4" />
                       Copy
                     </button>
                   </div>
                 </div>
-              )}
-            </div>
 
-            <p className="text-sm text-slate-400">
-              Share this link with the user. They will be able to set their password and complete their account setup.
-            </p>
+                {success.tempPassword && (
+                  <div>
+                    <label className="input-label flex items-center gap-1">
+                      Temporary Password 
+                      <span className="text-warning text-xs">(Development Only)</span>
+                    </label>
+                    <div className="flex gap-2 mt-1">
+                      <input
+                        type="text"
+                        readOnly
+                        value={success.tempPassword}
+                        className="input flex-1 text-sm font-mono"
+                      />
+                      <button
+                        onClick={() => copyToClipboard(success.tempPassword!)}
+                        className="btn-secondary flex items-center gap-1"
+                      >
+                        <Copy className="w-4 h-4" />
+                        Copy
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <p className="text-sm text-muted mt-4">
+                Share this link with the user. They will be able to set their password and complete their account setup.
+              </p>
+            </div>
           </div>
 
-          <div className="flex gap-3 mt-6">
+          <div className="flex gap-3 mt-6 pt-6 border-t border-border">
             <button
               onClick={() => {
                 setSuccess(null);
                 setFormData({ email: '', firstName: '', lastName: '', role: 'admin' });
               }}
-              className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg"
+              className="btn-secondary"
             >
               Create Another
             </button>
             <Link
               href="/super-admin/users"
-              className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg"
+              className="btn-primary"
             >
               View All Users
             </Link>
@@ -135,82 +152,77 @@ export default function CreateUserPage() {
   return (
     <div className="max-w-2xl mx-auto space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <Link href="/super-admin/users" className="text-sm text-slate-400 hover:text-white mb-2 flex items-center gap-1">
-            ← Back to Users
-          </Link>
-          <h1 className="text-2xl font-bold text-white">Create New User</h1>
-          <p className="text-slate-400 mt-1">Create a company owner or admin user</p>
-        </div>
+      <div>
+        <Link 
+          href="/super-admin/users" 
+          className="inline-flex items-center gap-1 text-sm text-muted hover:text-foreground mb-3"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          Back to Users
+        </Link>
+        <h1 className="text-2xl font-semibold text-foreground">Create New User</h1>
+        <p className="text-muted mt-1">Create a company owner or admin user</p>
       </div>
 
       {/* Form */}
-      <form onSubmit={handleSubmit} className="bg-slate-800 rounded-xl p-6 border border-slate-700 space-y-6">
+      <form onSubmit={handleSubmit} className="card p-6 space-y-5">
         {error && (
-          <div className="p-4 bg-red-500/10 border border-red-500/30 rounded-lg text-red-400">
+          <div className="p-4 bg-error/5 border border-error/20 rounded-lg text-error flex items-center gap-3">
+            <AlertCircle className="w-5 h-5 flex-shrink-0" />
             {error}
           </div>
         )}
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">
-              First Name
-            </label>
+            <label className="input-label">First Name</label>
             <input
               type="text"
               required
               value={formData.firstName}
               onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
-              className="w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-purple-500"
+              className="input"
               placeholder="John"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">
-              Last Name
-            </label>
+            <label className="input-label">Last Name</label>
             <input
               type="text"
               required
               value={formData.lastName}
               onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-              className="w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-purple-500"
+              className="input"
               placeholder="Doe"
             />
           </div>
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-slate-300 mb-2">
-            Email Address
-          </label>
+          <label className="input-label">Email Address</label>
           <input
             type="email"
             required
             value={formData.email}
             onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-            className="w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-purple-500"
+            className="input"
             placeholder="john@company.com"
           />
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-slate-300 mb-2">
-            Role
-          </label>
+          <label className="input-label">Role</label>
           <select
             value={formData.role}
             onChange={(e) => setFormData({ ...formData, role: e.target.value })}
-            className="w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+            className="input"
           >
             <option value="admin">Company Admin (Full Access)</option>
             <option value="hr">HR Manager</option>
             <option value="director">Director</option>
             <option value="manager">Manager</option>
           </select>
-          <p className="mt-2 text-sm text-slate-400">
+          <p className="mt-2 text-sm text-muted">
             {formData.role === 'admin' && 'Company admin will have full control to create their company and manage all aspects.'}
             {formData.role === 'hr' && 'HR Manager will be able to manage employees, leaves, and policies.'}
             {formData.role === 'director' && 'Director will have oversight of their department.'}
@@ -218,9 +230,12 @@ export default function CreateUserPage() {
           </p>
         </div>
 
-        <div className="bg-slate-700/50 rounded-lg p-4">
-          <h3 className="font-medium text-white mb-2">What happens next?</h3>
-          <ul className="text-sm text-slate-300 space-y-1">
+        <div className="bg-surface-alt rounded-lg p-4">
+          <h3 className="font-medium text-foreground mb-2 flex items-center gap-2">
+            <Info className="w-4 h-4 text-primary" />
+            What happens next?
+          </h3>
+          <ul className="text-sm text-muted space-y-1">
             <li>• An invitation will be sent to the user's email</li>
             <li>• They will set their password and complete account setup</li>
             <li>• If Admin role: They can then create their company</li>
@@ -228,28 +243,28 @@ export default function CreateUserPage() {
           </ul>
         </div>
 
-        <div className="flex gap-3">
+        <div className="flex gap-3 pt-2">
           <Link
             href="/super-admin/users"
-            className="px-4 py-3 bg-slate-700 hover:bg-slate-600 text-white rounded-lg"
+            className="btn-secondary"
           >
             Cancel
           </Link>
           <button
             type="submit"
             disabled={loading}
-            className="flex-1 px-4 py-3 bg-purple-600 hover:bg-purple-700 disabled:bg-purple-800 text-white rounded-lg transition-colors flex items-center justify-center gap-2"
+            className="btn-primary flex-1 flex items-center justify-center gap-2"
           >
             {loading ? (
               <>
-                <svg className="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                </svg>
+                <Loader2 className="w-4 h-4 animate-spin" />
                 Creating...
               </>
             ) : (
-              'Create User & Send Invite'
+              <>
+                <UserPlus className="w-4 h-4" />
+                Create User & Send Invite
+              </>
             )}
           </button>
         </div>

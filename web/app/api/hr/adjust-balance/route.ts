@@ -52,7 +52,7 @@ export async function POST(request: NextRequest) {
       select: { id: true, org_id: true },
     });
 
-    if (!targetEmployee || targetEmployee.org_id !== employee.org_id) {
+    if (!targetEmployee || targetEmployee.org_id! !== employee.org_id!) {
       return NextResponse.json({ error: 'Employee not found' }, { status: 404 });
     }
 
@@ -83,7 +83,7 @@ export async function POST(request: NextRequest) {
     });
 
     await createAuditLog({
-      companyId: employee.org_id,
+      companyId: employee.org_id!,
       actorId: employee.id,
       action: AUDIT_ACTIONS.LEAVE_BALANCE_ADJUST,
       entityType: 'LeaveBalance',

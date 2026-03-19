@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
     if (employee) {
       // Employee exists - log to their company's audit trail
       await createAuditLog({
-        companyId: employee.org_id,
+        companyId: employee.org_id!,
         actorId: null, // No authenticated actor since login failed
         action: AUDIT_ACTIONS.LOGIN_FAILED,
         entityType: 'Employee',

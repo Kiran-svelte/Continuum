@@ -5,6 +5,7 @@
 //
 
 import { cookies } from 'next/headers';
+import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import {
   verifyAccessToken,
@@ -41,6 +42,13 @@ export interface AuthEmployee {
   accessScope: AccessScope;
   tutorialCompleted: boolean;
   mustChangePassword: boolean;
+}
+
+/**
+ * AuthEmployee with guaranteed org_id (for routes that require company membership)
+ */
+export interface AuthEmployeeWithCompany extends AuthEmployee {
+  org_id: string;
 }
 
 export interface DecodedUser {
@@ -86,12 +94,24 @@ export async function getAuthUserFromRequest(request: Request): Promise<{ user: 
 // ─── Auth Guards (Server Components / Route Handlers via cookies()) ─────────
 
 /**
- * Extracts auth from access token cookie, looks up Employee via Prisma.
+ * Extracts auth from access token (cookie or request header), looks up Employee via Prisma.
  * Returns the authenticated employee with role, company, and permissions.
+ * 
+ * Can be called two ways:
+ * - getAuthEmployee() - uses cookies() for Server Components
+ * - getAuthEmployee(request) - extracts token from request headers (API routes)
  */
-export async function getAuthEmployee(): Promise<AuthEmployee> {
-  const cookieStore = await cookies();
-  const accessToken = cookieStore.get(ACCESS_COOKIE_NAME)?.value;
+export async function getAuthEmployee(request?: Request): Promise<AuthEmployee> {
+  let accessToken: string | null | undefined;
+  
+  if (request) {
+    // Extract token from request (Authorization header or cookie header)
+    accessToken = extractAccessToken(request);
+  } else {
+    // Use cookies() for Server Components
+    const cookieStore = await cookies();
+    accessToken = cookieStore.get(ACCESS_COOKIE_NAME)?.value;
+  }
 
   if (!accessToken) {
     throw new AuthError('Authentication required', 401);
@@ -246,4 +266,44 @@ export function requireSuperAdmin(employee: AuthEmployee): void {
   }
 }
 
+/** 
+ * Requires employee to have company membership.
+ * Returns AuthEmployeeWithCompany with guaranteed org_id.
+ * Throws 403 if employee doesn't belong to any company.
+ */
+export function requireCompanyMembership(employee: AuthEmployee): AuthEmployeeWithCompany {
+  // Super admins may not have org_id but can still access (they need to specify company)
+  if (employee.primary_role === 'super_admin') {
+    // For super admin, we'll use a placeholder that routes must handle
+    return employee as AuthEmployeeWithCompany;
+  }
+  
+  if (!employee.org_id) {
+    throw new AuthError('Forbidden: company membership required', 403);
+  }
+  
+  return employee as AuthEmployeeWithCompany;
+}
+
 export { VALID_ROLES };
+
+// ─── Request-based helpers for API routes ────────────────────────────────────
+
+/**
+ * Validates authentication for API routes (accepts Request).
+ * Returns NextResponse with error if authentication fails, null if success.
+ */
+export async function requireAuth(request: Request): Promise<NextResponse | null> {
+  const token = extractAccessToken(request);
+  
+  if (!token) {
+    return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
+  }
+
+  try {
+    await verifyAccessToken(token);
+    return null; // Auth successful
+  } catch {
+    return NextResponse.json({ error: 'Invalid or expired token' }, { status: 401 });
+  }
+}

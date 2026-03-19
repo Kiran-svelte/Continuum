@@ -60,7 +60,7 @@ export async function PATCH(
     }
 
     // Tenant isolation
-    if (encashment.company_id !== employee.org_id) {
+    if (encashment.company_id !== employee.org_id!) {
       return NextResponse.json({ error: 'Access denied' }, { status: 403 });
     }
 
@@ -128,7 +128,7 @@ export async function PATCH(
       });
 
       await createAuditLog({
-        companyId: employee.org_id,
+        companyId: employee.org_id!,
         actorId: employee.id,
         action: AUDIT_ACTIONS.LEAVE_ENCASHMENT_APPROVE,
         entityType: 'LeaveEncashment',
@@ -167,7 +167,7 @@ export async function PATCH(
       });
 
       await createAuditLog({
-        companyId: employee.org_id,
+        companyId: employee.org_id!,
         actorId: employee.id,
         action: AUDIT_ACTIONS.LEAVE_ENCASHMENT_REJECT,
         entityType: 'LeaveEncashment',
@@ -192,3 +192,4 @@ export async function PATCH(
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
+

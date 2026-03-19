@@ -16,6 +16,7 @@ export async function GET(request: NextRequest) {
   try {
     const employee = await getAuthEmployee();
     requireRole(employee, 'admin');
+    const companyId = employee.org_id!;
 
     const rateLimit = checkApiRateLimit(employee.id, 'general');
     if (!rateLimit.allowed) {
@@ -27,7 +28,7 @@ export async function GET(request: NextRequest) {
 
     // Fetch company-specific overrides from DB
     const dbPermissions = await prisma.rolePermission.findMany({
-      where: { company_id: employee.org_id },
+      where: { company_id: companyId },
       include: { permission: { select: { code: true } } },
     });
 
@@ -80,6 +81,7 @@ export async function PATCH(request: NextRequest) {
   try {
     const employee = await getAuthEmployee();
     requireRole(employee, 'admin');
+    const companyId = employee.org_id!;
 
     const rateLimit = checkApiRateLimit(employee.id, 'general');
     if (!rateLimit.allowed) {
@@ -111,7 +113,7 @@ export async function PATCH(request: NextRequest) {
 
     // Check if company has any overrides yet
     const existingOverrides = await prisma.rolePermission.count({
-      where: { company_id: employee.org_id },
+      where: { company_id: companyId },
     });
 
     // If no overrides exist, seed from defaults first
@@ -130,7 +132,7 @@ export async function PATCH(request: NextRequest) {
             seedData.push({
               role: r as 'admin' | 'hr' | 'director' | 'manager' | 'team_lead' | 'employee',
               permission_id: permCodeToId[code],
-              company_id: employee.org_id,
+              company_id: companyId!,
             });
           }
         }
@@ -151,13 +153,13 @@ export async function PATCH(request: NextRequest) {
           role_permission_id_company_id: {
             role: role as 'admin' | 'hr' | 'director' | 'manager' | 'team_lead' | 'employee',
             permission_id: permission.id,
-            company_id: employee.org_id,
+            company_id: companyId,
           },
         },
         create: {
           role: role as 'admin' | 'hr' | 'director' | 'manager' | 'team_lead' | 'employee',
           permission_id: permission.id,
-          company_id: employee.org_id,
+          company_id: companyId,
         },
         update: {},
       });
@@ -167,13 +169,13 @@ export async function PATCH(request: NextRequest) {
         where: {
           role: role as 'admin' | 'hr' | 'director' | 'manager' | 'team_lead' | 'employee',
           permission_id: permission.id,
-          company_id: employee.org_id,
+          company_id: companyId,
         },
       });
     }
 
     await createAuditLog({
-      companyId: employee.org_id,
+      companyId: companyId,
       actorId: employee.id,
       action: AUDIT_ACTIONS.PERMISSION_CHANGE,
       entityType: 'RolePermission',

@@ -3,13 +3,13 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { motion, AnimatePresence } from 'framer-motion';
-import { TiltCard, FadeIn, StaggerContainer, GlowCard, Counter, MagneticButton, ScrollReveal } from '@/components/motion';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
 import { StartTutorialButton, hrTutorial } from '@/components/tutorial';
 import { ensureMe } from '@/lib/client-auth';
 import { getPusherClient } from '@/lib/pusher-client';
+import { cn } from '@/lib/utils';
 import {
   type LucideIcon,
   Users,
@@ -21,11 +21,9 @@ import {
   Settings,
   ChevronRight,
   TrendingUp,
-  AlertCircle,
   Activity,
   Wifi,
-  WifiOff,
-  ShieldCheck,
+  Loader2,
   Zap,
 } from 'lucide-react';
 
@@ -37,10 +35,10 @@ interface DashboardMetrics {
 }
 
 const METRIC_CONFIG = [
-  { key: 'totalEmployees', label: 'WORKFORCE TOTAL', icon: Users, color: '#3B82F6', gradient: 'from-blue-400 to-blue-600' },
-  { key: 'pendingApprovals', label: 'ACTION QUEUE', icon: Clock, color: '#F59E0B', gradient: 'from-amber-400 to-orange-500' },
-  { key: 'todayAbsent', label: 'ACTIVE DEPLOYMENT', icon: Home, color: '#8B5CF6', gradient: 'from-purple-400 to-violet-500' },
-  { key: 'slaBreaches', label: 'CRITICAL BREACHES', icon: AlertTriangle, color: '#EF4444', gradient: 'from-red-400 to-rose-500' },
+  { key: 'totalEmployees', label: 'Total Employees', icon: Users, bg: 'bg-blue-50 dark:bg-blue-900/20', text: 'text-blue-600 dark:text-blue-400' },
+  { key: 'pendingApprovals', label: 'Pending Approvals', icon: Clock, bg: 'bg-amber-50 dark:bg-amber-900/20', text: 'text-amber-600 dark:text-amber-400' },
+  { key: 'todayAbsent', label: 'Absent Today', icon: Home, bg: 'bg-violet-50 dark:bg-violet-900/20', text: 'text-violet-600 dark:text-violet-400' },
+  { key: 'slaBreaches', label: 'SLA Breaches', icon: AlertTriangle, bg: 'bg-red-50 dark:bg-red-900/20', text: 'text-red-600 dark:text-red-400' },
 ];
 
 export default function HRDashboardPage() {
@@ -92,155 +90,152 @@ export default function HRDashboardPage() {
     return () => { channel.unbind_all(); pusher.unsubscribe(`private-company-${companyId}`); };
   }, [companyId, fetchData]);
 
-  if (loading) return <div className="p-10 flex flex-col items-center justify-center space-y-4"><Zap className="w-10 h-10 text-primary animate-bounce" /><p className="text-white/20 font-black tracking-widest uppercase">Initializing Command Center</p></div>;
+  if (loading) return (
+    <div className="flex flex-col items-center justify-center min-h-[400px] space-y-4">
+      <Loader2 className="w-8 h-8 text-primary animate-spin" />
+      <p className="text-muted-foreground">Loading dashboard...</p>
+    </div>
+  );
 
   return (
-    <StaggerContainer className="p-6 md:p-8 lg:p-10 text-white relative z-10 space-y-10">
-      <FadeIn className="flex flex-col sm:flex-row sm:items-center justify-between gap-8">
+    <div className="space-y-8">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <div className="flex items-center gap-3 mb-2">
-            <div className="px-2 py-0.5 rounded bg-primary/20 border border-primary/30 text-[10px] font-black uppercase text-primary tracking-widest flex items-center gap-1.5">
-              <ShieldCheck className="w-3 h-3" />
-              Secure Terminal
-            </div>
-          </div>
-          <h1 className="text-5xl font-black tracking-tightest text-white shadow-lg">HR Command Center</h1>
-          <div className="flex items-center gap-4 mt-3">
-            <p className="text-white/30 font-bold tracking-tight">System Operator: <span className="text-white">{userName}</span></p>
-            <div className={`flex items-center gap-2 px-3 py-1 rounded-full border ${isLive ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' : 'bg-white/5 border-white/10 text-white/30'}`}>
-              <div className={`w-1.5 h-1.5 rounded-full ${isLive ? 'bg-emerald-500 animate-ping' : 'bg-white/20'}`} />
-              <span className="text-[10px] font-black uppercase tracking-[0.2em]">{isLive ? 'Live Uplink' : 'Establishing...'}</span>
+          <h1 className="text-2xl sm:text-3xl font-bold text-foreground">HR Dashboard</h1>
+          <div className="flex items-center gap-3 mt-2">
+            <p className="text-muted-foreground">Welcome back, {userName}</p>
+            <div className={cn(
+              'flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium',
+              isLive 
+                ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' 
+                : 'bg-muted text-muted-foreground'
+            )}>
+              <Wifi className={cn('w-3 h-3', isLive && 'animate-pulse')} />
+              {isLive ? 'Live' : 'Connecting'}
             </div>
           </div>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
           <StartTutorialButton tutorial={hrTutorial} />
-          <MagneticButton
-            variant="gradient"
+          <button
             onClick={() => router.push('/hr/leave-requests')}
-            className="shadow-[0_20px_40px_rgba(var(--primary-rgb),0.3)] !px-8"
+            className="btn-primary flex items-center gap-2"
           >
-            <Zap className="w-5 h-5 mr-2" />
-            Process Requests
-          </MagneticButton>
+            <Zap className="w-4 h-4" />
+            Review Requests
+          </button>
         </div>
-      </FadeIn>
+      </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {METRIC_CONFIG.map((config, i) => (
-          <FadeIn key={config.key} delay={i * 0.05}>
-            <TiltCard>
-              <GlowCard className="p-8 h-full flex flex-col justify-between" color={config.color}>
-                <div className="flex justify-between items-start mb-6">
-                  <p className="text-[10px] font-black text-white/40 uppercase tracking-[0.3em]">{config.label}</p>
-                  <div className={`p-3 rounded-2xl bg-white/5 border border-white/10 group-hover:scale-110 transition-transform`}>
-                    <config.icon className="w-6 h-6 text-white" style={{ color: config.color }} />
-                  </div>
-                </div>
-                <div className="text-5xl font-black text-white tracking-widest tabular-nums">
-                  <Counter value={(metrics as any)?.[config.key] ?? 0} />
-                </div>
-              </GlowCard>
-            </TiltCard>
-          </FadeIn>
+      {/* Metrics Cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {METRIC_CONFIG.map((config) => (
+          <div key={config.key} className="card p-5 hover:shadow-md transition-shadow">
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-sm text-muted-foreground">{config.label}</p>
+              <div className={cn('w-10 h-10 rounded-lg flex items-center justify-center', config.bg)}>
+                <config.icon className={cn('w-5 h-5', config.text)} />
+              </div>
+            </div>
+            <div className="text-3xl font-bold text-foreground tabular-nums">
+              {metrics?.[config.key as keyof DashboardMetrics] ?? 0}
+            </div>
+          </div>
         ))}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <ScrollReveal className="lg:col-span-2">
-          <GlowCard className="overflow-hidden h-full" color="rgba(59, 130, 246, 0.2)">
-            <div className="p-8 border-b border-white/10 flex items-center justify-between bg-white/[0.02]">
-              <h3 className="text-xl font-black text-white tracking-tighter flex items-center gap-3">
-                <ClipboardList className="w-6 h-6 text-blue-500" />
-                Live Request Stream
-              </h3>
-              <Link href="/hr/leave-requests" className="text-[10px] font-black text-white/40 hover:text-white uppercase tracking-widest transition-colors">
-                Open Full Queue &rarr;
-              </Link>
-            </div>
-            <div className="p-0">
-              {recentRequests.length === 0 ? (
-                <div className="py-20 text-center text-white/20 font-black tracking-widest uppercase italic">Silence in the ranks</div>
-              ) : (
-                <div className="divide-y divide-white/5">
-                  {recentRequests.map(req => (
-                    <div key={req.id} className="p-6 flex items-center gap-6 group hover:bg-white/[0.03] transition-all">
-                      <div className="w-12 h-12 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-lg font-black text-white/60 group-hover:bg-primary/20 group-hover:text-primary transition-all">
-                        {req.employee.first_name[0]}{req.employee.last_name[0]}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-3">
-                          <p className="font-black text-white group-hover:translate-x-1 transition-transform">{req.employee.first_name} {req.employee.last_name}</p>
-                          <Badge variant="outline" className="text-[9px] font-black uppercase border-white/10 text-white/40">{req.leave_type}</Badge>
-                        </div>
-                        <p className="text-[10px] font-bold text-white/20 uppercase tracking-widest mt-1">
-                          {new Date(req.start_date).toLocaleDateString()} &middot; {req.status} status
-                        </p>
-                      </div>
-                      <MagneticButton variant="ghost" size="sm" className="hidden sm:flex border border-white/10 bg-white/5 opacity-0 group-hover:opacity-100 transition-all">
-                        Details
-                      </MagneticButton>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </GlowCard>
-        </ScrollReveal>
-
-        <ScrollReveal direction="left" delay={0.2}>
-          <GlowCard color="rgba(168, 85, 247, 0.4)" className="h-full">
-            <h3 className="p-8 pb-4 text-xl font-black text-white flex items-center gap-3 tracking-tighter">
-              <Zap className="w-6 h-6 text-purple-400" />
-              Quick Actions
+      {/* Main Content Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Recent Requests */}
+        <div className="lg:col-span-2 card overflow-hidden">
+          <div className="p-5 border-b border-border flex items-center justify-between">
+            <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
+              <ClipboardList className="w-5 h-5 text-primary" />
+              Recent Leave Requests
             </h3>
-            <div className="p-8 pt-4 grid gap-3">
-              {[
-                { href: '/hr/employees', icon: Users, label: 'Personnel', gradient: 'from-blue-500/20 to-cyan-500/20', color: 'text-blue-400' },
-                { href: '/hr/leave-requests', icon: ClipboardList, label: 'Review Hub', gradient: 'from-amber-500/20 to-orange-500/20', color: 'text-amber-400' },
-                { href: '/hr/reports', icon: BarChart3, label: 'Inteligence', gradient: 'from-purple-500/20 to-violet-500/20', color: 'text-purple-400' },
-                { href: '/hr/policy-settings', icon: Settings, label: 'Protocol', gradient: 'from-emerald-500/20 to-green-500/20', color: 'text-emerald-400' },
-              ].map((item) => (
-                <Link key={item.href} href={item.href}>
-                  <div className="flex items-center gap-5 p-5 rounded-3xl bg-white/5 border border-white/10 hover:border-primary/50 group transition-all relative overflow-hidden">
-                    <div className="absolute inset-0 bg-gradient-to-r from-primary/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                    <div className="w-12 h-12 rounded-2xl bg-black/40 flex items-center justify-center border border-white/5 group-hover:scale-110 transition-transform">
-                      <item.icon className={`w-6 h-6 ${item.color}`} />
-                    </div>
-                    <span className="font-extrabold text-sm text-white/60 group-hover:text-white uppercase tracking-widest">{item.label}</span>
-                    <ChevronRight className="w-4 h-4 text-white/20 ml-auto group-hover:text-white group-hover:translate-x-1 transition-all" />
-                  </div>
-                </Link>
-              ))}
-            </div>
-          </GlowCard>
-        </ScrollReveal>
-      </div>
-
-      <ScrollReveal direction="up" delay={0.3}>
-        <GlowCard className="overflow-hidden" color="rgba(139, 92, 246, 0.2)">
-          <div className="p-8 border-b border-white/10 flex items-center justify-between bg-white/[0.02]">
-            <h3 className="text-xl font-black text-white tracking-tighter flex items-center gap-3">
-              <Activity className="w-6 h-6 text-violet-500" />
-              Security Audit Stream
-            </h3>
+            <Link href="/hr/leave-requests" className="text-sm text-primary hover:underline">
+              View all
+            </Link>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 p-0 divide-x divide-y divide-white/5">
-            {activityFeed.slice(0, 8).map((a, i) => (
-              <div key={a.id} className="p-8 group hover:bg-white/[0.04] transition-all overflow-hidden relative">
-                <div className="absolute top-0 right-0 p-4 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <ShieldCheck className="w-4 h-4 text-primary/40" />
-                </div>
-                <p className="text-[10px] font-black uppercase text-primary/60 tracking-[0.2em] mb-2">{a.action.replace(/_/g, ' ')}</p>
-                <p className="text-sm font-black text-white tracking-widest mb-1 truncate">{a.actorName}</p>
-                <p className="text-[10px] font-bold text-white/20 uppercase tracking-widest mt-1">
-                  {new Date(a.createdAt).toLocaleDateString()} at {new Date(a.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                </p>
+          <div>
+            {recentRequests.length === 0 ? (
+              <div className="py-12 text-center text-muted-foreground">
+                No pending requests
               </div>
+            ) : (
+              <div className="divide-y divide-border">
+                {recentRequests.map(req => (
+                  <div key={req.id} className="p-4 flex items-center gap-4 hover:bg-muted/30 transition-colors">
+                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-sm font-semibold text-primary">
+                      {req.employee?.first_name?.[0]}{req.employee?.last_name?.[0]}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <p className="font-medium text-foreground">{req.employee?.first_name} {req.employee?.last_name}</p>
+                        <Badge variant="outline" className="text-xs">{req.leave_type}</Badge>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        {new Date(req.start_date).toLocaleDateString()} • {req.total_days} day{req.total_days !== 1 ? 's' : ''}
+                      </p>
+                    </div>
+                    <Button variant="outline" size="sm" className="hidden sm:flex">
+                      Review
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Quick Actions */}
+        <div className="card p-5">
+          <h3 className="text-lg font-semibold text-foreground mb-4">Quick Actions</h3>
+          <div className="space-y-2">
+            {[
+              { href: '/hr/employees', icon: Users, label: 'Employees', desc: 'Manage workforce' },
+              { href: '/hr/leave-requests', icon: ClipboardList, label: 'Leave Requests', desc: 'Review pending' },
+              { href: '/hr/reports', icon: BarChart3, label: 'Reports', desc: 'View analytics' },
+              { href: '/hr/policy-settings', icon: Settings, label: 'Policies', desc: 'Configure rules' },
+            ].map((item) => (
+              <Link key={item.href} href={item.href}>
+                <div className="flex items-center gap-3 p-3 rounded-lg hover:bg-muted/50 transition-colors group">
+                  <div className="w-10 h-10 rounded-lg bg-emerald-100 dark:bg-emerald-900/20 flex items-center justify-center group-hover:scale-105 transition-transform">
+                    <item.icon className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-foreground">{item.label}</p>
+                    <p className="text-xs text-muted-foreground">{item.desc}</p>
+                  </div>
+                  <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-foreground group-hover:translate-x-0.5 transition-all" />
+                </div>
+              </Link>
             ))}
           </div>
-        </GlowCard>
-      </ScrollReveal>
-    </StaggerContainer>
+        </div>
+      </div>
+
+      {/* Activity Feed */}
+      <div className="card overflow-hidden">
+        <div className="p-5 border-b border-border">
+          <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
+            <Activity className="w-5 h-5 text-violet-500" />
+            Recent Activity
+          </h3>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 divide-x divide-y divide-border">
+          {activityFeed.slice(0, 8).map((a) => (
+            <div key={a.id} className="p-4 hover:bg-muted/30 transition-colors">
+              <p className="text-xs font-medium text-primary uppercase tracking-wide mb-1">{a.action?.replace(/_/g, ' ')}</p>
+              <p className="text-sm font-semibold text-foreground truncate">{a.actorName}</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                {new Date(a.createdAt).toLocaleDateString()} at {new Date(a.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              </p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
   );
 }

@@ -35,7 +35,7 @@ export async function GET() {
 
     const dbTypes = await prisma.leaveType.findMany({
       where: {
-        company_id: employee.org_id,
+        company_id: employee.org_id!,
         is_active: true,
         deleted_at: null,
       },
@@ -158,7 +158,7 @@ export async function POST(request: NextRequest) {
     const existing = await prisma.leaveType.findUnique({
       where: {
         company_id_code: {
-          company_id: employee.org_id,
+          company_id: employee.org_id!,
           code: code.trim().toUpperCase(),
         },
       },
@@ -195,7 +195,7 @@ export async function POST(request: NextRequest) {
     } else {
       leaveType = await prisma.leaveType.create({
         data: {
-          company_id: employee.org_id,
+          company_id: employee.org_id!,
           code: code.trim().toUpperCase(),
           name: name.trim(),
           category,
@@ -212,7 +212,7 @@ export async function POST(request: NextRequest) {
     }
 
     await createAuditLog({
-      companyId: employee.org_id,
+      companyId: employee.org_id!,
       actorId: employee.id,
       action: AUDIT_ACTIONS.COMPANY_POLICY_UPDATE,
       entityType: 'LeaveType',
@@ -292,7 +292,7 @@ export async function PUT(request: NextRequest) {
       where: { id },
     });
 
-    if (!existing || existing.company_id !== employee.org_id) {
+    if (!existing || existing.company_id !== employee.org_id!) {
       return NextResponse.json(
         { error: 'Leave type not found' },
         { status: 404 }
@@ -377,7 +377,7 @@ export async function PUT(request: NextRequest) {
     });
 
     await createAuditLog({
-      companyId: employee.org_id,
+      companyId: employee.org_id!,
       actorId: employee.id,
       action: AUDIT_ACTIONS.COMPANY_POLICY_UPDATE,
       entityType: 'LeaveType',
@@ -454,7 +454,7 @@ export async function DELETE(request: NextRequest) {
       where: { id },
     });
 
-    if (!existing || existing.company_id !== employee.org_id) {
+    if (!existing || existing.company_id !== employee.org_id!) {
       return NextResponse.json(
         { error: 'Leave type not found' },
         { status: 404 }
@@ -478,7 +478,7 @@ export async function DELETE(request: NextRequest) {
     });
 
     await createAuditLog({
-      companyId: employee.org_id,
+      companyId: employee.org_id!,
       actorId: employee.id,
       action: AUDIT_ACTIONS.COMPANY_POLICY_UPDATE,
       entityType: 'LeaveType',

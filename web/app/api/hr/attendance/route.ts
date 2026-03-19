@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
     const nextDay = new Date(targetDate);
     nextDay.setDate(nextDay.getDate() + 1);
 
-    const companyId = employee.org_id;
+    const companyId = employee.org_id!;
 
     // Get all active employees in the company
     const employeeWhere: Record<string, unknown> = {

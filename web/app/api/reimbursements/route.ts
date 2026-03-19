@@ -58,7 +58,7 @@ export async function GET(request: NextRequest) {
 
     // Build the where clause with tenant isolation
     const where: Record<string, unknown> = {
-      company_id: employee.org_id,
+      company_id: employee.org_id!,
     };
 
     // Employees can only see their own; HR/admin see all in company
@@ -149,7 +149,7 @@ export async function POST(request: NextRequest) {
     const reimbursement = await prisma.reimbursement.create({
       data: {
         emp_id: employee.id,
-        company_id: employee.org_id,
+        company_id: employee.org_id!,
         category,
         amount,
         description: description || null,
@@ -174,7 +174,7 @@ export async function POST(request: NextRequest) {
       : 'REIMBURSEMENT_SUBMIT';
 
     await createAuditLog({
-      companyId: employee.org_id,
+      companyId: employee.org_id!,
       actorId: employee.id,
       action: auditAction,
       entityType: 'reimbursement',
@@ -190,7 +190,7 @@ export async function POST(request: NextRequest) {
     // Notify HR about the new reimbursement request
     const hrEmployees = await prisma.employee.findMany({
       where: {
-        org_id: employee.org_id,
+        org_id: employee.org_id!,
         primary_role: { in: ['hr', 'admin'] },
         deleted_at: null,
         status: 'active',
@@ -200,7 +200,7 @@ export async function POST(request: NextRequest) {
     for (const hr of hrEmployees) {
       void sendNotification(
         hr.id,
-        employee.org_id,
+        employee.org_id!,
         'reimbursement',
         'New Reimbursement Request',
         `${employee.first_name} ${employee.last_name} submitted a ${category} reimbursement of ₹${amount}.`
@@ -248,7 +248,7 @@ export async function PATCH(request: NextRequest) {
     const reimbursement = await prisma.reimbursement.findFirst({
       where: {
         id,
-        company_id: employee.org_id,
+        company_id: employee.org_id!,
       },
     });
 
@@ -328,7 +328,7 @@ export async function PATCH(request: NextRequest) {
       : auditActionKey;
 
     await createAuditLog({
-      companyId: employee.org_id,
+      companyId: employee.org_id!,
       actorId: employee.id,
       action: auditAction,
       entityType: 'reimbursement',
@@ -344,7 +344,7 @@ export async function PATCH(request: NextRequest) {
     // Notify the employee about the reimbursement decision
     void sendNotification(
       reimbursement.emp_id,
-      employee.org_id,
+      employee.org_id!,
       'reimbursement',
       `Reimbursement ${targetStatus.charAt(0).toUpperCase() + targetStatus.slice(1)}`,
       `Your ${reimbursement.category} reimbursement of ₹${reimbursement.amount} has been ${targetStatus} by ${employee.first_name} ${employee.last_name}.`

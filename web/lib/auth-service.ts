@@ -123,7 +123,7 @@ export async function signIn(email: string, password: string): Promise<AuthResul
     email: employee.email,
     role: employee.primary_role,
     roles: allRoles,
-    orgId: employee.org_id,
+    orgId: employee.org_id!,
     tokenId,
   });
 
@@ -156,7 +156,7 @@ export async function signIn(email: string, password: string): Promise<AuthResul
       email: employee.email,
       role: employee.primary_role,
       roles: allRoles,
-      org_id: employee.org_id,
+      org_id: employee.org_id!,
       firstName: employee.first_name,
       lastName: employee.last_name,
       status: employee.status,
@@ -301,7 +301,7 @@ export async function refreshTokens(refreshToken: string): Promise<AuthResult> {
       email: employee.email,
       role: employee.primary_role,
       roles: allRoles,
-      orgId: employee.org_id,
+      orgId: employee.org_id!,
       tokenId: newTokenId,
     });
 
@@ -326,7 +326,7 @@ export async function refreshTokens(refreshToken: string): Promise<AuthResult> {
         email: employee.email,
         role: employee.primary_role,
         roles: allRoles,
-        org_id: employee.org_id,
+        org_id: employee.org_id!,
         firstName: employee.first_name,
         lastName: employee.last_name,
         status: employee.status,
@@ -431,7 +431,7 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
       email: employee.email,
       role: employee.primary_role,
       roles: [employee.primary_role, ...secondaryRoles],
-      orgId: employee.org_id,
+      orgId: employee.org_id!,
       firstName: employee.first_name,
       lastName: employee.last_name,
       status: employee.status,
@@ -496,7 +496,7 @@ export async function getCurrentUserFromRequest(request: Request): Promise<AuthU
       email: employee.email,
       role: employee.primary_role,
       roles: [employee.primary_role, ...secondaryRoles],
-      orgId: employee.org_id,
+      orgId: employee.org_id!,
       firstName: employee.first_name,
       lastName: employee.last_name,
       status: employee.status,
@@ -659,3 +659,4 @@ export async function setInitialPassword(
 
   return { success: true };
 }
+

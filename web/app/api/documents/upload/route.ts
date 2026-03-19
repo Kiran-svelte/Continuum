@@ -226,7 +226,7 @@ export async function POST(request: NextRequest) {
     const supabaseUrl = await trySupabaseUpload(
       fileBuffer,
       mimeType,
-      employee.org_id,
+      employee.org_id!,
       employee.id,
       uploadedFile.name
     );
@@ -253,7 +253,7 @@ export async function POST(request: NextRequest) {
     const document = await prisma.document.create({
       data: {
         emp_id: employee.id,
-        company_id: employee.org_id,
+        company_id: employee.org_id!,
         name: docName,
         type: docCategory,
         url: documentUrl,
@@ -263,7 +263,7 @@ export async function POST(request: NextRequest) {
 
     // ── Audit log ───────────────────────────────────────────────────────
     await createAuditLog({
-      companyId: employee.org_id,
+      companyId: employee.org_id!,
       actorId: employee.id,
       action: 'DOCUMENT_UPLOAD',
       entityType: 'Document',

@@ -44,7 +44,7 @@ export async function GET(request: NextRequest) {
     const managerId = searchParams.get('manager_id') ?? undefined;
 
     const where: Record<string, unknown> = {
-      org_id: employee.org_id,
+      org_id: employee.org_id!,
       deleted_at: null,
     };
 
@@ -194,7 +194,7 @@ export async function POST(request: NextRequest) {
     const existing = await prisma.employee.findFirst({
       where: {
         email: email.trim().toLowerCase(),
-        org_id: employee.org_id,
+        org_id: employee.org_id!,
         deleted_at: null,
       },
       select: { id: true },
@@ -215,7 +215,7 @@ export async function POST(request: NextRequest) {
         first_name: firstName.trim(),
         last_name: lastName.trim(),
         phone: phone?.trim() || null,
-        org_id: employee.org_id,
+        org_id: employee.org_id!,
         primary_role: role || 'employee',
         department: department?.trim() || null,
         designation: designation?.trim() || null,
@@ -231,7 +231,7 @@ export async function POST(request: NextRequest) {
 
     const activeLeaveTypes = await prisma.leaveType.findMany({
       where: {
-        company_id: employee.org_id,
+        company_id: employee.org_id!,
         is_active: true,
         deleted_at: null,
       },
@@ -253,14 +253,14 @@ export async function POST(request: NextRequest) {
           pending_days: 0,
           encashed_days: 0,
           remaining: lt.default_quota,
-          company_id: employee.org_id,
+          company_id: employee.org_id!,
         })),
       });
     }
 
     // ── Audit log ───────────────────────────────────────────────────────
     await createAuditLog({
-      companyId: employee.org_id,
+      companyId: employee.org_id!,
       actorId: employee.id,
       action: AUDIT_ACTIONS.EMPLOYEE_CREATE,
       entityType: 'Employee',

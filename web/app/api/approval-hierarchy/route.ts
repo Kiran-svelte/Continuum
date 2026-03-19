@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { getAuthEmployee, requireRole, AuthError } from '@/lib/auth-guard';
+import { getAuthEmployee, requireRole, requireCompanyMembership, AuthError } from '@/lib/auth-guard';
 import { checkApiRateLimit, getRateLimitHeaders } from '@/lib/api-rate-limit';
 import { createAuditLog } from '@/lib/audit';
 
@@ -20,7 +20,8 @@ const employeeNameSelect = { select: { id: true, first_name: true, last_name: tr
  */
 export async function GET() {
   try {
-    const employee = await getAuthEmployee();
+    const authEmployee = await getAuthEmployee();
+    const employee = requireCompanyMembership(authEmployee);
 
     const rateLimit = checkApiRateLimit(employee.id, 'general');
     if (!rateLimit.allowed) {
@@ -31,7 +32,7 @@ export async function GET() {
     }
 
     const hierarchies = await prisma.approvalHierarchy.findMany({
-      where: { company_id: employee.org_id },
+      where: { company_id: employee.org_id! },
       include: {
         employee: employeeNameSelect,
         level1: employeeNameSelect,
@@ -72,7 +73,8 @@ export async function GET() {
  */
 export async function POST(request: NextRequest) {
   try {
-    const employee = await getAuthEmployee();
+    const authEmployee = await getAuthEmployee();
+    const employee = requireCompanyMembership(authEmployee);
 
     const rateLimit = checkApiRateLimit(employee.id, 'general');
     if (!rateLimit.allowed) {
@@ -101,7 +103,7 @@ export async function POST(request: NextRequest) {
 
     // Verify the target employee belongs to the same company
     const targetEmployee = await prisma.employee.findFirst({
-      where: { id: emp_id, org_id: employee.org_id, deleted_at: null },
+      where: { id: emp_id, org_id: employee.org_id!, deleted_at: null },
       select: { id: true },
     });
 
@@ -129,7 +131,7 @@ export async function POST(request: NextRequest) {
     const hierarchy = await prisma.approvalHierarchy.create({
       data: {
         emp_id,
-        company_id: employee.org_id,
+        company_id: employee.org_id!,
         level1_approver: level1_approver || null,
         level2_approver: level2_approver || null,
         level3_approver: level3_approver || null,
@@ -148,7 +150,7 @@ export async function POST(request: NextRequest) {
 
     // ── Audit log ───────────────────────────────────────────────────────
     await createAuditLog({
-      companyId: employee.org_id,
+      companyId: employee.org_id!,
       actorId: employee.id,
       action: 'APPROVAL_HIERARCHY_CREATE',
       entityType: 'ApprovalHierarchy',
@@ -195,7 +197,8 @@ export async function POST(request: NextRequest) {
  */
 export async function PATCH(request: NextRequest) {
   try {
-    const employee = await getAuthEmployee();
+    const authEmployee = await getAuthEmployee();
+    const employee = requireCompanyMembership(authEmployee);
 
     const rateLimit = checkApiRateLimit(employee.id, 'general');
     if (!rateLimit.allowed) {
@@ -223,7 +226,7 @@ export async function PATCH(request: NextRequest) {
 
     // Verify the entry exists and belongs to the same company
     const existing = await prisma.approvalHierarchy.findFirst({
-      where: { id, company_id: employee.org_id },
+      where: { id, company_id: employee.org_id! },
     });
 
     if (!existing) {
@@ -264,7 +267,7 @@ export async function PATCH(request: NextRequest) {
 
     // ── Audit log ───────────────────────────────────────────────────────
     await createAuditLog({
-      companyId: employee.org_id,
+      companyId: employee.org_id!,
       actorId: employee.id,
       action: 'APPROVAL_HIERARCHY_UPDATE',
       entityType: 'ApprovalHierarchy',
@@ -297,7 +300,8 @@ export async function PATCH(request: NextRequest) {
  */
 export async function DELETE(request: NextRequest) {
   try {
-    const employee = await getAuthEmployee();
+    const authEmployee = await getAuthEmployee();
+    const employee = requireCompanyMembership(authEmployee);
 
     const rateLimit = checkApiRateLimit(employee.id, 'general');
     if (!rateLimit.allowed) {
@@ -318,7 +322,7 @@ export async function DELETE(request: NextRequest) {
 
     // Verify the entry exists and belongs to the same company
     const existing = await prisma.approvalHierarchy.findFirst({
-      where: { id, company_id: employee.org_id },
+      where: { id, company_id: employee.org_id! },
     });
 
     if (!existing) {
@@ -332,7 +336,7 @@ export async function DELETE(request: NextRequest) {
 
     // ── Audit log ───────────────────────────────────────────────────────
     await createAuditLog({
-      companyId: employee.org_id,
+      companyId: employee.org_id!,
       actorId: employee.id,
       action: 'APPROVAL_HIERARCHY_DELETE',
       entityType: 'ApprovalHierarchy',
@@ -357,3 +361,4 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
+

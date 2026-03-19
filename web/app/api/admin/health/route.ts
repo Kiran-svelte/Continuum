@@ -17,7 +17,7 @@ export async function GET() {
     const employee = await getAuthEmployee();
     requireRole(employee, 'admin');
 
-    const companyId = employee.org_id;
+    const companyId = employee.org_id!;
     const checks: Record<string, { status: 'ok' | 'warn' | 'error'; message: string }> = {};
 
     // 1. Database connectivity

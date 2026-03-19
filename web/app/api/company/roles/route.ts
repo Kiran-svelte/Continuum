@@ -26,13 +26,13 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
   }
 
-  if (!employee.org_id) {
+  if (!employee.org_id!) {
     return NextResponse.json({ error: 'No company associated' }, { status: 400 });
   }
 
   try {
     const company = await prisma.company.findUnique({
-      where: { id: employee.org_id },
+      where: { id: employee.org_id! },
       select: {
         id: true,
         name: true,
@@ -80,7 +80,7 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json({ error: 'Only admins can update role configuration' }, { status: 403 });
   }
 
-  if (!employee.org_id) {
+  if (!employee.org_id!) {
     return NextResponse.json({ error: 'No company associated' }, { status: 400 });
   }
 
@@ -99,7 +99,7 @@ export async function PUT(request: NextRequest) {
 
     // Update company
     const company = await prisma.company.update({
-      where: { id: employee.org_id },
+      where: { id: employee.org_id! },
       data: {
         enabled_roles: validRoles,
         requires_hr: requiresHR ?? (validRoles.includes('hr')),

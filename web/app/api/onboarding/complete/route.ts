@@ -104,7 +104,7 @@ export async function POST(request: NextRequest) {
     }
 
     const data = parsed.data;
-    const companyId = employee.org_id;
+    const companyId = employee.org_id!;
 
     await prisma.$transaction(async (tx) => {
       // 1. Update company fields if provided

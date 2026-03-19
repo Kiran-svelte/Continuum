@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
     // Look up company leave type configuration
     const leaveTypeConfig = await prisma.leaveType.findUnique({
       where: {
-        company_id_code: { company_id: employee.org_id, code: leaveType },
+        company_id_code: { company_id: employee.org_id!, code: leaveType },
       },
       select: {
         encashment_enabled: true,
@@ -112,7 +112,7 @@ export async function POST(request: NextRequest) {
     const encashment = await prisma.leaveEncashment.create({
       data: {
         emp_id: employee.id,
-        company_id: employee.org_id,
+        company_id: employee.org_id!,
         leave_type: leaveType,
         days,
         amount: 0, // Amount to be calculated by HR/payroll on approval
@@ -122,7 +122,7 @@ export async function POST(request: NextRequest) {
 
     // Audit log
     await createAuditLog({
-      companyId: employee.org_id,
+      companyId: employee.org_id!,
       actorId: employee.id,
       action: AUDIT_ACTIONS.LEAVE_ENCASHMENT_REQUEST,
       entityType: 'LeaveEncashment',
@@ -170,7 +170,7 @@ export async function GET(request: NextRequest) {
       employee.primary_role === 'director';
 
     const where: Record<string, unknown> = {
-      company_id: employee.org_id,
+      company_id: employee.org_id!,
     };
 
     // Employees see only their own; HR/admin see all for company

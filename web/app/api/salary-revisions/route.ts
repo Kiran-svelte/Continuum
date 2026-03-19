@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
       (employee.secondary_roles && (employee.secondary_roles.includes('hr') || employee.secondary_roles.includes('admin')));
 
     // Build where clause
-    const where: Record<string, unknown> = { company_id: employee.org_id };
+    const where: Record<string, unknown> = { company_id: employee.org_id! };
 
     if (employeeId) {
       // Non-HR/admin employees can only view their own revisions
@@ -146,14 +146,14 @@ export async function POST(request: NextRequest) {
       select: { id: true, org_id: true, first_name: true, last_name: true },
     });
 
-    if (!targetEmp || targetEmp.org_id !== employee.org_id) {
+    if (!targetEmp || targetEmp.org_id !== employee.org_id!) {
       return NextResponse.json({ error: 'Employee not found' }, { status: 404 });
     }
 
     const revision = await prisma.salaryRevision.create({
       data: {
         emp_id: employee_id,
-        company_id: employee.org_id,
+        company_id: employee.org_id!,
         old_ctc: previous_ctc,
         new_ctc,
         effective_from: new Date(effective_date),
@@ -163,7 +163,7 @@ export async function POST(request: NextRequest) {
     });
 
     await createAuditLog({
-      companyId: employee.org_id,
+      companyId: employee.org_id!,
       actorId: employee.id,
       action: AUDIT_ACTIONS.EMPLOYEE_UPDATE,
       entityType: 'SalaryRevision',

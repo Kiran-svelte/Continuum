@@ -1,21 +1,26 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Shield, Lock, Mail, AlertCircle, Loader2 } from 'lucide-react';
+import { useTheme } from 'next-themes';
+import { Shield, Lock, Mail, AlertCircle, Loader2, Sun, Moon } from 'lucide-react';
 
 /**
  * Super Admin Login Page
- * 
- * This page is for platform super administrators only.
- * Regular users should use /sign-in
+ * Clean, professional design with system theme support
  */
 export default function SuperAdminLoginPage() {
   const router = useRouter();
+  const { theme, setTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -41,7 +46,6 @@ export default function SuperAdminLoginPage() {
         return;
       }
 
-      // Redirect to super admin dashboard
       router.push('/super-admin/dashboard');
     } catch (err) {
       setError('An unexpected error occurred');
@@ -50,98 +54,113 @@ export default function SuperAdminLoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
-      <div className="w-full max-w-md p-8">
+    <div className="min-h-screen flex items-center justify-center p-4 bg-background">
+      {/* Theme toggle */}
+      {mounted && (
+        <button
+          onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+          className="fixed top-4 right-4 p-2 rounded-md bg-card border border-border hover:bg-muted transition-colors"
+        >
+          {theme === 'dark' ? (
+            <Sun className="w-5 h-5 text-muted-foreground" />
+          ) : (
+            <Moon className="w-5 h-5 text-muted-foreground" />
+          )}
+        </button>
+      )}
+
+      <div className="w-full max-w-sm">
         {/* Logo / Title */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-purple-500/20 mb-4">
-            <Shield className="w-8 h-8 text-purple-400" />
+          <div className="inline-flex items-center justify-center w-14 h-14 rounded-xl bg-primary/10 mb-4">
+            <Shield className="w-7 h-7 text-primary" />
           </div>
-          <h1 className="text-2xl font-bold text-white">Super Admin</h1>
-          <p className="text-slate-400 mt-2">Continuum Platform Administration</p>
+          <h1 className="text-xl font-semibold text-foreground">Super Admin</h1>
+          <p className="text-sm text-muted-foreground mt-1">Continuum Platform Administration</p>
         </div>
 
         {/* Login Form */}
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Error Message */}
-          {error && (
-            <div className="flex items-center gap-2 p-4 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400">
-              <AlertCircle className="w-5 h-5 flex-shrink-0" />
-              <span className="text-sm">{error}</span>
-            </div>
-          )}
-
-          {/* Email Field */}
-          <div>
-            <label htmlFor="email" className="block text-sm font-medium text-slate-300 mb-2">
-              Email Address
-            </label>
-            <div className="relative">
-              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
-              <input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                className="w-full pl-10 pr-4 py-3 bg-slate-800/50 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                placeholder="admin@company.com"
-              />
-            </div>
-          </div>
-
-          {/* Password Field */}
-          <div>
-            <label htmlFor="password" className="block text-sm font-medium text-slate-300 mb-2">
-              Password
-            </label>
-            <div className="relative">
-              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
-              <input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                className="w-full pl-10 pr-4 py-3 bg-slate-800/50 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                placeholder="••••••••"
-              />
-            </div>
-          </div>
-
-          {/* Submit Button */}
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full py-3 px-4 bg-purple-600 hover:bg-purple-700 disabled:bg-purple-800 disabled:cursor-not-allowed text-white font-medium rounded-lg transition-colors flex items-center justify-center gap-2"
-          >
-            {loading ? (
-              <>
-                <Loader2 className="w-5 h-5 animate-spin" />
-                Signing in...
-              </>
-            ) : (
-              <>
-                <Shield className="w-5 h-5" />
-                Sign In as Super Admin
-              </>
+        <div className="bg-card border border-border rounded-xl p-6 shadow-sm">
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {/* Error Message */}
+            {error && (
+              <div className="flex items-center gap-2 p-3 rounded-lg bg-destructive/10 border border-destructive/20">
+                <AlertCircle className="w-4 h-4 text-destructive flex-shrink-0" />
+                <span className="text-sm text-destructive">{error}</span>
+              </div>
             )}
-          </button>
-        </form>
+
+            {/* Email Field */}
+            <div>
+              <label htmlFor="email" className="block text-sm font-medium text-foreground mb-1.5">
+                Email Address
+              </label>
+              <div className="relative">
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <input
+                  id="email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  autoComplete="email"
+                  className="w-full pl-9 pr-3 py-2.5 bg-background border border-border rounded-lg text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors text-sm"
+                  placeholder="admin@company.com"
+                />
+              </div>
+            </div>
+
+            {/* Password Field */}
+            <div>
+              <label htmlFor="password" className="block text-sm font-medium text-foreground mb-1.5">
+                Password
+              </label>
+              <div className="relative">
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <input
+                  id="password"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  autoComplete="current-password"
+                  className="w-full pl-9 pr-3 py-2.5 bg-background border border-border rounded-lg text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors text-sm"
+                  placeholder="••••••••"
+                />
+              </div>
+            </div>
+
+            {/* Submit Button */}
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full py-2.5 px-4 bg-primary hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed text-primary-foreground font-medium rounded-lg transition-colors flex items-center justify-center gap-2 text-sm mt-6"
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Signing in...
+                </>
+              ) : (
+                'Sign In'
+              )}
+            </button>
+          </form>
+        </div>
 
         {/* Footer */}
-        <div className="mt-8 text-center">
-          <p className="text-sm text-slate-500">
+        <div className="mt-6 text-center">
+          <p className="text-sm text-muted-foreground">
             Not a super admin?{' '}
-            <a href="/sign-in" className="text-purple-400 hover:text-purple-300">
+            <a href="/sign-in" className="text-primary hover:underline">
               Regular Sign In
             </a>
           </p>
         </div>
 
         {/* Security Notice */}
-        <div className="mt-6 p-4 rounded-lg bg-slate-800/50 border border-slate-700">
-          <p className="text-xs text-slate-500 text-center">
+        <div className="mt-4 p-3 rounded-lg bg-muted/50 border border-border">
+          <p className="text-xs text-muted-foreground text-center">
             🔒 This area is restricted to platform administrators.
             All access attempts are logged.
           </p>

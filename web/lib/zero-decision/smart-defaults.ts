@@ -99,7 +99,7 @@ export async function getLeaveRequestDefaults(
 
   // Get leave types from company
   const companyLeaveTypes = await prisma.leaveType.findMany({
-    where: { company_id: employee.org_id, is_active: true, deleted_at: null },
+    where: { company_id: employee.org_id!, is_active: true, deleted_at: null },
     select: { code: true, name: true },
   });
 
@@ -183,3 +183,4 @@ export function predictLeaveDuration(
     weekends: weekendCount,
   };
 }
+

@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
 
     // Check if employee already exists
     const existingEmployee = await prisma.employee.findFirst({
-      where: { email, org_id: employee.org_id, deleted_at: null },
+      where: { email, org_id: employee.org_id!, deleted_at: null },
     });
     if (existingEmployee) {
       return NextResponse.json(
@@ -59,7 +59,7 @@ export async function POST(request: NextRequest) {
     const existingInvite = await prisma.employeeInvite.findFirst({
       where: {
         email,
-        company_id: employee.org_id,
+        company_id: employee.org_id!,
         used_at: null,
         expires_at: { gt: new Date() },
       },
@@ -77,7 +77,7 @@ export async function POST(request: NextRequest) {
 
     const invite = await prisma.employeeInvite.create({
       data: {
-        company_id: employee.org_id,
+        company_id: employee.org_id!,
         email,
         token,
         role: role as 'employee' | 'team_lead' | 'manager' | 'director' | 'hr' | 'admin',
@@ -89,13 +89,13 @@ export async function POST(request: NextRequest) {
 
     // Get company name for the email
     const company = await prisma.company.findUnique({
-      where: { id: employee.org_id },
+      where: { id: employee.org_id! },
       select: { name: true },
     });
 
     // Audit log
     await createAuditLog({
-      companyId: employee.org_id,
+      companyId: employee.org_id!,
       actorId: employee.id,
       action: AUDIT_ACTIONS.EMPLOYEE_STATUS_CHANGE,
       entityType: 'EmployeeInvite',
@@ -148,7 +148,7 @@ export async function GET(request: NextRequest) {
     requireRole(employee, 'admin', 'hr');
 
     const invites = await prisma.employeeInvite.findMany({
-      where: { company_id: employee.org_id },
+      where: { company_id: employee.org_id! },
       orderBy: { created_at: 'desc' },
       take: 50,
     });

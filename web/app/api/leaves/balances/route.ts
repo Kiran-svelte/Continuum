@@ -22,7 +22,7 @@ export async function GET() {
     if (balances.length === 0) {
       const companyLeaveTypes = await prisma.leaveType.findMany({
         where: {
-          company_id: employee.org_id,
+          company_id: employee.org_id!,
           is_active: true,
           deleted_at: null,
         },
@@ -41,7 +41,7 @@ export async function GET() {
 
         const seedData = typesToSeed.map((lt) => ({
           emp_id: employee.id,
-          company_id: employee.org_id,
+          company_id: employee.org_id!,
           leave_type: lt.code,
           year: currentYear,
           annual_entitlement: lt.default_quota,

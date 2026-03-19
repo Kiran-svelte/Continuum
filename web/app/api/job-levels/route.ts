@@ -26,7 +26,7 @@ export async function GET() {
     }
 
     const jobLevels = await prisma.jobLevel.findMany({
-      where: { company_id: employee.org_id },
+      where: { company_id: employee.org_id! },
       orderBy: { rank: 'asc' },
     });
 
@@ -89,7 +89,7 @@ export async function POST(request: NextRequest) {
     // Check for duplicate name within the company
     const existing = await prisma.jobLevel.findFirst({
       where: {
-        company_id: employee.org_id,
+        company_id: employee.org_id!,
         name: { equals: name.trim(), mode: 'insensitive' },
       },
       select: { id: true },
@@ -105,7 +105,7 @@ export async function POST(request: NextRequest) {
     // ── Create ──────────────────────────────────────────────────────────
     const jobLevel = await prisma.jobLevel.create({
       data: {
-        company_id: employee.org_id,
+        company_id: employee.org_id!,
         name: name.trim(),
         rank,
         description: description?.trim() || null,
@@ -114,7 +114,7 @@ export async function POST(request: NextRequest) {
 
     // ── Audit log ───────────────────────────────────────────────────────
     await createAuditLog({
-      companyId: employee.org_id,
+      companyId: employee.org_id!,
       actorId: employee.id,
       action: 'JOB_LEVEL_CREATE',
       entityType: 'JobLevel',
@@ -177,7 +177,7 @@ export async function PATCH(request: NextRequest) {
 
     // Verify the entry exists and belongs to the same company
     const existing = await prisma.jobLevel.findFirst({
-      where: { id, company_id: employee.org_id },
+      where: { id, company_id: employee.org_id! },
     });
 
     if (!existing) {
@@ -200,7 +200,7 @@ export async function PATCH(request: NextRequest) {
     if (updateData.name && (updateData.name as string).toLowerCase() !== existing.name.toLowerCase()) {
       const duplicate = await prisma.jobLevel.findFirst({
         where: {
-          company_id: employee.org_id,
+          company_id: employee.org_id!,
           name: { equals: updateData.name as string, mode: 'insensitive' },
           id: { not: id },
         },
@@ -222,7 +222,7 @@ export async function PATCH(request: NextRequest) {
 
     // ── Audit log ───────────────────────────────────────────────────────
     await createAuditLog({
-      companyId: employee.org_id,
+      companyId: employee.org_id!,
       actorId: employee.id,
       action: 'JOB_LEVEL_UPDATE',
       entityType: 'JobLevel',
@@ -276,7 +276,7 @@ export async function DELETE(request: NextRequest) {
 
     // Verify the entry exists and belongs to the same company
     const existing = await prisma.jobLevel.findFirst({
-      where: { id, company_id: employee.org_id },
+      where: { id, company_id: employee.org_id! },
     });
 
     if (!existing) {
@@ -287,7 +287,7 @@ export async function DELETE(request: NextRequest) {
 
     // ── Audit log ───────────────────────────────────────────────────────
     await createAuditLog({
-      companyId: employee.org_id,
+      companyId: employee.org_id!,
       actorId: employee.id,
       action: 'JOB_LEVEL_DELETE',
       entityType: 'JobLevel',

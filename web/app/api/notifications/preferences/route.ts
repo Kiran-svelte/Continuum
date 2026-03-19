@@ -68,7 +68,7 @@ export async function GET() {
       where: {
         emp_id_company_id: {
           emp_id: employee.id,
-          company_id: employee.org_id,
+          company_id: employee.org_id!,
         },
       },
     });
@@ -127,7 +127,7 @@ export async function PUT(request: NextRequest) {
       where: {
         emp_id_company_id: {
           emp_id: employee.id,
-          company_id: employee.org_id,
+          company_id: employee.org_id!,
         },
       },
     });
@@ -149,12 +149,12 @@ export async function PUT(request: NextRequest) {
       where: {
         emp_id_company_id: {
           emp_id: employee.id,
-          company_id: employee.org_id,
+          company_id: employee.org_id!,
         },
       },
       create: {
         emp_id: employee.id,
-        company_id: employee.org_id,
+        company_id: employee.org_id!,
         email_enabled: emailEnabled ?? true,
         push_enabled: pushEnabled ?? true,
         in_app_enabled: inAppEnabled ?? true,
@@ -172,7 +172,7 @@ export async function PUT(request: NextRequest) {
 
     // Audit log
     await createAuditLog({
-      companyId: employee.org_id,
+      companyId: employee.org_id!,
       actorId: employee.id,
       action: AUDIT_ACTIONS.NOTIFICATION_PREFERENCES_UPDATE,
       entityType: 'NotificationPreference',

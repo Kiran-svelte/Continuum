@@ -52,7 +52,7 @@ export async function PUT(
     }
 
     // Ensure same company
-    requireCompanyAccess(employee, target.org_id);
+    requireCompanyAccess(employee, target.org_id!);
 
     const body = await request.json();
     const parsed = roleUpdateSchema.safeParse(body);
@@ -69,7 +69,7 @@ export async function PUT(
     if (target.primary_role === 'admin' && newPrimaryRole && newPrimaryRole !== 'admin') {
       const adminCount = await prisma.employee.count({
         where: {
-          org_id: target.org_id,
+          org_id: target.org_id!,
           primary_role: 'admin',
           status: { notIn: ['terminated', 'exited'] },
         },
@@ -119,7 +119,7 @@ export async function PUT(
 
     // Audit log
     await createAuditLog({
-      companyId: target.org_id,
+      companyId: target.org_id!,
       actorId: employee.id,
       action: AUDIT_ACTIONS.EMPLOYEE_ROLE_CHANGE || 'EMPLOYEE_ROLE_CHANGE',
       entityType: 'Employee',
@@ -145,7 +145,7 @@ export async function PUT(
     if (roleChangeParts.length > 0) {
       void sendNotification(
         target.id,
-        target.org_id,
+        target.org_id!,
         'employee',
         'Role Updated',
         `Your ${roleChangeParts.join(' and ')} by ${employee.first_name} ${employee.last_name}.`
@@ -168,3 +168,4 @@ export async function PUT(
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
+

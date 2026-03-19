@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
     // Fetch all active shifts for the company
     const shifts = await prisma.shift.findMany({
       where: {
-        company_id: employee.org_id,
+        company_id: employee.org_id!,
         deleted_at: null,
       },
       orderBy: { created_at: 'desc' },
@@ -76,7 +76,7 @@ export async function GET(request: NextRequest) {
       const currentAssignment = await prisma.employeeShift.findFirst({
         where: {
           emp_id: employeeId,
-          company_id: employee.org_id,
+          company_id: employee.org_id!,
           effective_to: null,
         },
         include: {
@@ -159,7 +159,7 @@ export async function POST(request: NextRequest) {
     // Check for duplicate shift name within company
     const existing = await prisma.shift.findFirst({
       where: {
-        company_id: employee.org_id,
+        company_id: employee.org_id!,
         name: name.trim(),
         deleted_at: null,
       },
@@ -176,7 +176,7 @@ export async function POST(request: NextRequest) {
     if (is_default) {
       await prisma.shift.updateMany({
         where: {
-          company_id: employee.org_id,
+          company_id: employee.org_id!,
           is_default: true,
           deleted_at: null,
         },
@@ -186,7 +186,7 @@ export async function POST(request: NextRequest) {
 
     const shift = await prisma.shift.create({
       data: {
-        company_id: employee.org_id,
+        company_id: employee.org_id!,
         name: name.trim(),
         start_time,
         end_time,
@@ -195,7 +195,7 @@ export async function POST(request: NextRequest) {
     });
 
     await createAuditLog({
-      companyId: employee.org_id,
+      companyId: employee.org_id!,
       actorId: employee.id,
       action: AUDIT_ACTIONS.COMPANY_SETTINGS_UPDATE,
       entityType: 'Shift',
@@ -250,7 +250,7 @@ export async function PATCH(request: NextRequest) {
         select: { id: true, org_id: true, first_name: true, last_name: true },
       });
 
-      if (!targetEmp || targetEmp.org_id !== employee.org_id) {
+      if (!targetEmp || targetEmp.org_id !== employee.org_id!) {
         return NextResponse.json({ error: 'Employee not found' }, { status: 404 });
       }
 
@@ -260,7 +260,7 @@ export async function PATCH(request: NextRequest) {
         select: { id: true, company_id: true, name: true, deleted_at: true },
       });
 
-      if (!shift || shift.company_id !== employee.org_id || shift.deleted_at) {
+      if (!shift || shift.company_id !== employee.org_id! || shift.deleted_at) {
         return NextResponse.json({ error: 'Shift not found' }, { status: 404 });
       }
 
@@ -270,7 +270,7 @@ export async function PATCH(request: NextRequest) {
         await tx.employeeShift.updateMany({
           where: {
             emp_id: targetEmpId,
-            company_id: employee.org_id,
+            company_id: employee.org_id!,
             effective_to: null,
           },
           data: {
@@ -282,7 +282,7 @@ export async function PATCH(request: NextRequest) {
         return tx.employeeShift.create({
           data: {
             emp_id: targetEmpId,
-            company_id: employee.org_id,
+            company_id: employee.org_id!,
             shift_id: shiftId,
             effective_from: new Date(effective_from),
           },
@@ -294,7 +294,7 @@ export async function PATCH(request: NextRequest) {
       });
 
       await createAuditLog({
-        companyId: employee.org_id,
+        companyId: employee.org_id!,
         actorId: employee.id,
         action: AUDIT_ACTIONS.EMPLOYEE_UPDATE,
         entityType: 'EmployeeShift',
@@ -344,7 +344,7 @@ export async function PATCH(request: NextRequest) {
       },
     });
 
-    if (!existing || existing.company_id !== employee.org_id || existing.deleted_at) {
+    if (!existing || existing.company_id !== employee.org_id! || existing.deleted_at) {
       return NextResponse.json({ error: 'Shift not found' }, { status: 404 });
     }
 
@@ -361,7 +361,7 @@ export async function PATCH(request: NextRequest) {
     if (name && name.trim() !== existing.name) {
       const duplicate = await prisma.shift.findFirst({
         where: {
-          company_id: employee.org_id,
+          company_id: employee.org_id!,
           name: name.trim(),
           deleted_at: null,
           id: { not: id },
@@ -383,7 +383,7 @@ export async function PATCH(request: NextRequest) {
     if (is_default) {
       await prisma.shift.updateMany({
         where: {
-          company_id: employee.org_id,
+          company_id: employee.org_id!,
           is_default: true,
           deleted_at: null,
           id: { not: id },
@@ -398,7 +398,7 @@ export async function PATCH(request: NextRequest) {
     });
 
     await createAuditLog({
-      companyId: employee.org_id,
+      companyId: employee.org_id!,
       actorId: employee.id,
       action: AUDIT_ACTIONS.COMPANY_SETTINGS_UPDATE,
       entityType: 'Shift',
@@ -466,7 +466,7 @@ export async function DELETE(request: NextRequest) {
       },
     });
 
-    if (!existing || existing.company_id !== employee.org_id || existing.deleted_at) {
+    if (!existing || existing.company_id !== employee.org_id! || existing.deleted_at) {
       return NextResponse.json({ error: 'Shift not found' }, { status: 404 });
     }
 
@@ -487,7 +487,7 @@ export async function DELETE(request: NextRequest) {
     });
 
     await createAuditLog({
-      companyId: employee.org_id,
+      companyId: employee.org_id!,
       actorId: employee.id,
       action: AUDIT_ACTIONS.COMPANY_SETTINGS_UPDATE,
       entityType: 'Shift',

@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
     if (employee) {
       // Log to the company's audit trail
       await createAuditLog({
-        companyId: employee.org_id,
+        companyId: employee.org_id!,
         actorId: employee.id, // User who changed their own password
         action: AUDIT_ACTIONS.PASSWORD_CHANGE,
         entityType: 'Employee',

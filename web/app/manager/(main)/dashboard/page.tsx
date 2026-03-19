@@ -3,27 +3,27 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { motion, AnimatePresence } from 'framer-motion';
-import { TiltCard, FadeIn, StaggerContainer, AmbientBackground, GlowCard, MagneticButton, Counter, ScrollReveal } from '@/components/motion';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
+import { StartTutorialButton, managerTutorial } from '@/components/tutorial';
+import { ensureMe } from '@/lib/client-auth';
+import { cn } from '@/lib/utils';
 import {
   Users,
   Clock,
-  BarChart3,
   Home,
   CheckSquare,
   CheckCircle,
   Check,
   X,
-  Loader,
-  ServerCrash,
+  Loader2,
+  AlertCircle,
+  RefreshCw,
   Zap,
-  TrendingUp,
+  ChevronRight,
   type LucideIcon,
 } from 'lucide-react';
-import { ensureMe } from '@/lib/client-auth';
-import { StartTutorialButton, managerTutorial } from '@/components/tutorial';
 
 // Types
 interface LeaveRequestRow {
@@ -50,41 +50,19 @@ interface TeamMember {
   status: string;
 }
 
-// Skeleton Loader
-function DashboardSkeleton() {
-  return (
-    <div className="p-4 md:p-6 lg:p-8 space-y-8">
-      <div className="flex justify-between items-center">
-        <div className="w-64 h-10 bg-white/5 rounded-lg animate-pulse" />
-        <div className="w-32 h-12 bg-white/5 rounded-xl animate-pulse" />
-      </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {[...Array(4)].map((_, i) => <div key={i} className="h-36 bg-white/5 rounded-2xl animate-pulse" />)}
-      </div>
-    </div>
-  );
+interface DashboardMetrics {
+  teamSize: number;
+  pendingCount: number;
+  activeCount: number;
+  onLeaveCount: number;
 }
 
-// Error Component
-function DashboardError({ onRetry }: { onRetry: () => void }) {
-  return (
-    <div className="flex items-center justify-center h-[calc(100vh-200px)] text-center p-4">
-      <FadeIn>
-        <GlowCard color="#EF4444" className="p-8 max-w-md w-full">
-          <ServerCrash className="w-16 h-16 text-red-400 mx-auto mb-4" />
-          <h2 className="text-2xl font-black text-white uppercase tracking-tighter">Command Sync Failed</h2>
-          <p className="mt-2 text-sm text-white/40 font-medium">Unable to connect to the fleet intelligence engine.</p>
-          <MagneticButton onClick={onRetry} variant="danger" className="mt-8 w-full">
-            <RefreshCw className="mr-2 h-4 w-4" />
-            Retry Connection
-          </MagneticButton>
-        </GlowCard>
-      </FadeIn>
-    </div>
-  );
-}
-
-import { RefreshCw } from 'lucide-react';
+const METRIC_CONFIG: { key: keyof DashboardMetrics; label: string; icon: LucideIcon; bg: string; text: string }[] = [
+  { key: 'teamSize', label: 'Team Size', icon: Users, bg: 'bg-blue-50 dark:bg-blue-900/20', text: 'text-blue-600 dark:text-blue-400' },
+  { key: 'pendingCount', label: 'Pending Requests', icon: Clock, bg: 'bg-amber-50 dark:bg-amber-900/20', text: 'text-amber-600 dark:text-amber-400' },
+  { key: 'activeCount', label: 'Active Members', icon: Zap, bg: 'bg-emerald-50 dark:bg-emerald-900/20', text: 'text-emerald-600 dark:text-emerald-400' },
+  { key: 'onLeaveCount', label: 'On Leave Today', icon: Home, bg: 'bg-violet-50 dark:bg-violet-900/20', text: 'text-violet-600 dark:text-violet-400' },
+];
 
 export default function ManagerDashboardPage() {
   const router = useRouter();
@@ -93,9 +71,7 @@ export default function ManagerDashboardPage() {
   const [userName, setUserName] = useState('');
   const [pendingRequests, setPendingRequests] = useState<LeaveRequestRow[]>([]);
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
-  const [teamSize, setTeamSize] = useState(0);
-  const [pendingCount, setPendingCount] = useState(0);
-  const [todayOnLeave, setTodayOnLeave] = useState(0);
+  const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
   const [managerId, setManagerId] = useState<string | null>(null);
 
   const fetchData = useCallback(async (id: string) => {
@@ -108,28 +84,36 @@ export default function ManagerDashboardPage() {
         fetch('/api/leaves/list?status=approved&limit=100', { credentials: 'include' }),
       ]);
 
-      if (!requestsRes.ok || !teamRes.ok) throw new Error('Failed to fetch critical data.');
+      if (!requestsRes.ok || !teamRes.ok) throw new Error('Failed to fetch data');
 
       const requestsData = await requestsRes.json();
       setPendingRequests(requestsData.requests ?? []);
-      setPendingCount(requestsData.pagination?.total ?? 0);
 
       const teamData = await teamRes.json();
       setTeamMembers(teamData.employees ?? []);
-      setTeamSize(teamData.pagination?.total ?? 0);
 
+      const teamSize = teamData.pagination?.total ?? 0;
+      const pendingCount = requestsData.pagination?.total ?? 0;
+
+      let onLeaveCount = 0;
       if (onLeaveRes.ok) {
         const onLeaveData = await onLeaveRes.json();
         const today = new Date().toISOString().split('T')[0];
-        const count = (onLeaveData.requests ?? []).filter((r: LeaveRequestRow) => {
+        onLeaveCount = (onLeaveData.requests ?? []).filter((r: LeaveRequestRow) => {
           const start = r.start_date?.split('T')[0];
           const end = r.end_date?.split('T')[0];
           return start <= today && end >= today;
         }).length;
-        setTodayOnLeave(count);
       }
+
+      setMetrics({
+        teamSize,
+        pendingCount,
+        activeCount: teamSize - onLeaveCount,
+        onLeaveCount,
+      });
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'An unknown error occurred.');
+      setError(e instanceof Error ? e.message : 'An error occurred');
     } finally {
       setLoading(false);
     }
@@ -152,84 +136,122 @@ export default function ManagerDashboardPage() {
     });
   }, [router, fetchData]);
 
-  if (loading) return <DashboardSkeleton />;
-  if (error) return <DashboardError onRetry={() => managerId && fetchData(managerId)} />;
+  if (loading) {
+    return (
+      <div className="p-6 space-y-6">
+        <div className="flex justify-between items-center">
+          <Skeleton className="h-10 w-64" />
+          <Skeleton className="h-10 w-40" />
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-32" />)}
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <Skeleton className="lg:col-span-2 h-96" />
+          <Skeleton className="h-96" />
+        </div>
+      </div>
+    );
+  }
 
-  const metrics = [
-    { label: 'WORKFORCE SIZE', value: teamSize, icon: Users, color: '#3B82F6' },
-    { label: 'PENDING OPS', value: pendingCount, icon: Clock, color: '#F59E0B' },
-    { label: 'ACTIVE DEPLOYMENT', value: teamSize - todayOnLeave, icon: Zap, color: '#10B981' },
-    { label: 'UNIT DOWN-TIME', value: todayOnLeave, icon: Home, color: '#8B5CF6' },
-  ];
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-[60vh]">
+        <div className="card p-8 max-w-md text-center">
+          <AlertCircle className="w-12 h-12 text-error mx-auto mb-4" />
+          <h2 className="text-xl font-semibold text-foreground">Unable to load dashboard</h2>
+          <p className="text-muted-foreground mt-2">{error}</p>
+          <Button onClick={() => managerId && fetchData(managerId)} className="mt-6">
+            <RefreshCw className="w-4 h-4 mr-2" />
+            Try Again
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <>
-      <div className="p-6 md:p-8 lg:p-10 text-white relative z-10 space-y-10">
-        <StaggerContainer>
-          {/* Header */}
-          <FadeIn>
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 mb-8">
-              <div>
-                <div className="flex items-center gap-2 mb-1">
-                  <TrendingUp className="w-5 h-5 text-primary" />
-                  <span className="text-[10px] font-black uppercase tracking-[0.3em] text-primary/60">Tactical Leadership Center</span>
-                </div>
-                <h1 className="text-5xl font-black tracking-tightest text-white shadow-lg">Welcome, {userName}</h1>
-                <p className="text-white/40 font-bold tracking-tight mt-1">Real-time brigade oversight and action queue.</p>
-              </div>
-              <div className="flex items-center gap-4">
-                <StartTutorialButton tutorial={managerTutorial} />
-                <MagneticButton
-                  variant="gradient"
-                  onClick={() => router.push('/manager/approvals')}
-                  className="shadow-[0_20px_40px_rgba(var(--primary-rgb),0.3)] !px-8"
-                >
-                  <CheckSquare className="w-5 h-5 mr-2" />
-                  Review Approvals
-                </MagneticButton>
+    <div className="p-6 space-y-6">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">Welcome, {userName}</h1>
+          <p className="text-muted-foreground">Manage your team and review requests</p>
+        </div>
+        <div className="flex items-center gap-3">
+          <StartTutorialButton tutorial={managerTutorial} />
+          <Button onClick={() => router.push('/manager/approvals')}>
+            <CheckSquare className="w-4 h-4 mr-2" />
+            Review Approvals
+          </Button>
+        </div>
+      </div>
+
+      {/* Metrics Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        {METRIC_CONFIG.map((config) => (
+          <div key={config.key} className="card p-5">
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-sm text-muted-foreground">{config.label}</p>
+              <div className={cn('w-10 h-10 rounded-lg flex items-center justify-center', config.bg)}>
+                <config.icon className={cn('w-5 h-5', config.text)} />
               </div>
             </div>
-          </FadeIn>
-
-          {/* Metrics */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {metrics.map((metric, i) => (
-              <FadeIn key={metric.label} delay={i * 0.05}>
-                <TiltCard>
-                  <GlowCard className="p-8 h-full flex flex-col justify-between" color={metric.color}>
-                    <div className="flex justify-between items-start mb-6">
-                      <p className="text-[10px] font-black text-white/40 uppercase tracking-[0.3em]">{metric.label}</p>
-                      <div className="p-3 rounded-2xl bg-white/5 border border-white/10">
-                        <metric.icon className="w-6 h-6 text-white" style={{ color: metric.color }} />
-                      </div>
-                    </div>
-                    <div className="text-5xl font-black text-white tracking-widest tabular-nums">
-                      <Counter value={metric.value} />
-                    </div>
-                  </GlowCard>
-                </TiltCard>
-              </FadeIn>
-            ))}
+            <div className="text-3xl font-bold text-foreground tabular-nums">
+              {metrics?.[config.key] ?? 0}
+            </div>
           </div>
-
-          {/* Main Content */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mt-10">
-            <ScrollReveal className="lg:col-span-2">
-              <PendingApprovalsCard requests={pendingRequests} total={pendingCount} onUpdate={fetchData} managerId={managerId} />
-            </ScrollReveal>
-            <ScrollReveal direction="left" delay={0.2}>
-              <TeamMembersCard members={teamMembers} />
-            </ScrollReveal>
-          </div>
-        </StaggerContainer>
+        ))}
       </div>
-    </>
+
+      {/* Main Content Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Pending Approvals */}
+        <div className="lg:col-span-2 card overflow-hidden">
+          <div className="p-5 border-b border-border flex items-center justify-between">
+            <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
+              <Clock className="w-5 h-5 text-amber-500" />
+              Pending Requests
+            </h3>
+            {pendingRequests.length > 0 && (
+              <Badge variant="warning">{pendingRequests.length} waiting</Badge>
+            )}
+          </div>
+          <PendingApprovalsSection
+            requests={pendingRequests}
+            onUpdate={fetchData}
+            managerId={managerId}
+          />
+        </div>
+
+        {/* Team Members */}
+        <div className="card overflow-hidden">
+          <div className="p-5 border-b border-border flex items-center justify-between">
+            <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
+              <Users className="w-5 h-5 text-primary" />
+              Team Members
+            </h3>
+            <Link href="/manager/team" className="text-sm text-primary hover:underline flex items-center gap-1">
+              View all <ChevronRight className="w-4 h-4" />
+            </Link>
+          </div>
+          <TeamMembersSection members={teamMembers} />
+        </div>
+      </div>
+    </div>
   );
 }
 
-// Sub-components
-function PendingApprovalsCard({ requests, total, onUpdate, managerId }: { requests: LeaveRequestRow[], total: number, onUpdate: (id: string) => void, managerId: string | null }) {
-  const [actionState, setActionState] = useState<{ type: 'success' | 'error', message: string } | null>(null);
+function PendingApprovalsSection({
+  requests,
+  onUpdate,
+  managerId,
+}: {
+  requests: LeaveRequestRow[];
+  onUpdate: (id: string) => void;
+  managerId: string | null;
+}) {
+  const [actionState, setActionState] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [actioningId, setActioningId] = useState<string | null>(null);
 
   const handleAction = async (action: 'approve' | 'reject', requestId: string) => {
@@ -245,124 +267,109 @@ function PendingApprovalsCard({ requests, total, onUpdate, managerId }: { reques
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || `Failed to ${action} request.`);
+        throw new Error(data.error || `Failed to ${action} request`);
       }
-      setActionState({ type: 'success', message: `Request ${action}d successfully.` });
+      setActionState({ type: 'success', message: `Request ${action}d successfully` });
       onUpdate(managerId);
     } catch (e) {
-      setActionState({ type: 'error', message: e instanceof Error ? e.message : 'An unknown error occurred.' });
+      setActionState({ type: 'error', message: e instanceof Error ? e.message : 'An error occurred' });
     } finally {
       setActioningId(null);
       setTimeout(() => setActionState(null), 4000);
     }
   };
 
+  if (requests.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
+        <CheckCircle className="w-12 h-12 mb-3 opacity-50" />
+        <p className="font-medium">All caught up!</p>
+        <p className="text-sm">No pending requests</p>
+      </div>
+    );
+  }
+
   return (
-    <GlowCard className="overflow-hidden h-full" color="rgba(245, 158, 11, 0.2)">
-      <div className="p-8 border-b border-white/10 flex justify-between items-center bg-white/[0.02]">
-        <h3 className="text-xl font-black text-white tracking-tighter flex items-center gap-3">
-          <Clock className="w-6 h-6 text-amber-500" />
-          Tactical Approvals
-        </h3>
-        {total > 0 && <Badge className="bg-amber-500/10 text-amber-500 border-amber-500/30 px-3 font-black uppercase text-[10px] tracking-widest">{total} WAITING</Badge>}
-      </div>
-      <AnimatePresence>
-        {actionState && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.95 }}
-            className={`m-6 p-4 rounded-2xl text-xs font-bold flex items-center gap-3 ${actionState.type === 'success' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-red-500/10 text-red-400 border border-red-500/20'}`}
-          >
-            {actionState.type === 'success' ? <CheckCircle className="w-5 h-5" /> : <X className="w-5 h-5" />}
-            {actionState.message.toUpperCase()}
-          </motion.div>
-        )}
-      </AnimatePresence>
-      <div className="p-0">
-        {requests.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 text-white/20">
-            <CheckCircle className="w-16 h-16 mb-4 opacity-10" />
-            <p className="font-black uppercase tracking-[0.4em]">Brigade Cleared</p>
-          </div>
-        ) : (
-          <div className="divide-y divide-white/5">
-            {requests.map(req => (
-              <div key={req.id} className="p-6 transition-all hover:bg-white/[0.03] group relative overflow-hidden">
-                <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                <div className="flex items-center gap-6 relative z-10">
-                  <div className="w-12 h-12 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-lg font-black text-white/40 group-hover:bg-primary/20 group-hover:text-primary transition-all">
-                    {req.employee.first_name[0]}{req.employee.last_name[0]}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-black text-white group-hover:translate-x-1 transition-transform">{req.employee.first_name} {req.employee.last_name}</p>
-                    <p className="text-[10px] font-bold text-white/20 uppercase tracking-[0.2em] mt-1 italic">
-                      {req.leave_type} &middot; {req.total_days} Days Pipeline &middot; {new Date(req.start_date).toLocaleDateString()}
-                    </p>
-                  </div>
-                  <div className="flex gap-2">
-                    <MagneticButton
-                      size="sm"
-                      onClick={() => handleAction('approve', req.id)}
-                      disabled={!!actioningId}
-                      className="bg-emerald-500/10 hover:bg-emerald-500/20 border-emerald-500/30 text-emerald-400"
-                    >
-                      {actioningId === req.id ? <Loader className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
-                    </MagneticButton>
-                    <MagneticButton
-                      size="sm"
-                      onClick={() => handleAction('reject', req.id)}
-                      disabled={!!actioningId}
-                      variant="danger"
-                      className="bg-red-500/10 hover:bg-red-500/20 border-red-500/30 text-red-400"
-                    >
-                      {actioningId === req.id ? <Loader className="w-4 h-4 animate-spin" /> : <X className="w-4 h-4" />}
-                    </MagneticButton>
-                  </div>
-                </div>
+    <div>
+      {actionState && (
+        <div className={cn(
+          'mx-4 mt-4 p-3 rounded-lg text-sm flex items-center gap-2',
+          actionState.type === 'success' 
+            ? 'bg-success/10 text-success border border-success/20' 
+            : 'bg-error/10 text-error border border-error/20'
+        )}>
+          {actionState.type === 'success' ? <CheckCircle className="w-4 h-4" /> : <X className="w-4 h-4" />}
+          {actionState.message}
+        </div>
+      )}
+      <div className="divide-y divide-border">
+        {requests.map(req => (
+          <div key={req.id} className="p-4 hover:bg-muted/50 transition-colors">
+            <div className="flex items-center gap-4">
+              <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-sm font-medium text-primary">
+                {req.employee.first_name[0]}{req.employee.last_name[0]}
               </div>
-            ))}
+              <div className="flex-1 min-w-0">
+                <p className="font-medium text-foreground truncate">
+                  {req.employee.first_name} {req.employee.last_name}
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  {req.leave_type} • {req.total_days} day{req.total_days !== 1 ? 's' : ''} • {new Date(req.start_date).toLocaleDateString()}
+                </p>
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="border-success/50 text-success hover:bg-success/10"
+                  onClick={() => handleAction('approve', req.id)}
+                  disabled={!!actioningId}
+                >
+                  {actioningId === req.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="border-error/50 text-error hover:bg-error/10"
+                  onClick={() => handleAction('reject', req.id)}
+                  disabled={!!actioningId}
+                >
+                  {actioningId === req.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <X className="w-4 h-4" />}
+                </Button>
+              </div>
+            </div>
           </div>
-        )}
+        ))}
       </div>
-    </GlowCard>
+    </div>
   );
 }
 
-function TeamMembersCard({ members }: { members: TeamMember[] }) {
+function TeamMembersSection({ members }: { members: TeamMember[] }) {
+  if (members.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
+        <Users className="w-12 h-12 mb-3 opacity-50" />
+        <p className="font-medium">No team members</p>
+      </div>
+    );
+  }
+
   return (
-    <GlowCard className="h-full" color="rgba(59, 130, 246, 0.4)">
-      <div className="p-8 pb-4 border-b border-white/10 flex justify-between items-center bg-white/[0.02]">
-        <h3 className="text-xl font-black text-white tracking-tighter flex items-center gap-3">
-          <Users className="w-6 h-6 text-blue-500" />
-          Corps Personnel
-        </h3>
-        <Link href="/manager/team" className="text-[10px] font-black text-white/40 hover:text-white uppercase tracking-widest transition-colors">View All &rarr;</Link>
-      </div>
-      <div className="p-0">
-        {members.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 text-white/20">
-            <Users className="w-16 h-16 mb-4 opacity-10" />
-            <p className="font-black uppercase tracking-[0.4em]">Zero Personnel</p>
+    <div className="divide-y divide-border">
+      {members.slice(0, 8).map(member => (
+        <div key={member.id} className="p-4 hover:bg-muted/50 transition-colors">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="font-medium text-foreground">{member.first_name} {member.last_name}</p>
+              <p className="text-sm text-muted-foreground">{member.designation || 'Employee'}</p>
+            </div>
+            <Badge variant={member.status === 'active' ? 'success' : 'default'}>
+              {member.status}
+            </Badge>
           </div>
-        ) : (
-          <div className="divide-y divide-white/5">
-            {members.slice(0, 8).map(member => (
-              <div key={member.id} className="p-6 hover:bg-white/[0.03] transition-all group">
-                <div className="flex justify-between items-center">
-                  <div>
-                    <p className="font-black text-white group-hover:translate-x-1 transition-transform">{member.first_name} {member.last_name}</p>
-                    <p className="text-[10px] font-bold text-white/20 uppercase tracking-widest mt-1">{member.designation || 'OPERATIVE'}</p>
-                  </div>
-                  <Badge className={`${member.status === 'active' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' : 'bg-white/5 text-white/30 border-white/10'} font-black uppercase text-[9px] px-2 py-0.5`}>
-                    {member.status}
-                  </Badge>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-    </GlowCard>
+        </div>
+      ))}
+    </div>
   );
 }

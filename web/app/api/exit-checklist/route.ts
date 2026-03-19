@@ -36,7 +36,7 @@ export async function GET(request: NextRequest) {
 
     // Build where clause with tenant isolation
     const where: Record<string, unknown> = {
-      company_id: employee.org_id,
+      company_id: employee.org_id!,
     };
 
     // Employees can only see their own; HR/admin see all in company
@@ -114,7 +114,7 @@ export async function POST(request: NextRequest) {
     const targetEmployee = await prisma.employee.findFirst({
       where: {
         id: emp_id,
-        org_id: employee.org_id,
+        org_id: employee.org_id!,
         deleted_at: null,
       },
       select: { id: true, first_name: true, last_name: true },
@@ -130,7 +130,7 @@ export async function POST(request: NextRequest) {
     const checklist = await prisma.exitChecklist.create({
       data: {
         emp_id,
-        company_id: employee.org_id,
+        company_id: employee.org_id!,
         items: items,
         custom_items: custom_items || null,
         status: status || 'not_started',
@@ -151,7 +151,7 @@ export async function POST(request: NextRequest) {
 
     // Audit log
     await createAuditLog({
-      companyId: employee.org_id,
+      companyId: employee.org_id!,
       actorId: employee.id,
       action: 'EXIT_CHECKLIST_CREATE',
       entityType: 'ExitChecklist',
@@ -168,7 +168,7 @@ export async function POST(request: NextRequest) {
     const itemCount = Array.isArray(items) ? items.length : 0;
     void sendNotification(
       emp_id,
-      employee.org_id,
+      employee.org_id!,
       'exit_checklist',
       'Exit Checklist Assigned',
       `${itemCount} exit checklist item${itemCount !== 1 ? 's have' : ' has'} been assigned to you. Please review and complete them.`
@@ -216,7 +216,7 @@ export async function PATCH(request: NextRequest) {
     const checklist = await prisma.exitChecklist.findFirst({
       where: {
         id,
-        company_id: employee.org_id,
+        company_id: employee.org_id!,
       },
     });
 
@@ -254,7 +254,7 @@ export async function PATCH(request: NextRequest) {
 
     // Audit log
     await createAuditLog({
-      companyId: employee.org_id,
+      companyId: employee.org_id!,
       actorId: employee.id,
       action: completed ? 'EXIT_CHECKLIST_COMPLETE' : 'EXIT_CHECKLIST_REOPEN',
       entityType: 'ExitChecklist',
@@ -302,7 +302,7 @@ export async function DELETE(request: NextRequest) {
     const checklist = await prisma.exitChecklist.findFirst({
       where: {
         id,
-        company_id: employee.org_id,
+        company_id: employee.org_id!,
       },
     });
 
@@ -322,7 +322,7 @@ export async function DELETE(request: NextRequest) {
 
     // Audit log
     await createAuditLog({
-      companyId: employee.org_id,
+      companyId: employee.org_id!,
       actorId: employee.id,
       action: 'EXIT_CHECKLIST_DELETE',
       entityType: 'ExitChecklist',
@@ -339,3 +339,4 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
+

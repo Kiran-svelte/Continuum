@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { Lock, Mail, User, AlertCircle, Loader2, CheckCircle } from 'lucide-react';
+import { Lock, Mail, User, AlertCircle, Loader2, CheckCircle, Building2 } from 'lucide-react';
 
 interface InviteData {
   email: string;
@@ -17,6 +17,7 @@ interface InviteData {
  * Invitation Acceptance Page
  * 
  * Users click the invite link to set their password and activate their account.
+ * Updated with clean, professional design system.
  */
 export default function AcceptInvitePage() {
   const router = useRouter();
@@ -112,10 +113,10 @@ export default function AcceptInvitePage() {
   // Loading state
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900">
+      <div className="min-h-screen flex items-center justify-center bg-surface">
         <div className="text-center">
-          <Loader2 className="w-12 h-12 text-blue-400 animate-spin mx-auto" />
-          <p className="text-slate-400 mt-4">Validating invitation...</p>
+          <Loader2 className="w-10 h-10 text-primary animate-spin mx-auto" />
+          <p className="text-muted mt-4">Validating invitation...</p>
         </div>
       </div>
     );
@@ -124,17 +125,17 @@ export default function AcceptInvitePage() {
   // Error state (invalid or expired invite)
   if (error && !inviteData) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-red-900/20 to-slate-900">
-        <div className="max-w-md w-full mx-4 p-8 bg-slate-800 rounded-xl border border-red-500/30">
-          <div className="text-center">
-            <div className="w-16 h-16 bg-red-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
-              <AlertCircle className="w-8 h-8 text-red-400" />
+      <div className="min-h-screen flex items-center justify-center bg-surface p-4">
+        <div className="max-w-md w-full">
+          <div className="card p-8 text-center">
+            <div className="w-16 h-16 bg-error/10 rounded-full flex items-center justify-center mx-auto mb-4">
+              <AlertCircle className="w-8 h-8 text-error" />
             </div>
-            <h1 className="text-2xl font-bold text-white mb-2">Invalid Invitation</h1>
-            <p className="text-slate-400 mb-6">{error}</p>
+            <h1 className="text-2xl font-semibold text-foreground mb-2">Invalid Invitation</h1>
+            <p className="text-muted mb-6">{error}</p>
             <a
               href="/sign-in"
-              className="inline-block px-6 py-3 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition-colors"
+              className="btn-secondary inline-flex items-center justify-center"
             >
               Go to Sign In
             </a>
@@ -147,17 +148,17 @@ export default function AcceptInvitePage() {
   // Success state
   if (success) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-green-900/20 to-slate-900">
-        <div className="max-w-md w-full mx-4 p-8 bg-slate-800 rounded-xl border border-green-500/30">
-          <div className="text-center">
-            <div className="w-16 h-16 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
-              <CheckCircle className="w-8 h-8 text-green-400" />
+      <div className="min-h-screen flex items-center justify-center bg-surface p-4">
+        <div className="max-w-md w-full">
+          <div className="card p-8 text-center">
+            <div className="w-16 h-16 bg-success/10 rounded-full flex items-center justify-center mx-auto mb-4">
+              <CheckCircle className="w-8 h-8 text-success" />
             </div>
-            <h1 className="text-2xl font-bold text-white mb-2">Welcome to Continuum!</h1>
-            <p className="text-slate-400 mb-6">
+            <h1 className="text-2xl font-semibold text-foreground mb-2">Welcome to Continuum!</h1>
+            <p className="text-muted mb-6">
               Your account has been set up successfully. Redirecting you now...
             </p>
-            <Loader2 className="w-6 h-6 text-green-400 animate-spin mx-auto" />
+            <Loader2 className="w-6 h-6 text-success animate-spin mx-auto" />
           </div>
         </div>
       </div>
@@ -166,85 +167,88 @@ export default function AcceptInvitePage() {
 
   // Main form
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 p-4">
+    <div className="min-h-screen flex items-center justify-center bg-surface p-4">
       <div className="max-w-md w-full">
         {/* Header */}
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-white">Welcome to Continuum</h1>
-          <p className="text-slate-400 mt-2">Complete your account setup</p>
+          <div className="w-14 h-14 bg-primary/10 rounded-xl flex items-center justify-center mx-auto mb-4">
+            <User className="w-7 h-7 text-primary" />
+          </div>
+          <h1 className="text-2xl font-semibold text-foreground">Welcome to Continuum</h1>
+          <p className="text-muted mt-1">Complete your account setup</p>
         </div>
 
         {/* Invite Info Card */}
-        <div className="bg-slate-800/50 rounded-xl p-6 mb-6 border border-slate-700">
-          <h2 className="text-sm font-medium text-slate-400 mb-3">You've been invited as:</h2>
+        <div className="card p-5 mb-6">
+          <h2 className="text-sm font-medium text-muted mb-3">You've been invited as:</h2>
           <div className="space-y-3">
             <div className="flex items-center gap-3">
-              <Mail className="w-5 h-5 text-blue-400" />
-              <span className="text-white">{inviteData?.email}</span>
+              <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center">
+                <Mail className="w-4 h-4 text-primary" />
+              </div>
+              <span className="text-foreground">{inviteData?.email}</span>
             </div>
             <div className="flex items-center gap-3">
-              <User className="w-5 h-5 text-purple-400" />
-              <span className="text-white capitalize">{inviteData?.role.replace('_', ' ')}</span>
+              <div className="w-8 h-8 bg-accent/10 rounded-lg flex items-center justify-center">
+                <User className="w-4 h-4 text-accent" />
+              </div>
+              <span className="text-foreground capitalize">{inviteData?.role.replace('_', ' ')}</span>
             </div>
             {inviteData?.companyName && (
               <div className="flex items-center gap-3">
-                <svg className="w-5 h-5 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                </svg>
-                <span className="text-white">{inviteData.companyName}</span>
+                <div className="w-8 h-8 bg-success/10 rounded-lg flex items-center justify-center">
+                  <Building2 className="w-4 h-4 text-success" />
+                </div>
+                <span className="text-foreground">{inviteData.companyName}</span>
               </div>
             )}
           </div>
         </div>
 
         {/* Password Form */}
-        <form onSubmit={handleSubmit} className="bg-slate-800 rounded-xl p-6 border border-slate-700 space-y-6">
-          <h3 className="text-lg font-semibold text-white">Set Your Password</h3>
+        <form onSubmit={handleSubmit} className="card p-6 space-y-5">
+          <h3 className="text-lg font-semibold text-foreground">Set Your Password</h3>
 
           {error && (
-            <div className="flex items-center gap-2 p-4 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400">
+            <div className="flex items-center gap-3 p-4 rounded-lg bg-error/5 border border-error/20 text-error">
               <AlertCircle className="w-5 h-5 flex-shrink-0" />
               <span className="text-sm">{error}</span>
             </div>
           )}
 
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">
-              Password
-            </label>
+            <label className="input-label">Password</label>
             <div className="relative">
-              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
+              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted" />
               <input
                 type="password"
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="input pl-10"
                 placeholder="Enter password"
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">
-              Confirm Password
-            </label>
+            <label className="input-label">Confirm Password</label>
             <div className="relative">
-              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
+              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted" />
               <input
                 type="password"
                 required
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="input pl-10"
                 placeholder="Confirm password"
               />
             </div>
           </div>
 
-          <div className="bg-slate-700/50 rounded-lg p-3 text-sm text-slate-400">
-            <p className="font-medium mb-1">Password requirements:</p>
-            <ul className="list-disc list-inside space-y-1 text-xs">
+          <div className="bg-surface-alt rounded-lg p-4 text-sm">
+            <p className="font-medium text-foreground mb-2">Password requirements:</p>
+            <ul className="list-disc list-inside space-y-1 text-muted text-xs">
               <li>At least 8 characters</li>
               <li>One uppercase letter</li>
               <li>One lowercase letter</li>
@@ -255,7 +259,7 @@ export default function AcceptInvitePage() {
           <button
             type="submit"
             disabled={submitting}
-            className="w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-800 text-white font-medium rounded-lg transition-colors flex items-center justify-center gap-2"
+            className="btn-primary w-full flex items-center justify-center gap-2"
           >
             {submitting ? (
               <>
@@ -269,9 +273,9 @@ export default function AcceptInvitePage() {
         </form>
 
         {/* Footer */}
-        <p className="text-center text-sm text-slate-500 mt-6">
+        <p className="text-center text-sm text-muted mt-6">
           Already have an account?{' '}
-          <a href="/sign-in" className="text-blue-400 hover:text-blue-300">
+          <a href="/sign-in" className="text-primary hover:underline">
             Sign In
           </a>
         </p>

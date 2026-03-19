@@ -96,7 +96,7 @@ export async function GET(
     }
 
     // Verify same company
-    if (target.org_id !== employee.org_id) {
+    if (target.org_id !== employee.org_id!) {
       return NextResponse.json(
         { error: 'Employee not found.' },
         { status: 404 }
@@ -162,7 +162,7 @@ export async function PUT(
       return NextResponse.json({ error: 'Employee not found.' }, { status: 404 });
     }
 
-    if (target.org_id !== employee.org_id) {
+    if (target.org_id !== employee.org_id!) {
       return NextResponse.json({ error: 'Employee not found.' }, { status: 404 });
     }
 
@@ -238,7 +238,7 @@ export async function PUT(
       await prisma.employeeStatusHistory.create({
         data: {
           emp_id: target.id,
-          company_id: employee.org_id,
+          company_id: employee.org_id!,
           from_status: target.status,
           to_status: status,
           changed_by: employee.id,
@@ -270,7 +270,7 @@ export async function PUT(
 
     // Audit log
     await createAuditLog({
-      companyId: employee.org_id,
+      companyId: employee.org_id!,
       actorId: employee.id,
       action: AUDIT_ACTIONS.EMPLOYEE_UPDATE,
       entityType: 'Employee',
@@ -344,7 +344,7 @@ export async function DELETE(
       return NextResponse.json({ error: 'Employee not found.' }, { status: 404 });
     }
 
-    if (target.org_id !== employee.org_id) {
+    if (target.org_id !== employee.org_id!) {
       return NextResponse.json({ error: 'Employee not found.' }, { status: 404 });
     }
 
@@ -382,7 +382,7 @@ export async function DELETE(
     await prisma.employeeStatusHistory.create({
       data: {
         emp_id: target.id,
-        company_id: employee.org_id,
+        company_id: employee.org_id!,
         from_status: target.status,
         to_status: 'terminated',
         changed_by: employee.id,
@@ -392,7 +392,7 @@ export async function DELETE(
 
     // Audit log
     await createAuditLog({
-      companyId: employee.org_id,
+      companyId: employee.org_id!,
       actorId: employee.id,
       action: AUDIT_ACTIONS.EMPLOYEE_DELETE,
       entityType: 'Employee',
@@ -420,3 +420,4 @@ export async function DELETE(
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
+

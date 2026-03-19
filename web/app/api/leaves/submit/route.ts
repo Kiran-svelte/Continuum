@@ -82,7 +82,7 @@ export async function POST(request: NextRequest) {
       // No catalog fallback — the system is fully config-driven.
       const companyLeaveType = await prisma.leaveType.findUnique({
         where: {
-          company_id_code: { company_id: employee.org_id, code: leaveType },
+          company_id_code: { company_id: employee.org_id!, code: leaveType },
         },
         select: { default_quota: true, is_active: true },
       });
@@ -109,7 +109,7 @@ export async function POST(request: NextRequest) {
         },
         create: {
           emp_id: employee.id,
-          company_id: employee.org_id,
+          company_id: employee.org_id!,
           leave_type: leaveType,
           year: currentYear,
           annual_entitlement: entitlement,
@@ -124,7 +124,7 @@ export async function POST(request: NextRequest) {
     }
 
     const company = await prisma.company.findUnique({
-      where: { id: employee.org_id },
+      where: { id: employee.org_id! },
       select: {
         negative_balance: true,
         sla_hours: true,
@@ -201,7 +201,7 @@ export async function POST(request: NextRequest) {
           },
           body: JSON.stringify({
             employee_id: employee.id,
-            company_id: employee.org_id,
+            company_id: employee.org_id!,
             leave_type: leaveType,
             start_date: data.start_date,
             end_date: data.end_date,
@@ -272,7 +272,7 @@ export async function POST(request: NextRequest) {
     const leaveRequest = await prisma.leaveRequest.create({
       data: {
         emp_id: employee.id,
-        company_id: employee.org_id,
+        company_id: employee.org_id!,
         leave_type: leaveType,
         start_date: startDate,
         end_date: endDate,
@@ -313,7 +313,7 @@ export async function POST(request: NextRequest) {
     }
 
     await createAuditLog({
-      companyId: employee.org_id,
+      companyId: employee.org_id!,
       actorId: employee.id,
       action: AUDIT_ACTIONS.LEAVE_SUBMIT,
       entityType: 'LeaveRequest',
@@ -344,7 +344,7 @@ export async function POST(request: NextRequest) {
     if (empForNotif?.manager_id) {
       sendNotification(
         empForNotif.manager_id,
-        employee.org_id,
+        employee.org_id!,
         'leave_request',
         'New Leave Request',
         `${employee.first_name} ${employee.last_name} has requested ${body.leave_type} leave from ${body.start_date} to ${body.end_date}`,

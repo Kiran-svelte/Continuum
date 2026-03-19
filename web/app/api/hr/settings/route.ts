@@ -48,7 +48,7 @@ export async function GET() {
     requireRole(employee, 'admin', 'hr', 'director');
 
     const company = await prisma.company.findUnique({
-      where: { id: employee.org_id },
+      where: { id: employee.org_id! },
       select: {
         id: true,
         name: true,
@@ -149,7 +149,7 @@ export async function PATCH(request: NextRequest) {
     }
 
     const data = parsed.data;
-    const companyId = employee.org_id;
+    const companyId = employee.org_id!;
 
     // Fetch current state for audit
     const current = await prisma.company.findUnique({

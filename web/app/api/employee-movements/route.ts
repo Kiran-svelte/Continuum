@@ -59,7 +59,7 @@ export async function GET(request: NextRequest) {
     const empId = searchParams.get('emp_id') ?? undefined;
 
     const where: Record<string, unknown> = {
-      company_id: employee.org_id,
+      company_id: employee.org_id!,
     };
 
     if (status) where.status = status;
@@ -156,7 +156,7 @@ export async function POST(request: NextRequest) {
     const targetEmployee = await prisma.employee.findFirst({
       where: {
         id: emp_id,
-        org_id: employee.org_id,
+        org_id: employee.org_id!,
         deleted_at: null,
       },
       select: { id: true, first_name: true, last_name: true },
@@ -172,7 +172,7 @@ export async function POST(request: NextRequest) {
     const movement = await prisma.employeeMovement.create({
       data: {
         emp_id,
-        company_id: employee.org_id,
+        company_id: employee.org_id!,
         type,
         from_value,
         to_value,
@@ -182,7 +182,7 @@ export async function POST(request: NextRequest) {
     });
 
     await createAuditLog({
-      companyId: employee.org_id,
+      companyId: employee.org_id!,
       actorId: employee.id,
       action: AUDIT_ACTIONS.EMPLOYEE_MOVEMENT,
       entityType: 'EmployeeMovement',
@@ -246,7 +246,7 @@ export async function PATCH(request: NextRequest) {
     const movement = await prisma.employeeMovement.findFirst({
       where: {
         id,
-        company_id: employee.org_id,
+        company_id: employee.org_id!,
       },
       include: {
         employee: {
@@ -329,7 +329,7 @@ export async function PATCH(request: NextRequest) {
     }
 
     await createAuditLog({
-      companyId: employee.org_id,
+      companyId: employee.org_id!,
       actorId: employee.id,
       action: AUDIT_ACTIONS.EMPLOYEE_MOVEMENT,
       entityType: 'EmployeeMovement',
@@ -359,3 +359,4 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
+

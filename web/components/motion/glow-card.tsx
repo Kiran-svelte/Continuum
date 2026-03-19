@@ -9,14 +9,20 @@ interface GlowCardProps {
   className?: string;
   glowColors?: [string, string];
   borderRadius?: string;
+  color?: string; // Simple color prop (converts to glowColors)
 }
 
 export function GlowCard({
   children,
   className,
-  glowColors = ['rgba(0,255,255,0.6)', 'rgba(236,72,153,0.6)'],
+  glowColors,
+  color,
   borderRadius = '1rem',
 }: GlowCardProps) {
+  // If color prop is provided, derive glow colors from it
+  const effectiveGlowColors: [string, string] = glowColors 
+    ?? (color ? [color, color.replace(/0\.\d+\)$/, '0.8)')] : ['rgba(0,255,255,0.6)', 'rgba(236,72,153,0.6)']);
+  
   const ref = useRef<HTMLDivElement>(null);
   const [isHovered, setIsHovered] = useState(false);
 
@@ -66,8 +72,8 @@ export function GlowCard({
         className="absolute -inset-[1px] rounded-[inherit] opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"
         style={{
           background: isHovered
-            ? `radial-gradient(circle at ${smoothX.get() * 100}% ${smoothY.get() * 100}%, ${glowColors[0]}, ${glowColors[1]}, transparent 70%)`
-            : `conic-gradient(from 0deg, ${glowColors[0]}, ${glowColors[1]}, ${glowColors[0]})`,
+            ? `radial-gradient(circle at ${smoothX.get() * 100}% ${smoothY.get() * 100}%, ${effectiveGlowColors[0]}, ${effectiveGlowColors[1]}, transparent 70%)`
+            : `conic-gradient(from 0deg, ${effectiveGlowColors[0]}, ${effectiveGlowColors[1]}, ${effectiveGlowColors[0]})`,
           borderRadius: 'inherit',
         }}
       />
@@ -76,7 +82,7 @@ export function GlowCard({
       <div
         className="absolute -inset-[1px] rounded-[inherit] opacity-30 group-hover:opacity-0 transition-opacity duration-500 pointer-events-none animate-[border-rotate_4s_linear_infinite]"
         style={{
-          background: `conic-gradient(from var(--border-angle, 0deg), transparent 40%, ${glowColors[0]} 50%, ${glowColors[1]} 60%, transparent 70%)`,
+          background: `conic-gradient(from var(--border-angle, 0deg), transparent 40%, ${effectiveGlowColors[0]} 50%, ${effectiveGlowColors[1]} 60%, transparent 70%)`,
           borderRadius: 'inherit',
         }}
       />
@@ -85,7 +91,7 @@ export function GlowCard({
       <div
         className="absolute -inset-4 rounded-[inherit] opacity-0 group-hover:opacity-100 blur-xl transition-opacity duration-500 pointer-events-none"
         style={{
-          background: `radial-gradient(circle, ${glowColors[0]}20, transparent 70%)`,
+          background: `radial-gradient(circle, ${effectiveGlowColors[0]}20, transparent 70%)`,
         }}
       />
 

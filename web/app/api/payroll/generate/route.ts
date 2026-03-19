@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
 
     // Check if payroll already exists for this period
     const existing = await prisma.payrollRun.findUnique({
-      where: { company_id_month_year: { company_id: employee.org_id, month, year } },
+      where: { company_id_month_year: { company_id: employee.org_id!, month, year } },
     });
 
     if (existing) {
@@ -49,7 +49,7 @@ export async function POST(request: NextRequest) {
     // Create draft payroll run
     const payrollRun = await prisma.payrollRun.create({
       data: {
-        company_id: employee.org_id,
+        company_id: employee.org_id!,
         month,
         year,
         status: 'draft',
@@ -60,7 +60,7 @@ export async function POST(request: NextRequest) {
     // Fetch all active employees with salary structures
     const employees = await prisma.employee.findMany({
       where: {
-        org_id: employee.org_id,
+        org_id: employee.org_id!,
         status: { in: ['active', 'probation'] },
       },
       include: {
@@ -128,7 +128,7 @@ export async function POST(request: NextRequest) {
       slips.push({
         payroll_run_id: payrollRun.id,
         emp_id: emp.id,
-        company_id: employee.org_id,
+        company_id: employee.org_id!,
         month,
         year,
         basic: salary.basic,
@@ -172,7 +172,7 @@ export async function POST(request: NextRequest) {
     });
 
     await createAuditLog({
-      companyId: employee.org_id,
+      companyId: employee.org_id!,
       actorId: employee.id,
       action: AUDIT_ACTIONS.PAYROLL_GENERATE,
       entityType: 'PayrollRun',

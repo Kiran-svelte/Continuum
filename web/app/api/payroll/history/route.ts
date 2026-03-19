@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
     const year = yearStr ? parseInt(yearStr, 10) : undefined;
     const status = searchParams.get('status') || undefined;
 
-    const where: Record<string, unknown> = { company_id: employee.org_id };
+    const where: Record<string, unknown> = { company_id: employee.org_id! };
     if (year && !isNaN(year)) where.year = year;
     if (status && (VALID_STATUSES as readonly string[]).includes(status)) where.status = status;
 

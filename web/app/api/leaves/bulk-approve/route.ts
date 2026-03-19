@@ -93,7 +93,7 @@ export async function POST(request: NextRequest) {
         continue;
       }
 
-      if (leaveRequest.company_id !== employee.org_id) {
+      if (leaveRequest.company_id !== employee.org_id!) {
         results.push({ requestId: reqId, success: false, error: 'Access denied' });
         continue;
       }
@@ -189,7 +189,7 @@ export async function POST(request: NextRequest) {
       for (const leaveRequest of validRequests) {
         try {
           await createAuditLog({
-            companyId: employee.org_id,
+            companyId: employee.org_id!,
             actorId: employee.id,
             action: action === 'approve' ? AUDIT_ACTIONS.LEAVE_APPROVE : AUDIT_ACTIONS.LEAVE_REJECT,
             entityType: 'LeaveRequest',

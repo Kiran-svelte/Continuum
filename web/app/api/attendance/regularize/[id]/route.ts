@@ -57,7 +57,7 @@ export async function PATCH(
     }
 
     // Must belong to the same company
-    if (regularization.company_id !== employee.org_id) {
+    if (regularization.company_id !== employee.org_id!) {
       return NextResponse.json(
         { error: 'Access denied.' },
         { status: 403 }
@@ -162,7 +162,7 @@ export async function PATCH(
     }
 
     await createAuditLog({
-      companyId: employee.org_id,
+      companyId: employee.org_id!,
       actorId: employee.id,
       action: action === 'approve'
         ? AUDIT_ACTIONS.ATTENDANCE_REGULARIZE_APPROVE
@@ -179,7 +179,7 @@ export async function PATCH(
     // Notify the requesting employee about the decision
     void sendNotification(
       regularization.emp_id,
-      employee.org_id,
+      employee.org_id!,
       'attendance',
       `Regularization ${action === 'approve' ? 'Approved' : 'Rejected'}`,
       `Your attendance regularization request for ${regularization.date.toISOString().split('T')[0]} has been ${newStatus} by ${employee.first_name} ${employee.last_name}.`

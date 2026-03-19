@@ -37,7 +37,7 @@ export async function GET(request: NextRequest) {
     const yearStart = new Date(`${year}-01-01`);
     const yearEnd = new Date(`${year + 1}-01-01`);
 
-    const companyId = employee.org_id;
+    const companyId = employee.org_id!;
 
     // Run all aggregations in parallel
     const [statusCounts, leaveTypeCounts, monthlyRaw, topTakersRaw, slaBreachCount, totalEmployees] =

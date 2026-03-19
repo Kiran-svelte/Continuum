@@ -44,7 +44,7 @@ export async function POST(
     }
 
     // Company isolation
-    if (leaveRequest.company_id !== employee.org_id) {
+    if (leaveRequest.company_id !== employee.org_id!) {
       return NextResponse.json({ error: 'Access denied' }, { status: 403 });
     }
 
@@ -116,7 +116,7 @@ export async function POST(
     });
 
     await createAuditLog({
-      companyId: employee.org_id,
+      companyId: employee.org_id!,
       actorId: employee.id,
       action: AUDIT_ACTIONS.LEAVE_CANCEL,
       entityType: 'LeaveRequest',
@@ -135,3 +135,4 @@ export async function POST(
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
+

@@ -54,7 +54,7 @@ export async function GET(request: NextRequest) {
 
     // Build where clause with tenant isolation
     const where: Record<string, unknown> = {
-      company_id: employee.org_id,
+      company_id: employee.org_id!,
     };
 
     if (action) {
@@ -127,7 +127,7 @@ export async function GET(request: NextRequest) {
     // Optionally verify chain integrity
     let chainStatus: { valid: boolean; totalLogs: number; verifiedLogs: number; details?: string } | undefined;
     if (verifyChain) {
-      chainStatus = await verifyAuditChain(employee.org_id);
+      chainStatus = await verifyAuditChain(employee.org_id!);
     }
 
     const pages = Math.ceil(total / limit);

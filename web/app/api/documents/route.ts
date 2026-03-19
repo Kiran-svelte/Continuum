@@ -55,7 +55,7 @@ export async function GET(request: NextRequest) {
 
     // Build query filter
     const where: Record<string, unknown> = {
-      company_id: employee.org_id,
+      company_id: employee.org_id!,
       deleted_at: null,
     };
 
@@ -212,7 +212,7 @@ export async function POST(request: NextRequest) {
     const document = await prisma.document.create({
       data: {
         emp_id: employee.id,
-        company_id: employee.org_id,
+        company_id: employee.org_id!,
         name: storedName,
         type: category,
         url: url.trim(),
@@ -222,7 +222,7 @@ export async function POST(request: NextRequest) {
 
     // ── Audit log ───────────────────────────────────────────────────────
     await createAuditLog({
-      companyId: employee.org_id,
+      companyId: employee.org_id!,
       actorId: employee.id,
       action: 'DOCUMENT_UPLOAD',
       entityType: 'Document',
@@ -307,7 +307,7 @@ export async function PUT(request: NextRequest) {
     const existing = await prisma.document.findFirst({
       where: {
         id,
-        company_id: employee.org_id,
+        company_id: employee.org_id!,
         deleted_at: null,
       },
     });
@@ -357,7 +357,7 @@ export async function PUT(request: NextRequest) {
 
     // ── Audit log ───────────────────────────────────────────────────────
     await createAuditLog({
-      companyId: employee.org_id,
+      companyId: employee.org_id!,
       actorId: employee.id,
       action: action === 'verify' ? 'DOCUMENT_VERIFY' : 'DOCUMENT_REJECT',
       entityType: 'Document',
@@ -375,7 +375,7 @@ export async function PUT(request: NextRequest) {
       const docName = existing.name.split('|||')[0];
       void sendNotification(
         existing.emp_id,
-        employee.org_id,
+        employee.org_id!,
         'document',
         `Document ${action === 'verify' ? 'Verified' : 'Rejected'}`,
         `Your document "${docName}" has been ${newStatus} by ${employee.first_name} ${employee.last_name}.`
@@ -457,7 +457,7 @@ export async function PATCH(request: NextRequest) {
     const existing = await prisma.document.findFirst({
       where: {
         id,
-        company_id: employee.org_id,
+        company_id: employee.org_id!,
         deleted_at: null,
       },
     });
@@ -517,7 +517,7 @@ export async function PATCH(request: NextRequest) {
     });
 
     await createAuditLog({
-      companyId: employee.org_id,
+      companyId: employee.org_id!,
       actorId: employee.id,
       action: 'DOCUMENT_UPDATE',
       entityType: 'Document',
@@ -584,7 +584,7 @@ export async function DELETE(request: NextRequest) {
     const existing = await prisma.document.findFirst({
       where: {
         id,
-        company_id: employee.org_id,
+        company_id: employee.org_id!,
         deleted_at: null,
       },
     });
@@ -613,7 +613,7 @@ export async function DELETE(request: NextRequest) {
 
     // ── Audit log ───────────────────────────────────────────────────────
     await createAuditLog({
-      companyId: employee.org_id,
+      companyId: employee.org_id!,
       actorId: employee.id,
       action: 'DOCUMENT_DELETE',
       entityType: 'Document',

@@ -84,7 +84,7 @@ export async function GET(request: NextRequest) {
     const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10));
     const limit = Math.min(100, Math.max(1, parseInt(searchParams.get('limit') || '50', 10)));
 
-    const where: Record<string, unknown> = { company_id: employee.org_id };
+    const where: Record<string, unknown> = { company_id: employee.org_id! };
     if (empId) where.emp_id = empId;
 
     const structures = await prisma.salaryStructure.findMany({
@@ -182,7 +182,7 @@ export async function POST(request: NextRequest) {
       select: { id: true, org_id: true, first_name: true, last_name: true },
     });
 
-    if (!targetEmp || targetEmp.org_id !== employee.org_id) {
+    if (!targetEmp || targetEmp.org_id !== employee.org_id!) {
       return NextResponse.json({ error: 'Employee not found' }, { status: 404 });
     }
 
@@ -213,7 +213,7 @@ export async function POST(request: NextRequest) {
         await tx.salaryRevision.create({
           data: {
             emp_id,
-            company_id: employee.org_id,
+            company_id: employee.org_id!,
             old_ctc: existing.ctc,
             new_ctc: ctc,
             effective_from: new Date(effective_from),
@@ -228,7 +228,7 @@ export async function POST(request: NextRequest) {
         where: { emp_id },
         create: {
           emp_id,
-          company_id: employee.org_id,
+          company_id: employee.org_id!,
           ctc,
           ...components,
           effective_from: new Date(effective_from),
@@ -242,7 +242,7 @@ export async function POST(request: NextRequest) {
     });
 
     await createAuditLog({
-      companyId: employee.org_id,
+      companyId: employee.org_id!,
       actorId: employee.id,
       action: AUDIT_ACTIONS.EMPLOYEE_UPDATE,
       entityType: 'SalaryStructure',
@@ -282,14 +282,14 @@ export async function DELETE(request: NextRequest) {
     }
 
     const existing = await prisma.salaryStructure.findUnique({ where: { emp_id } });
-    if (!existing || existing.company_id !== employee.org_id) {
+    if (!existing || existing.company_id !== employee.org_id!) {
       return NextResponse.json({ error: 'Salary structure not found' }, { status: 404 });
     }
 
     await prisma.salaryStructure.delete({ where: { emp_id } });
 
     await createAuditLog({
-      companyId: employee.org_id,
+      companyId: employee.org_id!,
       actorId: employee.id,
       action: AUDIT_ACTIONS.EMPLOYEE_UPDATE,
       entityType: 'SalaryStructure',

@@ -165,7 +165,7 @@ export async function PATCH(request: NextRequest) {
     });
 
     await createAuditLog({
-      companyId: employee.org_id,
+      companyId: employee.org_id!,
       actorId: employee.id,
       action: AUDIT_ACTIONS.EMPLOYEE_UPDATE,
       entityType: 'Employee',

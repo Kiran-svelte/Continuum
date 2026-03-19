@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
     const records = await prisma.attendance.findMany({
       where: {
         emp_id: employee.id,
-        company_id: employee.org_id,
+        company_id: employee.org_id!,
         date: {
           gte: startDate,
           lte: endDate,
@@ -110,7 +110,7 @@ export async function POST(request: NextRequest) {
     let attendance = await prisma.attendance.findFirst({
       where: {
         emp_id: employee.id,
-        company_id: employee.org_id,
+        company_id: employee.org_id!,
         date: {
           gte: today,
           lt: tomorrow,
@@ -122,7 +122,7 @@ export async function POST(request: NextRequest) {
 
     // Fetch company settings for grace period and half-day detection
     const company = await prisma.company.findUnique({
-      where: { id: employee.org_id },
+      where: { id: employee.org_id! },
       select: {
         work_start: true,
         work_end: true,
@@ -159,7 +159,7 @@ export async function POST(request: NextRequest) {
         attendance = await prisma.attendance.create({
           data: {
             emp_id: employee.id,
-            company_id: employee.org_id,
+            company_id: employee.org_id!,
             date: today,
             check_in: now,
             status,

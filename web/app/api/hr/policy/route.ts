@@ -42,13 +42,13 @@ export async function GET() {
 
     // Fetch company-specific rules from DB
     const dbRules = await prisma.leaveRule.findMany({
-      where: { company_id: employee.org_id, deleted_at: null },
+      where: { company_id: employee.org_id!, deleted_at: null },
       orderBy: { priority: 'asc' },
     });
 
     // Fetch active leave types for the company
     const leaveTypes = await prisma.leaveType.findMany({
-      where: { company_id: employee.org_id, is_active: true, deleted_at: null },
+      where: { company_id: employee.org_id!, is_active: true, deleted_at: null },
       orderBy: { code: 'asc' },
       select: {
         id: true,
@@ -110,7 +110,7 @@ export async function GET() {
 
     // Fetch latest ConstraintPolicy version
     const latestPolicy = await prisma.constraintPolicy.findFirst({
-      where: { company_id: employee.org_id, is_active: true },
+      where: { company_id: employee.org_id!, is_active: true },
       orderBy: { version: 'desc' },
       select: { version: true, created_at: true },
     });
@@ -161,7 +161,7 @@ export async function PATCH(request: NextRequest) {
       );
     }
 
-    const companyId = employee.org_id;
+    const companyId = employee.org_id!;
     const { rules: updates } = parsed.data;
 
     // Validate rule IDs: must exist in defaults or already be persisted for this company

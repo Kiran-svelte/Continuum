@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
     }
 
     const where: Record<string, unknown> = {
-      company_id: employee.org_id,
+      company_id: employee.org_id!,
     };
 
     if (runId) where.payroll_run_id = runId;

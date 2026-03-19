@@ -3,16 +3,14 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { supabaseSignIn, supabaseSignInWithGoogle } from '@/lib/supabase';
-import { Zap, AlertCircle, Lock, ShieldCheck, Users, UserCheck, Shield, Briefcase, ChevronRight, Gogle as GoogleIcon } from 'lucide-react';
-import { AmbientBackground, TiltCard, FadeIn, MagneticButton, GlowCard, StaggerContainer } from '@/components/motion';
+import { AlertCircle, Lock, Mail, Loader2, Shield, Users, UserCheck, Briefcase, ChevronRight } from 'lucide-react';
 
 // Portal definitions for the picker
 const PORTALS = [
-  { key: 'admin', label: 'Admin Portal', description: 'System settings, RBAC, health monitoring', href: '/admin/dashboard', icon: Shield, roles: ['admin'], color: '#EF4444', bg: 'bg-red-500/10', border: 'border-red-500/20' },
-  { key: 'hr', label: 'HR Portal', description: 'Employees, payroll, policies, reports', href: '/hr/dashboard', icon: Users, roles: ['admin', 'hr'], color: '#A855F7', bg: 'bg-purple-500/10', border: 'border-purple-500/20' },
-  { key: 'manager', label: 'Manager Portal', description: 'Team, approvals, attendance, calendar', href: '/manager/dashboard', icon: UserCheck, roles: ['admin', 'hr', 'director', 'manager', 'team_lead'], color: '#3B82F6', bg: 'bg-blue-500/10', border: 'border-blue-500/20' },
-  { key: 'employee', label: 'Employee Portal', description: 'Leave, attendance, payslips, documents', href: '/employee/dashboard', icon: Briefcase, roles: ['admin', 'hr', 'director', 'manager', 'team_lead', 'employee'], color: '#10B981', bg: 'bg-emerald-500/10', border: 'border-emerald-500/20' },
+  { key: 'admin', label: 'Admin Portal', description: 'System settings, RBAC, health monitoring', href: '/admin/dashboard', icon: Shield, roles: ['admin'], color: 'text-error' },
+  { key: 'hr', label: 'HR Portal', description: 'Employees, payroll, policies, reports', href: '/hr/dashboard', icon: Users, roles: ['admin', 'hr'], color: 'text-accent' },
+  { key: 'manager', label: 'Manager Portal', description: 'Team, approvals, attendance, calendar', href: '/manager/dashboard', icon: UserCheck, roles: ['admin', 'hr', 'director', 'manager', 'team_lead'], color: 'text-primary' },
+  { key: 'employee', label: 'Employee Portal', description: 'Leave, attendance, payslips, documents', href: '/employee/dashboard', icon: Briefcase, roles: ['admin', 'hr', 'director', 'manager', 'team_lead', 'employee'], color: 'text-success' },
 ];
 
 export default function SignInPage() {
@@ -132,42 +130,21 @@ export default function SignInPage() {
     setLoading(true);
 
     try {
-      const { data, error: signInError } = await supabaseSignIn(email, password);
-
-      if (signInError || !data.session) {
-        let message = 'Sign in failed. Please try again.';
-        let reason = 'Unknown error';
-
-        const errMsg = signInError?.message || '';
-        if (errMsg.includes('Invalid login credentials')) {
-          message = 'Invalid email or password.';
-          reason = 'Invalid credentials';
-        } else if (errMsg.includes('Email not confirmed')) {
-          message = 'Please verify your email address first.';
-          reason = 'Email not confirmed';
-        } else if (errMsg.includes('Too many requests') || errMsg.includes('rate limit')) {
-          message = 'Too many failed attempts. Please try again later.';
-          reason = 'Rate limited';
-        } else if (errMsg.includes('User not found')) {
-          message = 'No account found with this email. Please sign up.';
-          reason = 'User not found';
-        }
-
-        void fetch('/api/auth/failed-login', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email, reason }),
-        }).catch(() => { });
-
-        setError(message);
-        return;
-      }
-
-      await fetch('/api/auth/session', {
+      // Use custom JWT auth instead of Supabase
+      const response = await fetch('/api/auth/signin', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ accessToken: data.session.access_token }),
+        body: JSON.stringify({ email, password }),
+        credentials: 'include',
       });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        setError(data.error || 'Sign in failed. Please try again.');
+        setLoading(false);
+        return;
+      }
 
       const redirected = await redirectByMe();
       if (!redirected) {
@@ -182,10 +159,10 @@ export default function SignInPage() {
 
   if (checkingAuth) {
     return (
-      <div className="min-h-screen bg-black flex items-center justify-center">
+      <div className="min-h-screen bg-surface flex items-center justify-center">
         <div className="text-center">
-          <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto shadow-[0_0_20px_rgba(0,255,255,0.4)]" />
-          <p className="mt-6 text-white/40 font-black uppercase tracking-[0.3em] text-xs">Synchronizing Neural Link</p>
+          <Loader2 className="w-10 h-10 text-primary animate-spin mx-auto" />
+          <p className="mt-4 text-muted">Checking authentication...</p>
         </div>
       </div>
     );
@@ -193,172 +170,167 @@ export default function SignInPage() {
 
   if (showPortalPicker) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden bg-black">
-        <AmbientBackground />
-        <FadeIn className="w-full max-w-xl z-20" direction="up">
+      <div className="min-h-screen flex items-center justify-center p-4 bg-surface">
+        <div className="w-full max-w-xl">
           <div className="text-center mb-10">
-            <div className="inline-flex items-center justify-center w-20 h-20 bg-primary/10 rounded-3xl mb-6 border border-primary/20 shadow-[0_0_30px_rgba(0,255,255,0.1)]">
-              <Zap className="w-10 h-10 text-primary animate-pulse" />
+            <div className="w-16 h-16 bg-primary/10 rounded-xl flex items-center justify-center mx-auto mb-4">
+              <Shield className="w-8 h-8 text-primary" />
             </div>
-            <h1 className="text-5xl font-black text-white tracking-tighter mb-4">Command Center</h1>
-            <p className="text-white/40 text-lg font-medium">Select your operational theater to continue.</p>
+            <h1 className="text-2xl font-semibold text-foreground">Select Portal</h1>
+            <p className="text-muted mt-1">Choose where you&apos;d like to go</p>
           </div>
 
-          <StaggerContainer className="grid gap-4">
+          <div className="space-y-3">
             {availablePortals.map((portal) => {
               const Icon = portal.icon;
               return (
-                <FadeIn key={portal.key}>
-                  <TiltCard>
-                    <GlowCard
-                      className="p-1"
-                      color={portal.color}
-                    >
-                      <button
-                        onClick={() => {
-                          if (rememberMe) localStorage.setItem('preferred_portal', portal.key);
-                          router.replace(portal.href);
-                        }}
-                        className={`flex items-center gap-6 w-full p-6 bg-black/40 rounded-2xl hover:bg-black/60 transition-all text-left group`}
-                      >
-                        <div className={`w-16 h-16 rounded-2xl flex items-center justify-center ${portal.bg} border border-white/5 transition-transform group-hover:scale-110 shadow-inner`}>
-                          <Icon className="w-8 h-8" style={{ color: portal.color }} />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <h3 className="text-xl font-black text-white group-hover:text-primary transition-colors">{portal.label}</h3>
-                          <p className="text-sm text-white/40 font-medium truncate">{portal.description}</p>
-                        </div>
-                        <ChevronRight className="w-6 h-6 text-white/10 group-hover:text-white group-hover:translate-x-2 transition-all" />
-                      </button>
-                    </GlowCard>
-                  </TiltCard>
-                </FadeIn>
+                <button
+                  key={portal.key}
+                  onClick={() => {
+                    if (rememberMe) localStorage.setItem('preferred_portal', portal.key);
+                    router.replace(portal.href);
+                  }}
+                  className="card w-full p-4 flex items-center gap-4 hover:bg-hover transition-colors text-left group"
+                >
+                  <div className={`w-12 h-12 bg-surface-alt rounded-xl flex items-center justify-center ${portal.color}`}>
+                    <Icon className="w-6 h-6" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-medium text-foreground group-hover:text-primary transition-colors">
+                      {portal.label}
+                    </h3>
+                    <p className="text-sm text-muted truncate">{portal.description}</p>
+                  </div>
+                  <ChevronRight className="w-5 h-5 text-muted group-hover:text-foreground group-hover:translate-x-1 transition-all" />
+                </button>
               );
             })}
-          </StaggerContainer>
+          </div>
 
-          <FadeIn className="mt-10 flex justify-center">
-            <label className="flex items-center gap-3 cursor-pointer group">
+          <div className="mt-8 flex justify-center">
+            <label className="flex items-center gap-2 cursor-pointer group">
               <input
                 type="checkbox"
                 checked={rememberMe}
                 onChange={(e) => setRememberMe(e.target.checked)}
-                className="w-5 h-5 rounded-lg border-white/10 text-primary bg-white/5 focus:ring-primary focus:ring-offset-0 transition-all cursor-pointer"
+                className="w-4 h-4 rounded border-border text-primary bg-background focus:ring-primary"
               />
-              <span className="text-sm text-white/30 font-black uppercase tracking-widest group-hover:text-white/60 transition-colors">Remember my preference</span>
+              <span className="text-sm text-muted group-hover:text-foreground transition-colors">
+                Remember my preference
+              </span>
             </label>
-          </FadeIn>
-        </FadeIn>
+          </div>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden bg-black">
-      <AmbientBackground />
-      <FadeIn className="w-full max-w-md z-20" direction="up">
+    <div className="min-h-screen flex items-center justify-center p-4 bg-surface">
+      <div className="w-full max-w-md">
         {/* Logo & Title */}
-        <div className="text-center mb-10">
-          <div className="inline-flex items-center justify-center w-20 h-20 bg-primary rounded-3xl mb-8 shadow-[0_0_40px_rgba(0,255,255,0.4)] relative border border-white/20 overflow-hidden group">
-            <div className="absolute inset-0 bg-white/20 translate-x-full group-hover:translate-x-0 transition-transform duration-500" />
-            <Zap className="w-10 h-10 text-primary-foreground relative z-10" />
+        <div className="text-center mb-8">
+          <div className="w-14 h-14 bg-primary rounded-xl flex items-center justify-center mx-auto mb-4 shadow-lg">
+            <svg className="w-8 h-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+            </svg>
           </div>
-          <h1 className="text-5xl font-black text-white tracking-tighter mb-2 shadow-sm">Continuum</h1>
-          <p className="text-white/30 text-base font-black uppercase tracking-[0.2em]">Enterprise OS Sync</p>
+          <h1 className="text-2xl font-semibold text-foreground">Continuum</h1>
+          <p className="text-muted mt-1">Sign in to your account</p>
         </div>
 
         {/* Card */}
-        <TiltCard>
-          <GlowCard className="p-8 pb-10" color="rgba(0, 255, 255, 0.2)">
-            {error && (
-              <div className="mb-8 flex items-start gap-4 p-5 bg-red-500/10 border border-red-500/20 rounded-3xl animate-in fade-in slide-in-from-top-4">
-                <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
-                <p className="text-sm text-red-400 font-black uppercase tracking-tighter leading-relaxed">{error}</p>
-              </div>
-            )}
+        <div className="card p-6">
+          {error && (
+            <div className="mb-5 flex items-start gap-3 p-4 bg-error/5 border border-error/20 rounded-lg text-error">
+              <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
+              <p className="text-sm">{error}</p>
+            </div>
+          )}
 
-            <form onSubmit={handleSubmit} className="space-y-6">
-              <div className="space-y-2">
-                <label className="block text-xs font-black text-white/40 uppercase tracking-widest ml-1">
-                  Neural ID (Email)
-                </label>
+          <form onSubmit={handleSubmit} className="space-y-5">
+            <div>
+              <label className="input-label">Email</label>
+              <div className="relative">
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted" />
                 <input
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full h-14 px-5 bg-white/5 text-white border border-white/10 rounded-2xl text-base placeholder:text-white/20 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/50 transition-all font-medium"
-                  placeholder="name@enterprise.com"
+                  className="input pl-10"
+                  placeholder="name@company.com"
                   required
                 />
               </div>
+            </div>
 
-              <div className="space-y-2">
-                <div className="flex items-center justify-between ml-1">
-                  <label className="block text-xs font-black text-white/40 uppercase tracking-widest">
-                    Access Code
-                  </label>
-                  <Link href="/forgot-password" title="Recover Access" className="text-[10px] text-primary hover:text-white font-black uppercase tracking-widest transition-colors">
-                    Reset
-                  </Link>
-                </div>
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="input-label mb-0">Password</label>
+                <Link href="/forgot-password" className="text-xs text-primary hover:underline">
+                  Forgot password?
+                </Link>
+              </div>
+              <div className="relative">
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted" />
                 <input
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full h-14 px-5 bg-white/5 text-white border border-white/10 rounded-2xl text-base placeholder:text-white/20 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/50 transition-all font-medium"
+                  className="input pl-10"
                   placeholder="••••••••"
                   required
                 />
               </div>
-
-              <div className="flex items-center gap-3 pt-2">
-                <label className="flex items-center gap-3 cursor-pointer group">
-                  <input
-                    type="checkbox"
-                    checked={rememberMe}
-                    onChange={(e) => setRememberMe(e.target.checked)}
-                    className="w-5 h-5 rounded-lg border-white/10 text-primary bg-white/5 focus:ring-primary focus:ring-offset-0 transition-all"
-                  />
-                  <span className="text-xs text-white/20 font-black uppercase tracking-widest group-hover:text-white/40 transition-colors">Maintain Link</span>
-                </label>
-              </div>
-
-              <MagneticButton
-                disabled={loading}
-                variant="gradient"
-                className="w-full h-14 !rounded-2xl shadow-[0_20px_40px_rgba(0,255,255,0.2)] hover:shadow-[0_20px_40px_rgba(0,255,255,0.4)] transition-all !text-base !font-black !uppercase !tracking-widest"
-              >
-                {loading ? (
-                  <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                ) : (
-                  'Authorize Sync'
-                )}
-              </MagneticButton>
-            </form>
-
-            <div className="mt-8 text-center pt-8 border-t border-white/5">
-              <p className="text-sm text-white/20 font-black uppercase tracking-widest">
-                New Operative?{' '}
-                <Link href="/sign-up" className="text-primary hover:text-white transition-colors">
-                  Initialize Account
-                </Link>
-              </p>
             </div>
-          </GlowCard>
-        </TiltCard>
 
-        {/* Global Nav Bottom */}
-        <div className="flex items-center justify-center gap-8 mt-12">
-          <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-white/20">
-            <Lock className="w-3.5 h-3.5 text-primary" />
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="remember"
+                checked={rememberMe}
+                onChange={(e) => setRememberMe(e.target.checked)}
+                className="w-4 h-4 rounded border-border text-primary bg-background focus:ring-primary"
+              />
+              <label htmlFor="remember" className="text-sm text-muted cursor-pointer">
+                Remember me
+              </label>
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="btn-primary w-full flex items-center justify-center gap-2"
+            >
+              {loading ? (
+                <Loader2 className="w-5 h-5 animate-spin" />
+              ) : (
+                'Sign In'
+              )}
+            </button>
+          </form>
+        </div>
+
+        {/* Footer */}
+        <div className="mt-6 text-center">
+          <p className="text-sm text-muted">
+            Don&apos;t have an account?{' '}
+            <span className="text-foreground-secondary">Contact your administrator</span>
+          </p>
+        </div>
+
+        {/* Security badge */}
+        <div className="flex items-center justify-center gap-4 mt-8">
+          <div className="flex items-center gap-1.5 text-xs text-muted">
+            <Lock className="w-3.5 h-3.5" />
             <span>Encrypted</span>
           </div>
-          <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-white/20">
-            <ShieldCheck className="w-3.5 h-3.5 text-primary" />
-            <span>Verified Hardware</span>
+          <div className="flex items-center gap-1.5 text-xs text-muted">
+            <Shield className="w-3.5 h-3.5" />
+            <span>Secure</span>
           </div>
         </div>
-      </FadeIn>
+      </div>
     </div>
   );
 }

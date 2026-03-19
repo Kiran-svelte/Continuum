@@ -47,7 +47,7 @@ export async function GET(request: NextRequest) {
     const isManager = employee.primary_role === 'manager' || employee.primary_role === 'team_lead';
 
     const where: Record<string, unknown> = {
-      company_id: employee.org_id,
+      company_id: employee.org_id!,
     };
 
     // Scope results based on role

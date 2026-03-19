@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
     try {
       const employee = await getAuthEmployee();
       employeeId = employee.id;
-      companyId = employee.org_id;
+      companyId = employee.org_id!;
       userEmail = employee.email;
     } catch (err) {
       // User may already be partially signed out or cookies expired

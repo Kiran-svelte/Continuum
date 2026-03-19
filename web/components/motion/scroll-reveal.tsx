@@ -13,6 +13,8 @@ interface ScrollRevealProps {
   threshold?: number;
   once?: boolean;
   scale?: boolean;
+  distance?: number;
+  as?: string; // For backward compat, but we'll ignore it and use div
 }
 
 export function ScrollReveal({
@@ -24,16 +26,19 @@ export function ScrollReveal({
   threshold = 0.15,
   once = true,
   scale = true,
+  distance = 40,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  as: _Component = 'div', // Ignored, always use div for simplicity
 }: ScrollRevealProps) {
   const ref = useRef<HTMLDivElement>(null);
   const controls = useAnimation();
   const [hasAnimated, setHasAnimated] = useState(false);
 
   const offsets = {
-    up: { y: 40, x: 0 },
-    down: { y: -40, x: 0 },
-    left: { x: 60, y: 0 },
-    right: { x: -60, y: 0 },
+    up: { y: distance, x: 0 },
+    down: { y: -distance, x: 0 },
+    left: { x: distance * 1.5, y: 0 },
+    right: { x: -distance * 1.5, y: 0 },
     none: { x: 0, y: 0 },
   };
 
@@ -41,7 +46,7 @@ export function ScrollReveal({
     hidden: {
       opacity: 0,
       ...offsets[direction],
-      scale: scale ? 0.95 : 1,
+      ...(scale && { scale: 0.95 }),
     },
     visible: {
       opacity: 1,
@@ -57,12 +62,14 @@ export function ScrollReveal({
   };
 
   useEffect(() => {
+    if (once && hasAnimated) return;
+
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (entry.isIntersecting) {
-          if (once && hasAnimated) return;
           controls.start('visible');
           setHasAnimated(true);
+          if (once) observer.disconnect();
         } else if (!once) {
           controls.start('hidden');
         }

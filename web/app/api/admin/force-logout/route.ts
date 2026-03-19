@@ -84,14 +84,16 @@ export async function POST(request: NextRequest) {
       );
 
       // Sign out the user from all sessions
-      await supabaseAdmin.auth.admin.signOut(target.auth_id, 'global').catch((err) => {
-        console.error('[ForceLogout] Supabase signOut failed:', err);
-      });
+      if (target.auth_id) {
+        await supabaseAdmin.auth.admin.signOut(target.auth_id, 'global').catch((err) => {
+          console.error('[ForceLogout] Supabase signOut failed:', err);
+        });
+      }
     }
 
     // Audit log
     await createAuditLog({
-      companyId: admin.org_id,
+      companyId: admin.org_id ?? 'unknown',
       actorId: admin.id,
       action: AUDIT_ACTIONS.LOGOUT,
       entityType: 'Employee',
@@ -106,13 +108,15 @@ export async function POST(request: NextRequest) {
     });
 
     // Notify the employee
-    void sendNotification(
-      target.id,
-      target.org_id,
-      'system',
-      'Session Terminated',
-      `Your session was terminated by an administrator.${reason ? ` Reason: ${reason}` : ''}`
-    ).catch(() => {});
+    if (target.org_id) {
+      void sendNotification(
+        target.id,
+        target.org_id,
+        'system',
+        'Session Terminated',
+        `Your session was terminated by an administrator.${reason ? ` Reason: ${reason}` : ''}`
+      ).catch(() => {});
+    }
 
     return NextResponse.json({
       success: true,

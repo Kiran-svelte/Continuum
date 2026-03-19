@@ -28,7 +28,7 @@ export async function POST(
       return NextResponse.json({ error: 'Leave request not found' }, { status: 404 });
     }
 
-    if (leaveRequest.company_id !== employee.org_id) {
+    if (leaveRequest.company_id !== employee.org_id!) {
       return NextResponse.json({ error: 'Access denied' }, { status: 403 });
     }
 
@@ -85,7 +85,7 @@ export async function POST(
     });
 
     await createAuditLog({
-      companyId: employee.org_id,
+      companyId: employee.org_id!,
       actorId: employee.id,
       action: AUDIT_ACTIONS.LEAVE_REJECT,
       entityType: 'LeaveRequest',
@@ -129,7 +129,7 @@ export async function POST(
     // DB notification for the employee
     sendNotification(
       leaveRequest.emp_id,
-      employee.org_id,
+      employee.org_id!,
       'leave_rejected',
       'Leave Request Rejected',
       `Your ${leaveRequest.leave_type} leave from ${leaveRequest.start_date.toISOString().split('T')[0]} to ${leaveRequest.end_date.toISOString().split('T')[0]} has been rejected`,
@@ -146,3 +146,4 @@ export async function POST(
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
+

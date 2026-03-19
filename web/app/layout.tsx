@@ -2,16 +2,14 @@ import type { Metadata, Viewport } from 'next';
 import { ThemeProvider } from '@/components/theme-provider';
 import { TutorialProvider } from '@/components/tutorial/tutorial-provider';
 import { GlobalErrorBoundary } from '@/components/global-error-boundary';
-import { AmbientBackground } from '@/components/motion/ambient-background';
-import { InteractiveCursor } from '@/components/motion/interactive-cursor';
 import './globals.css';
 
 export const metadata: Metadata = {
   title: {
-    default: 'Continuum — Enterprise AI Leave Management',
+    default: 'Continuum — Enterprise HR Management',
     template: '%s | Continuum',
   },
-  description: 'Config-driven, multi-tenant, India-compliant, AI-powered HR platform. Manage leave policies, approvals, and compliance effortlessly. From 10 employees to 10,000.',
+  description: 'Config-driven, multi-tenant, India-compliant HR platform. Manage leave policies, approvals, attendance, and payroll effortlessly.',
   keywords: [
     'leave management',
     'HR software',
@@ -19,7 +17,6 @@ export const metadata: Metadata = {
     'employee leave',
     'attendance',
     'payroll',
-    'AI HR',
     'enterprise',
     'compliance',
     'HRMS',
@@ -33,22 +30,22 @@ export const metadata: Metadata = {
     type: 'website',
     locale: 'en_US',
     url: '/',
-    title: 'Continuum — Enterprise AI Leave Management',
-    description: 'Config-driven, multi-tenant, India-compliant, AI-powered HR platform. Manage leave policies, approvals, and compliance effortlessly.',
+    title: 'Continuum — Enterprise HR Management',
+    description: 'Config-driven, multi-tenant, India-compliant HR platform. Manage leave policies, approvals, and compliance effortlessly.',
     siteName: 'Continuum',
     images: [
       {
         url: '/og-image.png',
         width: 1200,
         height: 630,
-        alt: 'Continuum - Enterprise AI Leave Management',
+        alt: 'Continuum - Enterprise HR Management',
       },
     ],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Continuum — Enterprise AI Leave Management',
-    description: 'Config-driven, multi-tenant, India-compliant, AI-powered HR platform.',
+    title: 'Continuum — Enterprise HR Management',
+    description: 'Config-driven, multi-tenant, India-compliant HR platform.',
     images: ['/og-image.png'],
     creator: '@continuum_app',
   },
@@ -76,8 +73,8 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = {
   themeColor: [
-    { media: '(prefers-color-scheme: light)', color: '#ffffff' },
-    { media: '(prefers-color-scheme: dark)', color: '#0a0f1c' },
+    { media: '(prefers-color-scheme: light)', color: '#fafaf8' },
+    { media: '(prefers-color-scheme: dark)', color: '#151820' },
   ],
   width: 'device-width',
   initialScale: 1,
@@ -91,9 +88,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className="antialiased min-h-screen text-foreground transition-colors duration-300">
-        <AmbientBackground />
-        <InteractiveCursor />
+      <body className="antialiased min-h-screen">
         <GlobalErrorBoundary>
           <ThemeProvider defaultTheme="system" storageKey="continuum-theme">
             <TutorialProvider>

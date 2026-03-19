@@ -63,7 +63,7 @@ export async function POST(request: NextRequest) {
         },
         body: JSON.stringify({
           employee_id: employee.id,
-          company_id: employee.org_id,
+          company_id: employee.org_id!,
           leave_type,
           start_date,
           end_date,

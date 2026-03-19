@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
 
     // Fetch company to get onboarding status and timezone
     const company = await prisma.company.findUnique({
-      where: { id: employee.org_id },
+      where: { id: employee.org_id! },
       select: {
         id: true,
         name: true,
@@ -54,7 +54,7 @@ export async function GET(request: NextRequest) {
       secondary_roles: employee.secondary_roles,
       department: employee.department,
       designation: employeeDetails?.designation || null,
-      org_id: employee.org_id,
+      org_id: employee.org_id!,
       status: employee.status,
       timezone: company?.timezone || 'Asia/Kolkata',
       company: company ? {
@@ -88,7 +88,7 @@ export async function GET(request: NextRequest) {
     // Only log if coming from sign-in page (avoid logging on page refreshes)
     if (referrer && (referrer.includes('/sign-in') || referrer.includes('/sign-up'))) {
       void createAuditLog({
-        companyId: employee.org_id,
+        companyId: employee.org_id!,
         actorId: employee.id,
         action: AUDIT_ACTIONS.LOGIN,
         entityType: 'Employee',

@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
     }
 
     const components = await prisma.salaryComponent.findMany({
-      where: { company_id: employee.org_id },
+      where: { company_id: employee.org_id! },
       orderBy: { created_at: 'desc' },
     });
 
@@ -82,7 +82,7 @@ export async function POST(request: NextRequest) {
     // Check for duplicate name within company
     const existing = await prisma.salaryComponent.findFirst({
       where: {
-        company_id: employee.org_id,
+        company_id: employee.org_id!,
         name: name.trim(),
       },
     });
@@ -96,7 +96,7 @@ export async function POST(request: NextRequest) {
 
     const component = await prisma.salaryComponent.create({
       data: {
-        company_id: employee.org_id,
+        company_id: employee.org_id!,
         name: name.trim(),
         type,
         is_taxable: typeof is_taxable === 'boolean' ? is_taxable : true,
@@ -105,7 +105,7 @@ export async function POST(request: NextRequest) {
     });
 
     await createAuditLog({
-      companyId: employee.org_id,
+      companyId: employee.org_id!,
       actorId: employee.id,
       action: AUDIT_ACTIONS.COMPANY_SETTINGS_UPDATE,
       entityType: 'SalaryComponent',
@@ -148,7 +148,7 @@ export async function PATCH(request: NextRequest) {
     }
 
     const existing = await prisma.salaryComponent.findUnique({ where: { id } });
-    if (!existing || existing.company_id !== employee.org_id) {
+    if (!existing || existing.company_id !== employee.org_id!) {
       return NextResponse.json({ error: 'Salary component not found' }, { status: 404 });
     }
 
@@ -164,7 +164,7 @@ export async function PATCH(request: NextRequest) {
     if (name && name.trim() !== existing.name) {
       const duplicate = await prisma.salaryComponent.findFirst({
         where: {
-          company_id: employee.org_id,
+          company_id: employee.org_id!,
           name: name.trim(),
           id: { not: id },
         },
@@ -189,7 +189,7 @@ export async function PATCH(request: NextRequest) {
     });
 
     await createAuditLog({
-      companyId: employee.org_id,
+      companyId: employee.org_id!,
       actorId: employee.id,
       action: AUDIT_ACTIONS.COMPANY_SETTINGS_UPDATE,
       entityType: 'SalaryComponent',
@@ -232,14 +232,14 @@ export async function DELETE(request: NextRequest) {
     }
 
     const existing = await prisma.salaryComponent.findUnique({ where: { id } });
-    if (!existing || existing.company_id !== employee.org_id) {
+    if (!existing || existing.company_id !== employee.org_id!) {
       return NextResponse.json({ error: 'Salary component not found' }, { status: 404 });
     }
 
     await prisma.salaryComponent.delete({ where: { id } });
 
     await createAuditLog({
-      companyId: employee.org_id,
+      companyId: employee.org_id!,
       actorId: employee.id,
       action: AUDIT_ACTIONS.COMPANY_SETTINGS_UPDATE,
       entityType: 'SalaryComponent',

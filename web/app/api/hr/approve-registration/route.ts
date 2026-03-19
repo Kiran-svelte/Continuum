@@ -58,7 +58,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Ensure they're in the same company
-    if (targetEmployee.org_id !== employee.org_id) {
+    if (targetEmployee.org_id! !== employee.org_id!) {
       return NextResponse.json({ error: 'Employee not in your organization' }, { status: 403 });
     }
 
@@ -84,7 +84,7 @@ export async function POST(request: NextRequest) {
         await tx.employeeStatusHistory.create({
           data: {
             emp_id: employee_id,
-            company_id: employee.org_id,
+            company_id: employee.org_id!,
             from_status: 'onboarding',
             to_status: statusToSet,
             changed_by: employee.id,
@@ -95,7 +95,7 @@ export async function POST(request: NextRequest) {
 
       // Audit log
       await createAuditLog({
-        companyId: employee.org_id,
+        companyId: employee.org_id!,
         actorId: employee.id,
         action: AUDIT_ACTIONS.EMPLOYEE_STATUS_CHANGE,
         entityType: 'Employee',
@@ -108,7 +108,7 @@ export async function POST(request: NextRequest) {
       void sendRegistrationApprovedEmail(
         targetEmployee.email,
         `${targetEmployee.first_name} ${targetEmployee.last_name}`,
-        targetEmployee.company.name
+        targetEmployee.company?.name ?? 'Unknown Company'
       ).catch((err) => console.error('[ApproveReg] Email failed:', err));
 
       return NextResponse.json({
@@ -127,7 +127,7 @@ export async function POST(request: NextRequest) {
         await tx.employeeStatusHistory.create({
           data: {
             emp_id: employee_id,
-            company_id: employee.org_id,
+            company_id: employee.org_id!,
             from_status: 'onboarding',
             to_status: 'suspended',
             changed_by: employee.id,
@@ -138,7 +138,7 @@ export async function POST(request: NextRequest) {
 
       // Audit log
       await createAuditLog({
-        companyId: employee.org_id,
+        companyId: employee.org_id!,
         actorId: employee.id,
         action: AUDIT_ACTIONS.EMPLOYEE_STATUS_CHANGE,
         entityType: 'Employee',
@@ -186,7 +186,7 @@ export async function GET(request: NextRequest) {
 
     const pending = await prisma.employee.findMany({
       where: {
-        org_id: employee.org_id,
+        org_id: employee.org_id!,
         status: 'onboarding',
         // Exclude the admin user themselves (who is also in onboarding during company setup)
         id: { not: employee.id },
@@ -213,3 +213,4 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
+

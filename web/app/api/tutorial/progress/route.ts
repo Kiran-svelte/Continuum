@@ -20,11 +20,11 @@ export async function GET(request: NextRequest) {
     const progress = await prisma.tutorialProgress.findMany({
       where: { employee_id: employee.id },
       select: {
-        tutorial_id: true,
-        current_step: true,
+        step_id: true,
         completed: true,
         completed_at: true,
-        started_at: true,
+        skipped: true,
+        created_at: true,
       },
     });
 
@@ -35,7 +35,7 @@ export async function GET(request: NextRequest) {
     });
 
     return NextResponse.json({
-      tutorials: progress,
+      steps: progress,
       allCompleted: employeeData?.tutorial_completed ?? false,
     });
   } catch (error) {
@@ -59,39 +59,37 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { tutorialId, currentStep, completed } = body;
+    const { stepId, completed, skipped } = body;
 
-    if (!tutorialId) {
-      return NextResponse.json({ error: 'Tutorial ID required' }, { status: 400 });
+    if (!stepId) {
+      return NextResponse.json({ error: 'Step ID required' }, { status: 400 });
     }
 
     // Upsert progress record
     const progress = await prisma.tutorialProgress.upsert({
       where: {
-        employee_id_tutorial_id: {
+        employee_id_step_id: {
           employee_id: employee.id,
-          tutorial_id: tutorialId,
+          step_id: stepId,
         },
       },
       create: {
         employee_id: employee.id,
-        tutorial_id: tutorialId,
-        current_step: currentStep ?? 0,
+        step_id: stepId,
         completed: completed ?? false,
-        started_at: new Date(),
+        skipped: skipped ?? false,
         completed_at: completed ? new Date() : null,
       },
       update: {
-        current_step: currentStep ?? undefined,
         completed: completed ?? undefined,
+        skipped: skipped ?? undefined,
         completed_at: completed ? new Date() : undefined,
       },
     });
 
-    // If tutorial is completed, check if all tutorials are done
+    // If tutorial step is completed, check if all required steps are done
     if (completed) {
       // For now, mark the main tutorial as complete
-      // In a more complete system, you'd check all required tutorials
       await prisma.employee.update({
         where: { id: employee.id },
         data: { tutorial_completed: true },
@@ -101,9 +99,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       message: 'Progress updated',
       progress: {
-        tutorialId: progress.tutorial_id,
-        currentStep: progress.current_step,
+        stepId: progress.step_id,
         completed: progress.completed,
+        skipped: progress.skipped,
       },
     });
   } catch (error) {
@@ -127,14 +125,14 @@ export async function DELETE(request: NextRequest) {
 
   try {
     const { searchParams } = new URL(request.url);
-    const tutorialId = searchParams.get('tutorialId');
+    const stepId = searchParams.get('stepId');
 
-    if (tutorialId) {
-      // Delete specific tutorial progress
+    if (stepId) {
+      // Delete specific step progress
       await prisma.tutorialProgress.deleteMany({
         where: {
           employee_id: employee.id,
-          tutorial_id: tutorialId,
+          step_id: stepId,
         },
       });
     } else {

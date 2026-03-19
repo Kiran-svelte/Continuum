@@ -27,7 +27,7 @@ export async function GET() {
     }
     requireRole(employee, 'admin', 'hr', 'director');
 
-    const companyId = employee.org_id;
+    const companyId = employee.org_id!;
 
     // Get all active employees with their department and role info
     const employees = await prisma.employee.findMany({
@@ -169,7 +169,7 @@ export async function POST(request: NextRequest) {
     // If parentId provided, verify it belongs to the same company
     if (parentId) {
       const parentUnit = await prisma.organizationUnit.findFirst({
-        where: { id: parentId, company_id: employee.org_id, deleted_at: null },
+        where: { id: parentId, company_id: employee.org_id!, deleted_at: null },
       });
       if (!parentUnit) {
         return NextResponse.json({ error: 'Parent unit not found.' }, { status: 404 });
@@ -179,7 +179,7 @@ export async function POST(request: NextRequest) {
     // If headId provided, verify employee exists in same company
     if (headId) {
       const headEmployee = await prisma.employee.findFirst({
-        where: { id: headId, org_id: employee.org_id, deleted_at: null },
+        where: { id: headId, org_id: employee.org_id!, deleted_at: null },
       });
       if (!headEmployee) {
         return NextResponse.json({ error: 'Head employee not found.' }, { status: 404 });
@@ -188,7 +188,7 @@ export async function POST(request: NextRequest) {
 
     const unit = await prisma.organizationUnit.create({
       data: {
-        company_id: employee.org_id,
+        company_id: employee.org_id!,
         name: sanitizedName,
         type: type as 'department' | 'division' | 'team' | 'branch',
         parent_id: parentId ?? null,
@@ -198,7 +198,7 @@ export async function POST(request: NextRequest) {
     });
 
     await createAuditLog({
-      companyId: employee.org_id,
+      companyId: employee.org_id!,
       actorId: employee.id,
       action: AUDIT_ACTIONS.ORG_UNIT_CREATE,
       entityType: 'OrganizationUnit',
@@ -259,7 +259,7 @@ export async function PUT(request: NextRequest) {
 
     // Verify unit exists and belongs to company
     const existing = await prisma.organizationUnit.findFirst({
-      where: { id, company_id: employee.org_id, deleted_at: null },
+      where: { id, company_id: employee.org_id!, deleted_at: null },
     });
 
     if (!existing) {
@@ -318,7 +318,7 @@ export async function PUT(request: NextRequest) {
         }
 
         const parentUnit = await prisma.organizationUnit.findFirst({
-          where: { id: parentId, company_id: employee.org_id, deleted_at: null },
+          where: { id: parentId, company_id: employee.org_id!, deleted_at: null },
         });
         if (!parentUnit) {
           return NextResponse.json({ error: 'Parent unit not found.' }, { status: 404 });
@@ -332,7 +332,7 @@ export async function PUT(request: NextRequest) {
         updateData.head_id = null;
       } else {
         const headEmployee = await prisma.employee.findFirst({
-          where: { id: headId, org_id: employee.org_id, deleted_at: null },
+          where: { id: headId, org_id: employee.org_id!, deleted_at: null },
         });
         if (!headEmployee) {
           return NextResponse.json({ error: 'Head employee not found.' }, { status: 404 });
@@ -363,7 +363,7 @@ export async function PUT(request: NextRequest) {
     });
 
     await createAuditLog({
-      companyId: employee.org_id,
+      companyId: employee.org_id!,
       actorId: employee.id,
       action: AUDIT_ACTIONS.ORG_UNIT_UPDATE,
       entityType: 'OrganizationUnit',
@@ -412,7 +412,7 @@ export async function DELETE(request: NextRequest) {
 
     // Verify unit exists and belongs to company
     const existing = await prisma.organizationUnit.findFirst({
-      where: { id, company_id: employee.org_id, deleted_at: null },
+      where: { id, company_id: employee.org_id!, deleted_at: null },
     });
 
     if (!existing) {
@@ -421,7 +421,7 @@ export async function DELETE(request: NextRequest) {
 
     // Check for active child units to prevent orphans
     const activeChildCount = await prisma.organizationUnit.count({
-      where: { parent_id: id, company_id: employee.org_id, deleted_at: null },
+      where: { parent_id: id, company_id: employee.org_id!, deleted_at: null },
     });
     if (activeChildCount > 0) {
       return NextResponse.json(
@@ -442,7 +442,7 @@ export async function DELETE(request: NextRequest) {
     });
 
     await createAuditLog({
-      companyId: employee.org_id,
+      companyId: employee.org_id!,
       actorId: employee.id,
       action: AUDIT_ACTIONS.ORG_UNIT_DELETE,
       entityType: 'OrganizationUnit',

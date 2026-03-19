@@ -94,7 +94,7 @@ export async function GET(request: Request) {
     emp_id: employee?.id,
     role: employee?.primary_role,
     roles: allRoles.length > 0 ? allRoles : undefined,
-    org_id: employee?.org_id,
+    org_id: employee?.org_id ?? undefined,
   });
 
   // Set session cookie

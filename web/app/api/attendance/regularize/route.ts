@@ -77,7 +77,7 @@ export async function POST(request: NextRequest) {
     const existing = await prisma.attendanceRegularization.findFirst({
       where: {
         emp_id: employee.id,
-        company_id: employee.org_id,
+        company_id: employee.org_id!,
         date: parsedDate,
         status: { in: ['pending', 'approved'] },
       },
@@ -97,7 +97,7 @@ export async function POST(request: NextRequest) {
     const attendanceRecord = await prisma.attendance.findFirst({
       where: {
         emp_id: employee.id,
-        company_id: employee.org_id,
+        company_id: employee.org_id!,
         date: {
           gte: startOfDay,
           lte: endOfDay,
@@ -109,7 +109,7 @@ export async function POST(request: NextRequest) {
     const regularization = await prisma.attendanceRegularization.create({
       data: {
         emp_id: employee.id,
-        company_id: employee.org_id,
+        company_id: employee.org_id!,
         attendance_id: attendanceRecord?.id ?? null,
         date: parsedDate,
         reason: sanitizedReason,
@@ -118,7 +118,7 @@ export async function POST(request: NextRequest) {
     });
 
     await createAuditLog({
-      companyId: employee.org_id,
+      companyId: employee.org_id!,
       actorId: employee.id,
       action: AUDIT_ACTIONS.ATTENDANCE_REGULARIZE,
       entityType: 'AttendanceRegularization',
@@ -139,7 +139,7 @@ export async function POST(request: NextRequest) {
     if (empRecord?.manager_id) {
       void sendNotification(
         empRecord.manager_id,
-        employee.org_id,
+        employee.org_id!,
         'attendance',
         'Regularization Request',
         `${employee.first_name} ${employee.last_name} submitted an attendance regularization for ${date}.`
@@ -194,7 +194,7 @@ export async function GET(request: NextRequest) {
     // Build where clause
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const where: any = {
-      company_id: employee.org_id,
+      company_id: employee.org_id!,
     };
 
     if (statusFilter && ['pending', 'approved', 'rejected'].includes(statusFilter)) {
@@ -208,7 +208,7 @@ export async function GET(request: NextRequest) {
       const directReports = await prisma.employee.findMany({
         where: {
           manager_id: employee.id,
-          org_id: employee.org_id,
+          org_id: employee.org_id!,
           deleted_at: null,
         },
         select: { id: true },

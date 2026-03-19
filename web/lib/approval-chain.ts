@@ -149,7 +149,7 @@ export async function resolveApprover(
   // Try to find an employee with this role
   const employee = await prisma.employee.findUnique({
     where: { id: employeeId },
-    select: { manager_id: true, department_id: true, team_id: true },
+    select: { manager_id: true, department: true },
   });
 
   // For manager-level roles, try direct manager first
