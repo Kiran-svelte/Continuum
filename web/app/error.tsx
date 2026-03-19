@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { GlassPanel } from "@/components/glass-panel";
 import { Button } from '@/components/ui/button';
@@ -14,141 +14,102 @@ interface ErrorPageProps {
 export default function ErrorPage({ error, reset }: ErrorPageProps) {
   const { handleError } = useErrorHandling();
   const hasLogged = useRef(false);
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    // Log error once when component mounts
+    setMounted(true);
     if (!hasLogged.current) {
       handleError(error, {
         logError: true,
-        showToast: false, // Don't show toast on error pages
+        showToast: false,
       });
       hasLogged.current = true;
     }
   }, [error, handleError]);
 
-  const isChunkLoadError = error.message?.includes('Loading chunk') || 
-                          error.name === 'ChunkLoadError';
-  
-  const isNetworkError = error.message?.includes('fetch') ||
-                        error.message?.includes('network') ||
-                        !navigator?.onLine;
+  if (!mounted) return null;
+
+  const isChunkLoadError = error.message?.includes('Loading chunk') ||
+    error.name === 'ChunkLoadError';
+
+  const isNetworkError = typeof navigator !== 'undefined' && (
+    error.message?.includes('fetch') ||
+    error.message?.includes('network') ||
+    !navigator?.onLine);
 
   return (
-    <div className="min-h-screen bg-black flex items-center justify-center p-4">
+    <div className="min-h-screen flex items-center justify-center p-6 relative">
       <motion.div
-        initial={{ opacity: 0, scale: 0.9, y: 20 }}
+        initial={{ opacity: 0, scale: 0.95, y: 30 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
-        transition={{ duration: 0.4 }}
-        className="w-full max-w-lg"
+        transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+        className="w-full max-w-lg z-10"
       >
-        <GlassPanel>
-          <div className="p-6 border-b border-white/10 text-center">
+        <GlassPanel className="overflow-hidden">
+          <div className="p-10 border-b border-border/30 text-center space-y-4">
             <motion.div
-              initial={{ scale: 0 }}
-              animate={{ scale: 1 }}
-              transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
-              className="text-6xl mb-4"
+              animate={{
+                y: [0, -10, 0],
+                rotate: [0, 5, -5, 0]
+              }}
+              transition={{ duration: 4, repeat: Infinity }}
+              className="text-7xl mb-6 inline-block"
             >
-              {isChunkLoadError ? '🔄' : isNetworkError ? '🌐' : '💥'}
+              {isChunkLoadError ? '🔄' : isNetworkError ? '🌐' : '🛑'}
             </motion.div>
-            <h3 className="text-xl font-semibold text-white">
-              {isChunkLoadError 
-                ? 'App Update Available' 
-                : isNetworkError 
-                  ? 'Connection Problem'
-                  : 'Something went wrong'
+            <h1 className="text-3xl font-extrabold tracking-tight text-glow gradient-text">
+              {isChunkLoadError
+                ? 'System Upgrade'
+                : isNetworkError
+                  ? 'Signal Interrupted'
+                  : 'Core Exception'
               }
-            </h3>
+            </h1>
+            <p className="text-muted-foreground/80 max-w-sm mx-auto">
+              {isChunkLoadError
+                ? 'A new version of Continuum is ready. We need to re-sync your session.'
+                : isNetworkError
+                  ? 'We lost connection to the enterprise grid. Please check your uplink.'
+                  : 'A critical event occurred in the engine. Our automated systems are investigating.'
+              }
+            </p>
           </div>
-          
-          <div className="p-6 space-y-6">
-            <div className="text-center space-y-2">
-              <p className="text-white/60">
-                {isChunkLoadError 
-                  ? 'The application has been updated. Please refresh to get the latest version.'
-                  : isNetworkError
-                    ? 'Please check your internet connection and try again.'
-                    : 'We encountered an unexpected error. Our team has been notified and will look into it.'
-                }
-              </p>
-              
-              {error.id && (
-                <p className="text-xs text-white/60 font-mono">
-                  Error ID: {error.id}
-                </p>
-              )}
-            </div>
 
-            {/* Error details for development */}
+          <div className="p-10 space-y-8">
+            {error.id && (
+              <div className="flex items-center justify-between text-[10px] font-mono px-4 py-2 bg-muted/30 rounded-full border border-border/20">
+                <span className="uppercase text-muted-foreground">Trace ID</span>
+                <span className="text-primary font-bold">{error.id}</span>
+              </div>
+            )}
+
             {process.env.NODE_ENV === 'development' && (
-              <details className="space-y-2">
-                <summary className="cursor-pointer text-sm font-medium text-white/60 hover:text-white transition-colors">
-                  Technical Details (Development)
+              <details className="group">
+                <summary className="cursor-pointer text-xs font-bold uppercase tracking-widest text-muted-foreground hover:text-primary transition-colors flex items-center gap-2">
+                  <div className="w-1.5 h-1.5 rounded-full bg-destructive animate-pulse" />
+                  Kernel Logs
                 </summary>
-                <div className="bg-white/5 rounded-lg p-3 space-y-2">
-                  <div>
-                    <span className="text-xs font-semibold text-destructive">Error:</span>
-                    <pre className="text-xs text-white mt-1 overflow-auto">
-                      {error.message}
-                    </pre>
-                  </div>
-                  {error.stack && (
-                    <div>
-                      <span className="text-xs font-semibold text-destructive">Stack Trace:</span>
-                      <pre className="text-xs text-white/60 mt-1 overflow-auto max-h-32">
-                        {error.stack}
-                      </pre>
-                    </div>
-                  )}
-                  <div className="text-xs text-white/60">
-                    <strong>URL:</strong> {window.location.href}<br />
-                    <strong>Time:</strong> {new Date().toISOString()}<br />
-                    <strong>User Agent:</strong> {navigator.userAgent}
-                  </div>
+                <div className="mt-4 p-4 rounded-xl bg-background/50 border border-border/20 font-mono text-[10px] overflow-auto max-h-48 space-y-3">
+                  <p className="text-destructive font-bold">{error.message}</p>
+                  {error.stack && <pre className="text-muted-foreground whitespace-pre-wrap">{error.stack}</pre>}
                 </div>
               </details>
             )}
 
-            <div className="flex flex-col sm:flex-row gap-3">
-              {isChunkLoadError ? (
-                <Button 
-                  onClick={() => window.location.reload()} 
-                  className="flex items-center gap-2 w-full"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                  </svg>
-                  Refresh App
-                </Button>
-              ) : (
-                <>
-                  <Button 
-                    onClick={reset} 
-                    className="flex items-center gap-2 flex-1"
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                    </svg>
-                    Try Again
-                  </Button>
-                  <Button 
-                    variant="outline"
-                    onClick={() => window.location.href = '/'}
-                    className="flex items-center gap-2 flex-1"
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-                    </svg>
-                    Go Home
-                  </Button>
-                </>
-              )}
-            </div>
-
-            <div className="text-center">
-              <p className="text-xs text-white/60">
-                If the problem persists, please contact support.
-              </p>
+            <div className="flex flex-col sm:flex-row gap-4">
+              <Button
+                onClick={isChunkLoadError ? () => window.location.reload() : reset}
+                className="magic-border-btn flex-1 h-12 text-sm font-bold uppercase tracking-widest"
+              >
+                {isChunkLoadError ? 'Sync Session' : 'Re-Attempt'}
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => window.location.href = '/'}
+                className="flex-1 h-12 text-sm font-bold uppercase tracking-widest border-border/40 hover:bg-muted/50 transition-all rounded-2xl"
+              >
+                Return Base
+              </Button>
             </div>
           </div>
         </GlassPanel>

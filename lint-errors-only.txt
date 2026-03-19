@@ -1,0 +1,56 @@
+./app/admin/(main)/dashboard/page.tsx :: 100:32  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-
+./app/admin/(main)/rbac/page.tsx :: used-vars                                                                       275:19  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-
+./app/api/audit-logs/route.ts :: 98:47  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-e
+./app/api/audit-logs/route.ts :: xplicit-any                                                                     100:25  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-
+./app/employee/(main)/dashboard/page.tsx :: eslint/no-unused-vars                                                           189:29  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-
+./app/employee/(main)/dashboard/page.tsx :: explicit-any                                                                    246:40  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-
+./app/employee/(main)/dashboard/page.tsx :: explicit-any                                                                    260:44  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-
+./app/employee/(main)/dashboard/page.tsx :: explicit-any                                                                    274:48  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-
+./app/hr/(main)/approval-config/page.tsx :: 74:76  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-e
+./app/hr/(main)/approval-config/page.tsx :: xplicit-any                                                                     101:62  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-
+./app/hr/(main)/approval-config/page.tsx :: explicit-any                                                                    107:29  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-
+./app/hr/(main)/approval-config/page.tsx :: explicit-any                                                                    113:43  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-
+./app/hr/(main)/approval-config/page.tsx :: explicit-any                                                                    148:45  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-
+./app/hr/(main)/approval-config/page.tsx :: explicit-any                                                                    197:61  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-
+./app/hr/(main)/approval-config/page.tsx :: explicit-any                                                                    200:19  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-
+./app/hr/(main)/approval-config/page.tsx :: explicit-any                                                                    220:18  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-
+./app/hr/(main)/approval-config/page.tsx :: explicit-any                                                                    222:20  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-
+./app/hr/(main)/approval-config/page.tsx :: t/no-unused-vars                                                                224:56  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-
+./app/hr/(main)/approval-config/page.tsx :: explicit-any                                                                    251:20  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-
+./app/hr/(main)/approval-config/page.tsx :: explicit-any                                                                    253:19  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-
+./app/hr/(main)/approval-config/page.tsx :: explicit-any                                                                    256:20  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-
+./app/hr/(main)/approval-config/page.tsx :: explicit-any                                                                    275:19  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-
+./app/hr/(main)/approval-config/page.tsx :: explicit-any                                                                    282:75  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-
+./app/hr/(main)/approval-config/page.tsx :: explicit-any                                                                    499:47  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-
+./app/hr/(main)/approvals/page.tsx :: d-vars                                                                          77:49  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-e
+./app/hr/(main)/approvals/page.tsx :: xplicit-any                                                                     153:19  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-
+./app/hr/(main)/approvals/page.tsx :: vars                                                                            183:19  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-
+./app/hr/(main)/approvals/page.tsx :: explicit-any                                                                    204:58  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-
+./app/hr/(main)/approvals/page.tsx :: explicit-any                                                                    204:85  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-
+./app/hr/(main)/approvals/page.tsx :: explicit-any                                                                    209:19  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-
+./app/hr/(main)/attendance/page.tsx :: sed-vars                                                                        46:61  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-e
+./app/hr/(main)/attendance/page.tsx :: xplicit-any                                                                     64:53  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-e
+./app/hr/(main)/attendance/page.tsx :: xplicit-any                                                                     158:19  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-
+./app/hr/(main)/dashboard/page.tsx :: -vars                                                                           241:72  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-
+./app/manager/(main)/approvals/page.tsx :: lint/no-unused-vars                                                             934:88  Error: `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`.
+./app/manager/(main)/approvals/page.tsx :: 934:112  Error: `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`.
+./app/manager/(main)/reports/page.tsx :: /no-unused-vars                                                                 1656:88  Error: Unexpected any. Specify a different type.  @typescript-eslint/no
+./app/manager/(main)/team-attendance/page.tsx :: int/no-unused-vars                                                              625:86  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-
+./app/manager/(main)/team-attendance/page.tsx :: explicit-any                                                                    628:97  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-
+./app/manager/(main)/team-calendar/page.tsx :: lint/no-unused-vars                                                             231:11  Error: 'current' is never reassigned. Use 'const' instead.  prefer-const
+./components/motion/magnetic-button.tsx :: 89:21  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-e
+./components/notification-bell.tsx :: 25:25  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-e
+./components/notification-bell.tsx :: xplicit-any                                                                     33:25  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-e
+./components/notification-bell.tsx :: xplicit-any                                                                     54:29  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-e
+./components/ui/error-boundary.tsx :: 80:56  Error: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.
+./components/ui/error-boundary.tsx :: react/no-unescaped-entities                                                     80:68  Error: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.
+./lib/error-handling.ts :: sed-vars                                                                        17:13  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-e
+./lib/error-handling.ts :: xplicit-any                                                                     32:41  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-e
+./lib/error-handling.ts :: xplicit-any                                                                     97:39  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-e
+./lib/error-handling.ts :: xplicit-any                                                                     120:45  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-
+./lib/error-handling.ts :: explicit-any                                                                    155:46  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-
+./lib/error-handling.ts :: explicit-any                                                                    172:43  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-
+./lib/error-handling.ts :: explicit-any                                                                    226:30  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-
+./lib/error-handling.ts :: explicit-any                                                                    345:41  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-
+./lib/error-handling.ts :: explicit-any                                                                    351:47  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-
+./lib/pusher-client.ts :: 28:64  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-e

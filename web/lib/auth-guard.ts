@@ -1,11 +1,17 @@
+// ─── Auth Guards ─────────────────────────────────────────────────────────
+//
+// Server-side authentication and authorization guards.
+// Uses custom JWT auth (replaces Supabase).
+//
+
 import { cookies } from 'next/headers';
 import prisma from '@/lib/prisma';
-import { verifySupabaseToken } from '@/lib/supabase-server';
 import {
-  verifySessionToken,
-  SESSION_COOKIE_NAME,
-  type SessionPayload,
-} from '@/lib/session';
+  verifyAccessToken,
+  extractAccessToken,
+  ACCESS_COOKIE_NAME,
+  type AccessTokenPayload,
+} from '@/lib/jwt-service';
 import {
   getUserPermissions,
   hasPermission,
@@ -15,16 +21,17 @@ import {
   getAccessScope,
   VALID_ROLES,
 } from '@/lib/rbac';
+import type { Role } from '@prisma/client';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 export interface AuthEmployee {
   id: string;
-  auth_id: string;
+  auth_id: string | null;
   email: string;
   first_name: string;
   last_name: string;
-  org_id: string;
+  org_id: string | null;
   primary_role: UserRole;
   secondary_roles: string[] | null;
   department: string | null;
@@ -32,6 +39,8 @@ export interface AuthEmployee {
   status: string;
   permissions: PermissionCode[];
   accessScope: AccessScope;
+  tutorialCompleted: boolean;
+  mustChangePassword: boolean;
 }
 
 export interface DecodedUser {
@@ -48,100 +57,85 @@ export class AuthError extends Error {
   }
 }
 
-// ─── Token Verification Helpers ─────────────────────────────────────────────
-
-/**
- * Verifies a Supabase access token and returns the user.
- */
-async function verifyBearerToken(token: string): Promise<DecodedUser> {
-  const user = await verifySupabaseToken(token);
-  if (!user) throw new Error('Invalid Supabase token');
-  return {
-    uid: user.id,
-    email: user.email,
-  };
-}
-
 // ─── Request-Level Auth (for API routes that receive raw requests) ───────────
 
 /**
- * Gets the authenticated user from either Bearer token (Authorization header)
- * or session cookie.
- *
- * Auth resolution order:
- * 1. Bearer token → verify via Supabase Admin API
- * 2. continuum-session cookie → verify signed JWT locally (no network call)
+ * Gets the authenticated user from access token (header or cookie).
  */
 export async function getAuthUserFromRequest(request: Request): Promise<{ user: DecodedUser | null; error: Error | null }> {
-  // 1. Check Authorization header first
-  const authHeader = request.headers.get('Authorization');
-  if (authHeader?.startsWith('Bearer ')) {
-    const token = authHeader.slice(7);
-    try {
-      const user = await verifyBearerToken(token);
-      return { user, error: null };
-    } catch (err) {
-      return { user: null, error: err instanceof Error ? err : new Error('Invalid token') };
-    }
+  const token = extractAccessToken(request);
+  
+  if (!token) {
+    return { user: null, error: new Error('No authentication token found') };
   }
 
-  // 2. Check session cookie
-  const cookieHeader = request.headers.get('cookie');
-  if (cookieHeader) {
-    const cookieMap = Object.fromEntries(
-      cookieHeader.split('; ').map(c => {
-        const [key, ...val] = c.split('=');
-        return [key, val.join('=')];
-      })
-    );
-
-    // Try continuum-session JWT (primary — no network call needed)
-    const sessionToken = cookieMap[SESSION_COOKIE_NAME];
-    if (sessionToken) {
-      try {
-        const session = await verifySessionToken(sessionToken);
-        return { user: { uid: session.uid, email: session.email }, error: null };
-      } catch {
-        // Session JWT invalid/expired, fall through
-      }
-    }
+  try {
+    const payload = await verifyAccessToken(token);
+    return {
+      user: { uid: payload.sub, email: payload.email },
+      error: null,
+    };
+  } catch (err) {
+    return {
+      user: null,
+      error: err instanceof Error ? err : new Error('Invalid token'),
+    };
   }
-
-  return { user: null, error: new Error('No authentication token found') };
 }
 
 // ─── Auth Guards (Server Components / Route Handlers via cookies()) ─────────
 
 /**
- * Extracts auth from session cookie, looks up Employee via Prisma.
- *
- * Auth resolution order:
- * 1. continuum-session JWT cookie → verify locally (no network call)
- *
+ * Extracts auth from access token cookie, looks up Employee via Prisma.
  * Returns the authenticated employee with role, company, and permissions.
  */
 export async function getAuthEmployee(): Promise<AuthEmployee> {
   const cookieStore = await cookies();
+  const accessToken = cookieStore.get(ACCESS_COOKIE_NAME)?.value;
 
-  let decodedUser: DecodedUser | null = null;
-
-  // Try continuum-session JWT (primary — fast, no network call)
-  const sessionCookie = cookieStore.get(SESSION_COOKIE_NAME);
-  if (sessionCookie?.value) {
-    try {
-      const session = await verifySessionToken(sessionCookie.value);
-      decodedUser = { uid: session.uid, email: session.email };
-    } catch {
-      // Session JWT invalid/expired
-    }
-  }
-
-  if (!decodedUser) {
+  if (!accessToken) {
     throw new AuthError('Authentication required', 401);
   }
 
+  let payload: AccessTokenPayload;
+  try {
+    payload = await verifyAccessToken(accessToken);
+  } catch {
+    throw new AuthError('Invalid or expired token', 401);
+  }
+
+  // Handle super admin
+  if (payload.role === 'super_admin') {
+    const superAdmin = await prisma.superAdmin.findUnique({
+      where: { id: payload.sub },
+    });
+
+    if (!superAdmin || !superAdmin.is_active) {
+      throw new AuthError('Account not found or inactive', 401);
+    }
+
+    return {
+      id: superAdmin.id,
+      auth_id: null,
+      email: superAdmin.email,
+      first_name: superAdmin.name.split(' ')[0] || superAdmin.name,
+      last_name: superAdmin.name.split(' ').slice(1).join(' ') || '',
+      org_id: null,
+      primary_role: 'super_admin' as UserRole,
+      secondary_roles: null,
+      department: null,
+      gender: null,
+      status: 'active',
+      permissions: ['*'] as PermissionCode[], // Super admin has all permissions
+      accessScope: 'platform' as AccessScope,
+      tutorialCompleted: true,
+      mustChangePassword: false,
+    };
+  }
+
+  // Handle regular employees
   const employee = await prisma.employee.findUnique({
-    where: { auth_id: decodedUser.uid },
+    where: { id: payload.sub },
     select: {
       id: true,
       auth_id: true,
@@ -154,6 +148,8 @@ export async function getAuthEmployee(): Promise<AuthEmployee> {
       department: true,
       gender: true,
       status: true,
+      tutorial_completed: true,
+      must_change_password: true,
     },
   });
 
@@ -165,7 +161,9 @@ export async function getAuthEmployee(): Promise<AuthEmployee> {
     throw new AuthError('Account is no longer active', 403);
   }
 
-  const permissions = await getUserPermissions(employee.id, employee.org_id);
+  const permissions = employee.org_id 
+    ? await getUserPermissions(employee.id, employee.org_id)
+    : [];
   const primaryRole = employee.primary_role as UserRole;
 
   return {
@@ -182,11 +180,18 @@ export async function getAuthEmployee(): Promise<AuthEmployee> {
     status: employee.status,
     permissions,
     accessScope: getAccessScope(primaryRole),
+    tutorialCompleted: employee.tutorial_completed,
+    mustChangePassword: employee.must_change_password,
   };
 }
 
 /** Throws 403 if employee does not hold any of the required roles */
 export function requireRole(employee: AuthEmployee, ...roles: UserRole[]): void {
+  // Super admin can access everything
+  if (employee.primary_role === 'super_admin') {
+    return;
+  }
+
   const hasRole = roles.some(
     (role) =>
       employee.primary_role === role ||
@@ -206,6 +211,11 @@ export function requirePermissionGuard(
   employee: AuthEmployee,
   permissionCode: PermissionCode
 ): void {
+  // Super admin has all permissions
+  if (employee.primary_role === 'super_admin' || employee.permissions.includes('*' as PermissionCode)) {
+    return;
+  }
+
   if (!hasPermission(employee.permissions, permissionCode)) {
     throw new AuthError(
       `Forbidden: missing permission '${permissionCode}'`,
@@ -219,8 +229,20 @@ export function requireCompanyAccess(
   employee: AuthEmployee,
   targetCompanyId: string
 ): void {
+  // Super admin can access any company
+  if (employee.primary_role === 'super_admin') {
+    return;
+  }
+
   if (employee.org_id !== targetCompanyId) {
     throw new AuthError('Forbidden: cross-company access denied', 403);
+  }
+}
+
+/** Requires super admin role */
+export function requireSuperAdmin(employee: AuthEmployee): void {
+  if (employee.primary_role !== 'super_admin') {
+    throw new AuthError('Forbidden: super admin access required', 403);
   }
 }
 

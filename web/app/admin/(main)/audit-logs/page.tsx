@@ -3,11 +3,10 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import { Skeleton, SkeletonTable } from '@/components/ui/skeleton';
 import { GlassPanel } from '@/components/glass-panel';
 import { PageHeader } from '@/components/page-header';
-import { StaggerContainer, FadeIn } from '@/components/motion';
+import { StaggerContainer, FadeIn, MagneticButton, GlowCard, ScrollReveal } from '@/components/motion';
 import { ensureMe } from '@/lib/client-auth';
 import {
   Shield,
@@ -60,9 +59,7 @@ const ACTION_BADGE_MAP: Record<string, 'success' | 'info' | 'warning' | 'danger'
 };
 
 function getActionBadgeVariant(action: string): 'success' | 'info' | 'warning' | 'danger' | 'default' {
-  // Check for exact match
   if (ACTION_BADGE_MAP[action]) return ACTION_BADGE_MAP[action];
-  // Check for partial match
   const upper = action.toUpperCase();
   if (upper.includes('CREATE') || upper.includes('APPROVE')) return 'success';
   if (upper.includes('DELETE') || upper.includes('REJECT') || upper.includes('FAIL')) return 'danger';
@@ -154,7 +151,6 @@ export default function AuditLogsPage() {
     fetchLogs(newPage);
   };
 
-  // Collect unique actions and entity types from loaded logs for filter dropdowns
   const uniqueActions = Array.from(new Set(logs.map((l) => l.action))).sort();
   const uniqueEntities = Array.from(new Set(logs.map((l) => l.entityType))).sort();
 
@@ -172,7 +168,6 @@ export default function AuditLogsPage() {
 
   return (
     <StaggerContainer className="space-y-6">
-      {/* Page Header */}
       <FadeIn>
         <PageHeader
           title="Audit Logs"
@@ -183,7 +178,7 @@ export default function AuditLogsPage() {
           }
           icon={<Shield className="w-6 h-6 text-primary" />}
           action={
-            <Button
+            <MagneticButton
               variant="outline"
               size="sm"
               onClick={handleRefresh}
@@ -191,12 +186,11 @@ export default function AuditLogsPage() {
             >
               <RefreshCw className={`w-4 h-4 mr-1.5 ${refreshing ? 'animate-spin' : ''}`} />
               Refresh
-            </Button>
+            </MagneticButton>
           }
         />
       </FadeIn>
 
-      {/* Error Banner */}
       {error && (
         <FadeIn>
           <div className="flex items-center gap-3 px-4 py-3 rounded-lg bg-red-500/10 border border-red-500/20">
@@ -206,58 +200,67 @@ export default function AuditLogsPage() {
         </FadeIn>
       )}
 
-      {/* Filters */}
-      <FadeIn className="flex flex-col sm:flex-row gap-3">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/60" />
-          <input
-            type="text"
-            placeholder="Search actions, entities..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') handleSearch();
-            }}
-            className="w-full pl-9 pr-4 py-2 rounded-lg border bg-white/5 border-white/10 text-white text-sm placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/50 transition-all"
-          />
-        </div>
-        <div className="relative">
-          <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/60" />
-          <select
-            value={actionFilter}
-            onChange={(e) => setActionFilter(e.target.value)}
-            className="pl-9 pr-8 py-2 rounded-lg border bg-white/5 border-white/10 text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/50 transition-all appearance-none cursor-pointer"
-          >
-            <option value="">All Actions</option>
-            {uniqueActions.map((action) => (
-              <option key={action} value={action}>{formatAction(action)}</option>
-            ))}
-          </select>
-        </div>
-        <div className="relative">
-          <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/60" />
-          <select
-            value={entityFilter}
-            onChange={(e) => setEntityFilter(e.target.value)}
-            className="pl-9 pr-8 py-2 rounded-lg border bg-white/5 border-white/10 text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/50 transition-all appearance-none cursor-pointer"
-          >
-            <option value="">All Entities</option>
-            {uniqueEntities.map((entity) => (
-              <option key={entity} value={entity}>{entity}</option>
-            ))}
-          </select>
-        </div>
-        <Button variant="primary" size="sm" onClick={handleSearch} className="sm:w-auto">
-          <Search className="w-4 h-4 mr-1.5" />
-          Search
-        </Button>
+      {/* Enhanced Filters with GlowCard */}
+      <FadeIn>
+        <GlowCard className="p-4" color="rgba(129, 140, 248, 0.4)">
+          <div className="flex flex-col sm:flex-row gap-4">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/60" />
+              <input
+                type="text"
+                placeholder="Search actions, entities..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') handleSearch();
+                }}
+                className="w-full pl-9 pr-4 py-2 rounded-lg border bg-white/5 border-white/10 text-white text-sm placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/50 transition-all"
+              />
+            </div>
+            <div className="flex gap-4">
+              <div className="relative">
+                <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/60" />
+                <select
+                  value={actionFilter}
+                  onChange={(e) => setActionFilter(e.target.value)}
+                  className="pl-9 pr-8 py-2 rounded-lg border bg-white/5 border-white/10 text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/50 transition-all appearance-none cursor-pointer"
+                >
+                  <option value="">All Actions</option>
+                  {uniqueActions.map((action) => (
+                    <option key={action} value={action}>{formatAction(action)}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="relative">
+                <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/60" />
+                <select
+                  value={entityFilter}
+                  onChange={(e) => setEntityFilter(e.target.value)}
+                  className="pl-9 pr-8 py-2 rounded-lg border bg-white/5 border-white/10 text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/50 transition-all appearance-none cursor-pointer"
+                >
+                  <option value="">All Entities</option>
+                  {uniqueEntities.map((entity) => (
+                    <option key={entity} value={entity}>{entity}</option>
+                  ))}
+                </select>
+              </div>
+              <MagneticButton variant="gradient" size="sm" onClick={handleSearch} className="shrink-0">
+                <Search className="w-4 h-4 mr-1.5" />
+                Search Now
+              </MagneticButton>
+            </div>
+          </div>
+        </GlowCard>
       </FadeIn>
 
-      {/* Audit Log Table */}
       <FadeIn>
         <GlassPanel>
-          <div className="p-6 border-b border-white/10">
+          <div className="p-6 border-b border-white/10 flex items-center justify-between">
             <h3 className="text-lg font-semibold text-white">Activity Log</h3>
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+              <span className="text-[10px] text-emerald-500 font-bold uppercase tracking-wider">Live Monitoring</span>
+            </div>
           </div>
           <div className="p-0 relative z-10">
             {logs.length === 0 ? (
@@ -265,7 +268,7 @@ export default function AuditLogsPage() {
                 <Shield className="w-10 h-10 text-white/60 mx-auto mb-3" />
                 <p className="text-sm text-white/60">No audit log entries found</p>
                 {(searchQuery || actionFilter || entityFilter) && (
-                  <Button
+                  <MagneticButton
                     variant="outline"
                     size="sm"
                     className="mt-3"
@@ -276,7 +279,7 @@ export default function AuditLogsPage() {
                     }}
                   >
                     Clear Filters
-                  </Button>
+                  </MagneticButton>
                 )}
               </div>
             ) : (
@@ -284,53 +287,70 @@ export default function AuditLogsPage() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-white/10 text-left">
-                      <th className="px-6 py-3 text-xs font-medium text-white/60 uppercase tracking-wider whitespace-nowrap">Date</th>
-                      <th className="px-6 py-3 text-xs font-medium text-white/60 uppercase tracking-wider whitespace-nowrap">Actor</th>
-                      <th className="px-6 py-3 text-xs font-medium text-white/60 uppercase tracking-wider whitespace-nowrap">Action</th>
-                      <th className="px-6 py-3 text-xs font-medium text-white/60 uppercase tracking-wider whitespace-nowrap">Entity</th>
-                      <th className="px-6 py-3 text-xs font-medium text-white/60 uppercase tracking-wider whitespace-nowrap">IP Address</th>
+                      <th className="px-6 py-4 text-xs font-semibold text-white/40 uppercase tracking-widest whitespace-nowrap">Date & Time</th>
+                      <th className="px-6 py-4 text-xs font-semibold text-white/40 uppercase tracking-widest whitespace-nowrap">Actioned By</th>
+                      <th className="px-6 py-4 text-xs font-semibold text-white/40 uppercase tracking-widest whitespace-nowrap">Event Type</th>
+                      <th className="px-6 py-4 text-xs font-semibold text-white/40 uppercase tracking-widest whitespace-nowrap">Target Entity</th>
+                      <th className="px-6 py-4 text-xs font-semibold text-white/40 uppercase tracking-widest whitespace-nowrap text-right">Identifier</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {logs.map((log) => (
-                      <tr
+                    {logs.map((log, index) => (
+                      <ScrollReveal
                         key={log.id}
-                        className="border-b border-white/10 last:border-0 hover:bg-white/5 transition-colors"
+                        as="tr"
+                        direction="up"
+                        distance={10}
+                        delay={index * 0.02}
+                        className="border-b border-white/5 last:border-0 hover:bg-white/[0.03] transition-colors group cursor-default"
                       >
-                        <td className="px-6 py-3 text-white/60 whitespace-nowrap">
-                          {formatDate(log.createdAt)}
+                        <td className="px-6 py-4 text-white/60 whitespace-nowrap font-mono text-[11px]">
+                          <div className="flex flex-col">
+                            <span className="text-white font-medium">{formatDate(log.createdAt).split(',')[0]}</span>
+                            <span className="text-white/40">{formatDate(log.createdAt).split(',')[1]}</span>
+                          </div>
                         </td>
-                        <td className="px-6 py-3">
+                        <td className="px-6 py-4">
                           {log.actor ? (
-                            <div>
-                              <p className="font-medium text-white">
-                                {log.actor.firstName} {log.actor.lastName}
-                              </p>
-                              <p className="text-xs text-white/60">{log.actor.email}</p>
+                            <div className="flex items-center gap-3">
+                              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500/20 to-purple-500/20 flex items-center justify-center text-[10px] font-bold text-indigo-300 border border-indigo-500/20">
+                                {log.actor.firstName[0]}{log.actor.lastName[0]}
+                              </div>
+                              <div>
+                                <p className="font-medium text-white group-hover:text-primary transition-colors">
+                                  {log.actor.firstName} {log.actor.lastName}
+                                </p>
+                                <p className="text-[10px] text-white/30 font-mono tracking-tighter">{log.actor.email}</p>
+                              </div>
                             </div>
                           ) : (
-                            <span className="text-white/60">System</span>
+                            <div className="flex items-center gap-2 text-white/40 italic">
+                              <Shield className="w-3 h-3" />
+                              <span className="text-xs">System Process</span>
+                            </div>
                           )}
                         </td>
-                        <td className="px-6 py-3">
-                          <Badge variant={getActionBadgeVariant(log.action)}>
+                        <td className="px-6 py-4">
+                          <Badge
+                            variant={getActionBadgeVariant(log.action)}
+                            className="px-2 py-0.5 text-[10px] font-bold tracking-wider uppercase bg-opacity-10 border border-current shadow-[0_0_10px_rgba(current,0.1)]"
+                          >
                             {formatAction(log.action)}
                           </Badge>
                         </td>
-                        <td className="px-6 py-3 text-white/60">
-                          <div>
-                            <span className="font-medium text-white">{log.entityType}</span>
-                            {log.entityId && (
-                              <p className="text-xs text-white/60 font-mono">
-                                {log.entityId.length > 12 ? `${log.entityId.slice(0, 12)}...` : log.entityId}
-                              </p>
-                            )}
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-bold text-white/80 uppercase tracking-tighter group-hover:text-white transition-colors">
+                              {log.entityType}
+                            </span>
                           </div>
                         </td>
-                        <td className="px-6 py-3 text-white/60 font-mono text-xs whitespace-nowrap">
-                          {log.ipAddress || '-'}
+                        <td className="px-6 py-4 text-right">
+                          <span className="px-2 py-1 rounded bg-white/5 font-mono text-[10px] text-white/40 border border-white/10 group-hover:border-white/20 group-hover:text-white/60 transition-all">
+                            {log.entityId.length > 12 ? `${log.entityId.slice(0, 12)}...` : log.entityId}
+                          </span>
                         </td>
-                      </tr>
+                      </ScrollReveal>
                     ))}
                   </tbody>
                 </table>
@@ -340,23 +360,22 @@ export default function AuditLogsPage() {
         </GlassPanel>
       </FadeIn>
 
-      {/* Pagination */}
       {pagination.pages > 1 && (
         <FadeIn className="flex items-center justify-between">
           <p className="text-sm text-white/60">
-            Page {pagination.page} of {pagination.pages}
+            Page <span className="text-white font-bold">{pagination.page}</span> of <span className="text-white/40">{pagination.pages}</span>
           </p>
-          <div className="flex items-center gap-2">
-            <Button
+          <div className="flex items-center gap-3">
+            <MagneticButton
               variant="outline"
               size="sm"
               disabled={pagination.page <= 1}
               onClick={() => handlePageChange(pagination.page - 1)}
             >
               <ChevronLeft className="w-4 h-4 mr-1" />
-              Previous
-            </Button>
-            <Button
+              Prev
+            </MagneticButton>
+            <MagneticButton
               variant="outline"
               size="sm"
               disabled={pagination.page >= pagination.pages}
@@ -364,7 +383,7 @@ export default function AuditLogsPage() {
             >
               Next
               <ChevronRight className="w-4 h-4 ml-1" />
-            </Button>
+            </MagneticButton>
           </div>
         </FadeIn>
       )}

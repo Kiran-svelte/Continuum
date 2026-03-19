@@ -57,6 +57,10 @@ interface LeaveTypeEntry {
   name: string;
   days: number;
   carryForward: boolean;
+  maxCarryForward: number;
+  encashmentEnabled: boolean;
+  encashmentMaxDays: number;
+  paid: boolean;
   enabled: boolean;
 }
 
@@ -300,9 +304,15 @@ function LeaveTypesStep({
   data: LeaveTypeEntry[];
   onChange: (d: LeaveTypeEntry[]) => void;
 }) {
+  function updateType(idx: number, patch: Partial<LeaveTypeEntry>) {
+    const updated = [...data];
+    updated[idx] = { ...updated[idx], ...patch };
+    onChange(updated);
+  }
+
   return (
     <div className="space-y-4">
-      <p className="text-sm text-white/60">Select and configure the leave types for your organization. Choose at least one type.</p>
+      <p className="text-sm text-white/60">Select and configure the leave types for your organization. Customize quotas, carry-forward, and encashment per type.</p>
       {data.filter((t) => t.enabled).length === 0 && (
         <div className="rounded-xl bg-yellow-500/10 border border-yellow-500/20 px-3 py-2 text-sm text-yellow-300">
           Please select at least one leave type to continue.
@@ -310,22 +320,118 @@ function LeaveTypesStep({
       )}
       <div className="space-y-3">
         {data.map((type, idx) => (
-          <div key={type.code} className="flex items-center justify-between p-3 rounded-xl border border-white/10 bg-white/5">
-            <div>
-              <p className="text-sm font-medium text-white">{type.name}</p>
-              <p className="text-xs text-white/60">{type.days} days/year · {type.carryForward ? 'Carry forward enabled' : 'No carry forward'}</p>
+          <div key={type.code} className={`rounded-xl border transition-all ${type.enabled ? 'border-primary/30 bg-primary/5' : 'border-white/10 bg-white/5'}`}>
+            {/* Header row: name + enable checkbox */}
+            <div className="flex items-center justify-between p-3">
+              <div className="flex items-center gap-3">
+                <input
+                  type="checkbox"
+                  checked={type.enabled}
+                  onChange={(e) => updateType(idx, { enabled: e.target.checked })}
+                  className="h-4 w-4 rounded border-white/10 text-primary focus:ring-primary"
+                  aria-label={`Enable ${type.name}`}
+                />
+                <div>
+                  <p className="text-sm font-medium text-white">{type.name}</p>
+                  <p className="text-xs text-white/40 font-mono">{type.code}</p>
+                </div>
+              </div>
+              <span className={`text-xs px-2 py-0.5 rounded-full ${type.paid ? 'bg-green-500/10 text-green-400 border border-green-500/20' : 'bg-orange-500/10 text-orange-400 border border-orange-500/20'}`}>
+                {type.paid ? 'Paid' : 'Unpaid'}
+              </span>
             </div>
-            <input
-              type="checkbox"
-              checked={type.enabled}
-              onChange={(e) => {
-                const updated = [...data];
-                updated[idx] = { ...type, enabled: e.target.checked };
-                onChange(updated);
-              }}
-              className="h-4 w-4 rounded border-white/10 text-primary focus:ring-primary"
-              aria-label={`Enable ${type.name}`}
-            />
+
+            {/* Expanded config when enabled */}
+            {type.enabled && (
+              <div className="px-3 pb-3 pt-1 border-t border-white/5 space-y-3">
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  {/* Quota (days/year) */}
+                  <div>
+                    <label className="block text-xs text-white/60 mb-1">Days / Year</label>
+                    <input
+                      type="number"
+                      min={0}
+                      max={365}
+                      value={type.days}
+                      onChange={(e) => updateType(idx, { days: parseInt(e.target.value) || 0 })}
+                      className={inputClass + ' text-center'}
+                      aria-label={`${type.name} days per year`}
+                    />
+                  </div>
+
+                  {/* Carry Forward toggle + max */}
+                  <div>
+                    <label className="block text-xs text-white/60 mb-1">Carry Forward</label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={type.carryForward}
+                        onChange={(e) => updateType(idx, { carryForward: e.target.checked, maxCarryForward: e.target.checked ? type.maxCarryForward : 0 })}
+                        className="h-3.5 w-3.5 rounded border-white/10 text-primary focus:ring-primary"
+                        aria-label={`${type.name} carry forward`}
+                      />
+                      <span className="text-xs text-white/60">{type.carryForward ? 'Yes' : 'No'}</span>
+                    </div>
+                  </div>
+
+                  {/* Max Carry Forward */}
+                  {type.carryForward && (
+                    <div>
+                      <label className="block text-xs text-white/60 mb-1">Max Carry</label>
+                      <input
+                        type="number"
+                        min={0}
+                        max={365}
+                        value={type.maxCarryForward}
+                        onChange={(e) => updateType(idx, { maxCarryForward: parseInt(e.target.value) || 0 })}
+                        className={inputClass + ' text-center'}
+                        aria-label={`${type.name} max carry forward days`}
+                      />
+                    </div>
+                  )}
+                </div>
+
+                {/* Encashment row */}
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={type.encashmentEnabled}
+                      onChange={(e) => updateType(idx, { encashmentEnabled: e.target.checked, encashmentMaxDays: e.target.checked ? type.encashmentMaxDays : 0 })}
+                      className="h-3.5 w-3.5 rounded border-white/10 text-primary focus:ring-primary"
+                      aria-label={`${type.name} encashment`}
+                    />
+                    <span className="text-xs text-white/60">Encashment</span>
+                  </div>
+                  {type.encashmentEnabled && (
+                    <div className="flex items-center gap-2">
+                      <label className="text-xs text-white/60">Max days:</label>
+                      <input
+                        type="number"
+                        min={0}
+                        max={365}
+                        value={type.encashmentMaxDays}
+                        onChange={(e) => updateType(idx, { encashmentMaxDays: parseInt(e.target.value) || 0 })}
+                        className={inputClass + ' w-20 text-center'}
+                        aria-label={`${type.name} max encashment days`}
+                      />
+                    </div>
+                  )}
+                </div>
+
+                {/* Paid toggle */}
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={type.paid}
+                    onChange={(e) => updateType(idx, { paid: e.target.checked })}
+                    className="h-3.5 w-3.5 rounded border-white/10 text-primary focus:ring-primary"
+                    aria-label={`${type.name} paid leave`}
+                  />
+                  <span className="text-xs text-white/60">Paid leave</span>
+                </div>
+              </div>
+            )}
           </div>
         ))}
       </div>
@@ -784,6 +890,10 @@ const DEFAULT_LEAVE_TYPES: LeaveTypeEntry[] = LEAVE_TYPE_CATALOG.map((lt) => ({
   name: lt.name,
   days: lt.defaultQuota,
   carryForward: lt.carryForward,
+  maxCarryForward: lt.maxCarryForward,
+  encashmentEnabled: lt.encashmentEnabled,
+  encashmentMaxDays: lt.encashmentMaxDays,
+  paid: lt.paid,
   enabled: false,
 }));
 
@@ -981,9 +1091,10 @@ function OnboardingPageInner() {
           setJoinCode(syncResult.company.joinCode);
         }
 
+        const role = syncResult.employee?.primaryRole ?? 'employee';
+
         // If onboarding already completed, redirect to dashboard
         if (syncResult.company.onboardingCompleted) {
-          const role = syncResult.employee?.primaryRole ?? 'employee';
           if (role === 'admin' || role === 'hr') {
             router.replace('/hr/dashboard');
           } else if (role === 'manager' || role === 'team_lead' || role === 'director') {
@@ -991,6 +1102,13 @@ function OnboardingPageInner() {
           } else {
             router.replace('/employee/dashboard');
           }
+          return;
+        }
+
+        // Only admin/hr can complete company onboarding setup.
+        if (role !== 'admin' && role !== 'hr') {
+          setError('Only admin or HR can complete company setup. Please contact your HR administrator.');
+          router.replace('/employee/dashboard');
           return;
         }
 
@@ -1035,6 +1153,8 @@ function OnboardingPageInner() {
           negativeBalance: companyData.negativeBal,
           probationDays: companyData.probationDays,
           primaryRole: (searchParams.get('intent') || '').toLowerCase() === 'hr' ? 'hr' : 'admin',
+          firstName: searchParams.get('firstName') || undefined,
+          lastName: searchParams.get('lastName') || undefined,
         });
 
         if (!result.success) {
@@ -1068,7 +1188,16 @@ function OnboardingPageInner() {
         const payload = {
           leave_types: leaveTypes
             .filter((lt) => lt.enabled)
-            .map((lt) => ({ code: lt.code, name: lt.name, days: lt.days, carry_forward: lt.carryForward })),
+            .map((lt) => ({
+              code: lt.code,
+              name: lt.name,
+              days: lt.days,
+              carry_forward: lt.carryForward,
+              max_carry_forward: lt.maxCarryForward,
+              encashment_enabled: lt.encashmentEnabled,
+              encashment_max_days: lt.encashmentMaxDays,
+              paid: lt.paid,
+            })),
           holidays: holidays
             .filter((h) => h.enabled)
             .map((h) => ({ name: h.name, date: h.date })),
@@ -1099,6 +1228,7 @@ function OnboardingPageInner() {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),
+          credentials: 'include',
         });
 
         const json = await res.json();
@@ -1116,6 +1246,9 @@ function OnboardingPageInner() {
 
       // Normal next step
       setCurrentStep((s) => s + 1);
+    } catch (err) {
+      console.error('[Onboarding] handleNext error:', err);
+      setError(err instanceof Error ? err.message : 'An unexpected error occurred. Please try again.');
     } finally {
       setSaving(false);
     }

@@ -159,6 +159,8 @@ interface CreateCompanyInput {
   negativeBalance?: boolean;
   probationDays?: number;
   primaryRole?: 'admin' | 'hr';
+  firstName?: string;
+  lastName?: string;
 }
 
 export async function createCompanyAndEmployee(input: CreateCompanyInput) {
@@ -208,9 +210,9 @@ export async function createCompanyAndEmployee(input: CreateCompanyInput) {
       };
     }
 
-    // Get name from email (session JWT doesn't carry display name)
-    const firstName = email.split('@')[0] || 'User';
-    const lastName = '';
+    // Use provided names from sign-up form, fallback to email prefix
+    const firstName = input.firstName?.trim() || email.split('@')[0] || 'User';
+    const lastName = input.lastName?.trim() || '';
 
     // Create Company + Employee in a transaction
     const result = await prisma.$transaction(async (tx) => {
@@ -320,7 +322,7 @@ export async function joinCompanyAsEmployee(companyCode: string) {
     if (existingByEmail) {
       const updated = await prisma.employee.update({
         where: { email },
-        data: { auth_id: session.uid, org_id: company.id },
+        data: { auth_id: session.uid, org_id: company.id, status: 'onboarding' },
       });
       return { success: true, employeeId: updated.id, orgId: updated.org_id };
     }
@@ -335,7 +337,8 @@ export async function joinCompanyAsEmployee(companyCode: string) {
         primary_role: 'employee',
         date_of_joining: new Date(),
         gender: 'other',
-        status: company.onboarding_completed ? 'active' : 'onboarding',
+        // All direct joins require HR approval before activation.
+        status: 'onboarding',
       },
     });
 

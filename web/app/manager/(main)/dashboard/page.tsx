@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
-import { TiltCard, FadeIn, StaggerContainer, AmbientBackground } from '@/components/motion';
+import { TiltCard, FadeIn, StaggerContainer, AmbientBackground, GlowCard, MagneticButton, Counter, ScrollReveal } from '@/components/motion';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -18,6 +18,8 @@ import {
   X,
   Loader,
   ServerCrash,
+  Zap,
+  TrendingUp,
   type LucideIcon,
 } from 'lucide-react';
 import { ensureMe } from '@/lib/client-auth';
@@ -48,30 +50,16 @@ interface TeamMember {
   status: string;
 }
 
-// Animation Variants
-const containerVariants = {
-  hidden: { opacity: 0 },
-  visible: { opacity: 1, transition: { staggerChildren: 0.08 } },
-};
-const itemVariants = {
-  hidden: { opacity: 0, y: 20, scale: 0.98 },
-  visible: { opacity: 1, y: 0, scale: 1, transition: { type: 'spring' as const, stiffness: 100, damping: 12 } },
-};
-
 // Skeleton Loader
 function DashboardSkeleton() {
   return (
     <div className="p-4 md:p-6 lg:p-8 space-y-8">
       <div className="flex justify-between items-center">
-        <div className="w-64 h-10 bg-gray-700/50 rounded-lg animate-pulse" />
-        <div className="w-32 h-12 bg-gray-700/50 rounded-xl animate-pulse" />
+        <div className="w-64 h-10 bg-white/5 rounded-lg animate-pulse" />
+        <div className="w-32 h-12 bg-white/5 rounded-xl animate-pulse" />
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {[...Array(4)].map((_, i) => <div key={i} className="h-36 bg-gray-800/60 rounded-2xl animate-pulse" />)}
-      </div>
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 h-96 bg-gray-800/60 rounded-2xl animate-pulse" />
-        <div className="h-96 bg-gray-800/60 rounded-2xl animate-pulse" />
+        {[...Array(4)].map((_, i) => <div key={i} className="h-36 bg-white/5 rounded-2xl animate-pulse" />)}
       </div>
     </div>
   );
@@ -82,19 +70,21 @@ function DashboardError({ onRetry }: { onRetry: () => void }) {
   return (
     <div className="flex items-center justify-center h-[calc(100vh-200px)] text-center p-4">
       <FadeIn>
-        <div className="glass-panel p-8 max-w-md w-full">
-          <ServerCrash className="w-16 h-16 text-red-400 mx-auto" />
-          <h2 className="mt-4 text-2xl font-bold text-red-300">Dashboard Unavailable</h2>
-          <p className="mt-2 text-sm text-slate-400">Could not load dashboard data. Please check your connection and try again.</p>
-          <Button onClick={onRetry} variant="outline" className="mt-6 bg-red-500/20 hover:bg-red-500/40 border-red-400 text-red-300">
-            <Loader className="mr-2 h-4 w-4 animate-spin" />
-            Retry
-          </Button>
-        </div>
+        <GlowCard color="#EF4444" className="p-8 max-w-md w-full">
+          <ServerCrash className="w-16 h-16 text-red-400 mx-auto mb-4" />
+          <h2 className="text-2xl font-black text-white uppercase tracking-tighter">Command Sync Failed</h2>
+          <p className="mt-2 text-sm text-white/40 font-medium">Unable to connect to the fleet intelligence engine.</p>
+          <MagneticButton onClick={onRetry} variant="danger" className="mt-8 w-full">
+            <RefreshCw className="mr-2 h-4 w-4" />
+            Retry Connection
+          </MagneticButton>
+        </GlowCard>
       </FadeIn>
     </div>
   );
 }
+
+import { RefreshCw } from 'lucide-react';
 
 export default function ManagerDashboardPage() {
   const router = useRouter();
@@ -166,49 +156,70 @@ export default function ManagerDashboardPage() {
   if (error) return <DashboardError onRetry={() => managerId && fetchData(managerId)} />;
 
   const metrics = [
-    { label: 'Team Size', value: teamSize, icon: Users, color: 'from-blue-400 to-blue-600' },
-    { label: 'Pending Approvals', value: pendingCount, icon: Clock, color: 'from-amber-400 to-orange-500' },
-    { label: 'Team Available', value: teamSize - todayOnLeave, icon: BarChart3, color: 'from-emerald-400 to-green-500' },
-    { label: 'On Leave Today', value: todayOnLeave, icon: Home, color: 'from-purple-400 to-violet-500' },
+    { label: 'WORKFORCE SIZE', value: teamSize, icon: Users, color: '#3B82F6' },
+    { label: 'PENDING OPS', value: pendingCount, icon: Clock, color: '#F59E0B' },
+    { label: 'ACTIVE DEPLOYMENT', value: teamSize - todayOnLeave, icon: Zap, color: '#10B981' },
+    { label: 'UNIT DOWN-TIME', value: todayOnLeave, icon: Home, color: '#8B5CF6' },
   ];
 
   return (
     <>
-      <AmbientBackground />
-      <div className="p-4 md:p-6 lg:p-8 text-white relative z-10">
+      <div className="p-6 md:p-8 lg:p-10 text-white relative z-10 space-y-10">
         <StaggerContainer>
           {/* Header */}
           <FadeIn>
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 mb-8">
               <div>
-                <h1 className="text-4xl font-bold tracking-tighter text-shadow-lg">Welcome, {userName}</h1>
-                <p className="text-slate-300 mt-1 text-shadow">Team overview and pending actions.</p>
+                <div className="flex items-center gap-2 mb-1">
+                  <TrendingUp className="w-5 h-5 text-primary" />
+                  <span className="text-[10px] font-black uppercase tracking-[0.3em] text-primary/60">Tactical Leadership Center</span>
+                </div>
+                <h1 className="text-5xl font-black tracking-tightest text-white shadow-lg">Welcome, {userName}</h1>
+                <p className="text-white/40 font-bold tracking-tight mt-1">Real-time brigade oversight and action queue.</p>
               </div>
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-4">
                 <StartTutorialButton tutorial={managerTutorial} />
-                <Link href="/manager/approvals">
-                  <Button className="bg-sky-500/20 hover:bg-sky-500/40 border border-sky-400 text-sky-300 rounded-xl text-sm font-bold shadow-[0_0_20px_rgba(7,159,217,0.4)] hover:-translate-y-0.5 transition-transform duration-300">
-                    <CheckSquare className="w-5 h-5 mr-2" />
-                    Review All Approvals
-                  </Button>
-                </Link>
+                <MagneticButton
+                  variant="gradient"
+                  onClick={() => router.push('/manager/approvals')}
+                  className="shadow-[0_20px_40px_rgba(var(--primary-rgb),0.3)] !px-8"
+                >
+                  <CheckSquare className="w-5 h-5 mr-2" />
+                  Review Approvals
+                </MagneticButton>
               </div>
             </div>
           </FadeIn>
 
           {/* Metrics */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {metrics.map((metric, i) => <MetricCard key={metric.label} {...metric} delay={i * 0.1} />)}
+            {metrics.map((metric, i) => (
+              <FadeIn key={metric.label} delay={i * 0.05}>
+                <TiltCard>
+                  <GlowCard className="p-8 h-full flex flex-col justify-between" color={metric.color}>
+                    <div className="flex justify-between items-start mb-6">
+                      <p className="text-[10px] font-black text-white/40 uppercase tracking-[0.3em]">{metric.label}</p>
+                      <div className="p-3 rounded-2xl bg-white/5 border border-white/10">
+                        <metric.icon className="w-6 h-6 text-white" style={{ color: metric.color }} />
+                      </div>
+                    </div>
+                    <div className="text-5xl font-black text-white tracking-widest tabular-nums">
+                      <Counter value={metric.value} />
+                    </div>
+                  </GlowCard>
+                </TiltCard>
+              </FadeIn>
+            ))}
           </div>
 
           {/* Main Content */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
-            <div className="lg:col-span-2">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mt-10">
+            <ScrollReveal className="lg:col-span-2">
               <PendingApprovalsCard requests={pendingRequests} total={pendingCount} onUpdate={fetchData} managerId={managerId} />
-            </div>
-            <div className="lg:col-span-1">
+            </ScrollReveal>
+            <ScrollReveal direction="left" delay={0.2}>
               <TeamMembersCard members={teamMembers} />
-            </div>
+            </ScrollReveal>
           </div>
         </StaggerContainer>
       </div>
@@ -217,31 +228,6 @@ export default function ManagerDashboardPage() {
 }
 
 // Sub-components
-function MetricCard({ label, value, icon: Icon, color, delay }: { label: string, value: number, icon: LucideIcon, color: string, delay: number }) {
-  return (
-    <FadeIn delay={delay}>
-      <TiltCard className="h-full">
-        <div className="glass-panel p-5 rounded-2xl h-full flex flex-col justify-between border-l-4 border-t-2 border-slate-700/50">
-          <div className="flex justify-between items-start">
-            <p className="text-base font-semibold text-slate-300">{label}</p>
-            <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${color} flex items-center justify-center shadow-lg`}>
-              <Icon className="w-6 h-6 text-white/90" />
-            </div>
-          </div>
-          <motion.p
-            className="text-5xl font-bold text-white text-shadow-md mt-2"
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ type: 'spring', delay: delay + 0.2 }}
-          >
-            {value}
-          </motion.p>
-        </div>
-      </TiltCard>
-    </FadeIn>
-  );
-}
-
 function PendingApprovalsCard({ requests, total, onUpdate, managerId }: { requests: LeaveRequestRow[], total: number, onUpdate: (id: string) => void, managerId: string | null }) {
   const [actionState, setActionState] = useState<{ type: 'success' | 'error', message: string } | null>(null);
   const [actioningId, setActioningId] = useState<string | null>(null);
@@ -272,99 +258,111 @@ function PendingApprovalsCard({ requests, total, onUpdate, managerId }: { reques
   };
 
   return (
-    <FadeIn delay={0.2}>
-      <TiltCard className="h-full">
-        <div className="glass-panel rounded-2xl h-full flex flex-col border-l-4 border-t-2 border-slate-700/50">
-          <div className="p-5 flex justify-between items-center border-b border-slate-700/50">
-            <h3 className="text-xl font-bold text-shadow">Pending Approvals</h3>
-            {total > 0 && <Badge className="bg-amber-500/20 text-amber-300 border-amber-500">{total} pending</Badge>}
+    <GlowCard className="overflow-hidden h-full" color="rgba(245, 158, 11, 0.2)">
+      <div className="p-8 border-b border-white/10 flex justify-between items-center bg-white/[0.02]">
+        <h3 className="text-xl font-black text-white tracking-tighter flex items-center gap-3">
+          <Clock className="w-6 h-6 text-amber-500" />
+          Tactical Approvals
+        </h3>
+        {total > 0 && <Badge className="bg-amber-500/10 text-amber-500 border-amber-500/30 px-3 font-black uppercase text-[10px] tracking-widest">{total} WAITING</Badge>}
+      </div>
+      <AnimatePresence>
+        {actionState && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            className={`m-6 p-4 rounded-2xl text-xs font-bold flex items-center gap-3 ${actionState.type === 'success' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-red-500/10 text-red-400 border border-red-500/20'}`}
+          >
+            {actionState.type === 'success' ? <CheckCircle className="w-5 h-5" /> : <X className="w-5 h-5" />}
+            {actionState.message.toUpperCase()}
+          </motion.div>
+        )}
+      </AnimatePresence>
+      <div className="p-0">
+        {requests.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-20 text-white/20">
+            <CheckCircle className="w-16 h-16 mb-4 opacity-10" />
+            <p className="font-black uppercase tracking-[0.4em]">Brigade Cleared</p>
           </div>
-          <AnimatePresence>
-            {actionState && (
-              <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
-                exit={{ opacity: 0, height: 0 }}
-                className={`p-3 mx-5 mt-4 rounded-lg text-sm flex items-center gap-2 ${actionState.type === 'success' ? 'bg-emerald-500/20 text-emerald-300' : 'bg-red-500/20 text-red-300'}`}
-              >
-                {actionState.type === 'success' ? <CheckCircle className="w-4 h-4" /> : <X className="w-4 h-4" />}
-                {actionState.message}
-              </motion.div>
-            )}
-          </AnimatePresence>
-          <div className="flex-grow overflow-y-auto scrollbar-thin scrollbar-thumb-slate-600 scrollbar-track-transparent">
-            {requests.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-full text-slate-400 p-6">
-                <CheckCircle className="w-12 h-12 text-emerald-400 mb-3" />
-                <p className="font-semibold">All caught up!</p>
-                <p className="text-sm">No pending approvals.</p>
+        ) : (
+          <div className="divide-y divide-white/5">
+            {requests.map(req => (
+              <div key={req.id} className="p-6 transition-all hover:bg-white/[0.03] group relative overflow-hidden">
+                <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                <div className="flex items-center gap-6 relative z-10">
+                  <div className="w-12 h-12 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-lg font-black text-white/40 group-hover:bg-primary/20 group-hover:text-primary transition-all">
+                    {req.employee.first_name[0]}{req.employee.last_name[0]}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-black text-white group-hover:translate-x-1 transition-transform">{req.employee.first_name} {req.employee.last_name}</p>
+                    <p className="text-[10px] font-bold text-white/20 uppercase tracking-[0.2em] mt-1 italic">
+                      {req.leave_type} &middot; {req.total_days} Days Pipeline &middot; {new Date(req.start_date).toLocaleDateString()}
+                    </p>
+                  </div>
+                  <div className="flex gap-2">
+                    <MagneticButton
+                      size="sm"
+                      onClick={() => handleAction('approve', req.id)}
+                      disabled={!!actioningId}
+                      className="bg-emerald-500/10 hover:bg-emerald-500/20 border-emerald-500/30 text-emerald-400"
+                    >
+                      {actioningId === req.id ? <Loader className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+                    </MagneticButton>
+                    <MagneticButton
+                      size="sm"
+                      onClick={() => handleAction('reject', req.id)}
+                      disabled={!!actioningId}
+                      variant="danger"
+                      className="bg-red-500/10 hover:bg-red-500/20 border-red-500/30 text-red-400"
+                    >
+                      {actioningId === req.id ? <Loader className="w-4 h-4 animate-spin" /> : <X className="w-4 h-4" />}
+                    </MagneticButton>
+                  </div>
+                </div>
               </div>
-            ) : (
-              <motion.div variants={containerVariants} initial="hidden" animate="visible">
-                {requests.map(req => (
-                  <motion.div key={req.id} variants={itemVariants} className="px-5 py-4 border-b border-slate-800/80 hover:bg-slate-800/40 transition-colors">
-                    <div className="flex items-center gap-4">
-                      <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-white">{req.employee.first_name} {req.employee.last_name}</p>
-                        <p className="text-sm text-slate-400 mt-0.5">
-                          {req.leave_type} ({req.total_days}d) &middot; {new Date(req.start_date).toLocaleDateString('en-GB')} - {new Date(req.end_date).toLocaleDateString('en-GB')}
-                        </p>
-                      </div>
-                      <div className="flex gap-2">
-                        <Button size="sm" onClick={() => handleAction('approve', req.id)} disabled={!!actioningId} className="bg-emerald-500/20 hover:bg-emerald-500/40 border border-emerald-400 text-emerald-300">
-                          {actioningId === req.id ? <Loader className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
-                        </Button>
-                        <Button size="sm" onClick={() => handleAction('reject', req.id)} disabled={!!actioningId} className="bg-red-500/20 hover:bg-red-500/40 border border-red-400 text-red-300">
-                          {actioningId === req.id ? <Loader className="w-4 h-4 animate-spin" /> : <X className="w-4 h-4" />}
-                        </Button>
-                      </div>
-                    </div>
-                  </motion.div>
-                ))}
-              </motion.div>
-            )}
+            ))}
           </div>
-        </div>
-      </TiltCard>
-    </FadeIn>
+        )}
+      </div>
+    </GlowCard>
   );
 }
 
 function TeamMembersCard({ members }: { members: TeamMember[] }) {
   return (
-    <FadeIn delay={0.3}>
-      <TiltCard className="h-full">
-        <div className="glass-panel rounded-2xl h-full flex flex-col border-l-4 border-t-2 border-slate-700/50">
-          <div className="p-5 flex justify-between items-center border-b border-slate-700/50">
-            <h3 className="text-xl font-bold text-shadow">Team Members</h3>
-            <Link href="/manager/team" className="text-sm text-sky-300 hover:text-sky-400 transition-colors">View all &rarr;</Link>
+    <GlowCard className="h-full" color="rgba(59, 130, 246, 0.4)">
+      <div className="p-8 pb-4 border-b border-white/10 flex justify-between items-center bg-white/[0.02]">
+        <h3 className="text-xl font-black text-white tracking-tighter flex items-center gap-3">
+          <Users className="w-6 h-6 text-blue-500" />
+          Corps Personnel
+        </h3>
+        <Link href="/manager/team" className="text-[10px] font-black text-white/40 hover:text-white uppercase tracking-widest transition-colors">View All &rarr;</Link>
+      </div>
+      <div className="p-0">
+        {members.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-20 text-white/20">
+            <Users className="w-16 h-16 mb-4 opacity-10" />
+            <p className="font-black uppercase tracking-[0.4em]">Zero Personnel</p>
           </div>
-          <div className="flex-grow overflow-y-auto scrollbar-thin scrollbar-thumb-slate-600 scrollbar-track-transparent">
-            {members.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-full text-slate-400 p-6">
-                <Users className="w-12 h-12 text-blue-400 mb-3" />
-                <p className="font-semibold">No team members found.</p>
+        ) : (
+          <div className="divide-y divide-white/5">
+            {members.slice(0, 8).map(member => (
+              <div key={member.id} className="p-6 hover:bg-white/[0.03] transition-all group">
+                <div className="flex justify-between items-center">
+                  <div>
+                    <p className="font-black text-white group-hover:translate-x-1 transition-transform">{member.first_name} {member.last_name}</p>
+                    <p className="text-[10px] font-bold text-white/20 uppercase tracking-widest mt-1">{member.designation || 'OPERATIVE'}</p>
+                  </div>
+                  <Badge className={`${member.status === 'active' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' : 'bg-white/5 text-white/30 border-white/10'} font-black uppercase text-[9px] px-2 py-0.5`}>
+                    {member.status}
+                  </Badge>
+                </div>
               </div>
-            ) : (
-              <motion.div variants={containerVariants} initial="hidden" animate="visible">
-                {members.slice(0, 10).map(member => (
-                  <motion.div key={member.id} variants={itemVariants} className="px-5 py-3 border-b border-slate-800/80 hover:bg-slate-800/40 transition-colors">
-                    <div className="flex justify-between items-center">
-                      <div>
-                        <p className="font-semibold text-white">{member.first_name} {member.last_name}</p>
-                        <p className="text-xs text-slate-400">{member.designation || 'N/A'}</p>
-                      </div>
-                      <Badge className={`${member.status === 'active' ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500' : 'bg-slate-500/20 text-slate-300 border-slate-500'}`}>
-                        {member.status}
-                      </Badge>
-                    </div>
-                  </motion.div>
-                ))}
-              </motion.div>
-            )}
+            ))}
           </div>
-        </div>
-      </TiltCard>
-    </FadeIn>
+        )}
+      </div>
+    </GlowCard>
   );
 }

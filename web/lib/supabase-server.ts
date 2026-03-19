@@ -92,3 +92,17 @@ export async function verifySupabaseToken(accessToken: string) {
   if (error || !user) return null;
   return user;
 }
+
+/**
+ * Create a user via the Supabase Admin API (service role key).
+ * Bypasses client-side "Enable Sign Up" toggle.
+ */
+export async function adminCreateUser(email: string, password: string) {
+  const admin = getSupabaseAdmin();
+  const { data, error } = await admin.auth.admin.createUser({
+    email,
+    password,
+    email_confirm: true,
+  });
+  return { user: data?.user ?? null, error };
+}

@@ -3,9 +3,11 @@ import type { PrismaClient, Role } from '@prisma/client';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
-export type UserRole = 'admin' | 'hr' | 'director' | 'manager' | 'team_lead' | 'employee';
+export type UserRole = 'super_admin' | 'admin' | 'hr' | 'director' | 'manager' | 'team_lead' | 'employee';
 
 export type PermissionCode =
+  // Wildcard (super admin)
+  | '*'
   // Leave (9)
   | 'leave.apply_own'
   | 'leave.approve_team'
@@ -54,9 +56,13 @@ export type PermissionCode =
   // Security (3)
   | 'security.manage_api_keys'
   | 'security.view_logs'
-  | 'security.manage_roles';
+  | 'security.manage_roles'
+  // Platform Admin (super_admin only)
+  | 'platform.manage_companies'
+  | 'platform.manage_users'
+  | 'platform.view_all_data';
 
-export type AccessScope = 'self' | 'team' | 'department' | 'company';
+export type AccessScope = 'self' | 'team' | 'department' | 'company' | 'platform';
 
 export interface PermissionDefinition {
   code: PermissionCode;
@@ -184,7 +190,11 @@ const HR_PERMISSIONS: PermissionCode[] = [
 
 const ADMIN_PERMISSIONS: PermissionCode[] = [...ALL_PERMISSION_CODES];
 
+// Super admin has wildcard permission (all)
+const SUPER_ADMIN_PERMISSIONS: PermissionCode[] = ['*'];
+
 export const DEFAULT_ROLE_PERMISSIONS: Record<UserRole, PermissionCode[]> = {
+  super_admin: SUPER_ADMIN_PERMISSIONS,
   admin: ADMIN_PERMISSIONS,
   hr: HR_PERMISSIONS,
   director: DIRECTOR_PERMISSIONS,
@@ -270,6 +280,8 @@ export function getEffectiveRoles(employee: EmployeeWithRole): UserRole[] {
 /** Returns the access scope for a role */
 export function getAccessScope(role: UserRole): AccessScope {
   switch (role) {
+    case 'super_admin':
+      return 'platform'; // Platform-wide access
     case 'admin':
     case 'hr':
       return 'company';
@@ -351,7 +363,7 @@ export async function getTeamMembers(
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-const VALID_ROLES: UserRole[] = ['admin', 'hr', 'director', 'manager', 'team_lead', 'employee'];
+const VALID_ROLES: UserRole[] = ['super_admin', 'admin', 'hr', 'director', 'manager', 'team_lead', 'employee'];
 
 function isValidRole(role: string): role is UserRole {
   return VALID_ROLES.includes(role as UserRole);

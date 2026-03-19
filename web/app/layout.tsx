@@ -3,6 +3,7 @@ import { ThemeProvider } from '@/components/theme-provider';
 import { TutorialProvider } from '@/components/tutorial/tutorial-provider';
 import { GlobalErrorBoundary } from '@/components/global-error-boundary';
 import { AmbientBackground } from '@/components/motion/ambient-background';
+import { InteractiveCursor } from '@/components/motion/interactive-cursor';
 import './globals.css';
 
 export const metadata: Metadata = {
@@ -92,6 +93,7 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body className="antialiased min-h-screen text-foreground transition-colors duration-300">
         <AmbientBackground />
+        <InteractiveCursor />
         <GlobalErrorBoundary>
           <ThemeProvider defaultTheme="system" storageKey="continuum-theme">
             <TutorialProvider>

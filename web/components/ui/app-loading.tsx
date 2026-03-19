@@ -1,7 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { Card, CardContent } from '@/components/ui/card';
+import { GlassPanel } from '@/components/glass-panel';
 
 interface AppLoadingProps {
   message?: string;
@@ -11,170 +11,113 @@ interface AppLoadingProps {
 }
 
 const loadingSteps = [
-  'Initializing application...',
-  'Loading user preferences...',
-  'Connecting to services...',
-  'Preparing your dashboard...',
-  'Almost ready!'
+  'Initializing enterprise core...',
+  'Configuring secure session...',
+  'Syncing global presence...',
+  'Optimizing performance layers...',
+  'Finalizing immersive UI...'
 ];
 
-export default function AppLoading({ 
-  message = "Loading Continuum...",
+export default function AppLoading({
+  message = "Continuum Engine Powering Up",
   showLogo = true,
   fullScreen = true,
   variant = 'default'
 }: AppLoadingProps) {
   if (variant === 'minimal') {
     return (
-      <div className={`${fullScreen ? 'min-h-screen' : 'min-h-[200px]'} bg-background flex items-center justify-center`}>
-        <div className="flex items-center gap-3">
-          <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-          <span className="text-sm text-muted-foreground">{message}</span>
+      <div className={`${fullScreen ? 'min-h-screen' : 'min-h-[100px]'} flex items-center justify-center`}>
+        <div className="flex flex-col items-center gap-4">
+          <div className="wave-loader">
+            <span></span><span></span><span></span><span></span><span></span>
+          </div>
+          <span className="text-xs font-medium uppercase tracking-widest text-primary animate-pulse">{message}</span>
         </div>
       </div>
     );
   }
 
   return (
-    <div className={`${fullScreen ? 'min-h-screen' : 'min-h-[400px]'} bg-background flex items-center justify-center p-4`}>
+    <div className={`${fullScreen ? 'min-h-screen' : 'min-h-[400px]'} flex items-center justify-center p-6 relative overflow-hidden`}>
       <motion.div
-        initial={{ opacity: 0, scale: 0.9 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 0.4 }}
-        className="w-full max-w-md"
+        initial={{ opacity: 0, scale: 0.95, y: 30 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+        className="w-full max-w-lg z-10"
       >
-        <Card>
-          <CardContent className="pt-8 pb-8">
-            <div className="text-center space-y-6">
-              {/* Logo/Brand */}
-              {showLogo && (
-                <motion.div
-                  initial={{ scale: 0 }}
-                  animate={{ scale: 1 }}
-                  transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
-                  className="space-y-3"
-                >
-                  <div className="w-16 h-16 bg-primary rounded-2xl flex items-center justify-center mx-auto">
-                    <motion.div
-                      animate={{ rotate: 360 }}
-                      transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-                      className="text-primary-foreground text-2xl font-bold"
-                    >
-                      C
-                    </motion.div>
-                  </div>
-                  <h1 className="text-xl font-semibold">Continuum</h1>
-                </motion.div>
-              )}
+        <GlassPanel className="p-10 text-center space-y-8">
+          {/* Brand Presence */}
+          {showLogo && (
+            <motion.div
+              animate={{
+                rotateY: [0, 360],
+                transition: { duration: 4, repeat: Infinity, ease: "linear" }
+              }}
+              style={{ perspective: 1000 }}
+              className="w-24 h-24 mx-auto magic-border-btn flex items-center justify-center bg-background rounded-3xl"
+            >
+              <span className="text-4xl font-extrabold gradient-text">C</span>
+            </motion.div>
+          )}
 
-              {/* Loading Animation */}
-              <div className="space-y-4">
-                <motion.div
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.3 }}
-                  className="text-sm text-muted-foreground"
-                >
-                  {message}
-                </motion.div>
+          <div className="space-y-4">
+            <h2 className="text-2xl font-bold tracking-tight text-glow gradient-text">
+              {message}
+            </h2>
 
-                {/* Progress Bar */}
-                <div className="w-full bg-muted rounded-full h-2">
-                  <motion.div
-                    initial={{ width: 0 }}
-                    animate={{ width: "100%" }}
-                    transition={{ 
-                      duration: 3,
-                      ease: "easeInOut",
-                      repeat: Infinity,
-                      repeatType: "reverse"
-                    }}
-                    className="bg-primary h-2 rounded-full"
-                  />
-                </div>
-
-                {/* Detailed Steps (for detailed variant) */}
-                {variant === 'detailed' && (
-                  <div className="space-y-2 text-left">
-                    {loadingSteps.map((step, index) => (
-                      <motion.div
-                        key={step}
-                        initial={{ opacity: 0, x: -20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: 0.5 + index * 0.3 }}
-                        className="flex items-center gap-3 text-xs text-muted-foreground"
-                      >
-                        <motion.div
-                          initial={{ scale: 0 }}
-                          animate={{ scale: 1 }}
-                          transition={{ delay: 0.7 + index * 0.3 }}
-                          className="w-2 h-2 bg-primary rounded-full flex-shrink-0"
-                        />
-                        {step}
-                      </motion.div>
-                    ))}
-                  </div>
-                )}
-
-                {/* Spinning dots */}
-                <div className="flex items-center justify-center gap-1">
-                  {[0, 1, 2].map((index) => (
-                    <motion.div
-                      key={index}
-                      initial={{ scale: 0.8, opacity: 0.3 }}
-                      animate={{ 
-                        scale: [0.8, 1.2, 0.8],
-                        opacity: [0.3, 1, 0.3]
-                      }}
-                      transition={{
-                        duration: 1.5,
-                        repeat: Infinity,
-                        delay: index * 0.2
-                      }}
-                      className="w-2 h-2 bg-primary rounded-full"
-                    />
-                  ))}
-                </div>
-              </div>
-
-              {/* Additional Info */}
+            <div className="relative h-1 w-full bg-muted rounded-full overflow-hidden">
               <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 1 }}
-                className="text-xs text-muted-foreground space-y-1"
-              >
-                <p>Setting up your enterprise HR experience</p>
-                <p>This may take a few moments...</p>
-              </motion.div>
+                initial={{ x: "-100%" }}
+                animate={{ x: "100%" }}
+                transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+                className="absolute inset-0 bg-gradient-to-r from-transparent via-primary to-transparent"
+              />
             </div>
-          </CardContent>
-        </Card>
+          </div>
+
+          {variant === 'detailed' && (
+            <div className="space-y-3 pt-4 border-t border-border/30">
+              {loadingSteps.map((step, idx) => (
+                <motion.div
+                  key={step}
+                  initial={{ opacity: 0, x: -10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.5 + idx * 0.2 }}
+                  className="flex items-center gap-3 text-sm text-muted-foreground/80 font-medium"
+                >
+                  <div className="w-1.5 h-1.5 rounded-full bg-primary glow-primary" />
+                  {step}
+                </motion.div>
+              ))}
+            </div>
+          )}
+
+          <div className="loading-dots mt-4">
+            <span></span><span></span><span></span>
+          </div>
+
+          <motion.p
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 1.5 }}
+            className="text-xs uppercase tracking-tighter text-muted-foreground pt-4"
+          >
+            Enterprise Architecture • Continuum v1.0
+          </motion.p>
+        </GlassPanel>
       </motion.div>
     </div>
   );
 }
 
-// Export additional loading variants for specific use cases
-export function PageLoading({ message = "Loading page..." }: { message?: string }) {
-  return <AppLoading message={message} showLogo={false} variant="minimal" fullScreen={false} />;
-}
-
 export function DashboardLoading() {
-  return <AppLoading message="Loading your dashboard..." variant="detailed" />;
+  return <AppLoading message="Accessing Secure Workspace" variant="detailed" />;
 }
 
-export function AuthLoading({ message = "Authenticating..." }: { message?: string }) {
+export function AuthLoading({ message = "Validating Credentials" }: { message?: string }) {
   return <AppLoading message={message} variant="default" />;
 }
 
-export function ComponentLoading({ message = "Loading..." }: { message?: string }) {
-  return (
-    <div className="flex items-center justify-center p-8">
-      <div className="flex items-center gap-3">
-        <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-        <span className="text-sm text-muted-foreground">{message}</span>
-      </div>
-    </div>
-  );
+export function ComponentLoading({ message = "Syncing..." }: { message?: string }) {
+  return <AppLoading message={message} variant="minimal" fullScreen={false} />;
 }

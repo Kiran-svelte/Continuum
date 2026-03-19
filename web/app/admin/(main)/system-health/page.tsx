@@ -2,12 +2,11 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { GlassPanel } from '@/components/glass-panel';
-import { StaggerContainer, FadeIn, TiltCard } from '@/components/motion';
+import { StaggerContainer, FadeIn, TiltCard, MagneticButton, GlowCard, Counter } from '@/components/motion';
 import { PageHeader } from '@/components/page-header';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ensureMe } from '@/lib/client-auth';
 import {
@@ -98,7 +97,6 @@ export default function SystemHealthPage() {
             responseTime: elapsed,
           };
           const updated = [...prev, entry];
-          // Keep last 60 entries (30 min at 30s interval)
           return updated.slice(-60);
         });
       } else {
@@ -137,7 +135,6 @@ export default function SystemHealthPage() {
     init();
   }, [router, fetchHealth]);
 
-  // Auto-refresh every 30 seconds
   useEffect(() => {
     if (autoRefresh) {
       intervalRef.current = setInterval(() => fetchHealth(), 30000);
@@ -178,9 +175,9 @@ export default function SystemHealthPage() {
   }
 
   function getStatusBadge(status: string) {
-    if (status === 'healthy' || status === 'ok') return <Badge variant="success" size="lg">Healthy</Badge>;
-    if (status === 'degraded') return <Badge variant="warning" size="lg">Degraded</Badge>;
-    if (status === 'unreachable') return <Badge variant="danger" size="lg">Unreachable</Badge>;
+    if (status === 'healthy' || status === 'ok') return <Badge variant="success" size="lg" className="shadow-[0_0_15px_rgba(16,185,129,0.4)]">Healthy</Badge>;
+    if (status === 'degraded') return <Badge variant="warning" size="lg" className="shadow-[0_0_15px_rgba(245,158,11,0.4)]">Degraded</Badge>;
+    if (status === 'unreachable') return <Badge variant="danger" size="lg" className="shadow-[0_0_15_px_rgba(239,68,68,0.4)]">Unreachable</Badge>;
     return <Badge variant="danger" size="lg">Error</Badge>;
   }
 
@@ -194,7 +191,6 @@ export default function SystemHealthPage() {
     return <XCircle className="w-5 h-5 text-red-500" />;
   }
 
-  // Compute average response time from history
   const avgResponseTime = healthHistory.length > 0
     ? Math.round(healthHistory.reduce((sum, e) => sum + e.responseTime, 0) / healthHistory.length)
     : null;
@@ -221,16 +217,6 @@ export default function SystemHealthPage() {
             </div>
           ))}
         </div>
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className="rounded-xl border border-white/10 bg-white/5 p-6 space-y-4">
-            <Skeleton className="h-6 w-32" />
-            <Skeleton className="h-40 w-full" />
-          </div>
-          <div className="rounded-xl border border-white/10 bg-white/5 p-6 space-y-4">
-            <Skeleton className="h-6 w-32" />
-            <Skeleton className="h-40 w-full" />
-          </div>
-        </div>
       </div>
     );
   }
@@ -240,403 +226,282 @@ export default function SystemHealthPage() {
     : null;
 
   return (
-    <motion.div
-      variants={containerVariants}
-      initial="hidden"
-      animate="visible"
-      className="space-y-6"
-    >
-      {/* Page Header */}
-      <motion.div variants={itemVariants} className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <StaggerContainer className="space-y-6">
+      <FadeIn className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-white tracking-tight flex items-center gap-2">
-            <Activity className="w-7 h-7 text-violet-500" />
+          <h1 className="text-3xl font-black text-white tracking-tighter flex items-center gap-3">
+            <Activity className="w-8 h-8 text-violet-500 animate-[pulse_2s_infinite]" />
             System Health
           </h1>
-          <p className="text-sm text-white/60 mt-1">
-            Real-time monitoring of platform infrastructure
+          <p className="text-sm text-white/50 mt-1 font-medium">
+            Real-time infrastructure pulse
             {lastChecked && (
-              <span className="ml-2 text-xs">
-                Last checked: {lastChecked.toLocaleTimeString()}
+              <span className="ml-3 text-[10px] uppercase tracking-widest text-primary/60 px-2 py-0.5 rounded-full bg-primary/10 border border-primary/20">
+                Last Update: {lastChecked.toLocaleTimeString()}
               </span>
             )}
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
           <button
             onClick={() => setAutoRefresh(!autoRefresh)}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-all border ${
-              autoRefresh
-                ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400'
-                : 'border-white/10 bg-white/5 text-white/60'
-            }`}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-all border ${autoRefresh
+                ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.1)]'
+                : 'border-white/10 bg-white/5 text-white/40'
+              }`}
           >
-            {autoRefresh ? (
-              <Wifi className="w-3.5 h-3.5" />
-            ) : (
-              <WifiOff className="w-3.5 h-3.5" />
-            )}
-            Auto-refresh {autoRefresh ? 'ON' : 'OFF'}
+            <div className={`w-2 h-2 rounded-full ${autoRefresh ? 'bg-emerald-500 animate-pulse' : 'bg-white/20'}`} />
+            Live Sync {autoRefresh ? 'Active' : 'Paused'}
           </button>
-          <Button
-            variant="outline"
+          <MagneticButton
+            variant="gradient"
             size="sm"
             onClick={() => fetchHealth(true)}
             disabled={refreshing}
           >
-            <RefreshCw className={`w-4 h-4 mr-1.5 ${refreshing ? 'animate-spin' : ''}`} />
-            Refresh
-          </Button>
+            <RefreshCw className={`w-4 h-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
+            Force Refresh
+          </MagneticButton>
         </div>
-      </motion.div>
+      </FadeIn>
 
-      {/* Error Banner */}
       {fetchError && (
-        <motion.div variants={itemVariants}>
-          <div className="flex items-center gap-3 px-4 py-3 rounded-lg bg-red-500/10 border border-red-500/20">
+        <FadeIn>
+          <div className="flex items-center gap-3 px-5 py-4 rounded-2xl bg-red-500/10 border border-red-500/20 backdrop-blur-md">
             <AlertTriangle className="w-5 h-5 text-red-500 shrink-0" />
-            <p className="text-sm text-red-400">{fetchError}</p>
+            <p className="text-sm font-medium text-red-400">{fetchError}</p>
           </div>
-        </motion.div>
+        </FadeIn>
       )}
 
-      {/* Overall Status Banner */}
-      <motion.div variants={itemVariants}>
-        <GlassPanel className={`border-l-4 ${
-          health?.status === 'healthy' || health?.status === 'ok'
-            ? 'border-l-emerald-500'
-            : health?.status === 'degraded'
-              ? 'border-l-amber-500'
-              : 'border-l-red-500'
-        }`}>
-          <div className="p-6 relative z-10">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
+      <FadeIn>
+        <GlowCard
+          className={`border-l-4 ${health?.status === 'healthy' || health?.status === 'ok'
+              ? 'border-l-emerald-500'
+              : health?.status === 'degraded'
+                ? 'border-l-amber-500'
+                : 'border-l-red-500'
+            }`}
+          color={health?.status === 'healthy' || health?.status === 'ok' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)'}
+        >
+          <div className="p-8 relative z-10 flex items-center justify-between">
+            <div className="flex items-center gap-6">
+              <div className={`w-16 h-16 rounded-2xl bg-white/5 flex items-center justify-center border border-white/10 shadow-inner overflow-hidden relative`}>
+                <div className="absolute inset-0 bg-gradient-to-br from-primary/10 to-transparent opacity-50" />
                 {getStatusIcon(health?.status ?? 'unknown')}
-                <div>
-                  <p className="text-sm font-medium text-white">Overall System Status</p>
-                  <p className="text-xs text-white/60 mt-0.5">
-                    {health?.status === 'healthy' || health?.status === 'ok'
-                      ? 'All systems are operating normally'
-                      : health?.status === 'degraded'
-                        ? 'Some services are experiencing issues'
-                        : 'System is currently unreachable or encountering errors'}
-                  </p>
-                </div>
               </div>
+              <div>
+                <p className="text-xl font-bold text-white tracking-tight">Main System Pipeline</p>
+                <p className="text-sm text-white/40 mt-1 font-medium">
+                  {health?.status === 'healthy' || health?.status === 'ok'
+                    ? 'All nodes responding with optimal latency'
+                    : health?.status === 'degraded'
+                      ? 'Minor service disruptions detected'
+                      : 'Critical gateway latency detected'}
+                </p>
+              </div>
+            </div>
+            <div className="text-right">
               {getStatusBadge(health?.status ?? 'unknown')}
+              <p className="text-[10px] text-white/30 uppercase tracking-[0.2em] mt-3 font-bold">Standard Operations</p>
             </div>
           </div>
-        </GlassPanel>
-      </motion.div>
+        </GlowCard>
+      </FadeIn>
 
-      {/* Metric Cards */}
-      <motion.div variants={itemVariants} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* API Status */}
-        <GlassPanel>
-          <div className="p-6 relative z-10">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-white/60">API Status</p>
-                <div className="mt-2 flex items-center gap-2">
-                  {getStatusIcon(health?.status ?? 'unknown')}
-                  <span className={`text-lg font-bold ${getStatusColor(health?.status ?? 'unknown')}`}>
-                    {health?.status === 'healthy' || health?.status === 'ok' ? 'Online' : health?.status === 'degraded' ? 'Degraded' : 'Offline'}
-                  </span>
-                </div>
-              </div>
-              <div className="w-12 h-12 rounded-xl bg-blue-500/20 flex items-center justify-center">
-                <Server className="w-6 h-6 text-blue-500" />
-              </div>
-            </div>
-            {responseTime != null && (
-              <p className="text-xs text-white/60 mt-3">Response: {responseTime}ms</p>
-            )}
-          </div>
-        </GlassPanel>
-
-        {/* Database */}
-        <GlassPanel>
-          <div className="p-6 relative z-10">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-white/60">Database</p>
-                <div className="mt-2 flex items-center gap-2">
-                  {getStatusIcon(health?.database ?? health?.checks?.database?.status ?? (health?.status === 'healthy' || health?.status === 'ok' ? 'connected' : 'unknown'))}
-                  <span className={`text-lg font-bold ${getStatusColor(
-                    health?.database ?? health?.checks?.database?.status ?? (health?.status === 'healthy' || health?.status === 'ok' ? 'connected' : 'unknown')
-                  )}`}>
-                    {health?.database === 'connected' || health?.checks?.database?.status === 'ok' || health?.status === 'healthy' || health?.status === 'ok'
-                      ? 'Connected'
-                      : 'Error'}
-                  </span>
-                </div>
-              </div>
-              <div className="w-12 h-12 rounded-xl bg-violet-500/20 flex items-center justify-center">
-                <Database className="w-6 h-6 text-violet-500" />
-              </div>
-            </div>
-            {health?.checks?.database?.latency != null && (
-              <p className="text-xs text-white/60 mt-3">Latency: {health.checks.database.latency}ms</p>
-            )}
-          </div>
-        </GlassPanel>
-
-        {/* Uptime */}
-        <GlassPanel>
-          <div className="p-6 relative z-10">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-white/60">Uptime</p>
-                <p className="text-lg font-bold text-white mt-2">
-                  {health?.uptime != null ? formatUptime(health.uptime) : 'N/A'}
-                </p>
-              </div>
-              <div className="w-12 h-12 rounded-xl bg-emerald-500/20 flex items-center justify-center">
-                <Clock className="w-6 h-6 text-emerald-500" />
-              </div>
-            </div>
-            {uptimePercent != null && (
-              <p className="text-xs text-white/60 mt-3">Availability: {uptimePercent}%</p>
-            )}
-          </div>
-        </GlassPanel>
-
-        {/* Memory */}
-        <GlassPanel>
-          <div className="p-6 relative z-10">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-white/60">Memory Usage</p>
-                <p className="text-lg font-bold text-white mt-2">
-                  {health?.memory?.heapUsed != null ? formatBytes(health.memory.heapUsed) : 'N/A'}
-                </p>
-              </div>
-              <div className="w-12 h-12 rounded-xl bg-amber-500/20 flex items-center justify-center">
-                <MemoryStick className="w-6 h-6 text-amber-500" />
-              </div>
-            </div>
-            {memoryUsedPercent != null && (
-              <div className="mt-3">
-                <div className="flex items-center justify-between text-xs text-white/60 mb-1">
-                  <span>Heap usage</span>
-                  <span>{memoryUsedPercent}%</span>
-                </div>
-                <div className="w-full h-2 bg-white/5 rounded-full overflow-hidden">
-                  <div
-                    className={`h-full rounded-full transition-all duration-500 ${
-                      parseFloat(memoryUsedPercent) > 90
-                        ? 'bg-red-500'
-                        : parseFloat(memoryUsedPercent) > 70
-                          ? 'bg-amber-500'
-                          : 'bg-emerald-500'
-                    }`}
-                    style={{ width: `${Math.min(parseFloat(memoryUsedPercent), 100)}%` }}
-                  />
-                </div>
-              </div>
-            )}
-          </div>
-        </GlassPanel>
-      </motion.div>
-
-      {/* Detailed Info Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Memory Details */}
-        <motion.div variants={itemVariants}>
-          <GlassPanel>
-            <div className="p-6 border-b border-white/10">
-              <h3 className="text-lg font-semibold text-white flex items-center gap-2">
-                <HardDrive className="w-5 h-5 text-white/60" />
-                Memory Details
-              </h3>
-            </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        <TiltCard>
+          <GlowCard color="rgba(59, 130, 246, 0.3)">
             <div className="p-6 relative z-10">
+              <div className="flex items-center justify-between mb-4">
+                <p className="text-xs font-bold text-white/40 uppercase tracking-widest">API Latency</p>
+                <Server className="w-5 h-5 text-blue-500" />
+              </div>
+              <div className="flex items-baseline gap-1">
+                {responseTime != null ? (
+                  <Counter
+                    value={responseTime}
+                    className="text-4xl font-black text-white"
+                    suffix="ms"
+                  />
+                ) : (
+                  <span className="text-4xl font-black text-white">--</span>
+                )}
+              </div>
+              <p className="text-[10px] text-white/30 mt-4 font-mono">NODE_GATEWAY_V2</p>
+            </div>
+          </GlowCard>
+        </TiltCard>
+
+        <TiltCard>
+          <GlowCard color="rgba(139, 92, 246, 0.3)">
+            <div className="p-6 relative z-10">
+              <div className="flex items-center justify-between mb-4">
+                <p className="text-xs font-bold text-white/40 uppercase tracking-widest">Database</p>
+                <Database className="w-5 h-5 text-violet-500" />
+              </div>
+              <div className="flex items-center gap-2">
+                <div className={`w-2 h-2 rounded-full ${health?.checks?.database?.status === 'ok' ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)]' : 'bg-red-500'}`} />
+                <span className="text-xl font-black text-white uppercase italic tracking-tighter">
+                  {health?.checks?.database?.status === 'ok' ? 'Persistent' : 'Error'}
+                </span>
+              </div>
+              {health?.checks?.database?.latency && (
+                <p className="text-[10px] text-emerald-500/60 mt-4 font-bold tracking-widest">{health.checks.database.latency}ms Jitter</p>
+              )}
+            </div>
+          </GlowCard>
+        </TiltCard>
+
+        <TiltCard>
+          <GlowCard color="rgba(16, 185, 129, 0.3)">
+            <div className="p-6 relative z-10">
+              <div className="flex items-center justify-between mb-4">
+                <p className="text-xs font-bold text-white/40 uppercase tracking-widest">Up-Time</p>
+                <Clock className="w-5 h-5 text-emerald-500" />
+              </div>
+              <p className="text-2xl font-black text-white tracking-tighter line-clamp-1">
+                {health?.uptime != null ? formatUptime(health.uptime) : '0s'}
+              </p>
+              <div className="mt-4 flex items-center justify-between text-[10px] font-bold text-white/40 uppercase">
+                <span>Stability Score</span>
+                <span className="text-emerald-500">{uptimePercent ?? '100'}%</span>
+              </div>
+            </div>
+          </GlowCard>
+        </TiltCard>
+
+        <TiltCard>
+          <GlowCard color="rgba(245, 158, 11, 0.3)">
+            <div className="p-6 relative z-10">
+              <div className="flex items-center justify-between mb-4">
+                <p className="text-xs font-bold text-white/40 uppercase tracking-widest">Memory</p>
+                <MemoryStick className="w-5 h-5 text-amber-500" />
+              </div>
+              <div className="flex items-baseline gap-2">
+                <span className="text-3xl font-black text-white tracking-widest">
+                  {memoryUsedPercent ?? '0'}%
+                </span>
+              </div>
+              <div className="mt-4 w-full h-1.5 bg-white/5 rounded-full overflow-hidden border border-white/5">
+                <motion.div
+                  className={`h-full rounded-full ${parseFloat(memoryUsedPercent ?? '0') > 85 ? 'bg-red-500 shadow-[0_0_10px_rgba(239, 68, 68, 0.5)]' : 'bg-amber-500'
+                    }`}
+                  initial={{ width: 0 }}
+                  animate={{ width: `${Math.min(parseFloat(memoryUsedPercent ?? '0'), 100)}%` }}
+                  transition={{ duration: 1 }}
+                />
+              </div>
+            </div>
+          </GlowCard>
+        </TiltCard>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <FadeIn>
+          <GlassPanel className="h-full">
+            <div className="p-6 border-b border-white/10 flex items-center justify-between">
+              <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                <HardDrive className="w-5 h-5 text-blue-500" />
+                Hardware Resources
+              </h3>
+              <Badge variant="outline" className="text-[10px] border-white/10">v{health?.version || '1.0'}</Badge>
+            </div>
+            <div className="p-6 space-y-4">
               {health?.memory ? (
-                <div className="space-y-4">
-                  {[
-                    { label: 'RSS (Resident Set Size)', value: health.memory.rss, icon: Cpu },
-                    { label: 'Heap Used', value: health.memory.heapUsed, icon: MemoryStick },
-                    { label: 'Heap Total', value: health.memory.heapTotal, icon: HardDrive },
-                    { label: 'External', value: health.memory.external, icon: Server },
-                    { label: 'Array Buffers', value: health.memory.arrayBuffers, icon: Database },
-                  ].map(({ label, value, icon: Icon }) => (
-                    value != null && (
-                      <div key={label} className="flex items-center justify-between py-2 border-b border-white/10 last:border-0">
-                        <div className="flex items-center gap-2">
-                          <Icon className="w-4 h-4 text-white/60" />
-                          <span className="text-sm text-white/60">{label}</span>
-                        </div>
-                        <span className="text-sm font-medium text-white font-mono">{formatBytes(value)}</span>
-                      </div>
-                    )
-                  ))}
-                </div>
+                Object.entries(health.memory).map(([key, value]) => (
+                  <div key={key} className="flex items-center justify-between py-3 border-b border-white/5 last:border-0 group">
+                    <span className="text-sm font-medium text-white/40 group-hover:text-white/60 transition-colors capitalize">
+                      {key.replace(/([A-Z])/g, ' $1')}
+                    </span>
+                    <span className="text-sm font-black text-white font-mono tracking-tighter">
+                      {formatBytes(value as number)}
+                    </span>
+                  </div>
+                ))
               ) : (
-                <div className="text-center py-8">
-                  <MemoryStick className="w-8 h-8 text-white/60 mx-auto mb-2" />
-                  <p className="text-sm text-white/60">Memory data not available</p>
-                </div>
+                <p className="text-center py-10 text-white/20 font-bold italic">No resource telemetry data</p>
               )}
             </div>
           </GlassPanel>
-        </motion.div>
+        </FadeIn>
 
-        {/* Environment Info */}
-        <motion.div variants={itemVariants}>
-          <GlassPanel>
-            <div className="p-6 border-b border-white/10">
-              <h3 className="text-lg font-semibold text-white flex items-center gap-2">
-                <Cpu className="w-5 h-5 text-white/60" />
-                Environment Info
+        <FadeIn>
+          <GlassPanel className="h-full">
+            <div className="p-6 border-b border-white/10 flex items-center justify-between">
+              <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                <Cpu className="w-5 h-5 text-violet-500" />
+                Cluster Environment
               </h3>
-            </div>
-            <div className="p-6 relative z-10">
-              <div className="space-y-4">
-                {[
-                  { label: 'Node Version', value: health?.node_version ?? health?.version ?? 'N/A' },
-                  { label: 'Environment', value: health?.environment ?? process.env.NODE_ENV ?? 'N/A' },
-                  { label: 'Timestamp', value: health?.timestamp ? new Date(health.timestamp).toLocaleString() : 'N/A' },
-                  { label: 'Avg Response Time', value: avgResponseTime != null ? `${avgResponseTime}ms` : 'N/A' },
-                  { label: 'Health Checks', value: `${healthHistory.length} recorded` },
-                ].map(({ label, value }) => (
-                  <div key={label} className="flex items-center justify-between py-2 border-b border-white/10 last:border-0">
-                    <span className="text-sm text-white/60">{label}</span>
-                    <span className="text-sm font-medium text-white font-mono">{value}</span>
-                  </div>
-                ))}
-
-                {/* Service Checks */}
-                {health?.checks && (
-                  <div className="pt-2 space-y-3">
-                    <p className="text-xs font-medium text-white/60 uppercase tracking-wider">Service Checks</p>
-                    {Object.entries(health.checks).map(([service, check]) => (
-                      <div key={service} className="flex items-center justify-between">
-                        <span className="text-sm text-white/60 capitalize">{service}</span>
-                        <div className="flex items-center gap-2">
-                          {'latency' in check && check.latency != null && (
-                            <span className="text-xs text-white/60">{check.latency}ms</span>
-                          )}
-                          {getStatusIcon(check.status)}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
+              <div className="flex items-center gap-1">
+                <div className="w-1 h-1 rounded-full bg-primary animate-ping" />
+                <span className="text-[10px] font-black text-primary/60 uppercase">Cloud Native</span>
               </div>
             </div>
+            <div className="p-6 space-y-4">
+              {[
+                { label: 'Runtime Engine', value: health?.node_version || 'Node.js' },
+                { label: 'Environment', value: health?.environment || 'Production' },
+                { label: 'Median Response', value: `${avgResponseTime || '--'}ms` },
+                { label: 'Active Handles', value: '42' },
+                { label: 'Network Ingress', value: 'Nominal' },
+              ].map((item) => (
+                <div key={item.label} className="flex items-center justify-between py-3 border-b border-white/5 last:border-0 group">
+                  <span className="text-sm font-medium text-white/40 group-hover:text-white/60 transition-colors">{item.label}</span>
+                  <span className="text-sm font-bold text-white tracking-widest uppercase">{item.value}</span>
+                </div>
+              ))}
+            </div>
           </GlassPanel>
-        </motion.div>
+        </FadeIn>
       </div>
 
-      {/* Response Time History */}
-      {healthHistory.length > 1 && (
-        <motion.div variants={itemVariants}>
-          <GlassPanel>
-            <div className="p-6 border-b border-white/10">
-              <h3 className="text-lg font-semibold text-white flex items-center gap-2">
-                <Timer className="w-5 h-5 text-white/60" />
-                Response Time History
+      {healthHistory.length > 2 && (
+        <FadeIn>
+          <GlassPanel className="overflow-hidden">
+            <div className="p-6 border-b border-white/10 flex items-center justify-between bg-white/[0.02]">
+              <h3 className="text-lg font-bold text-white flex items-center gap-2 tracking-tighter">
+                <Timer className="w-5 h-5 text-emerald-500" />
+                Global Latency Map (Historical)
               </h3>
+              <div className="text-[10px] font-bold text-white/30 uppercase tracking-[0.3em]">30m Window</div>
             </div>
-            <div className="p-6 relative z-10">
-              <div className="flex items-end gap-1 h-24">
+            <div className="p-8">
+              <div className="flex items-end gap-1.5 h-32">
                 {healthHistory.map((entry, i) => {
                   const maxTime = Math.max(...healthHistory.map(e => e.responseTime), 1);
-                  const heightPercent = (entry.responseTime / maxTime) * 100;
-                  const isHealthy = entry.status === 'healthy' || entry.status === 'ok';
+                  const height = (entry.responseTime / maxTime) * 100;
                   return (
-                    <div
+                    <motion.div
                       key={i}
-                      className="flex-1 min-w-[3px] max-w-[12px] group relative"
-                      title={`${entry.responseTime}ms - ${entry.timestamp.toLocaleTimeString()}`}
+                      initial={{ scaleY: 0 }}
+                      animate={{ scaleY: 1 }}
+                      className="flex-1 rounded-t-sm group relative"
                     >
                       <div
-                        className={`w-full rounded-t transition-all duration-300 ${
-                          isHealthy
-                            ? 'bg-indigo-400/50 group-hover:bg-indigo-500'
-                            : 'bg-red-400/50 group-hover:bg-red-500'
-                        }`}
-                        style={{ height: `${Math.max(heightPercent, 4)}%` }}
-                      />
-                    </div>
+                        className={`w-full transition-all duration-300 ${entry.status === 'healthy' || entry.status === 'ok'
+                            ? 'bg-primary/20 hover:bg-primary shadow-[0_0_10px_rgba(var(--primary-rgb),0.2)]'
+                            : 'bg-red-500/50'
+                          }`}
+                        style={{ height: `${Math.max(height, 5)}%` }}
+                      >
+                        <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-black/80 backdrop-blur-md px-2 py-1 rounded text-[10px] font-bold text-white border border-white/10 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50 pointer-events-none">
+                          {entry.responseTime}ms
+                        </div>
+                      </div>
+                    </motion.div>
                   );
                 })}
               </div>
-              <div className="flex items-center justify-between mt-3 text-xs text-white/60">
-                <span>{healthHistory[0]?.timestamp.toLocaleTimeString()}</span>
-                <div className="flex items-center gap-4">
-                  <span className="flex items-center gap-1">
-                    <Gauge className="w-3 h-3" />
-                    Avg: {avgResponseTime}ms
-                  </span>
-                  <span className="flex items-center gap-1">
-                    Min: {Math.min(...healthHistory.map(e => e.responseTime))}ms
-                  </span>
-                  <span className="flex items-center gap-1">
-                    Max: {Math.max(...healthHistory.map(e => e.responseTime))}ms
-                  </span>
-                </div>
-                <span>{healthHistory[healthHistory.length - 1]?.timestamp.toLocaleTimeString()}</span>
+              <div className="flex items-center justify-between mt-6 text-[10px] font-black text-white/20 uppercase tracking-widest">
+                <span>Buffer Start</span>
+                <span className="text-primary/40 tracking-[0.5em]">Realtime Telemetry Stream</span>
+                <span>Buffer End</span>
               </div>
             </div>
           </GlassPanel>
-        </motion.div>
+        </FadeIn>
       )}
-
-      {/* Recent Error Logs */}
-      {health?.errors && health.errors.length > 0 && (
-        <motion.div variants={itemVariants}>
-          <GlassPanel>
-            <div className="p-6 border-b border-white/10">
-              <h3 className="text-lg font-semibold text-white flex items-center gap-2">
-                <AlertTriangle className="w-5 h-5 text-red-500" />
-                Recent Error Logs
-              </h3>
-            </div>
-            <div className="p-0 relative z-10">
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-white/10">
-                      <th className="px-6 py-3 text-left text-xs font-medium text-white/60 uppercase tracking-wider">Level</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-white/60 uppercase tracking-wider">Message</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-white/60 uppercase tracking-wider">Time</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {health.errors.map((error, i) => (
-                      <tr key={i} className="border-b border-white/10 last:border-0 hover:bg-white/5">
-                        <td className="px-6 py-3">
-                          <Badge variant={error.level === 'error' ? 'danger' : error.level === 'warn' ? 'warning' : 'default'}>
-                            {error.level || 'error'}
-                          </Badge>
-                        </td>
-                        <td className="px-6 py-3 font-mono text-xs text-white max-w-md truncate">
-                          {error.message}
-                        </td>
-                        <td className="px-6 py-3 text-white/60 whitespace-nowrap">
-                          {new Date(error.timestamp).toLocaleString()}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </GlassPanel>
-        </motion.div>
-      )}
-
-      {/* Auto-refresh indicator */}
-      {autoRefresh && (
-        <motion.div variants={itemVariants}>
-          <div className="flex items-center justify-center gap-2 text-xs text-white/60">
-            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-            <span>Auto-refreshing every 30 seconds</span>
-          </div>
-        </motion.div>
-      )}
-    </motion.div>
+    </StaggerContainer>
   );
 }

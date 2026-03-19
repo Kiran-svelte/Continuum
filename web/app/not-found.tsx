@@ -10,184 +10,129 @@ interface NavigationSuggestion {
   label: string;
   href: string;
   description: string;
+  icon: string;
 }
 
 export default function NotFound() {
   const [suggestions, setSuggestions] = useState<NavigationSuggestion[]>([]);
-  const [referrer, setReferrer] = useState<string>('');
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    // Track referrer for analytics
-    setReferrer(document.referrer || 'Direct access');
+    setMounted(true);
+    const currentPath = typeof window !== 'undefined' ? window.location.pathname : '';
 
-    // Generate contextual navigation suggestions based on current path
-    const currentPath = window.location.pathname;
     const newSuggestions: NavigationSuggestion[] = [
       {
-        label: 'Home',
+        label: 'Central Hub',
         href: '/',
-        description: 'Return to the homepage'
+        description: 'Primary operations center',
+        icon: '🏚️'
       }
     ];
 
-    // Add role-specific suggestions based on attempted path
     if (currentPath.includes('/employee')) {
       newSuggestions.push({
-        label: 'Employee Dashboard',
+        label: 'Employee Portal',
         href: '/employee/dashboard',
-        description: 'Access your employee portal'
-      });
-    }
-    
-    if (currentPath.includes('/hr')) {
-      newSuggestions.push({
-        label: 'HR Dashboard',
-        href: '/hr/dashboard',
-        description: 'Access HR management tools'
-      });
-    }
-    
-    if (currentPath.includes('/manager')) {
-      newSuggestions.push({
-        label: 'Manager Dashboard',
-        href: '/manager/dashboard',
-        description: 'Access team management tools'
+        description: 'Your personal workspace',
+        icon: '👤'
       });
     }
 
-    // Always add help and support
+    if (currentPath.includes('/hr')) {
+      newSuggestions.push({
+        label: 'HR Command',
+        href: '/hr/dashboard',
+        description: 'Organization management',
+        icon: '📊'
+      });
+    }
+
     newSuggestions.push(
       {
-        label: 'Help Center',
-        href: '/help',
-        description: 'Browse documentation and guides'
-      },
-      {
-        label: 'Contact Support',
+        label: 'Support Link',
         href: '/support',
-        description: 'Get assistance from our team'
+        description: 'Technical assistance',
+        icon: '📡'
       }
     );
 
     setSuggestions(newSuggestions);
-
-    // Log 404 for analytics (in production, send to monitoring service)
-    console.warn('404 Page Not Found:', {
-      path: currentPath,
-      referrer: document.referrer,
-      userAgent: navigator.userAgent,
-      timestamp: new Date().toISOString()
-    });
   }, []);
 
+  if (!mounted) return null;
+
   return (
-    <div className="min-h-screen bg-black flex items-center justify-center p-4">
+    <div className="min-h-screen flex items-center justify-center p-6 relative">
       <motion.div
-        initial={{ opacity: 0, scale: 0.9, y: 20 }}
+        initial={{ opacity: 0, scale: 0.95, y: 30 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
-        transition={{ duration: 0.4 }}
-        className="w-full max-w-lg"
+        transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+        className="w-full max-w-xl z-10"
       >
         <GlassPanel>
-          <div className="p-6 border-b border-white/10 text-center">
+          <div className="p-10 border-b border-border/30 text-center space-y-4">
             <motion.div
-              initial={{ scale: 0 }}
-              animate={{ scale: 1 }}
-              transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
-              className="text-6xl mb-4"
+              animate={{ rotateY: 360 }}
+              transition={{ duration: 10, repeat: Infinity, ease: "linear" }}
+              className="text-7xl mb-4 inline-block"
             >
-              🗺️
+              🛸
             </motion.div>
-            <h3 className="text-xl font-semibold text-white">Page Not Found</h3>
-            <p className="text-white/60 mt-2">
-              The page you&rsquo;re looking for doesn&rsquo;t exist or has been moved.
+            <h1 className="text-3xl font-extrabold tracking-tight text-glow gradient-text">
+              Sector Missing
+            </h1>
+            <p className="text-muted-foreground/80 max-w-xs mx-auto">
+              Our sensors cannot find the requested coordinates in the enterprise grid.
             </p>
           </div>
-          
-          <div className="p-6 space-y-6">
-            {/* Current path info for development */}
-            {process.env.NODE_ENV === 'development' && (
-              <div className="bg-white/5 rounded-lg p-3">
-                <h4 className="text-sm font-medium mb-2">Debug Info (Development)</h4>
-                <div className="text-xs text-white/60 space-y-1">
-                  <div><strong>Path:</strong> {typeof window !== 'undefined' ? window.location.pathname : 'Unknown'}</div>
-                  <div><strong>Search:</strong> {typeof window !== 'undefined' ? window.location.search || 'None' : 'Unknown'}</div>
-                  <div><strong>Referrer:</strong> {referrer || 'Direct'}</div>
-                </div>
-              </div>
-            )}
 
-            {/* Navigation suggestions */}
-            <div className="space-y-3">
-              <h3 className="text-sm font-medium">Where would you like to go?</h3>
-              <div className="grid gap-2">
-                {suggestions.map((suggestion, index) => (
+          <div className="p-10 space-y-10">
+            <div className="space-y-4">
+              <h3 className="text-xs font-bold uppercase tracking-widest text-primary/80">Available Uplinks</h3>
+              <div className="grid gap-3">
+                {suggestions.map((item, idx) => (
                   <motion.div
-                    key={suggestion.href}
+                    key={item.href}
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.1 * index }}
+                    transition={{ delay: 0.1 * idx }}
+                    className="glass-card hover:translate-x-2 transition-all p-4 border border-border/20 group cursor-pointer"
                   >
-                    <Link href={suggestion.href}>
-                      <div className="border rounded-lg p-3 hover:bg-white/5 transition-colors group cursor-pointer">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <div className="font-medium text-sm group-hover:text-primary transition-colors">
-                              {suggestion.label}
-                            </div>
-                            <div className="text-xs text-white/60">
-                              {suggestion.description}
-                            </div>
-                          </div>
-                          <svg 
-                            className="w-4 h-4 text-white/60 group-hover:text-primary transition-colors" 
-                            fill="none" 
-                            stroke="currentColor" 
-                            viewBox="0 0 24 24"
-                          >
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                          </svg>
+                    <Link href={item.href} className="flex items-center justify-between">
+                      <div className="flex items-center gap-4">
+                        <span className="text-2xl">{item.icon}</span>
+                        <div>
+                          <p className="font-bold text-sm text-foreground group-hover:text-primary transition-colors">
+                            {item.label}
+                          </p>
+                          <p className="text-[10px] uppercase tracking-tighter text-muted-foreground">
+                            {item.description}
+                          </p>
                         </div>
                       </div>
+                      <svg className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-transform group-hover:translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                      </svg>
                     </Link>
                   </motion.div>
                 ))}
               </div>
             </div>
 
-            {/* Quick actions */}
-            <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t">
-              <Button 
+            <div className="flex flex-col sm:flex-row gap-4 pt-6 border-t border-border/20">
+              <Button
                 onClick={() => window.history.back()}
-                variant="outline" 
-                className="flex items-center gap-2 flex-1"
+                variant="outline"
+                className="flex-1 h-12 text-sm font-bold uppercase tracking-widest rounded-2xl border-border/40"
               >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16l-4-4m0 0l4-4m-4 4h18" />
-                </svg>
-                Go Back
+                Retrace Steps
               </Button>
-              <Link href="/">
-                <Button className="flex items-center gap-2 flex-1">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-                  </svg>
-                  Home
+              <Link href="/" className="flex-1">
+                <Button className="magic-border-btn w-full h-12 text-sm font-bold uppercase tracking-widest">
+                  Base Command
                 </Button>
               </Link>
-            </div>
-
-            {/* Contact support */}
-            <div className="text-center pt-2">
-              <p className="text-xs text-white/60">
-                Still can&rsquo;t find what you&rsquo;re looking for?{' '}
-                <a 
-                  href="mailto:support@continuum-hr.com" 
-                  className="text-primary hover:underline"
-                >
-                  Contact our support team
-                </a>
-              </p>
             </div>
           </div>
         </GlassPanel>

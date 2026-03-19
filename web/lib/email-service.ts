@@ -479,3 +479,26 @@ export async function sendLeaveAutoApprovedEmail(
 
   return sendEmail(to, `Leave Auto-Approved: ${escapeHtml(leaveType)} (${startDate} - ${endDate})`, html, { category: 'leave' });
 }
+
+export async function sendSignupConfirmationEmail(
+  to: string,
+  name: string
+): Promise<EmailResult> {
+  const dashboardUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://continuum.hr'}/sign-in`;
+
+  const html = wrapTemplate(`
+    <h2 style="color: #2563eb;">Account Created Successfully!</h2>
+    <p>Hi <strong>${escapeHtml(name)}</strong>,</p>
+    <p>Your Continuum account has been created with the email <strong>${escapeHtml(to)}</strong>.</p>
+    <p>You can now sign in and set up your organization or join your team:</p>
+    <div style="text-align: center; margin: 24px 0;">
+      <a href="${dashboardUrl}"
+         style="background: #2563eb; color: white; padding: 12px 32px; border-radius: 6px; text-decoration: none; font-weight: 600; display: inline-block;">
+        Sign In →
+      </a>
+    </div>
+    <p style="color: #666; font-size: 14px;">If you did not create this account, please contact support immediately.</p>
+  `);
+
+  return sendEmail(to, 'Your Continuum account has been created', html, { category: 'welcome' });
+}

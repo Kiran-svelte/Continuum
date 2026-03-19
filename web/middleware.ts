@@ -1,31 +1,31 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { jwtVerify } from 'jose';
 
-// ─── Session Verification (Edge-compatible) ─────────────────────────────────
+// ─── JWT Token Verification (Edge-compatible) ────────────────────────────────
 
-const SESSION_COOKIE_NAME = 'continuum-session';
+const ACCESS_TOKEN_COOKIE = 'continuum-access';
 
 /**
- * Verify the session JWT in middleware (Edge runtime).
+ * Verify the access JWT in middleware (Edge runtime).
  * Uses jose which is Edge-compatible. Returns decoded payload or null.
  */
-async function verifySession(token: string): Promise<{
-  uid: string;
+async function verifyAccessToken(token: string): Promise<{
+  sub: string;
   email: string;
   role?: string;
   roles?: string[];
   org_id?: string;
 } | null> {
   try {
-    const raw = process.env.SESSION_SECRET || process.env.CSRF_SECRET;
-    if (!raw) return null;
-    const secret = new TextEncoder().encode(raw);
-    const { payload } = await jwtVerify(token, secret, {
+    const secret = process.env.JWT_SECRET || process.env.SESSION_SECRET || process.env.CSRF_SECRET;
+    if (!secret) return null;
+    const secretKey = new TextEncoder().encode(secret);
+    const { payload } = await jwtVerify(token, secretKey, {
       issuer: 'continuum',
       audience: 'continuum-web',
     });
-    if (!payload.uid || !payload.email) return null;
-    return payload as { uid: string; email: string; role?: string; roles?: string[]; org_id?: string };
+    if (!payload.sub || !payload.email) return null;
+    return payload as { sub: string; email: string; role?: string; roles?: string[]; org_id?: string };
   } catch {
     return null;
   }
@@ -51,6 +51,7 @@ const PUBLIC_ROUTES = [
   '/hr/sign-up',
   '/employee/sign-in',
   '/employee/sign-up',
+  '/admin/login',      // Super admin login page
   '/status',
   '/terms',
   '/privacy',
@@ -66,7 +67,10 @@ const PUBLIC_API_PATTERNS = [
   '/api/health',
   '/api/enterprise/metrics',
   '/api/auth/session',
+  '/api/auth/signin',
+  '/api/auth/refresh',
   '/api/auth/register',
+  '/api/auth/signup',
   '/api/auth/join',
   '/api/auth/callback',
   '/api/company/validate-code',
@@ -91,10 +95,11 @@ const SENSITIVE_ROUTES = [
 
 // Role-based portal access
 const PORTAL_ROLE_MAP: Record<string, string[]> = {
-  '/admin': ['admin'],
-  '/hr': ['admin', 'hr'],
-  '/manager': ['admin', 'hr', 'director', 'manager', 'team_lead'],
-  '/employee': ['admin', 'hr', 'director', 'manager', 'team_lead', 'employee'],
+  '/super-admin': ['super_admin'],  // Super admin portal
+  '/admin': ['admin', 'super_admin'],
+  '/hr': ['admin', 'hr', 'super_admin'],
+  '/manager': ['admin', 'hr', 'director', 'manager', 'team_lead', 'super_admin'],
+  '/employee': ['admin', 'hr', 'director', 'manager', 'team_lead', 'employee', 'super_admin'],
 };
 
 // Rate limit config per route pattern (requests per minute)
@@ -350,17 +355,17 @@ export async function middleware(request: NextRequest) {
     return response;
   }
 
-  // 9. Portal role enforcement — verify session JWT and extract roles
+  // 9. Portal role enforcement — verify access JWT and extract roles
   //    Only applies to portal page routes, NOT API routes (those use requireRole server-side)
   if (!isApiRoute(pathname)) {
     const portalPrefix = Object.keys(PORTAL_ROLE_MAP).find((prefix) => pathname.startsWith(prefix + '/') || pathname === prefix);
 
     if (portalPrefix) {
-      // Cryptographically verify the session JWT (not just check cookie existence)
-      const sessionToken = request.cookies.get(SESSION_COOKIE_NAME)?.value;
-      const session = sessionToken ? await verifySession(sessionToken) : null;
+      // Cryptographically verify the access JWT (not just check cookie existence)
+      const accessToken = request.cookies.get(ACCESS_TOKEN_COOKIE)?.value;
+      const tokenPayload = accessToken ? await verifyAccessToken(accessToken) : null;
 
-      if (!session) {
+      if (!tokenPayload) {
         // No valid session → redirect to sign-in
         const signInUrl = request.nextUrl.clone();
         signInUrl.pathname = '/sign-in';
@@ -370,15 +375,15 @@ export async function middleware(request: NextRequest) {
       }
 
       // Extract roles from verified JWT (not from a forgeable plain cookie)
-      const userRoles = session.roles
-        ? session.roles.map((r) => r.toLowerCase())
-        : session.role
-          ? [session.role.toLowerCase()]
+      const userRoles = tokenPayload.roles
+        ? tokenPayload.roles.map((r) => r.toLowerCase())
+        : tokenPayload.role
+          ? [tokenPayload.role.toLowerCase()]
           : [];
 
-      // If no roles in JWT yet (new user before /api/auth/me enrichment),
-      // fall back to the role cookies set by /api/auth/session as a hint.
-      // This is safe because the session JWT itself was verified cryptographically.
+      // If no roles in JWT yet (new user before enrichment),
+      // fall back to the role cookies as a hint.
+      // This is safe because the access JWT itself was verified cryptographically.
       if (userRoles.length === 0) {
         const rolesCookie = request.cookies.get('continuum-roles')?.value;
         if (rolesCookie) {
@@ -412,9 +417,10 @@ export async function middleware(request: NextRequest) {
         );
 
         // Determine the correct portal for this user
-        const primaryRole = session.role?.toLowerCase() || userRoles[0];
+        const primaryRole = tokenPayload.role?.toLowerCase() || userRoles[0];
         let correctPortal = '/employee/dashboard';
-        if (primaryRole === 'admin') correctPortal = '/admin/dashboard';
+        if (primaryRole === 'super_admin') correctPortal = '/super-admin/dashboard';
+        else if (primaryRole === 'admin') correctPortal = '/admin/dashboard';
         else if (primaryRole === 'hr') correctPortal = '/hr/dashboard';
         else if (['manager', 'director', 'team_lead'].includes(primaryRole)) correctPortal = '/manager/dashboard';
 

@@ -9,6 +9,7 @@ import type { Prisma } from '@prisma/client';
 import { generateConstraintRules } from '@/lib/constraint-rules-config';
 import type { LeaveTypeConfig } from '@/lib/leave-types-config';
 import { DEFAULT_NOTIFICATION_TEMPLATES } from '@/lib/notification-templates-config';
+import { sendWelcomeEmail } from '@/lib/email-service';
 
 export const dynamic = 'force-dynamic';
 
@@ -142,20 +143,20 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      // 2. Upsert leave types — skip types that already exist (from registration seeding)
+      // 2. Upsert leave types from onboarding payload.
+      //    This keeps quotas/rules fully company-specific and editable.
       if (data.leave_types && data.leave_types.length > 0) {
-        const existing = await tx.leaveType.findMany({
-          where: { company_id: companyId },
-          select: { code: true },
-        });
-        const existingCodes = new Set(existing.map((lt) => lt.code));
+        const selectedCodes = new Set(
+          data.leave_types.map((lt) => sanitizeInput(lt.code).toUpperCase())
+        );
 
-        const newTypes = data.leave_types.filter((lt) => !existingCodes.has(lt.code));
-        if (newTypes.length > 0) {
-          await tx.leaveType.createMany({
-            data: newTypes.map((lt) => ({
+        for (const lt of data.leave_types) {
+          const code = sanitizeInput(lt.code).toUpperCase();
+          await tx.leaveType.upsert({
+            where: { company_id_code: { company_id: companyId, code } },
+            create: {
               company_id: companyId,
-              code: sanitizeInput(lt.code).toUpperCase(),
+              code,
               name: sanitizeInput(lt.name),
               category: 'common' as const,
               default_quota: lt.days,
@@ -164,9 +165,35 @@ export async function POST(request: NextRequest) {
               encashment_enabled: lt.encashment_enabled ?? false,
               encashment_max_days: lt.encashment_max_days ?? 0,
               paid: lt.paid ?? true,
-            })),
+              is_active: true,
+              deleted_at: null,
+            },
+            update: {
+              name: sanitizeInput(lt.name),
+              default_quota: lt.days,
+              carry_forward: lt.carry_forward,
+              max_carry_forward: lt.max_carry_forward ?? 0,
+              encashment_enabled: lt.encashment_enabled ?? false,
+              encashment_max_days: lt.encashment_max_days ?? 0,
+              paid: lt.paid ?? true,
+              is_active: true,
+              deleted_at: null,
+            },
           });
         }
+
+        // Soft-disable leave types removed in onboarding selection.
+        await tx.leaveType.updateMany({
+          where: {
+            company_id: companyId,
+            code: { notIn: Array.from(selectedCodes) },
+            deleted_at: null,
+          },
+          data: {
+            is_active: false,
+            deleted_at: new Date(),
+          },
+        });
       }
 
       // 3. Seed company-specific public holidays
@@ -353,10 +380,10 @@ export async function POST(request: NextRequest) {
       });
     });
 
-    // Fetch join_code to return to the client
+    // Fetch join_code and company name to return to the client
     const company = await prisma.company.findUnique({
       where: { id: companyId },
-      select: { join_code: true },
+      select: { join_code: true, name: true },
     });
 
     // Audit log
@@ -367,6 +394,13 @@ export async function POST(request: NextRequest) {
       entityType: 'Company',
       entityId: companyId,
       newState: { onboarding_completed: true },
+    });
+
+    // Send welcome email (fire-and-forget)
+    const empName = `${employee.first_name} ${employee.last_name}`.trim() || employee.email;
+    const companyName = company?.name || 'your company';
+    sendWelcomeEmail(employee.email, empName, companyName).catch((err) => {
+      console.error('[ONBOARDING COMPLETE] Failed to send welcome email:', err);
     });
 
     return NextResponse.json({ success: true, join_code: company?.join_code ?? null });

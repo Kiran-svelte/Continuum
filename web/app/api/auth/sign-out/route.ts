@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
 import { createAuditLog, AUDIT_ACTIONS } from '@/lib/audit';
 import { getAuthEmployee, AuthError } from '@/lib/auth-guard';
+import { signOut, clearAuthCookies } from '@/lib/auth-service';
+import { getRefreshTokenFromCookies } from '@/lib/jwt-service';
 
 export const dynamic = 'force-dynamic';
 
@@ -10,14 +11,13 @@ export const dynamic = 'force-dynamic';
  *
  * Server-side sign-out that:
  * 1. Identifies the user BEFORE clearing cookies (for audit log)
- * 2. Logs the sign-out event to audit trail
- * 3. Clears all auth cookies
- * 4. Returns success
+ * 2. Revokes the refresh token
+ * 3. Logs the sign-out event to audit trail
+ * 4. Clears all auth cookies
+ * 5. Returns success
  */
 export async function POST(request: NextRequest) {
   try {
-    const cookieStore = await cookies();
-
     // Try to identify the user BEFORE clearing cookies (for audit log)
     let employeeId: string | null = null;
     let companyId: string | null = null;
@@ -37,28 +37,25 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Revoke refresh token if present
+    try {
+      const refreshToken = await getRefreshTokenFromCookies();
+      if (refreshToken) {
+        await signOut(refreshToken);
+      }
+    } catch {
+      // Ignore revocation errors - sign-out should still succeed
+    }
+
     // Get IP and user agent for audit
     const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
       request.headers.get('x-real-ip') ||
       'unknown';
     const userAgent = request.headers.get('user-agent') || undefined;
 
-    // Clear all auth-related cookies
-    const cookiesToClear = [
-      'continuum-session',
-      'continuum-role',
-      'continuum-roles',
-    ];
-
+    // Build response and clear cookies
     const response = NextResponse.json({ success: true });
-
-    cookiesToClear.forEach((name) => {
-      response.cookies.set(name, '', {
-        path: '/',
-        maxAge: 0,
-        httpOnly: name !== 'continuum-role' && name !== 'continuum-roles', // Keep role cookies readable for now
-      });
-    });
+    clearAuthCookies(response);
 
     // If we identified the employee, log the sign-out (best effort)
     if (employeeId && companyId) {
@@ -83,6 +80,7 @@ export async function POST(request: NextRequest) {
   } catch {
     // Sign-out should never fail - just clear cookies and return success
     const response = NextResponse.json({ success: true });
+    clearAuthCookies(response);
     return response;
   }
 }
