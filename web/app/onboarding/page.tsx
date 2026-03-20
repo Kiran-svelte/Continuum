@@ -1029,19 +1029,7 @@ function OnboardingPageInner() {
         return;
       }
 
-      const intent = (searchParams.get('intent') || 'employee').toLowerCase();
-      const companyCode = searchParams.get('companyCode') || '';
-      const firstName = searchParams.get('firstName') || '';
-      const lastName = searchParams.get('lastName') || '';
-
-      // Pre-fill company name from URL params (passed from sign-up)
-      const fullName = `${firstName} ${lastName}`.trim();
-      if (fullName) {
-        setCompanyData((prev) => ({
-          ...prev,
-          companyName: prev.companyName || `${fullName}'s Company`,
-        }));
-      }
+      const intent = (searchParams.get('intent') || 'admin').toLowerCase(); // Default to admin (company owner)
 
       // Sync user to check if they have a Company/Employee record
       const syncResult = await syncUser();
@@ -1053,22 +1041,11 @@ function OnboardingPageInner() {
       }
 
       if (syncResult.needsSetup) {
-        // Employee intent: auto-join company by code and redirect
+        // For invited employees, they should use /invite/accept/[token] flow
+        // This onboarding is only for company owners setting up their company
         if (intent === 'employee') {
-          if (!companyCode) {
-            setError('Company code is required to join as an employee.');
-            setLoading(false);
-            return;
-          }
-
-          const joinResult = await joinCompanyAsEmployee(companyCode);
-          if (!joinResult.success) {
-            setError(joinResult.error || 'Failed to join company');
-            setLoading(false);
-            return;
-          }
-
-          router.replace('/employee/dashboard');
+          setError('Please use the invitation link sent to your email to join your company.');
+          setLoading(false);
           return;
         }
 

@@ -1,386 +1,145 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { supabaseSignIn } from '@/lib/supabase';
-import { CheckCircle, Building2, Users, Mail, ArrowRight, Loader2 } from 'lucide-react';
-import { validatePassword } from '@/lib/password-validation';
-import { cn } from '@/lib/utils';
+import { Mail, ArrowRight, Loader2, Shield, Users, CheckCircle2, Lock } from 'lucide-react';
 
-type Mode = 'select' | 'admin' | 'employee';
-
-interface InviteData {
-  email: string;
-  role: string;
-  department: string | null;
-  company_name: string;
-  company_join_code: string | null;
-}
-
+/**
+ * Sign-Up Page - Invitation Only
+ * 
+ * Self-registration is disabled. Users must be invited by:
+ * - Super Admin (creates Company Owners)
+ * - Company Owner/HR (invites employees)
+ * 
+ * If an invite token is present, redirect to the invite acceptance flow.
+ */
 export default function SignUpPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const inviteToken = searchParams.get('invite');
-  const [mode, setMode] = useState<Mode>(inviteToken ? 'employee' : 'select');
-  const [firstName, setFirstName] = useState('');
-  const [lastName, setLastName] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [companyCode, setCompanyCode] = useState('');
-  const [companyCodeValid, setCompanyCodeValid] = useState<boolean | null>(null);
-  const [companyCodeName, setCompanyCodeName] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [checkingAuth, setCheckingAuth] = useState(true);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState(false);
-  const [inviteData, setInviteData] = useState<InviteData | null>(null);
-  const [inviteError, setInviteError] = useState('');
 
   useEffect(() => {
-    (async () => {
-      try {
-        const meRes = await fetch('/api/auth/me', { credentials: 'include' });
-        if (meRes.ok) {
-          router.replace('/onboarding');
-          return;
-        }
-      } catch { } finally {
-        setCheckingAuth(false);
-      }
-    })();
-  }, [router]);
+    // If user has an invite token, redirect to the proper invite acceptance page
+    if (inviteToken) {
+      router.replace(`/invite/accept/${inviteToken}`);
+    }
+  }, [inviteToken, router]);
 
-  useEffect(() => {
-    if (!inviteToken) return;
-    (async () => {
-      try {
-        const res = await fetch(`/api/auth/invite?token=${encodeURIComponent(inviteToken)}`);
-        if (!res.ok) {
-          setInviteError('Invalid or expired invite link');
-          return;
-        }
-        const data = await res.json();
-        if (data.valid && data.invite) {
-          setInviteData(data.invite);
-          setEmail(data.invite.email);
-          if (data.invite.company_join_code) {
-            setCompanyCode(data.invite.company_join_code);
-            setCompanyCodeValid(true);
-            setCompanyCodeName(data.invite.company_name);
-          }
-          setMode('employee');
-        }
-      } catch {
-        setInviteError('Failed to validate invite. Please try again.');
-      }
-    })();
-  }, [inviteToken]);
-
-  async function createSession(accessToken: string): Promise<boolean> {
-    try {
-      const sessionRes = await fetch('/api/auth/session', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ accessToken }),
-      });
-      return sessionRes.ok;
-    } catch { return false; }
-  }
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setError('');
-    if (password !== confirmPassword) { setError('Passwords do not match.'); return; }
-    const passwordValidation = validatePassword(password);
-    if (!passwordValidation.valid) { setError(passwordValidation.errors[0]); return; }
-    setLoading(true);
-
-    try {
-      if (mode === 'employee') {
-        const codeRes = await fetch(`/api/company/validate-code?code=${encodeURIComponent(companyCode)}`);
-        const codeData = await codeRes.json().catch(() => ({ valid: false }));
-        if (!codeData.valid) {
-          setError('Invalid company code.');
-          setCompanyCodeValid(false);
-          setLoading(false);
-          return;
-        }
-      }
-
-      const intent = mode === 'admin' ? 'hr' : 'employee';
-      const inviteParam = inviteToken ? `&invite=${encodeURIComponent(inviteToken)}` : '';
-      const onboardingUrl = `/onboarding?intent=${intent}&firstName=${encodeURIComponent(firstName)}&lastName=${encodeURIComponent(lastName)}${mode === 'employee' ? `&companyCode=${encodeURIComponent(companyCode)}` : ''}${inviteParam}`;
-
-      const signupRes = await fetch('/api/auth/signup', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password, firstName }),
-      });
-      const signupData = await signupRes.json();
-
-      if (!signupRes.ok) {
-        if (signupData.code === 'USER_EXISTS') {
-          const { data: signInData, error: signInError } = await supabaseSignIn(email, password);
-          if (!signInError && signInData.session) {
-            await createSession(signInData.session.access_token);
-            router.push(onboardingUrl);
-            return;
-          }
-          setError('This email is already registered.');
-          setLoading(false);
-          return;
-        }
-        setError(signupData.error || 'Registration failed.');
-        setLoading(false);
-        return;
-      }
-
-      if (signupData.emailConfirmationRequired) { setSuccess(true); setLoading(false); return; }
-
-      const { data: signInData, error: signInError } = await supabaseSignIn(email, password);
-      if (signInError || !signInData.session) { setSuccess(true); setLoading(false); return; }
-      await createSession(signInData.session.access_token);
-      router.push(onboardingUrl);
-    } catch (err) {
-      setError('Registration failed. Please try again.');
-    } finally { setLoading(false); }
-  }
-
-  if (checkingAuth) {
+  // Show loading while redirecting if invite token present
+  if (inviteToken) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <Loader2 className="w-8 h-8 text-primary animate-spin" />
-      </div>
-    );
-  }
-
-  if (success) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center p-4">
-        <div className="w-full max-w-md text-center">
-          <div className="w-20 h-20 mx-auto mb-6 rounded-2xl bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center">
-            <CheckCircle className="w-10 h-10 text-emerald-600 dark:text-emerald-400" />
-          </div>
-          <h1 className="text-2xl font-bold text-foreground mb-2">Check Your Email</h1>
-          <p className="text-muted-foreground mb-6">
-            We sent a verification link to <strong>{email}</strong>. Please check your inbox and click the link to activate your account.
-          </p>
-          <button onClick={() => router.push('/sign-in')} className="btn-primary w-full">
-            Go to Sign In
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  if (mode === 'select') {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center p-6">
-        <div className="w-full max-w-3xl">
-          <div className="text-center mb-12">
-            <div className="w-16 h-16 mx-auto mb-4 rounded-xl bg-primary/10 flex items-center justify-center">
-              <Building2 className="w-8 h-8 text-primary" />
-            </div>
-            <h1 className="text-3xl font-bold text-foreground mb-2">Create Your Account</h1>
-            <p className="text-muted-foreground">Choose how you want to get started with Continuum</p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <button
-              onClick={() => setMode('admin')}
-              className="card p-6 text-left hover:border-primary hover:shadow-lg transition-all group"
-            >
-              <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center mb-4 group-hover:bg-primary/20 transition-colors">
-                <Building2 className="w-6 h-6 text-primary" />
-              </div>
-              <h3 className="text-lg font-semibold text-foreground mb-2">Create a Company</h3>
-              <p className="text-sm text-muted-foreground mb-4">
-                Set up a new company workspace, manage employees, and configure HR policies.
-              </p>
-              <div className="flex items-center gap-2 text-primary text-sm font-medium group-hover:gap-3 transition-all">
-                Get Started <ArrowRight className="w-4 h-4" />
-              </div>
-            </button>
-
-            <button
-              onClick={() => setMode('employee')}
-              className="card p-6 text-left hover:border-violet-500 hover:shadow-lg transition-all group"
-            >
-              <div className="w-12 h-12 rounded-lg bg-violet-100 dark:bg-violet-900/20 flex items-center justify-center mb-4 group-hover:bg-violet-200 dark:group-hover:bg-violet-900/30 transition-colors">
-                <Users className="w-6 h-6 text-violet-600 dark:text-violet-400" />
-              </div>
-              <h3 className="text-lg font-semibold text-foreground mb-2">Join a Company</h3>
-              <p className="text-sm text-muted-foreground mb-4">
-                Join an existing company using an invite link or company code from your employer.
-              </p>
-              <div className="flex items-center gap-2 text-violet-600 dark:text-violet-400 text-sm font-medium group-hover:gap-3 transition-all">
-                Join Now <ArrowRight className="w-4 h-4" />
-              </div>
-            </button>
-          </div>
-
-          <div className="mt-8 text-center">
-            <p className="text-sm text-muted-foreground">
-              Already have an account?{' '}
-              <Link href="/sign-in" className="text-primary font-medium hover:underline">Sign in</Link>
-            </p>
-          </div>
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 dark:from-slate-950 dark:to-slate-900 flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="w-10 h-10 text-blue-600 animate-spin mx-auto" />
+          <p className="mt-4 text-slate-600 dark:text-slate-400">Validating your invitation...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-6">
-      <div className="w-full max-w-md">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 dark:from-slate-950 dark:to-slate-900 flex items-center justify-center p-6">
+      <div className="w-full max-w-lg">
+        {/* Icon */}
         <div className="text-center mb-8">
-          <div className={cn(
-            'w-14 h-14 mx-auto mb-4 rounded-xl flex items-center justify-center',
-            mode === 'admin' ? 'bg-primary/10' : 'bg-violet-100 dark:bg-violet-900/20'
-          )}>
-            {mode === 'admin' ? (
-              <Building2 className="w-7 h-7 text-primary" />
-            ) : (
-              <Users className="w-7 h-7 text-violet-600 dark:text-violet-400" />
-            )}
+          <div className="w-20 h-20 mx-auto mb-6 rounded-2xl bg-gradient-to-br from-blue-600 to-blue-700 flex items-center justify-center shadow-lg shadow-blue-600/20">
+            <Mail className="w-10 h-10 text-white" />
           </div>
-          <h1 className="text-2xl font-bold text-foreground mb-1">
-            {mode === 'admin' ? 'Create Your Company' : 'Join a Company'}
+          <h1 className="text-3xl font-bold text-slate-900 dark:text-white mb-3">
+            Invitation Required
           </h1>
-          <p className="text-sm text-muted-foreground">
-            {mode === 'admin' ? 'Set up your company workspace' : 'Enter your details to join'}
+          <p className="text-slate-600 dark:text-slate-400 leading-relaxed max-w-md mx-auto">
+            Continuum uses an invitation-based system for security. 
+            Contact your company administrator to request access.
           </p>
         </div>
 
-        <div className="card p-6">
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {inviteData && (
-              <div className="p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg flex items-start gap-3">
-                <Mail className="w-5 h-5 text-blue-600 dark:text-blue-400 mt-0.5 shrink-0" />
-                <div className="text-sm">
-                  <p className="font-medium text-blue-900 dark:text-blue-100">Invite Validated</p>
-                  <p className="text-blue-700 dark:text-blue-300">Joining: {inviteData.company_name}</p>
-                </div>
-              </div>
-            )}
-
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="input-label">First Name</label>
-                <input
-                  type="text"
-                  value={firstName}
-                  onChange={e => setFirstName(e.target.value)}
-                  className="input"
-                  placeholder="John"
-                  required
-                />
+        {/* How it Works Card */}
+        <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-6 mb-6 shadow-sm">
+          <h2 className="text-lg font-semibold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
+            <Shield className="w-5 h-5 text-blue-600" />
+            How to Get Access
+          </h2>
+          
+          <div className="space-y-4">
+            <div className="flex items-start gap-4">
+              <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center flex-shrink-0">
+                <span className="text-sm font-bold text-blue-600 dark:text-blue-400">1</span>
               </div>
               <div>
-                <label className="input-label">Last Name</label>
-                <input
-                  type="text"
-                  value={lastName}
-                  onChange={e => setLastName(e.target.value)}
-                  className="input"
-                  placeholder="Doe"
-                  required
-                />
+                <h3 className="font-medium text-slate-900 dark:text-white">Request an invitation</h3>
+                <p className="text-sm text-slate-500 dark:text-slate-400">Contact your HR department or company admin</p>
               </div>
             </div>
 
-            <div>
-              <label className="input-label">Email</label>
-              <input
-                type="email"
-                value={email}
-                onChange={e => setEmail(e.target.value)}
-                disabled={!!inviteData}
-                className={cn('input', inviteData && 'opacity-60')}
-                placeholder="name@company.com"
-                required
-              />
-            </div>
-
-            <div>
-              <label className="input-label">Password</label>
-              <input
-                type="password"
-                value={password}
-                onChange={e => setPassword(e.target.value)}
-                className="input"
-                placeholder="••••••••"
-                required
-              />
-            </div>
-
-            <div>
-              <label className="input-label">Confirm Password</label>
-              <input
-                type="password"
-                value={confirmPassword}
-                onChange={e => setConfirmPassword(e.target.value)}
-                className="input"
-                placeholder="••••••••"
-                required
-              />
-            </div>
-
-            {mode === 'employee' && !inviteToken && (
-              <div className="p-4 bg-violet-50 dark:bg-violet-900/20 rounded-lg border border-violet-200 dark:border-violet-800">
-                <label className="text-xs font-medium text-violet-700 dark:text-violet-300 uppercase tracking-wide">
-                  Company Join Code
-                </label>
-                <input
-                  type="text"
-                  value={companyCode}
-                  onChange={e => setCompanyCode(e.target.value.toUpperCase())}
-                  className="input mt-2 text-center font-mono text-lg tracking-wider"
-                  placeholder="ABC-1234"
-                  required
-                  maxLength={8}
-                />
-                {companyCodeValid === true && (
-                  <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-2 text-center font-medium">
-                    ✓ Found: {companyCodeName}
-                  </p>
-                )}
+            <div className="flex items-start gap-4">
+              <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center flex-shrink-0">
+                <span className="text-sm font-bold text-blue-600 dark:text-blue-400">2</span>
               </div>
-            )}
-
-            {error && (
-              <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
-                <p className="text-sm text-red-700 dark:text-red-400 text-center">{error}</p>
+              <div>
+                <h3 className="font-medium text-slate-900 dark:text-white">Check your email</h3>
+                <p className="text-sm text-slate-500 dark:text-slate-400">You'll receive a secure invitation link</p>
               </div>
-            )}
+            </div>
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="btn-primary w-full flex items-center justify-center gap-2"
-            >
-              {loading ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                'Create Account'
-              )}
-            </button>
-          </form>
+            <div className="flex items-start gap-4">
+              <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center flex-shrink-0">
+                <span className="text-sm font-bold text-blue-600 dark:text-blue-400">3</span>
+              </div>
+              <div>
+                <h3 className="font-medium text-slate-900 dark:text-white">Set up your account</h3>
+                <p className="text-sm text-slate-500 dark:text-slate-400">Click the link to create your password and sign in</p>
+              </div>
+            </div>
+          </div>
         </div>
 
-        <div className="mt-6 text-center space-y-3">
-          <button
-            onClick={() => setMode('select')}
-            className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+        {/* Who Can Invite */}
+        <div className="bg-slate-100 dark:bg-slate-800/50 rounded-xl p-4 mb-8">
+          <div className="flex items-center gap-3 text-sm text-slate-600 dark:text-slate-400">
+            <Users className="w-5 h-5 text-slate-500" />
+            <span>
+              <strong className="text-slate-700 dark:text-slate-300">Who can invite?</strong>{' '}
+              Company owners, HR administrators, and managers can send invitations.
+            </span>
+          </div>
+        </div>
+
+        {/* Actions */}
+        <div className="space-y-4">
+          <Link
+            href="/sign-in"
+            className="w-full py-3.5 px-4 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-semibold rounded-xl shadow-lg shadow-blue-600/20 hover:shadow-xl hover:shadow-blue-600/30 transition-all duration-200 flex items-center justify-center gap-2"
           >
-            ← Change selection
-          </button>
-          <p className="text-sm text-muted-foreground">
-            Already have an account?{' '}
-            <Link href="/sign-in" className="text-primary font-medium hover:underline">Sign in</Link>
+            Sign In to Existing Account
+            <ArrowRight className="w-4 h-4" />
+          </Link>
+
+          <p className="text-center text-sm text-slate-500 dark:text-slate-400">
+            Need help?{' '}
+            <Link href="/support" className="text-blue-600 dark:text-blue-400 font-medium hover:underline">
+              Contact Support
+            </Link>
           </p>
+        </div>
+
+        {/* Security Footer */}
+        <div className="mt-8 pt-6 border-t border-slate-200 dark:border-slate-700">
+          <div className="flex items-center justify-center gap-6 text-xs text-slate-400">
+            <div className="flex items-center gap-1.5">
+              <Lock className="w-3.5 h-3.5" />
+              <span>256-bit Encryption</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <Shield className="w-3.5 h-3.5" />
+              <span>SOC 2 Compliant</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <CheckCircle2 className="w-3.5 h-3.5" />
+              <span>GDPR Ready</span>
+            </div>
+          </div>
         </div>
       </div>
     </div>

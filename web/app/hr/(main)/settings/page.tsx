@@ -474,32 +474,31 @@ export default function HRSettingsPage() {
             </div>
           </GlassPanel>
 
-          {/* Join Code */}
+          {/* Invite Employees - Replaces Join Code */}
           <GlassPanel>
             <div className="p-6 border-b border-white/10">
               <div className="flex items-center gap-3">
                 <div className="p-2 bg-green-500/10 rounded-lg">
-                  <Key className="w-5 h-5 text-green-500" />
+                  <Users className="w-5 h-5 text-green-500" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-semibold text-white">Company Join Code</h3>
-                  <p className="text-sm text-white/60">Share with employees to join your organization</p>
+                  <h3 className="text-lg font-semibold text-white">Invite Employees</h3>
+                  <p className="text-sm text-white/60">Add team members via secure invitation links</p>
                 </div>
               </div>
             </div>
-            <div className="p-6 space-y-3">
-              <div className="flex items-center gap-3">
-                <div className="flex-1 bg-white/5 border border-white/10 rounded-lg px-4 py-3">
-                  <p className="text-xs text-white/60 mb-1">Join Code</p>
-                  <p className="text-xl font-mono font-bold text-primary tracking-widest">
-                    {company.join_code ?? '--'}
-                  </p>
-                </div>
-                {company.join_code && <CopyButton text={company.join_code} />}
-              </div>
-              <p className="text-xs text-white/60">
-                Employees use this code during sign-up to join your organization.
+            <div className="p-6 space-y-4">
+              <p className="text-sm text-white/70">
+                Use the <strong>Team</strong> page to invite new employees. They&apos;ll receive a secure email 
+                with a link to set up their account and join your organization.
               </p>
+              <a 
+                href="/hr/employees" 
+                className="inline-flex items-center gap-2 px-4 py-2 bg-primary/20 hover:bg-primary/30 text-primary rounded-lg transition-colors text-sm font-medium"
+              >
+                <Users className="w-4 h-4" />
+                Go to Team Management
+              </a>
             </div>
           </GlassPanel>
 

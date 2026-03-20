@@ -44,14 +44,11 @@ const ALLOWED_ORIGINS = new Set([
 const PUBLIC_ROUTES = [
   '/',
   '/sign-in',
-  '/sign-up',
+  '/sign-up',              // Redirects to invitation-only page
   '/forgot-password',
   '/reset-password',
-  '/hr/sign-in',
-  '/hr/sign-up',
-  '/employee/sign-in',
-  '/employee/sign-up',
-  '/admin/login',      // Super admin login page
+  '/admin/login',          // Super admin login page
+  '/invite/accept',        // Invite acceptance (dynamic route)
   '/status',
   '/terms',
   '/privacy',
@@ -69,11 +66,9 @@ const PUBLIC_API_PATTERNS = [
   '/api/auth/session',
   '/api/auth/signin',
   '/api/auth/refresh',
-  '/api/auth/register',
-  '/api/auth/signup',
-  '/api/auth/join',
   '/api/auth/callback',
-  '/api/company/validate-code',
+  '/api/invite/accept',    // Accept invitation
+  '/api/auth/invite',      // Validate invite token (GET only)
 ];
 
 // Cron routes that use CRON_SECRET instead of user auth

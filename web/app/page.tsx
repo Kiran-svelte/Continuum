@@ -35,9 +35,8 @@ export default function HomePage() {
           <div className="flex items-center gap-6">
             <Link href="/status" className="text-sm font-medium text-white/60 hover:text-white transition-colors hidden md:block">Status</Link>
             <Link href="/support" className="text-sm font-medium text-white/60 hover:text-white transition-colors hidden md:block">Support</Link>
-            <Link href="/sign-in" className="text-sm font-medium text-white/60 hover:text-white transition-colors">Sign In</Link>
-            <Link href="/sign-up" className="bg-primary hover:bg-primary/90 text-primary-foreground px-5 py-2.5 rounded-full text-sm font-semibold transition-all shadow-[0_0_20px_rgba(0,255,255,0.3)] hover:shadow-[0_0_30px_rgba(0,255,255,0.5)] transform hover:-translate-y-0.5">
-              Get Started
+            <Link href="/sign-in" className="bg-primary hover:bg-primary/90 text-primary-foreground px-5 py-2.5 rounded-full text-sm font-semibold transition-all shadow-[0_0_20px_rgba(0,255,255,0.3)] hover:shadow-[0_0_30px_rgba(0,255,255,0.5)] transform hover:-translate-y-0.5">
+              Sign In
             </Link>
           </div>
         </div>
@@ -72,8 +71,8 @@ export default function HomePage() {
           
           <FadeIn direction="up" delay={0.3}>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-6">
-              <Link href="/sign-up" className="w-full sm:w-auto bg-primary text-primary-foreground px-8 py-4 rounded-full text-lg font-bold transition-all shadow-[0_0_40px_rgba(0,255,255,0.4)] hover:shadow-[0_0_60px_rgba(0,255,255,0.6)] transform hover:-translate-y-1 flex items-center gap-2 justify-center">
-                Start Free Trial <ArrowRight className="w-5 h-5" />
+              <Link href="/sign-in" className="w-full sm:w-auto bg-primary text-primary-foreground px-8 py-4 rounded-full text-lg font-bold transition-all shadow-[0_0_40px_rgba(0,255,255,0.4)] hover:shadow-[0_0_60px_rgba(0,255,255,0.6)] transform hover:-translate-y-1 flex items-center gap-2 justify-center">
+                Sign In <ArrowRight className="w-5 h-5" />
               </Link>
               <Link href="/status" className="w-full sm:w-auto glass-panel border border-white/20 text-white px-8 py-4 rounded-full text-lg font-bold hover:bg-white/5 dark:hover:bg-white/5 transition-all flex items-center gap-2 justify-center">
                 View System Status
@@ -188,10 +187,13 @@ export default function HomePage() {
             <h2 className="text-5xl md:text-6xl font-black text-white mb-8">Ready to stream your workflow?</h2>
             <p className="text-xl text-white/60 mb-12 max-w-2xl mx-auto font-medium">Join hundreds of cutting-edge Indian companies already using Continuum to automate their HR.</p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-6">
-              <Link href="/sign-up" className="w-full sm:w-auto bg-primary text-primary-foreground px-10 py-5 rounded-full text-xl font-bold hover:bg-primary/90 transition-all shadow-[0_0_40px_rgba(0,255,255,0.4)] hover:shadow-[0_0_60px_rgba(0,255,255,0.6)] transform hover:-translate-y-1 flex items-center gap-2 justify-center">
-                Get Started for Free <ArrowRight className="w-6 h-6" />
+              <Link href="/sign-in" className="w-full sm:w-auto bg-primary text-primary-foreground px-10 py-5 rounded-full text-xl font-bold hover:bg-primary/90 transition-all shadow-[0_0_40px_rgba(0,255,255,0.4)] hover:shadow-[0_0_60px_rgba(0,255,255,0.6)] transform hover:-translate-y-1 flex items-center gap-2 justify-center">
+                Sign In to Your Account <ArrowRight className="w-6 h-6" />
               </Link>
             </div>
+            <p className="mt-6 text-sm text-white/40">
+              New to Continuum? Contact our sales team or your company administrator for an invitation.
+            </p>
           </div>
         </FadeIn>
       </section>

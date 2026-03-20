@@ -1,206 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { z } from 'zod';
-import prisma from '@/lib/prisma';
-import { getAuthUserFromRequest } from '@/lib/auth-guard';
-import { checkApiRateLimit, getRateLimitHeaders } from '@/lib/api-rate-limit';
-import { createAuditLog, AUDIT_ACTIONS } from '@/lib/audit';
-import { sanitizeInput } from '@/lib/security';
-import { sendWelcomeEmail } from '@/lib/email-service';
-import { sendNotification } from '@/lib/notification-service';
 
 export const dynamic = 'force-dynamic';
-export const maxDuration = 60;
-
-const joinSchema = z.object({
-  first_name: z.string().min(1).max(100),
-  last_name: z.string().min(1).max(100),
-  company_code: z.string().min(1).max(20),
-  // Role is always forced to 'employee' - elevation requires admin/HR action (unless invite overrides)
-  role: z.enum(['employee', 'manager', 'hr', 'team_lead', 'director']).optional().default('employee').transform(() => 'employee' as const),
-  department: z.string().max(100).optional(),
-  gender: z.enum(['male', 'female', 'other']).optional().default('other'),
-  invite_token: z.string().max(128).optional(),
-});
 
 /**
  * POST /api/auth/join
  *
- * Employee join flow via company code:
- * 1. Authenticates via Firebase token (client must call Firebase signUp first)
- * 2. Validates the company_code against Company.join_code
- * 3. Creates an Employee record linked to the company
- * 4. Seeds leave balances based on the company's active leave types
- * 5. Creates an audit log entry
+ * DEPRECATED: Join by company code is disabled.
+ * 
+ * New auth flow:
+ * - Company Owners/HR invite employees via /api/company/invite-user
+ * - Employees accept invites via /api/invite/accept
+ * - No self-service registration or join-by-code
  */
-export async function POST(request: NextRequest) {
-  // Rate limit by IP
-  const ip = request.headers.get('x-forwarded-for') ?? 'unknown';
-  const rateLimit = checkApiRateLimit(ip, 'auth');
-  if (!rateLimit.allowed) {
-    return NextResponse.json(
-      { error: 'Rate limit exceeded. Try again later.' },
-      { status: 429, headers: getRateLimitHeaders(rateLimit) }
-    );
-  }
-
-  try {
-    // Resolve the authenticated Firebase user from Bearer token or session cookie
-    const { user, error: authError } = await getAuthUserFromRequest(request);
-
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
-    }
-
-    // Ensure this auth_id is not already registered
-    const existing = await prisma.employee.findUnique({ where: { auth_id: user.uid } });
-    if (existing) {
-      return NextResponse.json({ error: 'Account already registered' }, { status: 409 });
-    }
-
-    const body = await request.json();
-    const parsed = joinSchema.safeParse(body);
-    if (!parsed.success) {
-      return NextResponse.json(
-        { error: 'Validation failed', details: parsed.error.flatten() },
-        { status: 400 }
-      );
-    }
-
-    const data = parsed.data;
-    const firstName = sanitizeInput(data.first_name);
-    const lastName = sanitizeInput(data.last_name);
-    const companyCode = sanitizeInput(data.company_code).toUpperCase();
-    const department = data.department ? sanitizeInput(data.department) : undefined;
-
-    // Look up company by join code
-    const company = await prisma.company.findUnique({
-      where: { join_code: companyCode },
-      select: { id: true, name: true, leave_types: { where: { is_active: true } } },
-    });
-
-    if (!company) {
-      return NextResponse.json({ error: 'Invalid company code' }, { status: 404 });
-    }
-
-    // If invite token provided, validate and use role/department from invite
-    let inviteRole: string | null = null;
-    let inviteDepartment: string | null = null;
-    let inviteId: string | null = null;
-    if (data.invite_token) {
-      const invite = await prisma.employeeInvite.findUnique({
-        where: { token: data.invite_token },
-      });
-      if (invite && !invite.used_at && new Date() < invite.expires_at && invite.company_id === company.id) {
-        inviteRole = invite.role;
-        inviteDepartment = invite.department;
-        inviteId = invite.id;
-      }
-    }
-
-    const assignedRole = (inviteRole || data.role) as 'employee' | 'manager' | 'hr' | 'team_lead' | 'director';
-    const assignedDepartment = inviteDepartment || department || undefined;
-
-    const year = new Date().getFullYear();
-
-    // Transactionally create employee and seed leave balances
-    const result = await prisma.$transaction(async (tx) => {
-      const employee = await tx.employee.create({
-        data: {
-          auth_id: user.uid,
-          email: user.email!,
-          first_name: firstName,
-          last_name: lastName,
-          org_id: company.id,
-          primary_role: assignedRole,
-          department: assignedDepartment,
-          date_of_joining: new Date(),
-          gender: data.gender,
-          status: 'onboarding',
-        },
-      });
-
-      // Seed leave balances from company's active leave types only.
-      // No catalog fallback — the system is config-driven; leave types must
-      // be configured during company onboarding.
-      const leaveTypesToSeed = company.leave_types
-        .filter((lt) => {
-          // Filter gender-specific leave types
-          const genderFilter = (lt as { gender_specific?: string }).gender_specific;
-          if (!genderFilter || genderFilter === 'all') return true;
-          if (data.gender === 'other') return true;
-          return genderFilter === data.gender;
-        })
-        .map((lt) => ({
-          code: lt.code,
-          quota: lt.default_quota,
-        }));
-
-      const balanceInserts = leaveTypesToSeed.map(({ code, quota }) => ({
-        emp_id: employee.id,
-        company_id: company.id,
-        leave_type: code,
-        year,
-        annual_entitlement: quota,
-        remaining: quota,
-      }));
-      await tx.leaveBalance.createMany({ data: balanceInserts });
-
-      return employee;
-    });
-
-    // Audit log
-    await createAuditLog({
-      companyId: company.id,
-      actorId: result.id,
-      action: AUDIT_ACTIONS.EMPLOYEE_JOIN,
-      entityType: 'Employee',
-      entityId: result.id,
-      newState: { company_id: company.id, role: assignedRole },
-    });
-
-    // Mark invite as used (if applicable)
-    if (inviteId) {
-      await prisma.employeeInvite.update({
-        where: { id: inviteId },
-        data: { used_at: new Date() },
-      });
-    }
-
-    // Send welcome email (non-blocking)
-    void sendWelcomeEmail(user.email!, `${firstName} ${lastName}`, company.name).catch(
-      (emailError) => {
-        console.error('[Join] Welcome email failed:', emailError);
-      }
-    );
-
-    // Notify HR/admin users about the new employee registration
-    const hrAdmins = await prisma.employee.findMany({
-      where: {
-        org_id: company.id,
-        primary_role: { in: ['hr', 'admin'] },
-        deleted_at: null,
-        status: 'active',
-      },
-      select: { id: true },
-    });
-    for (const hr of hrAdmins) {
-      void sendNotification(
-        hr.id,
-        company.id,
-        'employee',
-        'New Employee Registration',
-        `${firstName} ${lastName} has joined the company and is pending approval.`
-      ).catch(() => {});
-    }
-
-    return NextResponse.json({
-      success: true,
-      employee_id: result.id,
-      company_id: company.id,
-      company_name: company.name,
-    });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : 'Join failed';
-    return NextResponse.json({ error: message }, { status: 500 });
-  }
+export async function POST(_request: NextRequest) {
+  return NextResponse.json(
+    {
+      error: 'Join by company code is disabled',
+      message: 'Registration is by invitation only. Please contact your company HR to receive an invitation link.',
+      code: 'JOIN_CODE_DISABLED',
+    },
+    { status: 403 }
+  );
 }
