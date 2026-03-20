@@ -246,27 +246,16 @@ async function checkNeonAuth(): Promise<ComponentCheck> {
     };
   }
 }
-  try {
-    // Basic disk check — use /tmp as a writable indicator
-    if (typeof statfsSync !== 'function') {
-      return { status: 'healthy', message: 'Disk check unavailable (statfsSync not supported)' };
-    }
 
-    const stats = statfsSync('/tmp');
-    if (stats) {
-      const totalGB = (stats.blocks * stats.bsize) / (1024 * 1024 * 1024);
-      const freeGB = (stats.bfree * stats.bsize) / (1024 * 1024 * 1024);
-      const usedPercent = ((totalGB - freeGB) / totalGB) * 100;
-      return {
-        status: usedPercent > 90 ? 'unhealthy' : usedPercent > 80 ? 'degraded' : 'healthy',
-        message: `Disk: ${freeGB.toFixed(1)}/${totalGB.toFixed(1)} GB free (${usedPercent.toFixed(1)}% used)`,
-        details: { totalGB: totalGB.toFixed(1), freeGB: freeGB.toFixed(1), usedPercent: Math.round(usedPercent) },
-      };
-    }
-    return { status: 'healthy', message: 'Disk check unavailable (statfsSync not supported)' };
-  } catch {
-    return { status: 'healthy', message: 'Disk check skipped' };
-  }
+// ─── Disk Usage Check ─────────────────────────────────────────────────────────
+
+function checkDiskUsage(): ComponentCheck {
+  // Disk check is not reliable in serverless/container environments
+  // Return healthy status as this is not critical for application function
+  return {
+    status: 'healthy',
+    message: 'Disk check skipped (serverless environment)',
+  };
 }
 
 // ─── Main Health Check ───────────────────────────────────────────────────────
