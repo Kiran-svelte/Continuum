@@ -22,7 +22,7 @@ async function verifyAccessToken(token: string): Promise<{
     const secretKey = new TextEncoder().encode(secret);
     const { payload } = await jwtVerify(token, secretKey, {
       issuer: 'continuum',
-      audience: 'continuum-web',
+      audience: ['continuum-web', 'continuum-api'], // Accept both audiences
     });
     if (!payload.sub || !payload.email) return null;
     return payload as { sub: string; email: string; role?: string; roles?: string[]; org_id?: string };

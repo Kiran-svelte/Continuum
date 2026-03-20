@@ -8,15 +8,49 @@ export const dynamic = 'force-dynamic';
 /**
  * GET /api/auth/me
  *
- * Returns the authenticated employee's basic profile, role, and company info.
+ * Returns the authenticated user's basic profile, role, and company info.
+ * Supports both regular employees and super admins.
  * Used by the client to perform role-based dashboard redirect after sign-in.
  * Includes onboarding_completed flag to gate access.
- * Logs successful sign-in to audit trail.
  */
 export async function GET(request: NextRequest) {
   try {
     const employee = await getAuthEmployee();
 
+    // Handle super admin separately (no org_id, no company)
+    if (employee.primary_role === 'super_admin') {
+      const response = NextResponse.json({
+        id: employee.id,
+        email: employee.email,
+        first_name: employee.first_name,
+        last_name: employee.last_name,
+        primary_role: employee.primary_role,
+        secondary_roles: null,
+        department: null,
+        designation: 'Platform Administrator',
+        org_id: null,
+        status: 'active',
+        timezone: 'Asia/Kolkata',
+        company: null,
+        is_super_admin: true,
+      });
+
+      // Set role cookies for middleware
+      const cookieOpts = {
+        path: '/',
+        sameSite: 'lax' as const,
+        secure: process.env.NODE_ENV === 'production',
+        maxAge: 60 * 60 * 24, // 24 hours
+        httpOnly: true,
+      };
+
+      response.cookies.set('continuum-role', 'super_admin', cookieOpts);
+      response.cookies.set('continuum-roles', 'super_admin', cookieOpts);
+
+      return response;
+    }
+
+    // Regular employee flow
     // Fetch designation (not included in getAuthEmployee)
     const employeeDetails = await prisma.employee.findUnique({
       where: { id: employee.id },
@@ -24,16 +58,19 @@ export async function GET(request: NextRequest) {
     });
 
     // Fetch company to get onboarding status and timezone
-    const company = await prisma.company.findUnique({
-      where: { id: employee.org_id! },
-      select: {
-        id: true,
-        name: true,
-        onboarding_completed: true,
-        join_code: true,
-        timezone: true,
-      },
-    });
+    let company = null;
+    if (employee.org_id) {
+      company = await prisma.company.findUnique({
+        where: { id: employee.org_id },
+        select: {
+          id: true,
+          name: true,
+          onboarding_completed: true,
+          join_code: true,
+          timezone: true,
+        },
+      });
+    }
 
     // Build list of all roles (primary + secondary)
     const allRoles: string[] = [employee.primary_role];
@@ -54,7 +91,7 @@ export async function GET(request: NextRequest) {
       secondary_roles: employee.secondary_roles,
       department: employee.department,
       designation: employeeDetails?.designation || null,
-      org_id: employee.org_id!,
+      org_id: employee.org_id,
       status: employee.status,
       timezone: company?.timezone || 'Asia/Kolkata',
       company: company ? {
@@ -86,9 +123,9 @@ export async function GET(request: NextRequest) {
     const referrer = request.headers.get('referer') || undefined;
 
     // Only log if coming from sign-in page (avoid logging on page refreshes)
-    if (referrer && (referrer.includes('/sign-in') || referrer.includes('/sign-up'))) {
+    if (referrer && (referrer.includes('/sign-in') || referrer.includes('/sign-up')) && employee.org_id) {
       void createAuditLog({
-        companyId: employee.org_id!,
+        companyId: employee.org_id,
         actorId: employee.id,
         action: AUDIT_ACTIONS.LOGIN,
         entityType: 'Employee',
@@ -110,6 +147,7 @@ export async function GET(request: NextRequest) {
     if (error instanceof AuthError) {
       return NextResponse.json({ error: error.message }, { status: error.status });
     }
+    console.error('[AUTH ME] Error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

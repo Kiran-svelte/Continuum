@@ -37,6 +37,7 @@ export default function SuperAdminLoginPage() {
           password,
           is_super_admin: true,
         }),
+        credentials: 'include',
       });
 
       const data = await response.json();
@@ -46,6 +47,9 @@ export default function SuperAdminLoginPage() {
         setLoading(false);
         return;
       }
+
+      // Call /api/auth/me to set role cookies for middleware
+      await fetch('/api/auth/me', { credentials: 'include' });
 
       router.push('/super-admin/dashboard');
     } catch (err) {
