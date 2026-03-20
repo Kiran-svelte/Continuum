@@ -7,6 +7,7 @@
 
 import { logger } from './logger';
 import { statfsSync } from 'node:fs';
+import { neonAuth } from '../neon-auth';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -219,7 +220,32 @@ function checkMemoryUsage(): ComponentCheck {
   };
 }
 
-function checkDiskUsage(): ComponentCheck {
+async function checkNeonAuth(): Promise<ComponentCheck> {
+  const start = Date.now();
+  try {
+    if (!neonAuth.isConfigured()) {
+      return {
+        status: 'degraded',
+        message: 'Neon Auth not configured',
+        latency: Date.now() - start,
+      };
+    }
+
+    const healthCheck = await neonAuth.healthCheck();
+    return {
+      status: healthCheck.healthy ? 'healthy' : 'degraded',
+      message: healthCheck.error || 'Neon Auth JWKS accessible',
+      latency: Date.now() - start,
+    };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Neon Auth check failed';
+    return {
+      status: 'degraded', // Not critical for app function
+      message: `Neon Auth issue: ${message}`,
+      latency: Date.now() - start,
+    };
+  }
+}
   try {
     // Basic disk check — use /tmp as a writable indicator
     if (typeof statfsSync !== 'function') {
@@ -253,12 +279,13 @@ function deriveOverallStatus(checks: Record<string, ComponentCheck>): HealthStat
 }
 
 export async function checkHealth(): Promise<HealthCheckResult> {
-  const [database, constraintEngine, vault, redis, email] = await Promise.all([
+  const [database, constraintEngine, vault, redis, email, neonAuth] = await Promise.all([
     checkDatabase(),
     checkConstraintEngine(),
     checkVault(),
     checkRedis(),
     checkEmailService(),
+    checkNeonAuth(),
   ]);
 
   const checks: Record<string, ComponentCheck> = {
@@ -267,6 +294,7 @@ export async function checkHealth(): Promise<HealthCheckResult> {
     vault,
     redis,
     email,
+    neonAuth,
     memory: checkMemoryUsage(),
     disk: checkDiskUsage(),
   };

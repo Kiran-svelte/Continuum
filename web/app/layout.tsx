@@ -88,9 +88,20 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" suppressHydrationWarning>
+      <head>
+        <script src="/cursor-effects.js" async />
+      </head>
       <body className="antialiased min-h-screen">
+        {/* Background orbs - BEFORE all content */}
+        <div className="orb orb-1"></div>
+        <div className="orb orb-2"></div>
+        <div className="orb orb-3"></div>
+        
+        {/* Grain overlay */}
+        <div className="grain-overlay"></div>
+        
         <GlobalErrorBoundary>
-          <ThemeProvider defaultTheme="system" storageKey="continuum-theme">
+          <ThemeProvider defaultTheme="dark" storageKey="continuum-theme">
             <TutorialProvider>
               {children}
             </TutorialProvider>
