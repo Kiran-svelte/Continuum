@@ -206,6 +206,15 @@ export async function POST(request: NextRequest) {
             start_date: data.start_date,
             end_date: data.end_date,
             total_days: totalDays,
+            // Pass balance data so constraint engine doesn't need to query DB
+            balance: {
+              annual_entitlement: balance.annual_entitlement,
+              carried_forward: balance.carried_forward,
+              used_days: balance.used_days,
+              pending_days: balance.pending_days,
+              encashed_days: balance.encashed_days,
+              remaining: remaining,
+            },
           }),
           signal: controller.signal,
         });
