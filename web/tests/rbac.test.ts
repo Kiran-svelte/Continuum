@@ -138,8 +138,8 @@ describe('getEffectiveRoles', () => {
 });
 
 describe('Role validation', () => {
-  it('VALID_ROLES contains all 6 expected roles', () => {
-    const expected: UserRole[] = ['admin', 'hr', 'director', 'manager', 'team_lead', 'employee'];
+  it('VALID_ROLES contains all 7 expected roles', () => {
+    const expected: UserRole[] = ['super_admin', 'admin', 'hr', 'director', 'manager', 'team_lead', 'employee'];
     assert.strictEqual(VALID_ROLES.length, expected.length);
     for (const role of expected) {
       assert.ok(VALID_ROLES.includes(role), `Missing role: ${role}`);

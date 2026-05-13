@@ -3,7 +3,7 @@
 import { useState, useEffect, Suspense, useMemo } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { getSupabaseBrowserClient, supabaseUpdatePassword } from '@/lib/supabase';
+
 import { FadeIn, TiltCard, AmbientBackground } from '@/components/motion';
 import { GlassPanel } from '@/components/glass-panel';
 
@@ -36,37 +36,13 @@ function ResetPasswordContent() {
   const strength = useMemo(() => getPasswordStrength(password), [password]);
 
   useEffect(() => {
-    // Supabase sends the user back with tokens in the URL hash fragment.
-    // The Supabase client automatically picks those up and establishes a session.
-    // We just need to verify there's a session present.
-    async function checkSession() {
-      const supabase = getSupabaseBrowserClient();
-      // Listen for the PASSWORD_RECOVERY event
-      const { data: { subscription } } = supabase.auth.onAuthStateChange((event: string) => {
-        if (event === 'PASSWORD_RECOVERY') {
-          setValidCode(true);
-        }
-      });
-
-      // Also check if already in a password recovery session
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        setValidCode(true);
-      } else {
-        // Give some time for the hash to be parsed
-        setTimeout(async () => {
-          const { data: { session: s } } = await supabase.auth.getSession();
-          if (s) {
-            setValidCode(true);
-          } else {
-            setValidCode(false);
-          }
-        }, 1000);
-      }
-
-      return () => subscription.unsubscribe();
+    const token = searchParams.get('token');
+    const emailParam = searchParams.get('email');
+    if (token && emailParam) {
+      setValidCode(true);
+    } else {
+      setValidCode(false);
     }
-    checkSession();
   }, [searchParams]);
 
   async function handleSubmit(e: React.FormEvent) {
@@ -84,10 +60,23 @@ function ResetPasswordContent() {
 
     setLoading(true);
     try {
-      const { error: updateError } = await supabaseUpdatePassword(password);
+      const token = searchParams.get('token');
+      const emailParam = searchParams.get('email');
 
-      if (updateError) {
-        setError(updateError.message || 'Failed to reset password. Please try again.');
+      const response = await fetch('/api/auth/reset-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: emailParam,
+          token,
+          password
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        setError(data.error || 'Failed to reset password. Please try again.');
         return;
       }
 
