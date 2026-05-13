@@ -51,10 +51,12 @@ export function Particles({
                 const varName = color.slice(4, -1);
                 const resolved = getComputedStyle(document.documentElement).getPropertyValue(varName).trim();
                 if (resolved) {
-                    return `hsl(${resolved})`;
+                    // If it's a space-separated HSL (modern Tailwind style), return it as is
+                    // otherwise wrap it in hsl() for backward compatibility if it's a hex or named color
+                    return resolved;
                 }
             }
-            return '#00FFFF'; // Fallback neon cyan
+            return color;
         };
 
         let particleColor = getComputedColor();
@@ -112,9 +114,13 @@ export function Particles({
                 ctx.beginPath();
                 ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
 
-                // Simple hack to apply alpha to HSL variable: Set global alpha
-                ctx.globalAlpha = this.alpha;
-                ctx.fillStyle = particleColor;
+                // Robust color handling: use modern hsl syntax with alpha support
+                if (particleColor.includes(' ')) {
+                    ctx.fillStyle = `hsl(${particleColor} / ${this.alpha})`;
+                } else {
+                    ctx.fillStyle = particleColor;
+                    ctx.globalAlpha = this.alpha;
+                }
 
                 ctx.fill();
                 ctx.globalAlpha = 1.0; // Reset
@@ -155,12 +161,18 @@ export function Particles({
                     const dist = Math.sqrt(dx * dx + dy * dy);
 
                     if (dist < 80) {
-                        ctx.globalAlpha = (80 - dist) / 80 * 0.2;
-                        ctx.strokeStyle = particleColor;
+                        const lineAlpha = (80 - dist) / 80 * 0.2;
+                        if (particleColor.includes(' ')) {
+                            ctx.strokeStyle = `hsl(${particleColor} / ${lineAlpha})`;
+                        } else {
+                            ctx.strokeStyle = particleColor;
+                            ctx.globalAlpha = lineAlpha;
+                        }
                         ctx.beginPath();
                         ctx.moveTo(particles[i].x, particles[i].y);
                         ctx.lineTo(particles[j].x, particles[j].y);
                         ctx.stroke();
+                        ctx.globalAlpha = 1.0;
                     }
                 }
             }
