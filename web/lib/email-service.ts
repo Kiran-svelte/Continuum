@@ -502,3 +502,23 @@ export async function sendSignupConfirmationEmail(
 
   return sendEmail(to, 'Your Continuum account has been created', html, { category: 'welcome' });
 }
+export async function sendPasswordResetEmail(
+  to: string,
+  resetUrl: string
+): Promise<EmailResult> {
+  const html = wrapTemplate(`
+    <h2 style="color: #2563eb;">Password Reset Request</h2>
+    <p>We received a request to reset your password for your Continuum account.</p>
+    <p>Click the button below to choose a new password:</p>
+    <div style="text-align: center; margin: 24px 0;">
+      <a href="${resetUrl}"
+         style="background: #2563eb; color: white; padding: 12px 32px; border-radius: 6px; text-decoration: none; font-weight: 600; display: inline-block;">
+        Reset Password →
+      </a>
+    </div>
+    <p style="color: #666; font-size: 14px;">This link will expire in <strong>1 hour</strong>.</p>
+    <p style="color: #666; font-size: 14px;">If you did not request a password reset, please ignore this email or contact support if you have concerns.</p>
+  `);
+
+  return sendEmail(to, 'Reset your Continuum password', html, { category: 'security' });
+}

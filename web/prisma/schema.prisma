@@ -1297,6 +1297,18 @@ model Session {
 }
 
 // Tutorial Progress - Track onboarding tutorial completion
+
+model PasswordResetToken {
+  id         String   @id @default(uuid())
+  email      String
+  token_hash String   @unique
+  expires_at DateTime
+  is_used    Boolean  @default(false)
+  created_at DateTime @default(now())
+
+  @@index([email])
+}
+
 model TutorialProgress {
   id          String @id @default(uuid())
   employee_id String

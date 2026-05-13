@@ -21,7 +21,7 @@ import {
   Smartphone,
   Loader2,
 } from 'lucide-react';
-import { supabaseGetUser, supabaseSendPasswordResetEmail } from '@/lib/supabase';
+
 
 interface Profile {
   first_name: string;
@@ -502,14 +502,20 @@ export default function SettingsPage() {
                 className="justify-start gap-4 h-auto p-4 w-full bg-white/5 border-white/10 text-white/80 hover:bg-white/10 hover:text-white rounded-xl"
                 onClick={async () => {
                   try {
-                    const user = await supabaseGetUser();
-                    if (!user?.email) {
+                    const response = await fetch('/api/auth/me');
+                    const data = await response.json();
+                    if (!data.user?.email) {
                       showFeedback('error', 'Unable to determine your email address. Please sign in again.');
                       return;
                     }
-                    const { error: resetErr } = await supabaseSendPasswordResetEmail(user.email);
-                    if (resetErr) {
-                      showFeedback('error', resetErr.message || 'Failed to send password reset email.');
+                    const resetResponse = await fetch('/api/auth/forgot-password', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ email: data.user.email })
+                    });
+                    if (!resetResponse.ok) {
+                      const errorData = await resetResponse.json();
+                      showFeedback('error', errorData.error || 'Failed to send password reset email.');
                       return;
                     }
                     showFeedback('success', 'Password reset email sent! Check your inbox.', 5000);

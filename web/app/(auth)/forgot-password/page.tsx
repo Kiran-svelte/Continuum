@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { supabaseSendPasswordResetEmail } from '@/lib/supabase';
 import { FadeIn, TiltCard, AmbientBackground } from '@/components/motion';
 import { GlassPanel } from '@/components/glass-panel';
 
@@ -17,11 +16,19 @@ export default function ForgotPasswordPage() {
     setError('');
     setLoading(true);
     try {
-      const { error: resetError } = await supabaseSendPasswordResetEmail(email);
-      if (resetError) {
-        setError(resetError.message || 'Failed to send reset email. Please try again.');
+      const response = await fetch('/api/auth/forgot-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        setError(data.error || 'Failed to send reset email. Please try again.');
         return;
       }
+
       setSent(true);
     } catch (err) {
       setError('Failed to send reset email. Please try again.');

@@ -23,7 +23,7 @@ import {
   Loader2,
   AlertCircle,
 } from 'lucide-react';
-import { supabaseGetUser, supabaseSendPasswordResetEmail } from '@/lib/supabase';
+
 
 interface Profile {
   first_name: string;
@@ -458,14 +458,20 @@ export default function ManagerSettingsPage() {
               className="w-full justify-start gap-4 h-auto py-4 bg-black/20 border-white/10 text-white/80 hover:bg-white/10 hover:text-white"
               onClick={async () => {
                 try {
-                  const user = await supabaseGetUser();
-                  if (!user?.email) {
+                  const response = await fetch('/api/auth/me');
+                  const data = await response.json();
+                  if (!data.user?.email) {
                     showFeedback('error', 'Unable to determine your email address.');
                     return;
                   }
-                  const { error: resetErr } = await supabaseSendPasswordResetEmail(user.email);
-                  if (resetErr) {
-                    showFeedback('error', resetErr.message || 'Failed to send email.');
+                  const resetResponse = await fetch('/api/auth/forgot-password', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email: data.user.email })
+                  });
+                  if (!resetResponse.ok) {
+                    const errorData = await resetResponse.json();
+                    showFeedback('error', errorData.error || 'Failed to send email.');
                     return;
                   }
                   showFeedback('success', 'Password reset email sent!', 5000);

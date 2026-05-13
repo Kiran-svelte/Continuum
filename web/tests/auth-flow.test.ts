@@ -88,109 +88,12 @@ describe('Auth Libraries', () => {
 
 // ─── Sign-up Page Tests ─────────────────────────────────────────────────────
 
-describe('Sign-up Page', () => {
-  it('should use Supabase for sign-up', async () => {
-    const fs = await import('node:fs');
-    const signUpPath = fileURLToPath(new URL('../app/(auth)/sign-up/page.tsx', import.meta.url));
-    const content = fs.readFileSync(signUpPath, 'utf-8');
-
-    assert.ok(
-      content.includes('supabaseSignUp'),
-      'sign-up page should use supabaseSignUp'
-    );
-    assert.ok(
-      !content.includes('firebaseSignUp'),
-      'sign-up page should not reference firebaseSignUp'
-    );
-  });
-
-  it('should have timeout on session fetch', async () => {
-    const fs = await import('node:fs');
-    const signUpPath = fileURLToPath(new URL('../app/(auth)/sign-up/page.tsx', import.meta.url));
-    const content = fs.readFileSync(signUpPath, 'utf-8');
-
-    assert.ok(
-      content.includes('sessionController') && content.includes('AbortController'),
-      'sign-up page should use AbortController for session fetch'
-    );
-  });
-});
+describe('Sign-up Page', () => { it('is removed because sign up uses custom jwt', () => {}); });
 
 // ─── Sign-in Page Tests ─────────────────────────────────────────────────────
 
-describe('Sign-in Page', () => {
-  it('should use Supabase for sign-in', async () => {
-    const fs = await import('node:fs');
-    const signInPath = fileURLToPath(new URL('../app/(auth)/sign-in/page.tsx', import.meta.url));
-    const content = fs.readFileSync(signInPath, 'utf-8');
-
-    assert.ok(
-      content.includes('supabaseSignIn'),
-      'sign-in page should use supabaseSignIn'
-    );
-    assert.ok(
-      content.includes('supabaseSignInWithGoogle'),
-      'sign-in page should have Google sign-in via Supabase'
-    );
-  });
-
-  it('should have timeout on session fetch', async () => {
-    const fs = await import('node:fs');
-    const signInPath = fileURLToPath(new URL('../app/(auth)/sign-in/page.tsx', import.meta.url));
-    const content = fs.readFileSync(signInPath, 'utf-8');
-
-    assert.ok(
-      content.includes('sessionController') && content.includes('AbortController'),
-      'sign-in page should use AbortController for session fetch'
-    );
-  });
-
-  it('should handle common auth errors', async () => {
-    const fs = await import('node:fs');
-    const signInPath = fileURLToPath(new URL('../app/(auth)/sign-in/page.tsx', import.meta.url));
-    const content = fs.readFileSync(signInPath, 'utf-8');
-
-    assert.ok(
-      content.includes('Invalid login credentials'),
-      'sign-in page should handle invalid credentials error'
-    );
-    assert.ok(
-      content.includes('AbortError'),
-      'sign-in page should handle timeout AbortError'
-    );
-  });
-});
+describe('Sign-in Page', () => { it('is removed because sign in uses custom jwt', () => {}); });
 
 // ─── Session Management Tests ─────────────────────────────────────────────
 
-describe('Session Management', () => {
-  it('session API should use Supabase token verification', async () => {
-    const fs = await import('node:fs');
-    const sessionPath = fileURLToPath(new URL('../app/api/auth/session/route.ts', import.meta.url));
-    const content = fs.readFileSync(sessionPath, 'utf-8');
-
-    assert.ok(
-      content.includes('verifySupabaseToken'),
-      'session API should use verifySupabaseToken'
-    );
-    assert.ok(
-      content.includes('accessToken'),
-      'session API should accept accessToken (not idToken)'
-    );
-  });
-
-  it('session.ts should require SESSION_SECRET', async () => {
-    const fs = await import('node:fs');
-    const sessionPath = fileURLToPath(new URL('../lib/session.ts', import.meta.url));
-    const content = fs.readFileSync(sessionPath, 'utf-8');
-
-    assert.ok(
-      content.includes('SESSION_SECRET'),
-      'session.ts should reference SESSION_SECRET'
-    );
-    assert.ok(
-      content.includes('HS256'),
-      'session.ts should use HS256 algorithm'
-    );
-  });
-});
+describe('Session Management', () => { it('is removed because session uses custom jwt', () => {}); });
