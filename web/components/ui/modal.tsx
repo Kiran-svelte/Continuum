@@ -1,6 +1,7 @@
 'use client';
 
 import { cn } from '@/lib/utils';
+import { getModalIntentClass, getModalIntentIconClass } from '@/lib/ui/twentyfirst-adapter';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, AlertTriangle, AlertCircle, Info } from 'lucide-react';
 import { useEffect, useCallback } from 'react';
@@ -61,14 +62,14 @@ export function Modal({
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 flex items-end justify-center p-0 sm:items-center sm:p-4">
           {/* Glass backdrop */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.25 }}
-            className="absolute inset-0 bg-black/60 backdrop-blur-md"
+            className="absolute inset-0 bg-background/80 backdrop-blur-md"
             onClick={closeOnOverlayClick ? onClose : undefined}
             aria-hidden="true"
           />
@@ -84,10 +85,10 @@ export function Modal({
               damping: 30,
             }}
             className={cn(
-              'relative w-full rounded-2xl overflow-hidden',
-              'bg-card/95 dark:bg-black/70 backdrop-blur-xl',
-              'border border-white/10 dark:border-white/10',
-              'shadow-2xl dark:shadow-[0_0_60px_rgba(0,0,0,0.5),0_0_30px_rgba(var(--primary-rgb),0.1)]',
+              'relative flex max-h-[92dvh] w-full flex-col overflow-hidden rounded-t-2xl sm:rounded-2xl',
+              'bg-card/95 backdrop-blur-xl',
+              'border border-[var(--border)]',
+              'shadow-2xl shadow-[0_0_60px_color-mix(in_srgb,var(--foreground)_18%,transparent),0_0_30px_color-mix(in_srgb,var(--primary)_12%,transparent)]',
               sizeStyles[size],
               className
             )}
@@ -101,12 +102,12 @@ export function Modal({
 
             {/* Header */}
             {(title || showCloseButton) && (
-              <div className="flex items-start justify-between px-6 py-4 border-b border-white/10">
-                <div>
+              <div className="flex shrink-0 items-start justify-between gap-4 border-b border-[var(--border)] px-4 py-4 sm:px-6">
+                <div className="min-w-0 flex-1">
                   {title && (
                     <h2
                       id="modal-title"
-                      className="text-lg font-semibold text-foreground dark:text-white"
+                      className="break-words text-lg font-semibold text-foreground"
                     >
                       {title}
                     </h2>
@@ -114,7 +115,7 @@ export function Modal({
                   {description && (
                     <p
                       id="modal-description"
-                      className="mt-1 text-sm text-muted-foreground dark:text-white/60"
+                      className="mt-1 break-words text-sm leading-6 text-muted-foreground"
                     >
                       {description}
                     </p>
@@ -123,7 +124,7 @@ export function Modal({
                 {showCloseButton && (
                   <button
                     onClick={onClose}
-                    className="p-1.5 rounded-lg text-white/40 hover:text-white hover:bg-white/10 transition-all duration-200"
+                    className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-[var(--accent)] transition-all duration-200"
                     aria-label="Close modal"
                   >
                     <X className="w-5 h-5" />
@@ -133,7 +134,7 @@ export function Modal({
             )}
 
             {/* Body */}
-            <div className="px-6 py-4">{children}</div>
+            <div className="min-h-0 overflow-y-auto px-4 py-4 sm:px-6">{children}</div>
           </motion.div>
         </div>
       )}
@@ -151,8 +152,8 @@ export function ModalFooter({
   return (
     <div
       className={cn(
-        'flex items-center justify-end gap-3 px-6 py-4 border-t border-white/10',
-        'bg-white/5 dark:bg-white/5 rounded-b-2xl -mx-6 -mb-4',
+        'flex flex-col-reverse items-stretch justify-end gap-3 border-t border-[var(--border)] px-4 py-4 sm:flex-row sm:items-center sm:px-6',
+        'bg-[var(--bg-surface-hover)] rounded-b-2xl -mx-4 -mb-4 sm:-mx-6',
         className
       )}
     >
@@ -184,12 +185,6 @@ export function ConfirmDialog({
   variant = 'danger',
   loading = false,
 }: ConfirmDialogProps) {
-  const variantStyles = {
-    danger: 'bg-red-500/90 text-white hover:bg-red-500 hover:shadow-[0_0_20px_rgba(239,68,68,0.4)]',
-    warning: 'bg-amber-500/90 text-white hover:bg-amber-500 hover:shadow-[0_0_20px_rgba(245,158,11,0.4)]',
-    info: 'bg-blue-500/90 text-white hover:bg-blue-500 hover:shadow-[0_0_20px_rgba(59,130,246,0.4)]',
-  };
-
   return (
     <Modal isOpen={isOpen} onClose={onClose} size="sm" showCloseButton={false}>
       <div className="text-center py-4">
@@ -198,26 +193,24 @@ export function ConfirmDialog({
           animate={{ scale: 1 }}
           transition={{ type: 'spring', stiffness: 400, damping: 20, delay: 0.1 }}
           className={cn(
-            'mx-auto w-14 h-14 rounded-2xl flex items-center justify-center mb-4',
-            variant === 'danger' && 'bg-red-500/15 shadow-[0_0_20px_rgba(239,68,68,0.2)]',
-            variant === 'warning' && 'bg-amber-500/15 shadow-[0_0_20px_rgba(245,158,11,0.2)]',
-            variant === 'info' && 'bg-blue-500/15 shadow-[0_0_20px_rgba(59,130,246,0.2)]'
+            'mx-auto w-14 h-14 rounded-2xl flex items-center justify-center mb-4 border',
+            getModalIntentIconClass(variant)
           )}
         >
-          {variant === 'danger' && <AlertTriangle className="w-7 h-7 text-red-400" />}
-          {variant === 'warning' && <AlertCircle className="w-7 h-7 text-amber-400" />}
-          {variant === 'info' && <Info className="w-7 h-7 text-blue-400" />}
+          {variant === 'danger' && <AlertTriangle className="w-7 h-7" />}
+          {variant === 'warning' && <AlertCircle className="w-7 h-7" />}
+          {variant === 'info' && <Info className="w-7 h-7" />}
         </motion.div>
-        <h3 className="text-lg font-semibold text-foreground dark:text-white mb-2">{title}</h3>
+        <h3 className="text-lg font-semibold text-foreground text-foreground mb-2">{title}</h3>
         {description && (
-          <p className="text-sm text-muted-foreground dark:text-white/60">{description}</p>
+          <p className="text-sm leading-6 text-muted-foreground">{description}</p>
         )}
       </div>
-      <div className="flex gap-3 mt-4">
+      <div className="mt-4 flex flex-col-reverse gap-3 sm:flex-row">
         <button
           onClick={onClose}
           disabled={loading}
-          className="flex-1 px-4 py-2.5 rounded-xl border border-white/20 text-foreground dark:text-white/80 hover:bg-white/10 transition-all duration-200 disabled:opacity-50 font-medium"
+          className="btn btn-secondary flex-1"
         >
           {cancelLabel}
         </button>
@@ -225,8 +218,8 @@ export function ConfirmDialog({
           onClick={onConfirm}
           disabled={loading}
           className={cn(
-            'flex-1 px-4 py-2.5 rounded-xl font-semibold transition-all duration-200 disabled:opacity-50',
-            variantStyles[variant]
+            'btn flex-1',
+            getModalIntentClass(variant)
           )}
         >
           {loading ? 'Loading...' : confirmLabel}

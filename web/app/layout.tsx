@@ -1,8 +1,24 @@
 import type { Metadata, Viewport } from 'next';
+import { Geist, Geist_Mono } from 'next/font/google';
 import { ThemeProvider } from '@/components/theme-provider';
 import { TutorialProvider } from '@/components/tutorial/tutorial-provider';
+import { AuthProvider } from '@/components/auth/auth-provider';
 import { GlobalErrorBoundary } from '@/components/global-error-boundary';
+import { Toaster } from '@/components/ui/toaster';
+import { ContinuumAssistantHost } from '@/components/assistant/continuum-assistant-host';
 import './globals.css';
+
+const fontSans = Geist({
+  subsets: ['latin'],
+  variable: '--font-geist-sans',
+  display: 'swap',
+});
+
+const fontMono = Geist_Mono({
+  subsets: ['latin'],
+  variable: '--font-geist-mono',
+  display: 'swap',
+});
 
 export const metadata: Metadata = {
   title: {
@@ -25,7 +41,9 @@ export const metadata: Metadata = {
   authors: [{ name: 'Continuum Team' }],
   creator: 'Continuum',
   publisher: 'Continuum',
-  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || 'https://continuum.app'),
+  metadataBase: new URL(
+    process.env.NEXT_PUBLIC_APP_URL || 'https://continuum.support'
+  ),
   openGraph: {
     type: 'website',
     locale: 'en_US',
@@ -73,8 +91,8 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = {
   themeColor: [
-    { media: '(prefers-color-scheme: light)', color: '#fafaf8' },
-    { media: '(prefers-color-scheme: dark)', color: '#151820' },
+    { media: '(prefers-color-scheme: light)', color: 'rgb(246 247 251)' },
+    { media: '(prefers-color-scheme: dark)', color: 'rgb(9 11 16)' },
   ],
   width: 'device-width',
   initialScale: 1,
@@ -87,24 +105,23 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" suppressHydrationWarning className={`${fontSans.variable} ${fontMono.variable}`}>
       <head>
+        {/* Theme initialization MUST run before React hydration to prevent black screen */}
+        <script src="/theme-init.js" async={false} />
+        {/* cursor-effects.js stub — legacy tilt/ripple disabled */}
         <script src="/cursor-effects.js" async />
       </head>
-      <body className="antialiased min-h-screen">
-        {/* Background orbs - BEFORE all content */}
-        <div className="orb orb-1"></div>
-        <div className="orb orb-2"></div>
-        <div className="orb orb-3"></div>
-        
-        {/* Grain overlay */}
-        <div className="grain-overlay"></div>
-        
+      <body className="font-sans antialiased min-h-[100dvh] bg-[var(--background)] text-[var(--foreground)]" suppressHydrationWarning>
         <GlobalErrorBoundary>
           <ThemeProvider defaultTheme="dark" storageKey="continuum-theme">
-            <TutorialProvider>
-              {children}
-            </TutorialProvider>
+            <AuthProvider>
+              <TutorialProvider>
+                {children}
+              </TutorialProvider>
+              <ContinuumAssistantHost />
+            </AuthProvider>
+            <Toaster />
           </ThemeProvider>
         </GlobalErrorBoundary>
       </body>

@@ -14,42 +14,48 @@ export function ThemeToggle({ className, variant = 'icon' }: ThemeToggleProps) {
 
   if (variant === 'button') {
     return (
-      <div className={cn('flex items-center gap-1 p-1 rounded-lg bg-muted/50', className)}>
+      <div className={cn('liquid-glass flex items-center gap-1 rounded-[var(--radius)] p-1', className)}>
         <button
+          type="button"
           onClick={() => setTheme('light')}
           className={cn(
-            'flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-all duration-200',
+            'flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-all duration-200 active:scale-[0.98]',
             theme === 'light'
-              ? 'bg-card text-primary shadow-sm'
-              : 'text-muted-foreground hover:text-foreground'
+              ? 'bg-[var(--card)] text-[var(--primary)] shadow-[var(--shadow-xs)]'
+              : 'text-[var(--muted-foreground)] hover:text-[var(--foreground)]'
           )}
           title="Light mode"
+          aria-pressed={theme === 'light'}
         >
           <Sun className="w-4 h-4" />
           <span className="hidden sm:inline">Light</span>
         </button>
         <button
+          type="button"
           onClick={() => setTheme('dark')}
           className={cn(
-            'flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-all duration-200',
+            'flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-all duration-200 active:scale-[0.98]',
             theme === 'dark'
-              ? 'bg-card text-primary shadow-sm'
-              : 'text-muted-foreground hover:text-foreground'
+              ? 'bg-[var(--card)] text-[var(--primary)] shadow-[var(--shadow-xs)]'
+              : 'text-[var(--muted-foreground)] hover:text-[var(--foreground)]'
           )}
           title="Dark mode"
+          aria-pressed={theme === 'dark'}
         >
           <Moon className="w-4 h-4" />
           <span className="hidden sm:inline">Dark</span>
         </button>
         <button
+          type="button"
           onClick={() => setTheme('system')}
           className={cn(
-            'flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-all duration-200',
+            'flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-all duration-200 active:scale-[0.98]',
             theme === 'system'
-              ? 'bg-card text-primary shadow-sm'
-              : 'text-muted-foreground hover:text-foreground'
+              ? 'bg-[var(--card)] text-[var(--primary)] shadow-[var(--shadow-xs)]'
+              : 'text-[var(--muted-foreground)] hover:text-[var(--foreground)]'
           )}
           title="System preference"
+          aria-pressed={theme === 'system'}
         >
           <Monitor className="w-4 h-4" />
           <span className="hidden sm:inline">System</span>
@@ -67,12 +73,14 @@ export function ThemeToggle({ className, variant = 'icon' }: ThemeToggleProps) {
 
   return (
     <button
+      type="button"
       onClick={cycleTheme}
       className={cn(
-        'relative p-2 rounded-lg transition-all duration-300 hover:bg-muted/50 active:scale-95',
+        'relative rounded-lg p-2 transition-colors duration-300 hover:bg-[var(--muted)] active:scale-[0.98]',
         className
       )}
-      title={`Current: ${theme} (${resolvedTheme})`}
+      title={`Theme: ${theme} (${resolvedTheme})`}
+      aria-label={`Theme: ${theme}. Click to cycle.`}
     >
       <Sun
         className={cn(
