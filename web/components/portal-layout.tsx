@@ -50,6 +50,7 @@ import {
   Plane,
   Upload,
   Crosshair,
+  Bell,
   type LucideIcon,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -58,7 +59,7 @@ import { CommandKSearch } from '@/components/ui/command-k';
 export interface NavItem {
   label: string;
   href: string;
-  icon: string;
+  icon: string | LucideIcon;
   group?: string;
   permission?: string;
 }
@@ -133,6 +134,7 @@ export function PortalLayout({ children, config }: { children: React.ReactNode, 
       Plane,
       Upload,
       Crosshair,
+      Bell,
     }),
     []
   );
@@ -219,7 +221,10 @@ export function PortalLayout({ children, config }: { children: React.ReactNode, 
         <div className="flex-1 space-y-0.5 overflow-y-auto p-3">
           {config.navItems.map((item, idx) => {
             const isActive = currentPath === item.href || currentPath.startsWith(`${item.href}/`);
-            const Icon = iconRegistry[item.icon] ?? LayoutDashboard;
+            const Icon =
+              typeof item.icon === 'string'
+                ? iconRegistry[item.icon] ?? LayoutDashboard
+                : item.icon;
             const prevGroup = idx > 0 ? config.navItems[idx - 1].group : undefined;
             const isNewGroup = item.group && item.group !== prevGroup;
 
