@@ -5,7 +5,6 @@ import { TutorialProvider } from '@/components/tutorial/tutorial-provider';
 import { AuthProvider } from '@/components/auth/auth-provider';
 import { GlobalErrorBoundary } from '@/components/global-error-boundary';
 import { Toaster } from '@/components/ui/toaster';
-import { ContinuumAssistantHost } from '@/components/assistant/continuum-assistant-host';
 import './globals.css';
 
 const fontSans = Geist({
@@ -119,7 +118,6 @@ export default function RootLayout({
               <TutorialProvider>
                 {children}
               </TutorialProvider>
-              <ContinuumAssistantHost />
             </AuthProvider>
             <Toaster />
           </ThemeProvider>
