@@ -54,31 +54,31 @@ function NotificationsLoadingSkeleton() {
         {/* Header skeleton */}
         <div className="flex justify-between items-center">
           <div className="space-y-2">
-            <Skeleton className="h-8 w-48 bg-white/10" />
-            <Skeleton className="h-5 w-24 bg-white/10" />
+            <Skeleton className="h-8 w-48 bg-[var(--muted)]" />
+            <Skeleton className="h-5 w-24 bg-[var(--muted)]" />
           </div>
-          <Skeleton className="h-10 w-36 bg-white/10 rounded-lg" />
+          <Skeleton className="h-10 w-36 bg-[var(--muted)] rounded-lg" />
         </div>
 
         {/* Filters skeleton */}
         <div className="flex gap-3">
-          <Skeleton className="h-9 w-24 bg-white/10 rounded-lg" />
-          <Skeleton className="h-9 w-24 bg-white/10 rounded-lg" />
-          <Skeleton className="h-9 w-20 bg-white/10 rounded-lg" />
-          <Skeleton className="h-9 w-20 bg-white/10 rounded-lg" />
+          <Skeleton className="h-9 w-24 bg-[var(--muted)] rounded-lg" />
+          <Skeleton className="h-9 w-24 bg-[var(--muted)] rounded-lg" />
+          <Skeleton className="h-9 w-20 bg-[var(--muted)] rounded-lg" />
+          <Skeleton className="h-9 w-20 bg-[var(--muted)] rounded-lg" />
         </div>
 
         {/* List skeleton */}
         <div className="space-y-4">
           {[...Array(5)].map((_, i) => (
-            <div key={i} className="rounded-2xl border border-white/10 bg-white/5 backdrop-blur-xl p-4 flex items-start gap-4">
-              <Skeleton className="w-12 h-12 rounded-full bg-white/10" />
+            <div key={i} className="rounded-2xl border border-[var(--border)] bg-[var(--card)] backdrop-blur-xl p-4 flex items-start gap-4">
+              <Skeleton className="w-12 h-12 rounded-full bg-[var(--muted)]" />
               <div className="flex-1 space-y-2">
                 <div className="flex justify-between">
-                  <Skeleton className="h-5 w-1/2 bg-white/10" />
-                  <Skeleton className="h-4 w-16 bg-white/10" />
+                  <Skeleton className="h-5 w-1/2 bg-[var(--muted)]" />
+                  <Skeleton className="h-4 w-16 bg-[var(--muted)]" />
                 </div>
-                <Skeleton className="h-4 w-3/4 bg-white/10" />
+                <Skeleton className="h-4 w-3/4 bg-[var(--muted)]" />
               </div>
             </div>
           ))}
@@ -179,7 +179,7 @@ export function NotificationsPage() {
             <div className="flex items-center gap-4">
               <Bell className="w-8 h-8 text-primary" />
               <div>
-                <h1 className="text-3xl font-bold text-white drop-shadow-lg">Notifications</h1>
+                <h1 className="text-3xl font-bold text-foreground drop-shadow-lg">Notifications</h1>
                 {unreadCount > 0 && (
                   <span className="text-sm text-primary font-semibold animate-pulse">
                     {unreadCount} unread
@@ -192,7 +192,7 @@ export function NotificationsPage() {
                 variant="ghost"
                 onClick={markAllRead}
                 disabled={markingAll}
-                className="text-white/70 hover:text-white hover:bg-white/10"
+                className="text-muted-foreground hover:text-foreground hover:bg-[var(--muted)]"
               >
                 {markingAll ? (
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -212,7 +212,7 @@ export function NotificationsPage() {
               size="sm"
               variant={filter === 'all' ? 'primary' : 'outline'}
               onClick={() => setFilter('all')}
-              className={`transition-all ${filter === 'all' ? 'bg-primary text-primary-foreground' : 'bg-white/5 border-white/10 text-white/70 hover:bg-white/10 hover:text-white'}`}
+              className={`transition-all ${filter === 'all' ? 'bg-primary text-primary-foreground' : 'bg-[var(--card)] border-[var(--border)] text-muted-foreground hover:bg-[var(--muted)] hover:text-foreground'}`}
             >
               All ({notifications.length})
             </Button>
@@ -220,18 +220,18 @@ export function NotificationsPage() {
               size="sm"
               variant={filter === 'unread' ? 'primary' : 'outline'}
               onClick={() => setFilter('unread')}
-              className={`transition-all ${filter === 'unread' ? 'bg-primary text-primary-foreground' : 'bg-white/5 border-white/10 text-white/70 hover:bg-white/10 hover:text-white'}`}
+              className={`transition-all ${filter === 'unread' ? 'bg-primary text-primary-foreground' : 'bg-[var(--card)] border-[var(--border)] text-muted-foreground hover:bg-[var(--muted)] hover:text-foreground'}`}
             >
               Unread ({unreadCount})
             </Button>
             {typeCategories.length > 1 && (
               <>
-                <div className="w-px bg-white/10 self-stretch mx-2" />
+                <div className="w-px bg-[var(--muted)] self-stretch mx-2" />
                 <Button
                   size="sm"
                   variant={typeFilter === 'all' ? 'secondary' : 'outline'}
                   onClick={() => setTypeFilter('all')}
-                  className={`transition-all text-xs px-2.5 py-1 h-auto ${typeFilter === 'all' ? 'bg-primary/20 text-primary border-primary/30' : 'bg-white/5 border-white/10 text-white/60 hover:bg-white/10 hover:text-white'}`}
+                  className={`transition-all text-xs px-2.5 py-1 h-auto ${typeFilter === 'all' ? 'bg-primary/20 text-primary border-primary/30' : 'bg-[var(--card)] border-[var(--border)] text-muted-foreground hover:bg-[var(--muted)] hover:text-foreground'}`}
                 >
                   All types
                 </Button>
@@ -244,7 +244,7 @@ export function NotificationsPage() {
                       size="sm"
                       variant={isActive ? 'secondary' : 'outline'}
                       onClick={() => setTypeFilter(isActive ? 'all' : types[0])}
-                      className={`transition-all text-xs px-2.5 py-1 h-auto ${isActive ? 'bg-primary/20 text-primary border-primary/30' : 'bg-white/5 border-white/10 text-white/60 hover:bg-white/10 hover:text-white'}`}
+                      className={`transition-all text-xs px-2.5 py-1 h-auto ${isActive ? 'bg-primary/20 text-primary border-primary/30' : 'bg-[var(--card)] border-[var(--border)] text-muted-foreground hover:bg-[var(--muted)] hover:text-foreground'}`}
                     >
                       {cat}
                     </Button>
@@ -259,11 +259,11 @@ export function NotificationsPage() {
         {filtered.length === 0 ? (
           <FadeIn>
             <GlassPanel className="text-center py-24">
-              <BellOff className="w-16 h-16 text-white/30 mx-auto mb-6" />
-              <h3 className="text-xl font-semibold text-white mb-2">
+              <BellOff className="w-16 h-16 text-muted-foreground mx-auto mb-6" />
+              <h3 className="text-xl font-semibold text-foreground mb-2">
                 {filter === 'unread' ? 'All caught up!' : 'No notifications yet'}
               </h3>
-              <p className="text-sm text-white/60 max-w-xs mx-auto">
+              <p className="text-sm text-muted-foreground max-w-xs mx-auto">
                 {filter === 'unread'
                   ? 'You have no unread notifications.'
                   : 'Important updates and alerts will appear here.'}
@@ -278,24 +278,24 @@ export function NotificationsPage() {
                   <div
                     className={`glass-panel-interactive border rounded-2xl p-4 flex items-start gap-4 cursor-pointer transition-all duration-300 ${
                       notif.is_read
-                        ? 'border-white/10'
+                        ? 'border-[var(--border)]'
                         : 'border-primary/40 shadow-[0_0_15px_rgba(var(--primary-rgb),0.2)]'
                     }`}
                     onClick={() => !notif.is_read && markAsRead(notif.id)}
                   >
-                    <div className={`w-11 h-11 rounded-full flex items-center justify-center shrink-0 bg-white/10 shadow-inner ${notif.is_read ? '' : 'shadow-[0_0_10px_rgba(var(--primary-rgb),0.3)]'}`}>
+                    <div className={`w-11 h-11 rounded-full flex items-center justify-center shrink-0 bg-[var(--muted)] shadow-inner ${notif.is_read ? '' : 'shadow-[0_0_10px_rgba(var(--primary-rgb),0.3)]'}`}>
                       {getIcon(notif.type)}
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-start justify-between gap-2">
-                        <p className={`text-sm ${notif.is_read ? 'text-white/80' : 'text-white font-semibold'}`}>
+                        <p className={`text-sm ${notif.is_read ? 'text-foreground/80' : 'text-foreground font-semibold'}`}>
                           {notif.title}
                         </p>
-                        <span className="text-xs text-white/50 whitespace-nowrap shrink-0 pt-0.5">
+                        <span className="text-xs text-muted-foreground whitespace-nowrap shrink-0 pt-0.5">
                           {timeAgo(notif.created_at)}
                         </span>
                       </div>
-                      <p className="text-sm text-white/60 mt-0.5 line-clamp-2">
+                      <p className="text-sm text-muted-foreground mt-0.5 line-clamp-2">
                         {notif.message}
                       </p>
                     </div>

@@ -58,7 +58,7 @@ export function WelcomeModal({ tutorial, userName, roleName = 'Employee' }: Welc
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={handleMaybeLater}
-            className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm"
+            className="fixed inset-0 z-50 bg-[color-mix(in_srgb,var(--foreground)_35%,transparent)] backdrop-blur-sm"
           />
 
           {/* Modal */}
@@ -67,33 +67,34 @@ export function WelcomeModal({ tutorial, userName, roleName = 'Employee' }: Welc
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.9, y: 20 }}
             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-            className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none"
+            className="pointer-events-none fixed inset-0 z-50 flex items-end justify-center p-0 sm:items-center sm:p-4"
           >
             <TiltCard rotationIntensity={8}>
-            <div className="w-full max-w-lg bg-black/50 backdrop-blur-2xl border border-white/10 shadow-[0_0_60px_rgba(var(--primary-rgb),0.2),0_25px_50px_rgba(0,0,0,0.5)] rounded-3xl overflow-hidden pointer-events-auto relative">
+            <div className="pointer-events-auto relative flex max-h-[92dvh] w-full max-w-lg flex-col overflow-hidden rounded-t-3xl border border-[var(--border)] bg-[var(--muted)] shadow-[0_0_60px_rgba(var(--primary-rgb),0.2),0_25px_50px_rgba(0,0,0,0.5)] backdrop-blur-2xl sm:rounded-3xl">
               <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-primary via-accent to-primary" />
               
               {/* Close button */}
               <button
                 onClick={handleMaybeLater}
-                className="absolute top-4 right-4 p-2 rounded-xl text-white/40 hover:text-white hover:bg-white/10 transition-all duration-200"
+                aria-label="Close tutorial welcome modal"
+                className="absolute top-4 right-4 p-2 rounded-xl text-muted-foreground hover:text-foreground hover:bg-[var(--muted)] transition-all duration-200"
               >
                 <X className="w-5 h-5" />
               </button>
 
               {/* Header with animation */}
-              <div className="relative bg-black/30 backdrop-blur-md border-b border-white/5 px-8 pt-10 pb-6 overflow-hidden">
+              <div className="relative shrink-0 overflow-hidden border-b border-[var(--border)] bg-[var(--muted)] px-6 pb-5 pt-10 backdrop-blur-md sm:px-8 sm:pb-6">
                 {/* Animated background elements */}
                 <div className="absolute inset-0 overflow-hidden">
                   <div className="absolute top-4 left-8 w-20 h-20 bg-primary/20 rounded-full blur-2xl animate-blob" />
-                  <div className="absolute bottom-4 right-8 w-24 h-24 bg-accent/20 rounded-full blur-2xl animate-blob" style={{ animationDelay: '2s' }} />
+                  <div className="absolute bottom-4 right-8 w-24 h-24 bg-accent/20 rounded-full blur-2xl animate-blob [animation-delay:2s]" />
                 </div>
 
                 {/* Icon */}
                 <div className="relative flex justify-center mb-4">
                   <div className="relative">
-                    <div className="w-20 h-20 bg-black/40 backdrop-blur-md shadow-[0_0_30px_rgba(var(--primary-rgb),0.5)] border border-primary/30 rounded-2xl flex items-center justify-center">
-                      <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-white/20 to-transparent pointer-events-none" />
+                    <div className="w-20 h-20 bg-[var(--muted)] backdrop-blur-md shadow-[0_0_30px_rgba(var(--primary-rgb),0.5)] border border-primary/30 rounded-2xl flex items-center justify-center">
+                      <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-[color-mix(in_srgb,var(--card)_40%,transparent)] to-transparent pointer-events-none" />
                       <Sparkles className="w-10 h-10 text-primary drop-shadow-[0_0_15px_rgba(var(--primary-rgb),0.8)]" />
                     </div>
                     <div className="absolute -inset-2 rounded-3xl bg-primary/20 animate-ping" />
@@ -102,18 +103,18 @@ export function WelcomeModal({ tutorial, userName, roleName = 'Employee' }: Welc
 
                 {/* Welcome text */}
                 <div className="relative text-center">
-                  <h2 className="text-2xl font-bold text-white drop-shadow-md mb-2">
+                  <h2 className="mb-2 break-words text-2xl font-bold text-foreground drop-shadow-md">
                     Welcome{userName ? `, ${userName}` : ''}!
                   </h2>
-                  <p className="text-white/70">
+                  <p className="break-words leading-6 text-muted-foreground">
                     You&apos;re now part of the <span className="font-semibold text-primary drop-shadow-[0_0_8px_rgba(var(--primary-rgb),0.5)]">{roleName}</span> portal
                   </p>
                 </div>
               </div>
 
               {/* Content */}
-              <div className="px-8 py-6 bg-black/10">
-                <p className="text-center text-white/60 mb-6 font-medium">
+              <div className="min-h-0 overflow-y-auto bg-[var(--card)] px-6 py-6 sm:px-8">
+                <p className="mb-6 text-center font-medium leading-6 text-muted-foreground">
                   Take a quick interactive tour to learn how to use all the features effectively.
                 </p>
 
@@ -130,7 +131,7 @@ export function WelcomeModal({ tutorial, userName, roleName = 'Employee' }: Welc
                       initial={{ opacity: 0, x: -20 }}
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: 0.1 * index }}
-                      className="flex items-center gap-3 text-sm text-white/70 font-medium bg-black/20 p-3 rounded-xl border border-white/5"
+                      className="flex items-start gap-3 rounded-xl border border-[var(--border)] bg-[var(--muted)] p-3 text-sm font-medium leading-6 text-muted-foreground"
                     >
                       <CheckCircle className="w-5 h-5 text-green-400 drop-shadow-[0_0_8px_rgba(74,222,128,0.6)] shrink-0" />
                       <span>{feature}</span>
@@ -142,21 +143,21 @@ export function WelcomeModal({ tutorial, userName, roleName = 'Employee' }: Welc
                 <div className="space-y-3">
                   <button
                     onClick={handleStartTutorial}
-                    className="w-full relative flex items-center justify-center gap-3 px-6 py-4 rounded-xl bg-gradient-to-r from-primary to-blue-600 text-white font-bold text-lg hover:shadow-[0_0_30px_rgba(var(--primary-rgb),0.5)] transform hover:-translate-y-0.5 active:translate-y-0 transition-all dropdown-shadow overflow-hidden group"
-                  ><div className="absolute inset-0 bg-white/20 opacity-0 group-hover:opacity-100 transition-opacity" />
+                    className="dropdown-shadow group relative flex min-h-12 w-full items-center justify-center gap-3 overflow-hidden rounded-xl bg-gradient-to-r from-primary to-blue-600 px-6 py-4 text-center text-base font-bold leading-5 text-primary-foreground transition-[box-shadow,background-color] hover:shadow-[0_0_30px_rgba(var(--primary-rgb),0.5)] sm:text-lg"
+                  ><div className="absolute inset-0 bg-[var(--muted)] opacity-0 group-hover:opacity-100 transition-opacity" />
                     <Play className="w-5 h-5" />
                     Start Interactive Tour
                     <ArrowRight className="w-4 h-4" />
                   </button>
                   <button
                     onClick={handleSkip}
-                    className="w-full px-6 py-4 rounded-xl glass-panel border border-white/10 text-white/60 font-semibold hover:bg-white/10 hover:text-white transition-colors"
+                    className="glass-panel min-h-12 w-full rounded-xl border border-[var(--border)] px-6 py-4 text-center font-semibold leading-5 text-muted-foreground transition-colors hover:bg-[var(--muted)] hover:text-foreground"
                   >
                     Skip for now
                   </button>
                 </div>
 
-                <p className="text-center text-xs text-white/40 mt-4">
+                <p className="text-center text-xs text-muted-foreground mt-4">
                   You can always restart the tutorial from Settings
                 </p>
               </div>
@@ -193,7 +194,7 @@ export function FloatingTutorialButton({ tutorial }: FloatingTutorialButtonProps
         onClick={() => startTutorial(tutorial)}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
-        className="group relative flex items-center gap-2 px-4 py-3 bg-primary text-primary-foreground rounded-full shadow-[0_0_25px_rgba(var(--primary-rgb),0.4)] hover:shadow-[0_0_35px_rgba(var(--primary-rgb),0.6)] hover:scale-105 active:scale-95 transition-all duration-200"
+        className="group relative flex items-center gap-2 px-4 py-3 bg-primary text-primary-foreground rounded-full shadow-[0_0_25px_rgba(var(--primary-rgb),0.4)] hover:shadow-[0_0_35px_rgba(var(--primary-rgb),0.6)] transition-[box-shadow,background-color] duration-200 active:scale-100"
       >
         <Play className="w-5 h-5" />
         <AnimatePresence>

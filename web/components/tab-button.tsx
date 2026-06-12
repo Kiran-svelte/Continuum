@@ -12,8 +12,8 @@ export function TabButton({ active, children, className, ...props }: TabButtonPr
       className={cn(
         "px-4 py-2 text-sm font-semibold rounded-xl transition-all duration-300 relative inline-flex items-center gap-2 outline-none",
         active 
-          ? "text-white bg-primary/20 shadow-[0_0_15px_rgba(var(--primary-rgb),0.5)] border border-primary/40 ring-1 ring-primary/20"
-          : "text-white/60 hover:text-white hover:bg-white/10 border border-transparent",
+          ? "text-foreground bg-primary/20 shadow-[0_0_15px_rgba(var(--primary-rgb),0.5)] border border-primary/40 ring-1 ring-primary/20"
+          : "text-muted-foreground hover:text-foreground hover:bg-[var(--muted)] border border-transparent",
         className
       )}
       {...props}

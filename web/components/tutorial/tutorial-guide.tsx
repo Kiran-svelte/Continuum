@@ -104,7 +104,7 @@ export function TutorialGuide({
       >
         {/* Backdrop */}
         <div 
-          className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+          className="absolute inset-0 bg-[color-mix(in_srgb,var(--foreground)_35%,transparent)] backdrop-blur-sm"
           onClick={handleSkip}
         />
 
@@ -114,25 +114,25 @@ export function TutorialGuide({
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.9, y: 20 }}
           transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-          className="relative w-full max-w-lg mx-4 bg-gradient-to-br from-slate-900 to-slate-800 border border-white/10 rounded-2xl shadow-2xl overflow-hidden"
+          className="relative w-full max-w-lg mx-4 bg-[var(--card)] border border-[var(--border)] rounded-2xl shadow-2xl overflow-hidden"
         >
           {/* Header */}
-          <div className="p-6 border-b border-white/10 bg-gradient-to-r from-blue-500/10 to-purple-500/10">
+          <div className="p-6 border-b border-[var(--border)] bg-gradient-to-r from-[color-mix(in_srgb,var(--primary)_10%,transparent)] to-transparent">
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center">
-                  <Sparkles className="h-5 w-5 text-white" />
+                  <Sparkles className="h-5 w-5 text-primary-foreground" />
                 </div>
                 <div>
-                  <h2 className="text-lg font-semibold text-white">{config.title}</h2>
-                  <p className="text-sm text-white/60">{config.description}</p>
+                  <h2 className="text-lg font-semibold text-foreground">{config.title}</h2>
+                  <p className="text-sm text-muted-foreground">{config.description}</p>
                 </div>
               </div>
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={handleSkip}
-                className="text-white/60 hover:text-white"
+                className="text-muted-foreground hover:text-foreground"
               >
                 <X className="h-4 w-4" />
               </Button>
@@ -148,12 +148,12 @@ export function TutorialGuide({
                   className={`h-1.5 flex-1 rounded-full transition-colors ${
                     i <= currentStep 
                       ? 'bg-gradient-to-r from-blue-500 to-purple-500' 
-                      : 'bg-white/10'
+                      : 'bg-[var(--muted)]'
                   }`}
                 />
               ))}
             </div>
-            <p className="text-xs text-white/40 mt-2">
+            <p className="text-xs text-muted-foreground mt-2">
               Step {currentStep + 1} of {config.steps.length}
             </p>
           </div>
@@ -170,22 +170,22 @@ export function TutorialGuide({
               >
                 <div className="flex items-start gap-4 mb-4">
                   {step.icon && (
-                    <div className="w-12 h-12 rounded-xl bg-white/5 flex items-center justify-center shrink-0">
+                    <div className="w-12 h-12 rounded-xl bg-[var(--card)] flex items-center justify-center shrink-0">
                       {step.icon}
                     </div>
                   )}
                   <div>
-                    <h3 className="text-xl font-semibold text-white mb-2">
+                    <h3 className="text-xl font-semibold text-foreground mb-2">
                       {step.title}
                     </h3>
-                    <p className="text-white/70 leading-relaxed">
+                    <p className="text-muted-foreground leading-relaxed">
                       {step.description}
                     </p>
                   </div>
                 </div>
 
                 {step.content && (
-                  <div className="mt-4 p-4 bg-white/5 rounded-xl border border-white/10">
+                  <div className="mt-4 p-4 bg-[var(--card)] rounded-xl border border-[var(--border)]">
                     {step.content}
                   </div>
                 )}
@@ -298,13 +298,13 @@ export function WelcomeModal({
         exit={{ opacity: 0 }}
         className="fixed inset-0 z-[100] flex items-center justify-center"
       >
-        <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+        <div className="absolute inset-0 bg-[color-mix(in_srgb,var(--foreground)_35%,transparent)] backdrop-blur-sm" />
 
         <motion.div
           initial={{ opacity: 0, scale: 0.9, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.9, y: 20 }}
-          className="relative w-full max-w-md mx-4 bg-gradient-to-br from-slate-900 to-slate-800 border border-white/10 rounded-2xl shadow-2xl overflow-hidden"
+          className="relative w-full max-w-md mx-4 bg-[var(--card)] border border-[var(--border)] rounded-2xl shadow-2xl overflow-hidden"
         >
           {/* Decorative gradient */}
           <div className="absolute top-0 left-0 right-0 h-32 bg-gradient-to-br from-blue-500/20 via-purple-500/20 to-pink-500/20" />
@@ -316,7 +316,7 @@ export function WelcomeModal({
               transition={{ delay: 0.2, type: 'spring', damping: 15 }}
               className="w-20 h-20 mx-auto mb-6 rounded-2xl bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center"
             >
-              <Sparkles className="h-10 w-10 text-white" />
+              <Sparkles className="h-10 w-10 text-primary-foreground" />
             </motion.div>
 
             <motion.div
@@ -324,13 +324,13 @@ export function WelcomeModal({
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.3 }}
             >
-              <h2 className="text-2xl font-bold text-white mb-2">
+              <h2 className="text-2xl font-bold text-foreground mb-2">
                 {message.title}
               </h2>
               <p className="text-lg text-blue-300 mb-4">
                 Hi, {userName}! 👋
               </p>
-              <p className="text-white/70 mb-8">
+              <p className="text-muted-foreground mb-8">
                 {message.description}
               </p>
             </motion.div>
@@ -351,7 +351,7 @@ export function WelcomeModal({
               <Button
                 variant="ghost"
                 onClick={onSkip}
-                className="w-full text-white/60"
+                className="w-full text-muted-foreground"
               >
                 Skip for now
               </Button>
@@ -385,13 +385,13 @@ export function TooltipGuide({ children, tip, show = true }: TooltipGuideProps) 
             initial={{ opacity: 0, y: 5 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 5 }}
-            className="absolute z-50 top-full left-1/2 -translate-x-1/2 mt-2 px-3 py-2 bg-slate-800 border border-white/10 rounded-lg shadow-lg max-w-xs"
+            className="absolute z-50 top-full left-1/2 -translate-x-1/2 mt-2 px-3 py-2 bg-[var(--card)] border border-[var(--border)] rounded-lg shadow-lg max-w-xs"
           >
             <div className="flex items-start gap-2">
               <Lightbulb className="h-4 w-4 text-yellow-400 shrink-0 mt-0.5" />
-              <p className="text-sm text-white/80">{tip}</p>
+              <p className="text-sm text-foreground/80">{tip}</p>
             </div>
-            <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-slate-800 border-l border-t border-white/10 rotate-45" />
+            <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-[var(--card)] border-l border-t border-[var(--border)] rotate-45" />
           </motion.div>
         )}
       </AnimatePresence>
@@ -419,16 +419,18 @@ export function FeatureHighlight({
   return (
     <div className="relative group">
       {isNew && (
-        <span className="absolute -top-2 -right-2 px-2 py-0.5 text-xs font-medium bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-full z-10">
+        <span className="absolute -top-2 -right-2 px-2 py-0.5 text-xs font-medium bg-gradient-to-r from-blue-500 to-purple-500 text-primary-foreground rounded-full z-10">
           New
         </span>
       )}
       {children}
       <button
+        type="button"
+        aria-label="Toggle feature info"
         onClick={() => setShowInfo(!showInfo)}
-        className="absolute top-2 right-2 w-6 h-6 rounded-full bg-white/10 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+        className="absolute top-2 right-2 w-6 h-6 rounded-full bg-[var(--muted)] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
       >
-        <Info className="h-3 w-3 text-white/60" />
+        <Info className="h-3 w-3 text-muted-foreground" />
       </button>
       
       <AnimatePresence>
@@ -437,10 +439,10 @@ export function FeatureHighlight({
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.95 }}
-            className="absolute z-50 top-full right-0 mt-2 w-64 p-4 bg-slate-800 border border-white/10 rounded-xl shadow-lg"
+            className="absolute z-50 top-full right-0 mt-2 w-64 p-4 bg-[var(--card)] border border-[var(--border)] rounded-xl shadow-lg"
           >
-            <h4 className="text-sm font-semibold text-white mb-1">{title}</h4>
-            <p className="text-xs text-white/60">{description}</p>
+            <h4 className="text-sm font-semibold text-foreground mb-1">{title}</h4>
+            <p className="text-xs text-muted-foreground">{description}</p>
           </motion.div>
         )}
       </AnimatePresence>
