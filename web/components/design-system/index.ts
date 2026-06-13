@@ -12,4 +12,5 @@ export { DSButton } from './button';
 export { DSInput } from './input';
 export { DSBadge } from './badge';
 export { CommandPalette } from './command-palette';
-export { ThemePreferencesPanel } from '../theme-preferences-panel';
+export { ThemePreferencesPanel } from '@/components/theme-preferences-panel';
+export type { ThemePreferencesPanelProps } from '@/components/theme-preferences-panel';

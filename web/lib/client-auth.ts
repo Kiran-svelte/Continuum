@@ -14,6 +14,7 @@ export type MeResponse = {
   first_name?: string | null;
   last_name?: string | null;
   primary_role?: string | null;
+  permissions?: string[];
   company?: {
     id: string;
     name?: string | null;
@@ -45,7 +46,7 @@ export async function ensureMe(): Promise<MeResponse | null> {
     return first.me;
   }
 
-  // Second attempt: Supabase client session — mint session cookie
+  // Second attempt: Supabase client session, mint session cookie
   try {
     const { data } = await supabaseGetSession();
     if (!data.session) {
