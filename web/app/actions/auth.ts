@@ -1,7 +1,34 @@
 'use server';
 
-import { getSessionFromCookies } from '@/lib/session';
-import { prisma } from '@/lib/prisma';
+import { getCurrentUser, type AuthUser } from '@/lib/auth-service';
+import prisma from '@/lib/prisma';
+import { randomBytes, randomUUID } from 'crypto';
+import { assertValidCompanyTimezone } from '@/lib/api-guards';
+import type { Employee, Company } from '@prisma/client';
+
+async function resolveAuthenticatedEmployee(user: AuthUser): Promise<(Employee & { Company: Company | null }) | null> {
+  let employee = await prisma.employee.findUnique({
+    where: { id: user.id },
+    include: { Company: true },
+  });
+
+  if (!employee && user.email) {
+    employee = await prisma.employee.findUnique({
+      where: { email: user.email },
+      include: { Company: true },
+    });
+
+    if (employee && !employee.auth_id) {
+      employee = await prisma.employee.update({
+        where: { id: employee.id },
+        data: { auth_id: user.id },
+        include: { Company: true },
+      });
+    }
+  }
+
+  return employee;
+}
 
 /* =========================================================================
    syncUser - Identity Sync for Onboarding
@@ -21,10 +48,10 @@ import { prisma } from '@/lib/prisma';
    createCompanyAndEmployee() after the Company Setup step.
    ========================================================================= */
 export async function syncUser() {
-  const session = await getSessionFromCookies();
+  const user = await getCurrentUser();
 
-  if (!session) {
-    console.error('[syncUser] No authenticated session found');
+  if (!user) {
+    console.error('[syncUser] No authenticated JWT session found');
     return {
       success: false,
       error: 'Not authenticated. Please sign in.',
@@ -35,9 +62,9 @@ export async function syncUser() {
   }
 
   try {
-    const email = session.email;
+    const email = user.email;
     if (!email) {
-      console.error('[syncUser] Session has no email address');
+      console.error('[syncUser] Auth user has no email address');
       return {
         success: false,
         error: 'No email address found on your account.',
@@ -47,33 +74,9 @@ export async function syncUser() {
       };
     }
 
-    // Check if an employee with this auth_id exists
-    let employee = await prisma.employee.findUnique({
-      where: { auth_id: session.uid },
-      include: { company: true },
-    });
+    const employee = await resolveAuthenticatedEmployee(user);
 
     if (!employee) {
-      // Also check by email (user might have registered before with different auth provider)
-      const existingByEmail = await prisma.employee.findUnique({
-        where: { email: email },
-        include: { company: true },
-      });
-
-      if (existingByEmail) {
-        // Migration case: Update auth_id to current Supabase User ID
-        employee = await prisma.employee.update({
-          where: { email: email },
-          data: { auth_id: session.uid },
-          include: { company: true },
-        });
-        console.log(`[syncUser] Migrated user ${email} to auth ID: ${session.uid}`);
-      }
-    }
-
-    if (!employee) {
-      // User authenticated but no Employee record yet
-      // They need to go through Company Setup first
       console.log('[syncUser] User needs setup - no Employee record found');
       return {
         success: true,
@@ -81,7 +84,7 @@ export async function syncUser() {
         employee: null,
         company: null,
         userEmail: email,
-        userName: email.split('@')[0],
+        userName: user.firstName || email.split('@')[0],
       };
     }
 
@@ -98,11 +101,11 @@ export async function syncUser() {
         department: employee.department,
         status: employee.status,
       },
-      company: employee.company ? {
-        id: employee.company.id,
-        name: employee.company.name,
-        onboardingCompleted: employee.company.onboarding_completed,
-        joinCode: employee.company.join_code,
+      company: employee.Company ? {
+        id: employee.Company.id,
+        name: employee.Company.name,
+        onboardingCompleted: employee.Company.onboarding_completed,
+        joinCode: employee.Company.join_code,
       } : null,
     };
   } catch (error: unknown) {
@@ -164,21 +167,18 @@ interface CreateCompanyInput {
 }
 
 export async function createCompanyAndEmployee(input: CreateCompanyInput) {
-  const session = await getSessionFromCookies();
+  const user = await getCurrentUser();
 
-  if (!session) {
-    return { success: false, error: 'Not authenticated' };
+  if (!user) {
+    return { success: false, error: 'Not authenticated. Please sign in.' };
   }
 
-  const email = session.email;
+  const email = user.email;
   if (!email) {
     return { success: false, error: 'No email address found' };
   }
 
-  // Check if user already has an employee record
-  const existingEmployee = await prisma.employee.findUnique({
-    where: { auth_id: session.uid },
-  });
+  const existingEmployee = await resolveAuthenticatedEmployee(user);
 
   if (existingEmployee) {
     return {
@@ -188,9 +188,11 @@ export async function createCompanyAndEmployee(input: CreateCompanyInput) {
   }
 
   try {
-    const { randomBytes } = await import('crypto');
-
     const generateJoinCode = () => randomBytes(4).toString('hex').toUpperCase();
+    const normalizedTimezone =
+      input.timezone && input.timezone.trim().length > 0
+        ? assertValidCompanyTimezone(input.timezone)
+        : undefined;
 
     let joinCode = generateJoinCode();
     let attempts = 0;
@@ -216,23 +218,27 @@ export async function createCompanyAndEmployee(input: CreateCompanyInput) {
 
     // Create Company + Employee in a transaction
     const result = await prisma.$transaction(async (tx) => {
+      const now = new Date();
       const company = await tx.company.create({
         data: {
+          id: randomUUID(),
           name: input.companyName,
           industry: input.industry || null,
           size: input.size || null,
-          timezone: input.timezone || undefined,
+          timezone: normalizedTimezone,
           sla_hours: input.slaHours ?? 48,
           negative_balance: input.negativeBalance ?? false,
           probation_period_days: input.probationDays ?? 180,
           join_code: joinCode,
           onboarding_completed: false,
+          updated_at: now,
         },
       });
 
       const employee = await tx.employee.create({
         data: {
-          auth_id: session.uid,
+          id: randomUUID(),
+          auth_id: user.id,
           email: email,
           first_name: firstName,
           last_name: lastName || 'Admin',
@@ -241,6 +247,7 @@ export async function createCompanyAndEmployee(input: CreateCompanyInput) {
           date_of_joining: new Date(),
           gender: 'other',
           status: 'onboarding',
+          updated_at: now,
         },
       });
 
@@ -284,13 +291,13 @@ export async function createCompanyAndEmployee(input: CreateCompanyInput) {
    Keeps the operation lightweight and idempotent.
    ========================================================================= */
 export async function joinCompanyAsEmployee(companyCode: string) {
-  const session = await getSessionFromCookies();
+  const user = await getCurrentUser();
 
-  if (!session) {
-    return { success: false, error: 'Not authenticated' };
+  if (!user) {
+    return { success: false, error: 'Not authenticated. Please sign in.' };
   }
 
-  const email = session.email;
+  const email = user.email;
   if (!email) {
     return { success: false, error: 'No email address found' };
   }
@@ -301,14 +308,14 @@ export async function joinCompanyAsEmployee(companyCode: string) {
   }
 
   try {
-    const existingByAuth = await prisma.employee.findUnique({ where: { auth_id: session.uid } });
+    const existingByAuth = await resolveAuthenticatedEmployee(user);
     if (existingByAuth) {
       return { success: true, employeeId: existingByAuth.id, orgId: existingByAuth.org_id };
     }
 
     const company = await prisma.company.findUnique({
       where: { join_code: code },
-      select: { id: true, onboarding_completed: true, leave_types: { where: { is_active: true } } },
+      select: { id: true, onboarding_completed: true, LeaveType: { where: { is_active: true } } },
     });
 
     if (!company) {
@@ -322,14 +329,15 @@ export async function joinCompanyAsEmployee(companyCode: string) {
     if (existingByEmail) {
       const updated = await prisma.employee.update({
         where: { email },
-        data: { auth_id: session.uid, org_id: company.id, status: 'onboarding' },
+        data: { auth_id: user.id, org_id: company.id, status: 'onboarding' },
       });
       return { success: true, employeeId: updated.id, orgId: updated.org_id };
     }
 
     const employee = await prisma.employee.create({
       data: {
-        auth_id: session.uid,
+        id: randomUUID(),
+        auth_id: user.id,
         email,
         first_name: firstName,
         last_name: lastName || 'Employee',
@@ -339,25 +347,28 @@ export async function joinCompanyAsEmployee(companyCode: string) {
         gender: 'other',
         // All direct joins require HR approval before activation.
         status: 'onboarding',
+        updated_at: new Date(),
       },
     });
 
     // Seed leave balances from company's active leave types
-    if (company.leave_types && company.leave_types.length > 0) {
+    if (company.LeaveType && company.LeaveType.length > 0) {
       const year = new Date().getFullYear();
-      const balanceInserts = company.leave_types
+      const balanceInserts = company.LeaveType
         .filter((lt) => {
           const genderFilter = (lt as { gender_specific?: string }).gender_specific;
           if (!genderFilter || genderFilter === 'all') return true;
           return true;
         })
         .map((lt) => ({
+          id: randomUUID(),
           emp_id: employee.id,
           company_id: company.id,
           leave_type: lt.code,
           year,
           annual_entitlement: lt.default_quota,
           remaining: lt.default_quota,
+          updated_at: new Date(),
         }));
       if (balanceInserts.length > 0) {
         await prisma.leaveBalance.createMany({ data: balanceInserts });
