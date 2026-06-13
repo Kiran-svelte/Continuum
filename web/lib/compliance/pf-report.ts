@@ -95,7 +95,7 @@ export async function generatePfReport(
       year: period.year,
     },
     include: {
-      Employee: {
+      employee: {
         select: {
           id: true,
           employee_id: true,
@@ -129,11 +129,11 @@ export async function generatePfReport(
     totalTds += slip.tds;
 
     return {
-      employeeId: slip.Employee.id,
-      employeeCode: slip.Employee.employee_id,
-      employeeName: `${slip.Employee.first_name} ${slip.Employee.last_name}`.trim(),
-      department: slip.Employee.department,
-      designation: slip.Employee.designation,
+      employeeId: slip.employee.id,
+      employeeCode: slip.employee.employee_id,
+      employeeName: `${slip.employee.first_name} ${slip.employee.last_name}`.trim(),
+      department: slip.employee.department,
+      designation: slip.employee.designation,
       gross: slip.gross,
       basic: slip.basic,
       pfEmployee: slip.pf_employee,
@@ -177,7 +177,7 @@ export async function generateAnnualTaxSummary(
       year,
     },
     include: {
-      Employee: {
+      employee: {
         select: {
           id: true,
           employee_id: true,
@@ -200,11 +200,11 @@ export async function generateAnnualTaxSummary(
     const existing = byEmployee.get(slip.emp_id);
     if (!existing) {
       byEmployee.set(slip.emp_id, {
-        employeeId: slip.Employee.id,
-        employeeCode: slip.Employee.employee_id,
-        employeeName: `${slip.Employee.first_name} ${slip.Employee.last_name}`.trim(),
-        department: slip.Employee.department,
-        designation: slip.Employee.designation,
+        employeeId: slip.employee.id,
+        employeeCode: slip.employee.employee_id,
+        employeeName: `${slip.employee.first_name} ${slip.employee.last_name}`.trim(),
+        department: slip.employee.department,
+        designation: slip.employee.designation,
         year,
         monthsProcessed: 1,
         gross: slip.gross,
