@@ -98,7 +98,6 @@ export async function generatePfReport(
       employee: {
         select: {
           id: true,
-          employee_id: true,
           first_name: true,
           last_name: true,
           department: true,
@@ -130,7 +129,7 @@ export async function generatePfReport(
 
     return {
       employeeId: slip.employee.id,
-      employeeCode: slip.employee.employee_id,
+      employeeCode: slip.employee.id,
       employeeName: `${slip.employee.first_name} ${slip.employee.last_name}`.trim(),
       department: slip.employee.department,
       designation: slip.employee.designation,
@@ -180,7 +179,6 @@ export async function generateAnnualTaxSummary(
       employee: {
         select: {
           id: true,
-          employee_id: true,
           first_name: true,
           last_name: true,
           department: true,
@@ -201,7 +199,7 @@ export async function generateAnnualTaxSummary(
     if (!existing) {
       byEmployee.set(slip.emp_id, {
         employeeId: slip.employee.id,
-        employeeCode: slip.employee.employee_id,
+        employeeCode: slip.employee.id,
         employeeName: `${slip.employee.first_name} ${slip.employee.last_name}`.trim(),
         department: slip.employee.department,
         designation: slip.employee.designation,
