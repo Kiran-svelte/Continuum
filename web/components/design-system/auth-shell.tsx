@@ -49,7 +49,7 @@ export function AuthShell({
           <div className="p-6 sm:p-8 lg:p-10">
             <p className="text-xs font-semibold uppercase tracking-widest text-[var(--primary)]">{eyebrow}</p>
             <h1 className="mt-2 text-2xl font-bold tracking-tight sm:text-3xl">{title}</h1>
-            {subtitle && <p className="mt-2 text-sm text-[var(--muted-foreground)]">{subtitle}</p>}
+            {subtitle && <p className="mt-2 text-sm text-[var(--text-secondary)]">{subtitle}</p>}
             <div className="mt-8">{children}</div>
             {footer && <div className="mt-6">{footer}</div>}
           </div>
