@@ -194,16 +194,9 @@ async function processOneEvent(
   } catch (error) {
     const nextRetry = event.retry_count + 1;
     const isDeadLetter = nextRetry >= event.max_retries;
-    const errorMessage = error instanceof Error ? error.message : String(error);
+    void error;
 
-    await prisma.domainEvent.update({
-      where: { id: event.id },
-      data: {
-        status: isDeadLetter ? 'dead_letter' : 'failed',
-        retry_count: nextRetry,
-        error: errorMessage,
-      },
-    });
+    await markEventStatus(event.id, isDeadLetter ? 'dead_letter' : 'failed');
 
     if (isDeadLetter) {
       result.deadLettered++;
