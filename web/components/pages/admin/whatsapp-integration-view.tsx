@@ -27,9 +27,12 @@ export default function AdminWhatsAppIntegrationView() {
         </p>
         <div className="mt-6 flex flex-wrap gap-3">
           <Button disabled>Connect WhatsApp Business</Button>
-          <Button variant="outline" asChild>
-            <Link href="/admin/getting-started">Back to Getting Started</Link>
-          </Button>
+          <Link
+            href="/admin/getting-started"
+            className="inline-flex items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground"
+          >
+            Back to Getting Started
+          </Link>
         </div>
       </div>
     </div>
