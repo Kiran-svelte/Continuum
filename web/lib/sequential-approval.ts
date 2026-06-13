@@ -243,7 +243,6 @@ export async function recordApprovalStep(
     data: {
       approval_level: entry.level,
       approval_trail: JSON.parse(JSON.stringify(existingTrail)),
-      current_approver_id: isFinalApproval ? null : nextApproverId,
       updated_at: new Date(),
     },
   });

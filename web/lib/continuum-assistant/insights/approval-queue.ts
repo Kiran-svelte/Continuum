@@ -37,7 +37,7 @@ export async function loadApprovalQueueSummary(
       where: {
         company_id: companyId,
         status: { in: ['pending', 'escalated'] },
-        current_approver_id: managerId,
+        employee: { manager_id: managerId },
       },
       include: {
         employee: {

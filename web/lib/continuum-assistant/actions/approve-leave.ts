@@ -51,7 +51,7 @@ async function loadAssignablePending(
     where: {
       company_id: companyId,
       status: { in: ['pending', 'escalated'] },
-      ...(canApproveAny ? {} : { current_approver_id: employeeId }),
+      ...(canApproveAny ? {} : { employee: { manager_id: employeeId } }),
     },
     include: {
       employee: {
