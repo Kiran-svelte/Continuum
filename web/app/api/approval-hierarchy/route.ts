@@ -21,7 +21,8 @@ const employeeNameSelect = { select: { id: true, first_name: true, last_name: tr
 export async function GET() {
   try {
     const authEmployee = await getAuthEmployee();
-    const employee = requireCompanyMembership(authEmployee);
+    requireCompanyMembership(authEmployee);
+    const employee = authEmployee;
 
     const rateLimit = checkApiRateLimit(employee.id, 'general');
     if (!rateLimit.allowed) {
@@ -74,7 +75,8 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const authEmployee = await getAuthEmployee();
-    const employee = requireCompanyMembership(authEmployee);
+    requireCompanyMembership(authEmployee);
+    const employee = authEmployee;
 
     const rateLimit = checkApiRateLimit(employee.id, 'general');
     if (!rateLimit.allowed) {
@@ -198,7 +200,8 @@ export async function POST(request: NextRequest) {
 export async function PATCH(request: NextRequest) {
   try {
     const authEmployee = await getAuthEmployee();
-    const employee = requireCompanyMembership(authEmployee);
+    requireCompanyMembership(authEmployee);
+    const employee = authEmployee;
 
     const rateLimit = checkApiRateLimit(employee.id, 'general');
     if (!rateLimit.allowed) {
@@ -301,7 +304,8 @@ export async function PATCH(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
   try {
     const authEmployee = await getAuthEmployee();
-    const employee = requireCompanyMembership(authEmployee);
+    requireCompanyMembership(authEmployee);
+    const employee = authEmployee;
 
     const rateLimit = checkApiRateLimit(employee.id, 'general');
     if (!rateLimit.allowed) {
