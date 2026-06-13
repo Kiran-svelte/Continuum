@@ -193,7 +193,7 @@ export const SignIn1 = () => {
       title="Welcome back"
       subtitle="Use your credentials to access your Continuum dashboard."
       footer={
-        <p className="text-xs text-[var(--muted-foreground)]">
+        <p className="text-xs text-[var(--text-secondary)]">
           <Link href="/forgot-password" className="text-[var(--primary)] hover:underline">Forgot password?</Link>
           {' · '}
           <Link href="/sign-up" className="text-[var(--primary)] hover:underline">Create workspace</Link>
@@ -202,7 +202,7 @@ export const SignIn1 = () => {
     >
       <form onSubmit={handleSignIn} className="space-y-4">
         <div className="relative">
-          <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--muted-foreground)]" />
+          <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--text-secondary)]" />
           <Input
             type="text"
             placeholder="name@company.com or username"
@@ -217,7 +217,7 @@ export const SignIn1 = () => {
         </div>
 
         <div className="relative">
-          <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--muted-foreground)]" />
+          <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--text-secondary)]" />
           <Input
             type="password"
             placeholder="••••••••"
