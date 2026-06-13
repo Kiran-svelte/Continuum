@@ -6,23 +6,23 @@ import { randomBytes, randomUUID } from 'crypto';
 import { assertValidCompanyTimezone } from '@/lib/api-guards';
 import type { Employee, Company } from '@prisma/client';
 
-async function resolveAuthenticatedEmployee(user: AuthUser): Promise<(Employee & { Company: Company | null }) | null> {
+async function resolveAuthenticatedEmployee(user: AuthUser): Promise<(Employee & { company: Company | null }) | null> {
   let employee = await prisma.employee.findUnique({
     where: { id: user.id },
-    include: { Company: true },
+    include: { company: true },
   });
 
   if (!employee && user.email) {
     employee = await prisma.employee.findUnique({
       where: { email: user.email },
-      include: { Company: true },
+      include: { company: true },
     });
 
     if (employee && !employee.auth_id) {
       employee = await prisma.employee.update({
         where: { id: employee.id },
         data: { auth_id: user.id },
-        include: { Company: true },
+        include: { company: true },
       });
     }
   }
@@ -101,11 +101,11 @@ export async function syncUser() {
         department: employee.department,
         status: employee.status,
       },
-      company: employee.Company ? {
-        id: employee.Company.id,
-        name: employee.Company.name,
-        onboardingCompleted: employee.Company.onboarding_completed,
-        joinCode: employee.Company.join_code,
+      company: employee.company ? {
+        id: employee.company.id,
+        name: employee.company.name,
+        onboardingCompleted: employee.company.onboarding_completed,
+        joinCode: employee.company.join_code,
       } : null,
     };
   } catch (error: unknown) {
@@ -315,7 +315,7 @@ export async function joinCompanyAsEmployee(companyCode: string) {
 
     const company = await prisma.company.findUnique({
       where: { join_code: code },
-      select: { id: true, onboarding_completed: true, LeaveType: { where: { is_active: true } } },
+      select: { id: true, onboarding_completed: true, leave_types: { where: { is_active: true } } },
     });
 
     if (!company) {
@@ -352,9 +352,9 @@ export async function joinCompanyAsEmployee(companyCode: string) {
     });
 
     // Seed leave balances from company's active leave types
-    if (company.LeaveType && company.LeaveType.length > 0) {
+    if (company.leave_types && company.leave_types.length > 0) {
       const year = new Date().getFullYear();
-      const balanceInserts = company.LeaveType
+      const balanceInserts = company.leave_types
         .filter((lt) => {
           const genderFilter = (lt as { gender_specific?: string }).gender_specific;
           if (!genderFilter || genderFilter === 'all') return true;
