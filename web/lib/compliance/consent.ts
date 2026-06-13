@@ -1,5 +1,6 @@
 import prisma from '@/lib/prisma';
 import { createAuditLog, AUDIT_ACTIONS } from '@/lib/audit';
+import { randomUUID } from 'crypto';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -60,11 +61,13 @@ export async function recordConsent(
       },
     },
     create: {
+      id: randomUUID(),
       emp_id: employeeId,
       company_id: companyId,
       email_enabled: true,
       push_enabled: true,
       in_app_enabled: true,
+      updated_at: new Date(),
       reminder_timing: {
         consents: {
           [consentType]: {
