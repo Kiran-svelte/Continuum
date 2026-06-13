@@ -1,0 +1,1410 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Continuum — HR that runs itself | Premium Product Brochure</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #f4f6fb;
+      --surface: #ffffff;
+      --surface-2: #eef2f9;
+      --border: #d8e0ec;
+      --text: #0f172a;
+      --text-2: #334155;
+      --muted: #64748b;
+      --primary: #2563eb;
+      --primary-soft: #eaf2ff;
+      --primary-dark: #1d4ed8;
+      --violet: #7c3aed;
+      --violet-soft: #f3e8ff;
+      --emerald: #059669;
+      --emerald-soft: #ecfdf5;
+      --amber: #d97706;
+      --amber-soft: #fffbeb;
+      --rose: #e11d48;
+      --rose-soft: #fff1f2;
+      --radius: 14px;
+      --radius-lg: 20px;
+      --shadow: 0 4px 24px rgba(15, 23, 42, 0.06);
+      --shadow-lg: 0 24px 64px rgba(15, 23, 42, 0.12);
+      --font: 'DM Sans', system-ui, sans-serif;
+      --serif: 'Instrument Serif', Georgia, serif;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: var(--font);
+      background: #0b1220;
+      color: var(--text);
+      line-height: 1.55;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ── Spread = one brochure page ── */
+    .spread {
+      width: 100%;
+      max-width: 1100px;
+      margin: 0 auto 2rem;
+      min-height: 100vh;
+      background: var(--bg);
+      position: relative;
+      overflow: hidden;
+      page-break-after: always;
+      break-after: page;
+    }
+
+    .spread-inner {
+      padding: 3rem 3.5rem 3.5rem;
+      position: relative;
+      z-index: 2;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .spread--dark {
+      background: linear-gradient(145deg, #0b1220 0%, #111827 40%, #1a1040 100%);
+      color: #f8fafc;
+    }
+    .spread--dark .muted { color: #94a3b8; }
+    .spread--dark .eyebrow { color: #93c5fd; }
+    .spread--gradient {
+      background: linear-gradient(160deg, #eaf2ff 0%, #f4f6fb 45%, #f0fdf4 100%);
+    }
+
+    .glow {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(80px);
+      pointer-events: none;
+      z-index: 1;
+    }
+    .glow-blue { width: 420px; height: 420px; background: rgba(37,99,235,.18); top: -120px; right: -80px; }
+    .glow-violet { width: 360px; height: 360px; background: rgba(124,58,237,.15); bottom: -100px; left: -60px; }
+    .glow-emerald { width: 300px; height: 300px; background: rgba(5,150,105,.12); top: 40%; right: 10%; }
+
+    /* ── Typography ── */
+    .eyebrow {
+      font-size: .72rem;
+      font-weight: 700;
+      letter-spacing: .14em;
+      text-transform: uppercase;
+      color: var(--primary);
+      margin-bottom: .75rem;
+    }
+    h1 {
+      font-family: var(--serif);
+      font-size: clamp(2.4rem, 5vw, 3.6rem);
+      font-weight: 400;
+      line-height: 1.08;
+      letter-spacing: -.02em;
+    }
+    h2 {
+      font-family: var(--serif);
+      font-size: clamp(1.9rem, 3.5vw, 2.6rem);
+      font-weight: 400;
+      line-height: 1.12;
+      letter-spacing: -.02em;
+    }
+    h3 { font-size: 1.05rem; font-weight: 700; }
+    .lead { font-size: 1.12rem; color: var(--text-2); max-width: 52ch; }
+    .spread--dark .lead { color: #cbd5e1; }
+    .muted { color: var(--muted); font-size: .92rem; }
+    .serif-accent { font-family: var(--serif); font-style: italic; color: var(--primary); }
+
+    /* ── Layout helpers ── */
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; align-items: center; }
+    .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; }
+    .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: .85rem; }
+    .flex-between { display: flex; justify-content: space-between; align-items: center; gap: 1rem; }
+    .mt-auto { margin-top: auto; }
+    .gap-sm { gap: .5rem; }
+    .gap-md { gap: 1rem; }
+    .flex { display: flex; }
+    .flex-col { flex-direction: column; }
+
+    /* ── Components ── */
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: .35rem;
+      padding: .3rem .7rem;
+      border-radius: 999px;
+      font-size: .72rem;
+      font-weight: 600;
+      border: 1px solid var(--border);
+      background: var(--surface);
+    }
+    .badge--primary { background: var(--primary-soft); border-color: #bfdbfe; color: var(--primary-dark); }
+    .badge--success { background: var(--emerald-soft); border-color: #a7f3d0; color: var(--emerald); }
+    .badge--warn { background: var(--amber-soft); border-color: #fde68a; color: var(--amber); }
+    .badge--violet { background: var(--violet-soft); border-color: #ddd6fe; color: var(--violet); }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 1.1rem 1.2rem;
+    }
+    .card--glass {
+      background: rgba(255,255,255,.72);
+      backdrop-filter: blur(12px);
+    }
+
+    .stat-pill {
+      text-align: center;
+      padding: 1rem .75rem;
+      border-radius: var(--radius);
+      background: var(--surface);
+      border: 1px solid var(--border);
+    }
+    .stat-pill strong {
+      display: block;
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--primary);
+      line-height: 1.1;
+    }
+    .stat-pill span { font-size: .72rem; color: var(--muted); font-weight: 500; }
+
+    /* ── Browser / App chrome mockup ── */
+    .browser {
+      border-radius: var(--radius-lg);
+      border: 1px solid var(--border);
+      background: var(--surface);
+      box-shadow: var(--shadow-lg);
+      overflow: hidden;
+    }
+    .browser-bar {
+      display: flex;
+      align-items: center;
+      gap: .5rem;
+      padding: .65rem 1rem;
+      background: var(--surface-2);
+      border-bottom: 1px solid var(--border);
+    }
+    .browser-dots { display: flex; gap: 5px; }
+    .browser-dots i { width: 10px; height: 10px; border-radius: 50%; display: block; }
+    .browser-dots i:nth-child(1) { background: #f87171; }
+    .browser-dots i:nth-child(2) { background: #fbbf24; }
+    .browser-dots i:nth-child(3) { background: #34d399; }
+    .browser-url {
+      flex: 1;
+      margin-left: .5rem;
+      padding: .35rem .75rem;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: .72rem;
+      color: var(--muted);
+    }
+
+    .app-shell { display: flex; min-height: 280px; }
+    .app-sidebar {
+      width: 168px;
+      background: #0f172a;
+      color: #e2e8f0;
+      padding: 1rem .65rem;
+      flex-shrink: 0;
+    }
+    .app-sidebar .logo {
+      display: flex;
+      align-items: center;
+      gap: .4rem;
+      font-weight: 700;
+      font-size: .82rem;
+      margin-bottom: 1rem;
+      padding: 0 .35rem;
+    }
+    .app-sidebar .logo svg { color: #60a5fa; }
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: .45rem;
+      padding: .45rem .55rem;
+      border-radius: 8px;
+      font-size: .68rem;
+      color: #94a3b8;
+      margin-bottom: 2px;
+    }
+    .nav-item.active { background: rgba(37,99,235,.25); color: #fff; }
+    .nav-item svg { width: 14px; height: 14px; flex-shrink: 0; }
+
+    .app-main { flex: 1; padding: 1rem 1.1rem; background: var(--bg); overflow: hidden; }
+    .app-topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: .85rem;
+    }
+    .app-topbar h4 { font-size: .95rem; font-weight: 700; }
+    .app-topbar .sub { font-size: .68rem; color: var(--muted); }
+
+    .kpi-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: .55rem; margin-bottom: .75rem; }
+    .kpi {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: .55rem .65rem;
+    }
+    .kpi label { font-size: .58rem; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
+    .kpi strong { display: block; font-size: 1rem; font-weight: 700; margin-top: .15rem; }
+    .kpi .delta { font-size: .58rem; color: var(--emerald); font-weight: 600; }
+
+    .table-mock {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+      font-size: .65rem;
+    }
+    .table-mock .row {
+      display: grid;
+      grid-template-columns: 1.4fr 1fr .8fr .9fr;
+      padding: .45rem .65rem;
+      border-bottom: 1px solid var(--border);
+      align-items: center;
+    }
+    .table-mock .row.head { background: var(--surface-2); font-weight: 700; color: var(--muted); font-size: .58rem; text-transform: uppercase; letter-spacing: .05em; }
+    .table-mock .row:last-child { border-bottom: none; }
+    .avatar {
+      width: 22px; height: 22px; border-radius: 50%;
+      background: linear-gradient(135deg, #60a5fa, #a78bfa);
+      display: inline-flex; align-items: center; justify-content: center;
+      color: #fff; font-size: .55rem; font-weight: 700; margin-right: .35rem;
+      vertical-align: middle;
+    }
+
+    .btn-mock {
+      display: inline-flex;
+      align-items: center;
+      gap: .3rem;
+      padding: .35rem .7rem;
+      border-radius: 8px;
+      font-size: .65rem;
+      font-weight: 600;
+      border: none;
+    }
+    .btn-mock--primary { background: var(--primary); color: #fff; }
+    .btn-mock--ghost { background: var(--surface); border: 1px solid var(--border); color: var(--text-2); }
+
+    /* ── Role cards ── */
+    .role-card {
+      border-radius: var(--radius);
+      padding: 1.15rem;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      position: relative;
+      overflow: hidden;
+    }
+    .role-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 3px;
+    }
+    .role-card--admin::before { background: linear-gradient(90deg, #2563eb, #60a5fa); }
+    .role-card--hr::before { background: linear-gradient(90deg, #059669, #34d399); }
+    .role-card--manager::before { background: linear-gradient(90deg, #d97706, #fbbf24); }
+    .role-card--employee::before { background: linear-gradient(90deg, #7c3aed, #a78bfa); }
+    .role-card .icon-wrap {
+      width: 36px; height: 36px; border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      margin-bottom: .65rem;
+    }
+    .role-card--admin .icon-wrap { background: var(--primary-soft); color: var(--primary); }
+    .role-card--hr .icon-wrap { background: var(--emerald-soft); color: var(--emerald); }
+    .role-card--manager .icon-wrap { background: var(--amber-soft); color: var(--amber); }
+    .role-card--employee .icon-wrap { background: var(--violet-soft); color: var(--violet); }
+    .role-card ul { list-style: none; margin-top: .6rem; }
+    .role-card li {
+      font-size: .78rem;
+      color: var(--text-2);
+      padding: .25rem 0 .25rem 1rem;
+      position: relative;
+    }
+    .role-card li::before {
+      content: '✓';
+      position: absolute;
+      left: 0;
+      color: var(--emerald);
+      font-weight: 700;
+      font-size: .7rem;
+    }
+
+    /* ── Timeline ── */
+    .timeline { position: relative; padding-left: 1.5rem; }
+    .timeline::before {
+      content: '';
+      position: absolute;
+      left: 5px; top: 8px; bottom: 8px;
+      width: 2px;
+      background: linear-gradient(180deg, var(--primary), var(--violet));
+      border-radius: 2px;
+    }
+    .timeline-item { position: relative; padding-bottom: 1.1rem; }
+    .timeline-item::before {
+      content: '';
+      position: absolute;
+      left: -1.5rem; top: .35rem;
+      width: 12px; height: 12px;
+      border-radius: 50%;
+      background: var(--surface);
+      border: 3px solid var(--primary);
+    }
+    .timeline-item .time { font-size: .68rem; font-weight: 700; color: var(--primary); }
+    .timeline-item p { font-size: .82rem; color: var(--text-2); margin-top: .2rem; }
+
+    /* ── Module chips ── */
+    .module-chip {
+      display: flex;
+      align-items: flex-start;
+      gap: .55rem;
+      padding: .7rem .8rem;
+      border-radius: 12px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      font-size: .75rem;
+    }
+    .module-chip .ico {
+      width: 28px; height: 28px; border-radius: 8px;
+      background: var(--primary-soft);
+      color: var(--primary);
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .module-chip strong { display: block; font-size: .78rem; margin-bottom: .1rem; }
+    .module-chip span { color: var(--muted); font-size: .68rem; line-height: 1.35; }
+
+    /* ── Compare columns ── */
+    .compare { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+    .compare-col { border-radius: var(--radius); padding: 1.2rem; }
+    .compare-col--is { background: var(--emerald-soft); border: 1px solid #a7f3d0; }
+    .compare-col--isnt { background: var(--rose-soft); border: 1px solid #fecdd3; }
+    .compare-col h3 { margin-bottom: .75rem; font-size: .95rem; }
+    .compare-col li {
+      font-size: .8rem;
+      padding: .35rem 0 .35rem 1.1rem;
+      position: relative;
+      list-style: none;
+      color: var(--text-2);
+    }
+    .compare-col--is li::before { content: '●'; position: absolute; left: 0; color: var(--emerald); font-size: .55rem; top: .55rem; }
+    .compare-col--isnt li::before { content: '●'; position: absolute; left: 0; color: var(--rose); font-size: .55rem; top: .55rem; }
+
+    /* ── Onboarding steps ── */
+    .step-flow { display: flex; gap: .5rem; align-items: stretch; }
+    .step-box {
+      flex: 1;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1rem;
+      position: relative;
+    }
+    .step-box .num {
+      font-size: 2rem;
+      font-weight: 700;
+      color: var(--primary-soft);
+      line-height: 1;
+      margin-bottom: .35rem;
+      -webkit-text-stroke: 1px var(--primary);
+      color: transparent;
+    }
+    .step-box h4 { font-size: .85rem; margin-bottom: .35rem; }
+    .step-box p { font-size: .72rem; color: var(--muted); }
+    .step-arrow {
+      display: flex;
+      align-items: center;
+      color: var(--muted);
+      font-size: 1.2rem;
+      flex-shrink: 0;
+    }
+
+    /* ── Security grid ── */
+    .security-tile {
+      padding: 1rem;
+      border-radius: var(--radius);
+      background: rgba(255,255,255,.06);
+      border: 1px solid rgba(255,255,255,.1);
+    }
+    .security-tile svg { color: #93c5fd; margin-bottom: .5rem; }
+    .security-tile h4 { font-size: .85rem; margin-bottom: .3rem; color: #f1f5f9; }
+    .security-tile p { font-size: .72rem; color: #94a3b8; line-height: 1.45; }
+
+    /* ── Outcome cards ── */
+    .outcome {
+      padding: 1.1rem;
+      border-radius: var(--radius);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-left: 4px solid var(--primary);
+    }
+    .outcome .metric { font-size: 1.6rem; font-weight: 700; color: var(--primary); line-height: 1; }
+    .outcome .label { font-size: .78rem; color: var(--text-2); margin-top: .35rem; }
+
+    /* ── Footer strip ── */
+    .spread-footer {
+      margin-top: auto;
+      padding-top: 1.5rem;
+      border-top: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: .72rem;
+      color: var(--muted);
+    }
+    .spread--dark .spread-footer { border-color: rgba(255,255,255,.1); color: #64748b; }
+
+    /* ── Print ── */
+    @media print {
+      body { background: #fff; }
+      .spread { max-width: none; margin: 0; box-shadow: none; page-break-after: always; }
+      .no-print { display: none !important; }
+    }
+
+    @media (max-width: 900px) {
+      .spread-inner { padding: 2rem 1.5rem; }
+      .grid-2, .grid-3, .grid-4, .compare, .kpi-row { grid-template-columns: 1fr; }
+      .step-flow { flex-direction: column; }
+      .step-arrow { transform: rotate(90deg); justify-content: center; }
+      .app-sidebar { display: none; }
+    }
+
+    /* ── Floating nav (screen only) ── */
+    .brochure-nav {
+      position: fixed;
+      bottom: 1.5rem;
+      right: 1.5rem;
+      z-index: 100;
+      display: flex;
+      flex-direction: column;
+      gap: .4rem;
+      background: rgba(15,23,42,.92);
+      backdrop-filter: blur(12px);
+      padding: .75rem;
+      border-radius: 14px;
+      border: 1px solid rgba(255,255,255,.1);
+      max-height: 70vh;
+      overflow-y: auto;
+    }
+    .brochure-nav a {
+      color: #cbd5e1;
+      text-decoration: none;
+      font-size: .68rem;
+      padding: .35rem .55rem;
+      border-radius: 8px;
+      white-space: nowrap;
+    }
+    .brochure-nav a:hover { background: rgba(37,99,235,.3); color: #fff; }
+
+    .leave-widget {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: .65rem;
+      margin-top: .55rem;
+    }
+    .leave-widget .bar {
+      height: 6px;
+      border-radius: 99px;
+      background: var(--surface-2);
+      overflow: hidden;
+      margin-top: .35rem;
+    }
+    .leave-widget .bar span { display: block; height: 100%; border-radius: 99px; background: linear-gradient(90deg, var(--primary), #60a5fa); }
+
+    .notification-stack { display: flex; flex-direction: column; gap: .4rem; }
+    .notif {
+      display: flex;
+      gap: .5rem;
+      align-items: flex-start;
+      padding: .5rem .6rem;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      font-size: .65rem;
+    }
+    .notif .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--primary); margin-top: .25rem; flex-shrink: 0; }
+  </style>
+</head>
+<body>
+
+<nav class="brochure-nav no-print" aria-label="Brochure sections">
+  <a href="#cover">Cover</a>
+  <a href="#why">Why Continuum</a>
+  <a href="#what">What It Is</a>
+  <a href="#who">Who It's For</a>
+  <a href="#modules">15 Modules</a>
+  <a href="#roles">Roles</a>
+  <a href="#outcomes">Outcomes</a>
+  <a href="#security">Security</a>
+  <a href="#is-isnt">Is / Isn't</a>
+  <a href="#day">Typical Day</a>
+  <a href="#onboard">Getting Started</a>
+</nav>
+
+<!-- ═══════════════════════════════════════════════════════════
+     SPREAD 1 — COVER
+     ═══════════════════════════════════════════════════════════ -->
+<section class="spread spread--dark" id="cover">
+  <div class="glow glow-blue"></div>
+  <div class="glow glow-violet"></div>
+  <div class="spread-inner">
+    <div class="eyebrow">B2B SaaS · HRMS · India-first</div>
+    <div class="grid-2" style="flex:1; align-items:center;">
+      <div>
+        <h1 style="color:#f8fafc; margin-bottom:1rem;">
+          HR that <span class="serif-accent" style="color:#93c5fd;">runs itself</span>
+        </h1>
+        <p class="lead" style="margin-bottom:1.5rem;">
+          Continuum is a multi-tenant HR platform for Indian SMBs and mid-market teams —
+          leave, attendance, payroll, compliance, and people ops in one premium workspace.
+        </p>
+        <div class="flex gap-md" style="flex-wrap:wrap; margin-bottom:2rem;">
+          <span class="badge badge--primary">15 core modules</span>
+          <span class="badge badge--success">5 role portals</span>
+          <span class="badge badge--violet">Invite-only access</span>
+        </div>
+        <div class="grid-4" style="max-width:480px;">
+          <div class="stat-pill" style="background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.12);">
+            <strong style="color:#60a5fa;">10 min</strong>
+            <span style="color:#94a3b8;">Avg. onboarding</span>
+          </div>
+          <div class="stat-pill" style="background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.12);">
+            <strong style="color:#34d399;">99.9%</strong>
+            <span style="color:#94a3b8;">Uptime target</span>
+          </div>
+          <div class="stat-pill" style="background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.12);">
+            <strong style="color:#a78bfa;">3-tier</strong>
+            <span style="color:#94a3b8;">Approvals</span>
+          </div>
+          <div class="stat-pill" style="background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.12);">
+            <strong style="color:#fbbf24;">15</strong>
+            <span style="color:#94a3b8;">HR modules</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Live dashboard mockup -->
+      <div class="browser">
+        <div class="browser-bar">
+          <div class="browser-dots"><i></i><i></i><i></i></div>
+          <div class="browser-url">continuum.app/hr/dashboard</div>
+        </div>
+        <div class="app-shell">
+          <aside class="app-sidebar">
+            <div class="logo">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+              Continuum
+            </div>
+            <div class="nav-item active">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+              Dashboard
+            </div>
+            <div class="nav-item">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/></svg>
+              Leave Requests
+            </div>
+            <div class="nav-item">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+              Attendance
+            </div>
+            <div class="nav-item">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+              Payroll
+            </div>
+          </aside>
+          <div class="app-main">
+            <div class="app-topbar">
+              <div>
+                <h4>HR Command Center</h4>
+                <div class="sub">Thursday, 9:04 AM · Acme Agency Pvt Ltd</div>
+              </div>
+              <span class="btn-mock btn-mock--primary">Run payroll preflight</span>
+            </div>
+            <div class="kpi-row">
+              <div class="kpi"><label>Pending leaves</label><strong>7</strong><span class="delta">↑ 2 SLA risk</span></div>
+              <div class="kpi"><label>Absent today</label><strong>4</strong></div>
+              <div class="kpi"><label>Payroll status</label><strong style="color:var(--amber);">Review</strong></div>
+              <div class="kpi"><label>Open approvals</label><strong>12</strong></div>
+            </div>
+            <div class="table-mock">
+              <div class="row head"><span>Employee</span><span>Type</span><span>Status</span><span>Action</span></div>
+              <div class="row"><span><span class="avatar">PS</span>Priya Sharma</span><span>Casual leave</span><span><span class="badge badge--warn" style="font-size:.58rem;padding:.15rem .45rem;">Pending 52h</span></span><span class="btn-mock btn-mock--ghost" style="padding:.2rem .45rem;">Escalate</span></div>
+              <div class="row"><span><span class="avatar">AK</span>Arjun Kumar</span><span>WFH</span><span><span class="badge badge--success" style="font-size:.58rem;padding:.15rem .45rem;">Approved</span></span><span class="muted">—</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="spread-footer" style="border-color:rgba(255,255,255,.1);color:#64748b;">
+      <span>Continuum HRMS · Product Brochure 2026</span>
+      <span>continuum.app</span>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════
+     SPREAD 2 — WHY CONTINUUM
+     ═══════════════════════════════════════════════════════════ -->
+<section class="spread spread--gradient" id="why">
+  <div class="glow glow-emerald"></div>
+  <div class="spread-inner">
+    <div class="eyebrow">The problem</div>
+    <h2 style="margin-bottom:.75rem;">Why agencies need Continuum</h2>
+    <p class="lead" style="margin-bottom:2rem;">
+      Creative, consulting, and services agencies run on people — but HR still lives in WhatsApp threads,
+      shared spreadsheets, and email chains. Continuum replaces that chaos with one governed system.
+    </p>
+
+    <div class="grid-2">
+      <div>
+        <div class="card" style="margin-bottom:1rem;border-left:4px solid #dc2626;">
+          <h3 style="color:#dc2626;margin-bottom:.5rem;">Without Continuum</h3>
+          <ul style="list-style:none;font-size:.85rem;color:var(--text-2);">
+            <li style="padding:.4rem 0;">📱 Leave approvals buried in chat</li>
+            <li style="padding:.4rem 0;">📊 Payroll built in Excel every month-end</li>
+            <li style="padding:.4rem 0;">🔍 No audit trail when compliance asks</li>
+            <li style="padding:.4rem 0;">⏱ Managers chase HR for team status</li>
+            <li style="padding:.4rem 0;">🚫 New hires wait days for access</li>
+          </ul>
+        </div>
+        <div class="card" style="border-left:4px solid var(--emerald);">
+          <h3 style="color:var(--emerald);margin-bottom:.5rem;">With Continuum</h3>
+          <ul style="list-style:none;font-size:.85rem;color:var(--text-2);">
+            <li style="padding:.4rem 0;">✓ Auto-routed approvals with SLA alerts</li>
+            <li style="padding:.4rem 0;">✓ Statutory payroll from live attendance data</li>
+            <li style="padding:.4rem 0;">✓ Tamper-evident audit log on every action</li>
+            <li style="padding:.4rem 0;">✓ Manager dashboard: who's out in 30 seconds</li>
+            <li style="padding:.4rem 0;">✓ Invite → profile → first leave same day</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="browser">
+        <div class="browser-bar">
+          <div class="browser-dots"><i></i><i></i><i></i></div>
+          <div class="browser-url">continuum.app/manager/dashboard</div>
+        </div>
+        <div class="app-main" style="min-height:320px;">
+          <div class="app-topbar">
+            <div>
+              <h4>Manager — Team at a glance</h4>
+              <div class="sub">No report generation. No HR ping.</div>
+            </div>
+          </div>
+          <div class="kpi-row" style="grid-template-columns:repeat(3,1fr);">
+            <div class="kpi"><label>Team size</label><strong>14</strong></div>
+            <div class="kpi"><label>Out today</label><strong style="color:var(--amber);">3</strong></div>
+            <div class="kpi"><label>Awaiting you</label><strong style="color:var(--primary);">2</strong></div>
+          </div>
+          <div class="notification-stack">
+            <div class="notif">
+              <span class="dot"></span>
+              <div><strong>Leave approval</strong> — Neha R. · 2 days casual · <span style="color:var(--primary);">Approve?</span></div>
+            </div>
+            <div class="notif">
+              <span class="dot" style="background:var(--amber);"></span>
+              <div><strong>SLA warning</strong> — Reimbursement pending 47h</div>
+            </div>
+            <div class="notif">
+              <span class="dot" style="background:var(--emerald);"></span>
+              <div><strong>Attendance</strong> — Team 93% present this week</div>
+            </div>
+          </div>
+          <div style="margin-top:.75rem;display:flex;gap:.4rem;">
+            <span class="btn-mock btn-mock--primary">Approve all</span>
+            <span class="btn-mock btn-mock--ghost">View calendar</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="spread-footer">
+      <span>Why Continuum</span>
+      <span>Page 2</span>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════
+     SPREAD 3 — WHAT CONTINUUM IS
+     ═══════════════════════════════════════════════════════════ -->
+<section class="spread" id="what">
+  <div class="glow glow-blue"></div>
+  <div class="spread-inner">
+    <div class="eyebrow">Product identity</div>
+    <h2 style="margin-bottom:.75rem;">What Continuum is</h2>
+    <p class="lead" style="margin-bottom:2rem;">
+      A web-first, multi-tenant HRMS built for Indian labor law — config-driven workflows,
+      role-based portals, and module gating so each company runs only what they pay for.
+    </p>
+
+    <div class="grid-3" style="margin-bottom:1.5rem;">
+      <div class="card card--glass">
+        <span class="badge badge--primary" style="margin-bottom:.6rem;">Architecture</span>
+        <h3>True multi-tenancy</h3>
+        <p class="muted" style="margin-top:.4rem;">Unlimited companies on shared infra. Every query scoped by <code style="font-size:.75rem;background:var(--surface-2);padding:.1rem .3rem;border-radius:4px;">org_id</code>. Zero cross-tenant leakage.</p>
+      </div>
+      <div class="card card--glass">
+        <span class="badge badge--success" style="margin-bottom:.6rem;">India-first</span>
+        <h3>Statutory payroll</h3>
+        <p class="muted" style="margin-top:.4rem;">PF, ESI, professional tax, TDS, and loss-of-pay from live attendance — not a monthly spreadsheet rebuild.</p>
+      </div>
+      <div class="card card--glass">
+        <span class="badge badge--violet" style="margin-bottom:.6rem;">Config, not code</span>
+        <h3>Workflow engine</h3>
+        <p class="muted" style="margin-top:.4rem;">Leave policies, approval chains, salary components — changed in admin UI, reflected immediately for new transactions.</p>
+      </div>
+    </div>
+
+    <div class="browser">
+      <div class="browser-bar">
+        <div class="browser-dots"><i></i><i></i><i></i></div>
+        <div class="browser-url">continuum.app/admin/company-settings?tab=modules</div>
+      </div>
+      <div class="app-shell" style="min-height:240px;">
+        <aside class="app-sidebar">
+          <div class="logo">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/></svg>
+            Admin
+          </div>
+          <div class="nav-item">Getting Started</div>
+          <div class="nav-item">People Ops</div>
+          <div class="nav-item active">Settings</div>
+          <div class="nav-item">RBAC</div>
+          <div class="nav-item">Billing</div>
+        </aside>
+        <div class="app-main">
+          <div class="app-topbar">
+            <div><h4>Module Management</h4><div class="sub">Growth plan · 12 of 15 modules enabled</div></div>
+          </div>
+          <div class="grid-4" style="gap:.45rem;">
+            <div class="module-chip" style="padding:.5rem;"><div class="ico" style="width:22px;height:22px;font-size:.6rem;">✓</div><div><strong style="font-size:.68rem;">Leave</strong><span style="font-size:.6rem;">Mandatory</span></div></div>
+            <div class="module-chip" style="padding:.5rem;"><div class="ico" style="width:22px;height:22px;font-size:.6rem;">✓</div><div><strong style="font-size:.68rem;">Payroll</strong><span style="font-size:.6rem;">Enabled</span></div></div>
+            <div class="module-chip" style="padding:.5rem;"><div class="ico" style="width:22px;height:22px;font-size:.6rem;">✓</div><div><strong style="font-size:.68rem;">Attendance</strong><span style="font-size:.6rem;">Enabled</span></div></div>
+            <div class="module-chip" style="padding:.5rem;opacity:.55;"><div class="ico" style="width:22px;height:22px;font-size:.6rem;">○</div><div><strong style="font-size:.68rem;">Recruitment</strong><span style="font-size:.6rem;">Upgrade</span></div></div>
+          </div>
+          <p class="muted" style="margin-top:.65rem;font-size:.68rem;">Disabled modules: nav hidden · API returns 403 · route redirects to /module-disabled</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="spread-footer">
+      <span>What Continuum Is</span>
+      <span>Page 3</span>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════
+     SPREAD 4 — WHO IT'S FOR
+     ═══════════════════════════════════════════════════════════ -->
+<section class="spread spread--gradient" id="who">
+  <div class="spread-inner">
+    <div class="eyebrow">Market fit</div>
+    <h2 style="margin-bottom:.75rem;">Who Continuum is for</h2>
+    <p class="lead" style="margin-bottom:2rem;">
+      Built for Indian SMBs and mid-market teams (10–2,000 employees) — especially agencies,
+      studios, and services firms where people ops is the product.
+    </p>
+
+    <div class="grid-2">
+      <div class="grid-2" style="grid-template-columns:1fr 1fr;gap:.85rem;">
+        <div class="card" style="text-align:center;padding:1.25rem .75rem;">
+          <div style="font-size:1.8rem;margin-bottom:.35rem;">🎨</div>
+          <h3 style="font-size:.85rem;">Creative agencies</h3>
+          <p class="muted" style="font-size:.72rem;margin-top:.3rem;">Freelancers + FTEs, project leave, fast onboarding</p>
+        </div>
+        <div class="card" style="text-align:center;padding:1.25rem .75rem;">
+          <div style="font-size:1.8rem;margin-bottom:.35rem;">💼</div>
+          <h3 style="font-size:.85rem;">Consulting firms</h3>
+          <p class="muted" style="font-size:.72rem;margin-top:.3rem;">Multi-level approvals, travel & expense, compliance</p>
+        </div>
+        <div class="card" style="text-align:center;padding:1.25rem .75rem;">
+          <div style="font-size:1.8rem;margin-bottom:.35rem;">🏢</div>
+          <h3 style="font-size:.85rem;">Tech SMBs</h3>
+          <p class="muted" style="font-size:.72rem;margin-top:.3rem;">Remote attendance, performance cycles, payroll</p>
+        </div>
+        <div class="card" style="text-align:center;padding:1.25rem .75rem;">
+          <div style="font-size:1.8rem;margin-bottom:.35rem;">🏭</div>
+          <h3 style="font-size:.85rem;">India ops teams</h3>
+          <p class="muted" style="font-size:.72rem;margin-top:.3rem;">PF/ESI/TDS, statutory exports, audit readiness</p>
+        </div>
+      </div>
+
+      <div class="browser">
+        <div class="browser-bar">
+          <div class="browser-dots"><i></i><i></i><i></i></div>
+          <div class="browser-url">continuum.app/onboarding</div>
+        </div>
+        <div class="app-main" style="padding:1.25rem;min-height:300px;">
+          <div class="badge badge--primary" style="margin-bottom:.75rem;">Company setup wizard</div>
+          <h4 style="font-size:1rem;margin-bottom:.25rem;">Welcome, Acme Agency</h4>
+          <p class="muted" style="font-size:.75rem;margin-bottom:1rem;">4 of 6 steps complete · ~8 min remaining</p>
+          <div style="height:8px;background:var(--surface-2);border-radius:99px;overflow:hidden;margin-bottom:1rem;">
+            <div style="width:67%;height:100%;background:linear-gradient(90deg,var(--primary),#60a5fa);border-radius:99px;"></div>
+          </div>
+          <div class="grid-2" style="gap:.5rem;font-size:.72rem;">
+            <div class="card" style="padding:.65rem;border-color:#a7f3d0;background:var(--emerald-soft);">✓ Company profile</div>
+            <div class="card" style="padding:.65rem;border-color:#a7f3d0;background:var(--emerald-soft);">✓ Leave policies</div>
+            <div class="card" style="padding:.65rem;border-color:#a7f3d0;background:var(--emerald-soft);">✓ Approval chains</div>
+            <div class="card" style="padding:.65rem;border-color:#bfdbfe;background:var(--primary-soft);">→ Invite first employee</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="flex gap-md mt-auto" style="margin-top:1.5rem;flex-wrap:wrap;">
+      <span class="badge">Free · up to 10 seats</span>
+      <span class="badge">Starter · ₹49 PEPM</span>
+      <span class="badge badge--primary">Growth · ₹149 PEPM · all modules</span>
+      <span class="badge badge--violet">Enterprise · custom SLA</span>
+    </div>
+
+    <div class="spread-footer">
+      <span>Who It's For</span>
+      <span>Page 4</span>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════
+     SPREAD 5 — 15 MODULES
+     ═══════════════════════════════════════════════════════════ -->
+<section class="spread" id="modules">
+  <div class="spread-inner">
+    <div class="eyebrow">Core functions CF-001 → CF-015</div>
+    <h2 style="margin-bottom:.5rem;">15 modules. One platform.</h2>
+    <p class="muted" style="margin-bottom:1.25rem;">Enable only what you need. Every module is gated at nav, route, and API layers.</p>
+
+    <div class="grid-3" style="gap:.65rem;margin-bottom:1rem;">
+      <div class="module-chip"><div class="ico">👥</div><div><strong>Employees</strong><span>Profiles, org chart, lifecycle · mandatory</span></div></div>
+      <div class="module-chip"><div class="ico">📅</div><div><strong>Leave (+ AI)</strong><span>Requests, balances, smart approvals · mandatory</span></div></div>
+      <div class="module-chip"><div class="ico">⚖️</div><div><strong>Compliance & Audit</strong><span>Statutory reports, tamper-evident logs · mandatory</span></div></div>
+      <div class="module-chip"><div class="ico">🕐</div><div><strong>Attendance</strong><span>Clock-in, shifts, regularization · mandatory</span></div></div>
+      <div class="module-chip"><div class="ico">💰</div><div><strong>Payroll</strong><span>Salary runs, payslips, statutory deductions</span></div></div>
+      <div class="module-chip"><div class="ico">🏛️</div><div><strong>PF</strong><span>Provident fund reporting bundled with payroll</span></div></div>
+      <div class="module-chip"><div class="ico">🎯</div><div><strong>Performance</strong><span>Goals, review cycles, appraisals</span></div></div>
+      <div class="module-chip"><div class="ico">📋</div><div><strong>Recruitment</strong><span>Job postings, pipeline, offer letters</span></div></div>
+      <div class="module-chip"><div class="ico">📚</div><div><strong>Learning</strong><span>Courses, enrollments, certifications</span></div></div>
+      <div class="module-chip"><div class="ico">✈️</div><div><strong>Travel & Expense</strong><span>Travel requests and expense claims</span></div></div>
+      <div class="module-chip"><div class="ico">💳</div><div><strong>Reimbursements</strong><span>Approval workflows for reimbursements</span></div></div>
+      <div class="module-chip"><div class="ico">🏢</div><div><strong>Directory</strong><span>People search and org structure</span></div></div>
+      <div class="module-chip"><div class="ico">📁</div><div><strong>Documents</strong><span>HR vault, policies, expiry alerts</span></div></div>
+      <div class="module-chip"><div class="ico">🚪</div><div><strong>Exit</strong><span>Offboarding checklists and movements</span></div></div>
+      <div class="module-chip"><div class="ico">📊</div><div><strong>Analytics</strong><span>Headcount, leave, payroll, attrition reports</span></div></div>
+    </div>
+
+    <div class="browser">
+      <div class="browser-bar">
+        <div class="browser-dots"><i></i><i></i><i></i></div>
+        <div class="browser-url">continuum.app/employee/dashboard</div>
+      </div>
+      <div class="app-shell" style="min-height:200px;">
+        <aside class="app-sidebar" style="width:140px;">
+          <div class="logo" style="font-size:.72rem;">Employee</div>
+          <div class="nav-item active">Dashboard</div>
+          <div class="nav-item">Request Leave</div>
+          <div class="nav-item">Payslips</div>
+        </aside>
+        <div class="app-main">
+          <div class="grid-3" style="gap:.55rem;">
+            <div class="leave-widget">
+              <div class="flex-between"><strong style="font-size:.75rem;">Casual leave</strong><span style="font-size:.7rem;color:var(--primary);font-weight:700;">8 left</span></div>
+              <div class="bar"><span style="width:60%;"></span></div>
+              <span class="btn-mock btn-mock--primary" style="margin-top:.45rem;width:100%;justify-content:center;">Apply leave</span>
+            </div>
+            <div class="leave-widget">
+              <strong style="font-size:.75rem;">Latest payslip</strong>
+              <p class="muted" style="font-size:.65rem;margin:.3rem 0;">May 2026 · ₹84,200 net</p>
+              <span class="btn-mock btn-mock--ghost" style="width:100%;justify-content:center;">Download PDF</span>
+            </div>
+            <div class="leave-widget">
+              <strong style="font-size:.75rem;">Today's attendance</strong>
+              <p style="font-size:.75rem;color:var(--emerald);font-weight:600;margin:.35rem 0;">✓ Clocked in 9:12 AM</p>
+              <span class="muted" style="font-size:.62rem;">Shift: General · WFH allowed</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="spread-footer">
+      <span>15 Modules</span>
+      <span>Page 5</span>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════
+     SPREAD 6 — ROLE BY ROLE
+     ═══════════════════════════════════════════════════════════ -->
+<section class="spread spread--gradient" id="roles">
+  <div class="spread-inner">
+    <div class="eyebrow">Five portals · seven roles</div>
+    <h2 style="margin-bottom:.5rem;">What each person gets</h2>
+    <p class="muted" style="margin-bottom:1.25rem;">Same company, different lens. Portal switcher for users with multiple roles.</p>
+
+    <div class="grid-4" style="margin-bottom:1.25rem;">
+      <div class="role-card role-card--admin">
+        <div class="icon-wrap">⚙️</div>
+        <h3>Admin</h3>
+        <p class="muted" style="font-size:.72rem;">Company owner / founder</p>
+        <ul>
+          <li>Setup wizard & module toggles</li>
+          <li>RBAC & billing</li>
+          <li>Approval chain config</li>
+          <li>Startup readiness score</li>
+        </ul>
+      </div>
+      <div class="role-card role-card--hr">
+        <div class="icon-wrap">📋</div>
+        <h3>HR</h3>
+        <p class="muted" style="font-size:.72rem;">People operations lead</p>
+        <ul>
+          <li>Leave, payroll, compliance</li>
+          <li>Bulk import & org chart</li>
+          <li>Escalation & SLA view</li>
+          <li>Reports & audit logs</li>
+        </ul>
+      </div>
+      <div class="role-card role-card--manager">
+        <div class="icon-wrap">👔</div>
+        <h3>Manager</h3>
+        <p class="muted" style="font-size:.72rem;">Director · manager · team lead</p>
+        <ul>
+          <li>One-click approvals</li>
+          <li>Team attendance & calendar</li>
+          <li>Performance visibility</li>
+          <li>Team-scoped reports</li>
+        </ul>
+      </div>
+      <div class="role-card role-card--employee">
+        <div class="icon-wrap">🙋</div>
+        <h3>Employee</h3>
+        <p class="muted" style="font-size:.72rem;">Individual contributor</p>
+        <ul>
+          <li>Self-service leave & attendance</li>
+          <li>Payslips & documents</li>
+          <li>Reimbursements & travel</li>
+          <li>Learning & exit checklist</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="grid-2">
+      <div class="browser">
+        <div class="browser-bar">
+          <div class="browser-dots"><i></i><i></i><i></i></div>
+          <div class="browser-url">continuum.app/hr/escalation</div>
+        </div>
+        <div class="app-main" style="min-height:200px;">
+          <div class="app-topbar">
+            <div><h4>HR — SLA Escalation</h4><div class="sub">Requests pending &gt; 48 hours</div></div>
+            <span class="badge badge--warn">3 breaches</span>
+          </div>
+          <div class="table-mock">
+            <div class="row head"><span>Request</span><span>Approver</span><span>Hours</span><span></span></div>
+            <div class="row"><span>Leave · Priya S.</span><span>Manager (away)</span><span style="color:#dc2626;font-weight:700;">52h</span><span class="btn-mock btn-mock--primary" style="padding:.2rem .4rem;">Override</span></div>
+            <div class="row"><span>Expense · Rahul M.</span><span>Finance</span><span style="color:var(--amber);font-weight:700;">49h</span><span class="btn-mock btn-mock--ghost" style="padding:.2rem .4rem;">Nudge</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="browser">
+        <div class="browser-bar">
+          <div class="browser-dots"><i></i><i></i><i></i></div>
+          <div class="browser-url">continuum.app/admin/rbac</div>
+        </div>
+        <div class="app-main" style="min-height:200px;">
+          <div class="app-topbar">
+            <div><h4>Admin — RBAC Matrix</h4><div class="sub">142 permissions · 7 roles</div></div>
+          </div>
+          <div class="table-mock">
+            <div class="row head" style="grid-template-columns:1.2fr repeat(3,1fr);"><span>Permission</span><span>HR</span><span>Manager</span><span>Employee</span></div>
+            <div class="row" style="grid-template-columns:1.2fr repeat(3,1fr);"><span>leave.approve_team</span><span style="color:var(--emerald);">✓</span><span style="color:var(--emerald);">✓</span><span>—</span></div>
+            <div class="row" style="grid-template-columns:1.2fr repeat(3,1fr);"><span>payroll.generate</span><span style="color:var(--emerald);">✓</span><span>—</span><span>—</span></div>
+            <div class="row" style="grid-template-columns:1.2fr repeat(3,1fr);"><span>leave.apply_own</span><span style="color:var(--emerald);">✓</span><span style="color:var(--emerald);">✓</span><span style="color:var(--emerald);">✓</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="spread-footer">
+      <span>Role-by-Role</span>
+      <span>Page 6</span>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════
+     SPREAD 7 — OUTCOMES
+     ═══════════════════════════════════════════════════════════ -->
+<section class="spread" id="outcomes">
+  <div class="glow glow-blue"></div>
+  <div class="spread-inner">
+    <div class="eyebrow">Business outcomes</div>
+    <h2 style="margin-bottom:.75rem;">Why agencies choose Continuum</h2>
+    <p class="lead" style="margin-bottom:2rem;">Not a feature checklist — measurable outcomes your leadership team can track.</p>
+
+    <div class="grid-2">
+      <div class="grid-2" style="gap:.85rem;">
+        <div class="outcome">
+          <div class="metric">−70%</div>
+          <div class="label">HR time on leave & attendance admin (vs. spreadsheets + chat)</div>
+        </div>
+        <div class="outcome" style="border-color:var(--emerald);">
+          <div class="metric" style="color:var(--emerald);">&lt;30s</div>
+          <div class="label">Manager answer to "who's out today?"</div>
+        </div>
+        <div class="outcome" style="border-color:var(--violet);">
+          <div class="metric" style="color:var(--violet);">0</div>
+          <div class="label">Manual PF/ESI/TDS recalculation errors at month-end</div>
+        </div>
+        <div class="outcome" style="border-color:var(--amber);">
+          <div class="metric" style="color:var(--amber);">Day 1</div>
+          <div class="label">New hire productive — invite, profile, first leave same day</div>
+        </div>
+      </div>
+
+      <div class="browser">
+        <div class="browser-bar">
+          <div class="browser-dots"><i></i><i></i><i></i></div>
+          <div class="browser-url">continuum.app/hr/reports</div>
+        </div>
+        <div class="app-main" style="min-height:320px;">
+          <div class="app-topbar">
+            <div><h4>Analytics — This month</h4><div class="sub">Usage your CFO can cite on renewal</div></div>
+          </div>
+          <div class="kpi-row" style="grid-template-columns:repeat(2,1fr);">
+            <div class="kpi"><label>Leave requests</label><strong>47</strong><span class="delta">↑ 12% vs last month</span></div>
+            <div class="kpi"><label>Payroll runs</label><strong>1</strong><span class="delta" style="color:var(--emerald);">On time</span></div>
+            <div class="kpi"><label>Active users</label><strong>89%</strong><span class="delta">38 of 42 employees</span></div>
+            <div class="kpi"><label>Avg approval time</label><strong>6.2h</strong><span class="delta" style="color:var(--emerald);">↓ from 31h</span></div>
+          </div>
+          <div class="card" style="padding:.75rem;margin-top:.5rem;">
+            <p style="font-size:.72rem;color:var(--text-2);font-style:italic;">
+              "Your team submitted 47 leave requests this month. 12 payroll runs were processed.
+              8 employees completed performance reviews." — Admin usage digest
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="spread-footer">
+      <span>Outcomes</span>
+      <span>Page 7</span>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════
+     SPREAD 8 — SECURITY & TRUST
+     ═══════════════════════════════════════════════════════════ -->
+<section class="spread spread--dark" id="security">
+  <div class="glow glow-blue"></div>
+  <div class="spread-inner">
+    <div class="eyebrow">Enterprise-grade by default</div>
+    <h2 style="color:#f8fafc;margin-bottom:.75rem;">Security & trust</h2>
+    <p class="lead" style="margin-bottom:2rem;">
+      Built for regulators, auditors, and IT teams who ask hard questions before signup.
+    </p>
+
+    <div class="grid-2">
+      <div class="grid-2" style="gap:.75rem;">
+        <div class="security-tile">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          <h4>Tenant isolation</h4>
+          <p>Every API query scoped by org_id. Cross-tenant access returns 403 — never empty data that leaks structure.</p>
+        </div>
+        <div class="security-tile">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+          <h4>RBAC + module gating</h4>
+          <p>142+ permissions across 7 roles. Disabled modules: hidden nav, blocked routes, 403 on APIs.</p>
+        </div>
+        <div class="security-tile">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>
+          <h4>Tamper-evident audit logs</h4>
+          <p>Actor, timestamp, before/after values, integrity hash. Prove who changed salary, policy, or approvals.</p>
+        </div>
+        <div class="security-tile">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+          <h4>Rate limiting & CSP</h4>
+          <p>Auth endpoints protected. Content Security Policy headers. Invite-only signup — no public tenant sprawl.</p>
+        </div>
+      </div>
+
+      <div class="browser" style="border-color:rgba(255,255,255,.15);">
+        <div class="browser-bar" style="background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.1);">
+          <div class="browser-dots"><i></i><i></i><i></i></div>
+          <div class="browser-url" style="background:rgba(0,0,0,.2);border-color:rgba(255,255,255,.1);color:#94a3b8;">continuum.app/hr/audit-logs</div>
+        </div>
+        <div class="app-main" style="background:#0f172a;min-height:300px;">
+          <div class="app-topbar">
+            <div>
+              <h4 style="color:#f1f5f9;">Audit Log — Live stream</h4>
+              <div class="sub">Immutable · searchable · exportable</div>
+            </div>
+            <span class="badge badge--success" style="font-size:.62rem;">Chain verified</span>
+          </div>
+          <div class="table-mock" style="background:rgba(255,255,255,.04);border-color:rgba(255,255,255,.1);color:#e2e8f0;">
+            <div class="row head" style="background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.08);color:#94a3b8;grid-template-columns:1fr 1.2fr 1fr .8fr;">
+              <span>Time</span><span>Action</span><span>Actor</span><span>Hash</span>
+            </div>
+            <div class="row" style="border-color:rgba(255,255,255,.06);grid-template-columns:1fr 1.2fr 1fr .8fr;">
+              <span>09:04:12</span><span>leave.approved</span><span>manager@acme</span><span style="font-family:monospace;font-size:.58rem;color:#60a5fa;">a3f8…</span>
+            </div>
+            <div class="row" style="border-color:rgba(255,255,255,.06);grid-template-columns:1fr 1.2fr 1fr .8fr;">
+              <span>09:01:55</span><span>salary.updated</span><span>hr@acme</span><span style="font-family:monospace;font-size:.58rem;color:#60a5fa;">b91c…</span>
+            </div>
+            <div class="row" style="border-color:rgba(255,255,255,.06);grid-template-columns:1fr 1.2fr 1fr .8fr;">
+              <span>08:58:03</span><span>policy.changed</span><span>admin@acme</span><span style="font-family:monospace;font-size:.58rem;color:#60a5fa;">c44e…</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="spread-footer">
+      <span>Security & Trust</span>
+      <span>Page 8</span>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════
+     SPREAD 9 — IS / ISN'T
+     ═══════════════════════════════════════════════════════════ -->
+<section class="spread" id="is-isnt">
+  <div class="spread-inner">
+    <div class="eyebrow">Honest expectations</div>
+    <h2 style="margin-bottom:.75rem;">What Continuum is — and isn't</h2>
+    <p class="muted" style="margin-bottom:1.5rem;">We'd rather set expectations upfront than oversell.</p>
+
+    <div class="compare" style="margin-bottom:1.5rem;">
+      <div class="compare-col compare-col--is">
+        <h3>✓ Continuum IS</h3>
+        <ul>
+          <li>A complete HRMS for Indian SMBs — leave through payroll</li>
+          <li>Config-driven — policies and approvals without code deploys</li>
+          <li>Multi-tenant SaaS with per-company module control</li>
+          <li>Role-based portals for admin, HR, manager, employee</li>
+          <li>Audit-ready with statutory export paths (PF, reports)</li>
+          <li>Invite-only — your admin controls who joins</li>
+          <li>Web-first, mobile-responsive (not a native app)</li>
+        </ul>
+      </div>
+      <div class="compare-col compare-col--isnt">
+        <h3>✗ Continuum IS NOT</h3>
+        <ul>
+          <li>A generic project management or CRM tool</li>
+          <li>A replacement for your chartered accountant (advisory)</li>
+          <li>Biometric hardware — we integrate attendance data, not turnstiles</li>
+          <li>Guaranteed legal advice — compliance tools, not a law firm</li>
+          <li>Instant migration from every legacy HR system</li>
+          <li>A public signup free-for-all — companies are provisioned</li>
+          <li>Offline-first — core workflows need connectivity</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="browser">
+      <div class="browser-bar">
+        <div class="browser-dots"><i></i><i></i><i></i></div>
+        <div class="browser-url">continuum.app/module-disabled?module=recruitment</div>
+      </div>
+      <div class="app-main" style="text-align:center;padding:2rem 1.5rem;min-height:180px;">
+        <div style="font-size:2rem;margin-bottom:.5rem;">🔒</div>
+        <h4 style="margin-bottom:.35rem;">Recruitment is not enabled</h4>
+        <p class="muted" style="font-size:.8rem;max-width:36ch;margin:0 auto .75rem;">This module isn't part of your plan. Upgrade to Growth or ask your admin to enable it.</p>
+        <span class="btn-mock btn-mock--primary">View upgrade options</span>
+        <p class="muted" style="font-size:.65rem;margin-top:.75rem;">API also returns <code style="background:var(--surface-2);padding:.1rem .3rem;border-radius:4px;">403 MODULE_DISABLED</code> — no backdoor access.</p>
+      </div>
+    </div>
+
+    <div class="spread-footer">
+      <span>Is / Isn't</span>
+      <span>Page 9</span>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════
+     SPREAD 10 — TYPICAL DAY
+     ═══════════════════════════════════════════════════════════ -->
+<section class="spread spread--gradient" id="day">
+  <div class="spread-inner">
+    <div class="eyebrow">Narrative walkthrough</div>
+    <h2 style="margin-bottom:.75rem;">A typical Thursday at Acme Agency</h2>
+    <p class="muted" style="margin-bottom:1.5rem;">One day, four roles, zero spreadsheet exports.</p>
+
+    <div class="grid-2">
+      <div class="timeline">
+        <div class="timeline-item">
+          <div class="time">8:45 AM · Employee</div>
+          <p><strong>Priya</strong> clocks in from home, checks leave balance (8 casual left), submits 2-day leave for next week. Constraint check passes instantly.</p>
+        </div>
+        <div class="timeline-item">
+          <div class="time">9:10 AM · Manager</div>
+          <p><strong>Arjun</strong> opens his dashboard — sees Priya's request and 2 others. Approves all in one click. Team calendar updates live.</p>
+        </div>
+        <div class="timeline-item">
+          <div class="time">11:30 AM · HR</div>
+          <p><strong>Kavitha</strong> gets an SLA alert — one reimbursement hit 49 hours. She nudges finance from the escalation view. No digging through email.</p>
+        </div>
+        <div class="timeline-item">
+          <div class="time">4:00 PM · Admin</div>
+          <p><strong>Rohan</strong> reviews startup readiness (92%), enables the Learning module after Growth upgrade. Billing updates via Razorpay — module live in minutes.</p>
+        </div>
+        <div class="timeline-item">
+          <div class="time">5:30 PM · HR</div>
+          <p><strong>Kavitha</strong> runs payroll preflight — attendance, LOP, and PF deductions pre-calculated. She approves the run; payslips ready for employees Friday AM.</p>
+        </div>
+      </div>
+
+      <div class="flex flex-col gap-md">
+        <div class="browser">
+          <div class="browser-bar">
+            <div class="browser-dots"><i></i><i></i><i></i></div>
+            <div class="browser-url">continuum.app/manager/approvals</div>
+          </div>
+          <div class="app-main" style="padding:.85rem;">
+            <h4 style="font-size:.82rem;margin-bottom:.5rem;">Bulk approval panel</h4>
+            <div class="table-mock">
+              <div class="row" style="grid-template-columns:1fr auto auto;">
+                <span><input type="checkbox" checked disabled /> Priya · Casual · 2d</span>
+                <span class="badge badge--primary" style="font-size:.58rem;">Leave</span>
+                <span class="btn-mock btn-mock--primary" style="padding:.2rem .5rem;">Approve</span>
+              </div>
+              <div class="row" style="grid-template-columns:1fr auto auto;">
+                <span><input type="checkbox" checked disabled /> Neha · WFH · 1d</span>
+                <span class="badge badge--primary" style="font-size:.58rem;">Leave</span>
+                <span class="btn-mock btn-mock--primary" style="padding:.2rem .5rem;">Approve</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="browser">
+          <div class="browser-bar">
+            <div class="browser-dots"><i></i><i></i><i></i></div>
+            <div class="browser-url">continuum.app/hr/payroll</div>
+          </div>
+          <div class="app-main" style="padding:.85rem;">
+            <div class="flex-between">
+              <h4 style="font-size:.82rem;">June payroll preflight</h4>
+              <span class="badge badge--success">Ready</span>
+            </div>
+            <div class="kpi-row" style="grid-template-columns:repeat(3,1fr);margin-top:.5rem;">
+              <div class="kpi"><label>Gross</label><strong>₹18.4L</strong></div>
+              <div class="kpi"><label>PF</label><strong>₹1.1L</strong></div>
+              <div class="kpi"><label>Net</label><strong>₹16.2L</strong></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="spread-footer">
+      <span>Typical Day</span>
+      <span>Page 10</span>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════
+     SPREAD 11 — GETTING STARTED
+     ═══════════════════════════════════════════════════════════ -->
+<section class="spread spread--dark" id="onboard">
+  <div class="glow glow-violet"></div>
+  <div class="glow glow-blue"></div>
+  <div class="spread-inner">
+    <div class="eyebrow">Launch in one afternoon</div>
+    <h2 style="color:#f8fafc;margin-bottom:.75rem;">Getting started</h2>
+    <p class="lead" style="margin-bottom:2rem;">
+      From zero to first leave approved — without Continuum support touching your database.
+    </p>
+
+    <div class="step-flow" style="margin-bottom:2rem;">
+      <div class="step-box" style="background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.12);color:#e2e8f0;">
+        <div class="num">01</div>
+        <h4>Provision company</h4>
+        <p>Super admin creates tenant, sets module cap, sends admin invite credentials.</p>
+      </div>
+      <div class="step-arrow">→</div>
+      <div class="step-box" style="background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.12);color:#e2e8f0;">
+        <div class="num">02</div>
+        <h4>Onboarding wizard</h4>
+        <p>Admin completes org profile, leave policies, holidays, approval chains.</p>
+      </div>
+      <div class="step-arrow">→</div>
+      <div class="step-box" style="background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.12);color:#e2e8f0;">
+        <div class="num">03</div>
+        <h4>Invite people</h4>
+        <p>HR invites employees with role + permissions. Secure link → set password → profile.</p>
+      </div>
+      <div class="step-arrow">→</div>
+      <div class="step-box" style="background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.12);color:#e2e8f0;">
+        <div class="num">04</div>
+        <h4>Run the day</h4>
+        <p>Leave, attendance, payroll from live dashboards. Readiness score hits green.</p>
+      </div>
+    </div>
+
+    <div class="grid-2">
+      <div class="browser">
+        <div class="browser-bar" style="background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.1);">
+          <div class="browser-dots"><i></i><i></i><i></i></div>
+          <div class="browser-url" style="background:rgba(0,0,0,.2);border-color:rgba(255,255,255,.1);color:#94a3b8;">continuum.app/invite/a8f3…</div>
+        </div>
+        <div class="app-main" style="background:#0f172a;padding:1.25rem;text-align:center;min-height:220px;">
+          <span class="badge badge--primary" style="margin-bottom:.75rem;">Accept invitation</span>
+          <h4 style="color:#f1f5f9;margin-bottom:.35rem;">Join Acme Agency on Continuum</h4>
+          <p class="muted" style="font-size:.75rem;margin-bottom:1rem;">Role: Employee · Department: Design</p>
+          <div style="max-width:220px;margin:0 auto;text-align:left;">
+            <label class="muted" style="font-size:.65rem;display:block;margin-bottom:.25rem;">Create password</label>
+            <div style="height:32px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);border-radius:8px;margin-bottom:.65rem;"></div>
+            <span class="btn-mock btn-mock--primary" style="width:100%;justify-content:center;padding:.5rem;">Accept & continue</span>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div class="card" style="background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.12);color:#e2e8f0;margin-bottom:1rem;">
+          <h3 style="color:#f8fafc;margin-bottom:.65rem;">Startup readiness checklist</h3>
+          <div style="font-size:.78rem;">
+            <div style="display:flex;justify-content:space-between;padding:.35rem 0;border-bottom:1px solid rgba(255,255,255,.08);"><span>✓ Company profile</span><span style="color:#34d399;">Done</span></div>
+            <div style="display:flex;justify-content:space-between;padding:.35rem 0;border-bottom:1px solid rgba(255,255,255,.08);"><span>✓ Leave types configured</span><span style="color:#34d399;">Done</span></div>
+            <div style="display:flex;justify-content:space-between;padding:.35rem 0;border-bottom:1px solid rgba(255,255,255,.08);"><span>✓ First employee invited</span><span style="color:#34d399;">Done</span></div>
+            <div style="display:flex;justify-content:space-between;padding:.35rem 0;"><span>○ First payroll preflight</span><span style="color:#fbbf24;">Pending</span></div>
+          </div>
+          <div style="margin-top:.75rem;height:8px;background:rgba(255,255,255,.1);border-radius:99px;overflow:hidden;">
+            <div style="width:75%;height:100%;background:linear-gradient(90deg,#2563eb,#34d399);border-radius:99px;"></div>
+          </div>
+          <p style="font-size:.72rem;color:#94a3b8;margin-top:.4rem;">75% ready · 1 step remaining</p>
+        </div>
+        <div style="text-align:center;padding:1.5rem;">
+          <h2 style="color:#f8fafc;font-size:2rem;margin-bottom:.5rem;">Ready to run HR that <span class="serif-accent" style="color:#93c5fd;">runs itself?</span></h2>
+          <p class="muted" style="margin-bottom:1rem;">Request a demo · continuum.app</p>
+          <span class="btn-mock btn-mock--primary" style="padding:.65rem 1.25rem;font-size:.85rem;">Get started</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="spread-footer" style="border-color:rgba(255,255,255,.1);">
+      <span>Continuum · HR that runs itself</span>
+      <span>Page 11 · End</span>
+    </div>
+  </div>
+</section>
+
+</body>
+</html>
