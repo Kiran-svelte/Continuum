@@ -54,7 +54,7 @@ async function loadAssignablePending(
       ...(canApproveAny ? {} : { current_approver_id: employeeId }),
     },
     include: {
-      Employee_LeaveRequest_emp_idToEmployee: {
+      employee: {
         select: { first_name: true, last_name: true },
       },
     },
@@ -81,14 +81,14 @@ function buildPending(
   };
 }
 
-function pickRequestByNameHint<T extends { Employee_LeaveRequest_emp_idToEmployee: { first_name: string; last_name: string } | null }>(
+function pickRequestByNameHint<T extends { employee: { first_name: string; last_name: string } | null }>(
   pending: T[],
   hint: string | null
 ): T | null {
   if (!hint || pending.length === 0) return null;
   const norm = hint.toLowerCase().replace(/\s+/g, ' ');
   const match = pending.find((p) => {
-    const emp = p.Employee_LeaveRequest_emp_idToEmployee;
+    const emp = p.employee;
     const full = `${emp?.first_name ?? ''} ${emp?.last_name ?? ''}`.trim().toLowerCase();
     return full.includes(norm) || norm.includes(full) || full.split(' ').some((part) => norm.includes(part));
   });
@@ -124,7 +124,7 @@ export async function startApproveLeaveDraft(
   if (pending.length > 1 && !pickIndex) {
     const lines = pending
       .map((p, i) => {
-        const emp = p.Employee_LeaveRequest_emp_idToEmployee;
+        const emp = p.employee;
         const name = `${emp?.first_name ?? ''} ${emp?.last_name ?? ''}`.trim();
         const start = p.start_date.toISOString().split('T')[0];
         const end = p.end_date.toISOString().split('T')[0];
@@ -143,7 +143,7 @@ export async function startApproveLeaveDraft(
     };
   }
 
-  const emp = chosen.Employee_LeaveRequest_emp_idToEmployee;
+  const emp = chosen.employee;
   const payload: ApproveLeavePayload = {
     request_id: chosen.id,
     employee_name: `${emp?.first_name ?? ''} ${emp?.last_name ?? ''}`.trim(),

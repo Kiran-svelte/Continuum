@@ -40,7 +40,7 @@ export async function loadApprovalQueueSummary(
         current_approver_id: managerId,
       },
       include: {
-        Employee_LeaveRequest_emp_idToEmployee: {
+        employee: {
           select: { first_name: true, last_name: true },
         },
       },
@@ -51,10 +51,10 @@ export async function loadApprovalQueueSummary(
       where: {
         company_id: companyId,
         status: 'pending',
-        Employee_AttendanceRegularization_emp_idToEmployee: { manager_id: managerId },
+        employee: { manager_id: managerId },
       },
       include: {
-        Employee_AttendanceRegularization_emp_idToEmployee: {
+        employee: {
           select: { first_name: true, last_name: true },
         },
       },
@@ -69,7 +69,7 @@ export async function loadApprovalQueueSummary(
     ctx.portalSlug === 'manager' ? '/manager/approvals' : `/${ctx.portalSlug}/leave-requests`;
 
   for (const lr of leaves) {
-    const emp = lr.Employee_LeaveRequest_emp_idToEmployee;
+    const emp = lr.employee;
     const name = `${emp?.first_name ?? ''} ${emp?.last_name ?? ''}`.trim() || 'Employee';
     const start = lr.start_date.toISOString().split('T')[0];
     const end = lr.end_date.toISOString().split('T')[0];
@@ -87,7 +87,7 @@ export async function loadApprovalQueueSummary(
   }
 
   for (const reg of regularizations) {
-    const emp = reg.Employee_AttendanceRegularization_emp_idToEmployee;
+    const emp = reg.employee;
     const name = `${emp?.first_name ?? ''} ${emp?.last_name ?? ''}`.trim() || 'Employee';
     const date = reg.date.toISOString().split('T')[0];
     items.push({
