@@ -5,7 +5,7 @@
 import { v4 as uuidv4 } from 'uuid';
 import { z } from 'zod';
 import { Prisma } from '@prisma/client';
-import prisma, { prismaDirect } from '@/lib/prisma';
+import prisma from '@/lib/prisma';
 import { emitEvent } from '@/lib/event-bus';
 import { checkApiRateLimit } from '@/lib/api-rate-limit';
 import { createAuditLog, AUDIT_ACTIONS } from '@/lib/audit';
@@ -357,7 +357,7 @@ async function executeSubmitLeave(
 
     let leaveRequest;
     try {
-      leaveRequest = await prismaDirect.$transaction(async (tx) => {
+      leaveRequest = await prisma.$transaction(async (tx) => {
       const transactionalBalance = await tx.leaveBalance.upsert({
         where: {
           emp_id_leave_type_year: {

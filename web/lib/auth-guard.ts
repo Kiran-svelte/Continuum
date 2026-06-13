@@ -285,6 +285,9 @@ export function requireCompanyMembership(employee: AuthEmployee): AuthEmployeeWi
   return employee as AuthEmployeeWithCompany;
 }
 
+/** Ensures the employee has company context (alias used across API routes). */
+export const requireCompanyContext = requireCompanyMembership;
+
 export { VALID_ROLES };
 
 // ─── Request-based helpers for API routes ────────────────────────────────────
