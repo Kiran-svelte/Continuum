@@ -5,8 +5,10 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { StaggerContainer, FadeIn, TiltCard } from '@/components/motion';
 import { GlassPanel } from '@/components/glass-panel';
-import { syncUser, createCompanyAndEmployee, joinCompanyAsEmployee } from '@/app/actions/auth';
+import { createCompanyAndEmployee, joinCompanyAsEmployee } from '@/app/actions/auth';
+import { resolvePostSignInPath } from '@/lib/post-sign-in-routing';
 import { LEAVE_TYPE_CATALOG } from '@/lib/leave-types-config';
+import { TOTAL_ONBOARDING_STEPS } from '@/lib/onboarding-step-contract';
 import {
   Building2,
   ClipboardList,
@@ -16,16 +18,30 @@ import {
   CheckCircle,
   Sparkles,
   Check,
+  GitBranch,
+  Layers,
+  Users,
+  Clock,
+  IndianRupee,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
+const TOTAL_STEPS = TOTAL_ONBOARDING_STEPS;
+
 const STEPS: { id: number; label: string; icon: LucideIcon }[] = [
   { id: 1, label: 'Company Setup', icon: Building2 },
-  { id: 2, label: 'Leave Types', icon: ClipboardList },
-  { id: 3, label: 'Constraint Rules', icon: Settings },
-  { id: 4, label: 'Holidays', icon: CalendarDays },
-  { id: 5, label: 'Notifications', icon: Bell },
-  { id: 6, label: 'Complete', icon: CheckCircle },
+  { id: 2, label: 'Org Structure', icon: GitBranch },
+  { id: 3, label: 'Approval Mapping', icon: CheckCircle },
+  { id: 4, label: 'Active Modules', icon: Layers },
+  { id: 5, label: 'Role Structure', icon: Users },
+  { id: 6, label: 'Leave Types', icon: ClipboardList },
+  { id: 7, label: 'Role Quotas', icon: Users },
+  { id: 8, label: 'Attendance Rules', icon: Clock },
+  { id: 9, label: 'Holidays', icon: CalendarDays },
+  { id: 10, label: 'AI & Automation', icon: Settings },
+  { id: 11, label: 'Payroll Defaults', icon: IndianRupee },
+  { id: 12, label: 'Notifications', icon: Bell },
+  { id: 13, label: 'Complete', icon: CheckCircle },
 ];
 
 // ─── Shared input classes ─────────────────────────────────────────────────────
@@ -816,6 +832,36 @@ function NotificationsStep({
   );
 }
 
+function SetupCheckpointStep({
+  title,
+  summary,
+  items,
+}: {
+  title: string;
+  summary: string;
+  items: string[];
+}) {
+  return (
+    <div className="space-y-4">
+      <p className="text-sm text-white/70">{summary}</p>
+      <div className="grid gap-3">
+        {items.map((item) => (
+          <div
+            key={item}
+            className="flex items-start gap-3 rounded-xl border border-white/10 bg-white/5 p-3 text-sm text-white/80"
+          >
+            <Check className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+            <span>{item}</span>
+          </div>
+        ))}
+      </div>
+      <p className="text-xs text-white/45">
+        {title} is enforced by the setup APIs and can be refined from the admin setup screens after launch.
+      </p>
+    </div>
+  );
+}
+
 function CompleteStep({ joinCode }: { joinCode: string }) {
   return (
     <div className="text-center py-8">
@@ -1031,12 +1077,17 @@ function OnboardingPageInner() {
 
       const intent = (searchParams.get('intent') || 'admin').toLowerCase(); // Default to admin (company owner)
 
-      // Sync user to check if they have a Company/Employee record
-      const syncResult = await syncUser();
+      const profileRes = await fetch('/api/auth/profile-sync', { credentials: 'include' });
+      const syncResult = await profileRes.json().catch(() => null);
 
-      if (!syncResult.success) {
-        setError(syncResult.error || 'Failed to load profile');
+      if (!profileRes.ok || !syncResult?.success) {
+        setError(syncResult?.error || 'Failed to load profile');
         setLoading(false);
+        return;
+      }
+
+      if (syncResult.isSuperAdmin) {
+        router.replace('/super-admin/dashboard');
         return;
       }
 
@@ -1072,6 +1123,13 @@ function OnboardingPageInner() {
 
         // If onboarding already completed, redirect to dashboard
         if (syncResult.company.onboardingCompleted) {
+          const meRes = await fetch('/api/auth/me', { credentials: 'include' });
+          if (meRes.ok) {
+            const me = await meRes.json();
+            router.replace(resolvePostSignInPath(me));
+            return;
+          }
+
           if (role === 'admin' || role === 'hr') {
             router.replace('/hr/dashboard');
           } else if (role === 'manager' || role === 'team_lead' || role === 'director') {
@@ -1089,8 +1147,8 @@ function OnboardingPageInner() {
           return;
         }
 
-        // User has a company but onboarding not complete - skip to step 1 (Leave Types)
-        setCurrentStep(1);
+        // User has a company but onboarding not complete - resume at Step 6 (Leave Types).
+        setCurrentStep(5);
       }
 
       setLoading(false);
@@ -1150,8 +1208,8 @@ function OnboardingPageInner() {
         return;
       }
 
-      // Step 1: Leave Types - require at least one type selected
-      if (currentStep === 1) {
+      // Step 6: Leave Types - require at least one type selected
+      if (currentStep === 5) {
         const enabledCount = leaveTypes.filter((lt) => lt.enabled).length;
         if (enabledCount === 0) {
           setError('Please select at least one leave type for your organization');
@@ -1236,14 +1294,98 @@ function OnboardingPageInner() {
       case 0:
         return <CompanySetupStep data={companyData} onChange={setCompanyData} />;
       case 1:
-        return <LeaveTypesStep data={leaveTypes} onChange={setLeaveTypes} />;
+        return (
+          <SetupCheckpointStep
+            title="Org Structure"
+            summary="Capture the minimum organization shape before HR modules go live."
+            items={[
+              'Departments, locations, and cost centers are supported by onboarding step APIs.',
+              'Company hierarchy can be refined from Organization after setup.',
+              'The selected structure becomes the default tenant context for HR records.',
+            ]}
+          />
+        );
       case 2:
-        return <ConstraintRulesStep data={constraintConfig} onChange={setConstraintConfig} />;
+        return (
+          <SetupCheckpointStep
+            title="Approval Mapping"
+            summary="Default approval routing is prepared before leave and expense actions are enabled."
+            items={[
+              'Leave requests route through manager and HR approval defaults.',
+              'Escalation timing follows the company SLA configured in Company Setup.',
+              'Admin can adjust detailed chains from Approval Config later.',
+            ]}
+          />
+        );
       case 3:
-        return <HolidaysStep data={holidays} onChange={setHolidays} country={companyData.country} />;
+        return (
+          <SetupCheckpointStep
+            title="Active Modules"
+            summary="Core HR modules are enabled from the module catalog and super-admin cap."
+            items={[
+              'Employees and leave stay available as mandatory core functions.',
+              'Optional modules remain controlled by company settings and module gates.',
+              'Navigation and APIs honor enabled modules after sign-in.',
+            ]}
+          />
+        );
       case 4:
-        return <NotificationsStep data={notifData} onChange={setNotifData} />;
+        return (
+          <SetupCheckpointStep
+            title="Role Structure"
+            summary="The default role model is ready for admin, HR, manager, and employee portals."
+            items={[
+              'Admin and HR can invite users and complete setup.',
+              'Managers can approve team actions when approval routing is enabled.',
+              'Employees get self-service profile, leave, documents, and notifications surfaces.',
+            ]}
+          />
+        );
       case 5:
+        return <LeaveTypesStep data={leaveTypes} onChange={setLeaveTypes} />;
+      case 6:
+        return (
+          <SetupCheckpointStep
+            title="Role Quotas"
+            summary="Leave quotas are seeded from the selected leave types and can be tuned by role."
+            items={[
+              'Default annual entitlement is captured per leave type.',
+              'Role-specific overrides can be managed from leave quota settings.',
+              'Balances are created from active leave types during employee onboarding.',
+            ]}
+          />
+        );
+      case 7:
+        return (
+          <SetupCheckpointStep
+            title="Attendance Rules"
+            summary="Attendance defaults use the work schedule set in Company Setup."
+            items={[
+              `Workday starts at ${companyData.workStart || '09:00'} and ends at ${companyData.workEnd || '18:00'}.`,
+              `Grace period defaults to ${companyData.gracePeriodMinutes ?? 15} minutes.`,
+              `Half-day threshold defaults to ${companyData.halfDayHours ?? 4} hours.`,
+            ]}
+          />
+        );
+      case 8:
+        return <HolidaysStep data={holidays} onChange={setHolidays} country={companyData.country} />;
+      case 9:
+        return <ConstraintRulesStep data={constraintConfig} onChange={setConstraintConfig} />;
+      case 10:
+        return (
+          <SetupCheckpointStep
+            title="Payroll Defaults"
+            summary="Payroll starts disabled until admin/HR completes compliance details."
+            items={[
+              'Payroll module access stays governed by module gates.',
+              'PF, ESI, PT, TDS, and pay-day defaults are available in payroll setup APIs.',
+              'Leave and attendance remain independent if payroll is not enabled.',
+            ]}
+          />
+        );
+      case 11:
+        return <NotificationsStep data={notifData} onChange={setNotifData} />;
+      case 12:
         return <CompleteStep joinCode={joinCode} />;
       default:
         return null;

@@ -17,13 +17,22 @@
 
 import { SignJWT, jwtVerify, type JWTPayload } from 'jose';
 import type { Role } from '@prisma/client';
+import {
+  BRAND_COOKIE_PREFIX,
+  BRAND_JWT_ISSUER,
+  COOKIE_ACCESS,
+  COOKIE_REFRESH,
+} from '@/lib/brand';
+import { getAuthSecretKey } from '@/lib/auth-secret';
 
 // ─── Constants ──────────────────────────────────────────────────────────────
 
 export const ACCESS_TOKEN_EXPIRY = '15m';   // 15 minutes
 export const REFRESH_TOKEN_EXPIRY = '7d';   // 7 days
-export const REFRESH_COOKIE_NAME = 'continuum-refresh';
-export const ACCESS_COOKIE_NAME = 'continuum-access';
+export const REFRESH_COOKIE_NAME = COOKIE_REFRESH;
+export const ACCESS_COOKIE_NAME = COOKIE_ACCESS;
+const ACCESS_TOKEN_AUDIENCE = `${BRAND_COOKIE_PREFIX}-api`;
+const REFRESH_TOKEN_AUDIENCE = `${BRAND_COOKIE_PREFIX}-refresh`;
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -51,21 +60,8 @@ export interface TokenPair {
 
 // ─── Secret Key ─────────────────────────────────────────────────────────────
 
-let _secret: Uint8Array | null = null;
-
 function getSecret(): Uint8Array {
-  if (_secret) return _secret;
-
-  const raw = process.env.JWT_SECRET || process.env.SESSION_SECRET || process.env.CSRF_SECRET;
-  if (!raw) {
-    throw new Error(
-      'JWT_SECRET environment variable is required for JWT signing. ' +
-      'Generate one with: openssl rand -base64 32'
-    );
-  }
-
-  _secret = new TextEncoder().encode(raw);
-  return _secret;
+  return getAuthSecretKey();
 }
 
 // ─── Access Token ───────────────────────────────────────────────────────────
@@ -95,8 +91,8 @@ export async function createAccessToken(payload: {
     .setProtectedHeader({ alg: 'HS256' })
     .setIssuedAt()
     .setExpirationTime(ACCESS_TOKEN_EXPIRY)
-    .setIssuer('continuum')
-    .setAudience('continuum-api')
+    .setIssuer(BRAND_JWT_ISSUER)
+    .setAudience(ACCESS_TOKEN_AUDIENCE)
     .sign(secret);
 
   return { token, expiresAt };
@@ -109,8 +105,8 @@ export async function verifyAccessToken(token: string): Promise<AccessTokenPaylo
   const secret = getSecret();
 
   const { payload } = await jwtVerify(token, secret, {
-    issuer: 'continuum',
-    audience: 'continuum-api',
+    issuer: BRAND_JWT_ISSUER,
+    audience: ACCESS_TOKEN_AUDIENCE,
   });
 
   if (!payload.sub || payload.type !== 'access') {
@@ -141,8 +137,8 @@ export async function createRefreshToken(payload: {
     .setProtectedHeader({ alg: 'HS256' })
     .setIssuedAt()
     .setExpirationTime(REFRESH_TOKEN_EXPIRY)
-    .setIssuer('continuum')
-    .setAudience('continuum-refresh')
+    .setIssuer(BRAND_JWT_ISSUER)
+    .setAudience(REFRESH_TOKEN_AUDIENCE)
     .sign(secret);
 
   return { token, expiresAt };
@@ -155,8 +151,8 @@ export async function verifyRefreshToken(token: string): Promise<RefreshTokenPay
   const secret = getSecret();
 
   const { payload } = await jwtVerify(token, secret, {
-    issuer: 'continuum',
-    audience: 'continuum-refresh',
+    issuer: BRAND_JWT_ISSUER,
+    audience: REFRESH_TOKEN_AUDIENCE,
   });
 
   if (!payload.sub || !payload.jti || payload.type !== 'refresh') {

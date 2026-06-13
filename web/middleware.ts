@@ -387,10 +387,11 @@ export async function middleware(request: NextRequest) {
       }
 
       if (userRoles.length === 0) {
-        // Authenticated but no roles assigned yet — redirect to onboarding
-        const onboardingUrl = request.nextUrl.clone();
-        onboardingUrl.pathname = '/onboarding';
-        return NextResponse.redirect(onboardingUrl);
+        const signInUrl = request.nextUrl.clone();
+        signInUrl.pathname = '/sign-in';
+        signInUrl.searchParams.set('error', 'role_required');
+        signInUrl.search = signInUrl.searchParams.toString();
+        return NextResponse.redirect(signInUrl);
       }
 
       const allowedRoles = PORTAL_ROLE_MAP[portalPrefix];

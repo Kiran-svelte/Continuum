@@ -83,16 +83,16 @@ describe('Sign-in Page', () => {
     const content = fs.readFileSync(signInPath, 'utf-8');
 
     assert.ok(
-      content.includes('getDefaultPortalForRole') && content.includes('router.push'),
-      'sign-in page should route users to role-based portals'
+      content.includes('resolvePostSignInPath') && content.includes('router.push'),
+      'sign-in page should route users via shared post-sign-in resolver'
     );
     assert.ok(
-      content.includes('getDefaultPortalForRoles(') && content.includes('me.secondary_roles'),
-      'sign-in page should prioritize portal routing with secondary roles (e.g., super_admin)'
+      content.includes('resolvePostSignInPath(me') || content.includes('resolvePostSignInPath(me,'),
+      'sign-in page should use /api/auth/me payload with resolvePostSignInPath'
     );
     assert.ok(
-      content.includes("router.push('/onboarding')") && content.includes('company?.onboarding_completed === false'),
-      'sign-in page should route admins in setup to company onboarding'
+      content.includes("resolvePostSignInPath") && content.includes('/onboarding'),
+      'sign-in page should route admins in setup to company onboarding via shared resolver'
     );
   });
 
@@ -310,7 +310,7 @@ describe('Onboarding Gate', () => {
     const content = fs.readFileSync(mePath, 'utf-8');
 
     assert.ok(
-      content.includes("continuum-onboarding-completed"),
+      content.includes('hydrateAuthResponseCookies') || content.includes('COOKIE_ONBOARDING'),
       'auth me route should set onboarding cookie for middleware gating'
     );
   });
@@ -321,7 +321,7 @@ describe('Onboarding Gate', () => {
     const content = fs.readFileSync(signInApiPath, 'utf-8');
 
     assert.ok(
-      content.includes("continuum-onboarding-completed"),
+      content.includes('hydrateAuthResponseCookies') || content.includes('COOKIE_ONBOARDING'),
       'sign in route should set onboarding status cookie on successful login'
     );
   });
@@ -332,7 +332,7 @@ describe('Onboarding Gate', () => {
     const content = fs.readFileSync(refreshPath, 'utf-8');
 
     assert.ok(
-      content.includes("continuum-onboarding-completed"),
+      content.includes('hydrateAuthResponseCookies') || content.includes('COOKIE_ONBOARDING'),
       'refresh route should keep onboarding cookie in sync with token refresh'
     );
   });
