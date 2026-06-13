@@ -63,6 +63,7 @@ export async function GET(
   try {
     void request;
     const employee = await getAuthEmployee();
+    requireCompanyContext(employee);
     const moduleGuardGet = await requireModuleForOrg(employee.org_id, 'leave');
     if (moduleGuardGet) return moduleGuardGet;
     const { requestId } = await params;
@@ -70,10 +71,10 @@ export async function GET(
     const leaveRequest = await prisma.leaveRequest.findUnique({
       where: { id: requestId },
       include: {
-        Employee_LeaveRequest_emp_idToEmployee: {
+        employee: {
           select: { id: true, first_name: true, last_name: true, department: true, email: true },
         },
-        Employee_LeaveRequest_approved_byToEmployee: {
+        approver: {
           select: { id: true, first_name: true, last_name: true },
         },
       },
@@ -90,8 +91,8 @@ export async function GET(
     return NextResponse.json({
       leaveRequest: {
         ...leaveRequest,
-        employee: leaveRequest.Employee_LeaveRequest_emp_idToEmployee,
-        approver: leaveRequest.Employee_LeaveRequest_approved_byToEmployee,
+        employee: leaveRequest.employee,
+        approver: leaveRequest.approver,
       },
       canApprove:
         canProcessLeaveApproval(leaveRequest.status) &&
