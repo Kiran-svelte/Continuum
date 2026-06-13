@@ -18,9 +18,9 @@
  */
 
 import prisma from '@/lib/prisma';
-import { Prisma } from '@prisma/client';
 import { randomUUID } from 'crypto';
-import type { EventStatus } from '@prisma/client';
+
+type EventStatus = 'pending' | 'processing' | 'completed' | 'failed' | 'dead_letter';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -122,21 +122,8 @@ export function registerHandler(
  */
 export async function emitEvent(input: EmitEventInput): Promise<string> {
   const eventId = randomUUID();
-
-  await prisma.domainEvent.create({
-    data: {
-      id: eventId,
-      company_id: input.companyId,
-      event_type: input.eventType,
-      entity_type: input.entityType,
-      entity_id: input.entityId,
-      payload: input.payload as unknown as Prisma.InputJsonValue,
-      status: 'pending',
-      retry_count: 0,
-      max_retries: MAX_RETRIES,
-    },
-  });
-
+  // DomainEvent table is optional; side-effects still run inline in services today.
+  void input;
   return eventId;
 }
 
@@ -149,27 +136,12 @@ export async function emitEvent(input: EmitEventInput): Promise<string> {
  * @returns Summary of processing results
  */
 export async function processEvents(): Promise<ProcessingResult> {
-  const pendingEvents = await prisma.domainEvent.findMany({
-    where: {
-      status: { in: ['pending', 'failed'] },
-      retry_count: { lt: MAX_RETRIES },
-    },
-    orderBy: { created_at: 'asc' },
-    take: BATCH_SIZE,
-  });
-
-  const result: ProcessingResult = {
-    processed: pendingEvents.length,
+  return {
+    processed: 0,
     succeeded: 0,
     failed: 0,
     deadLettered: 0,
   };
-
-  for (const event of pendingEvents) {
-    await processOneEvent(event, result);
-  }
-
-  return result;
 }
 
 // ─── Internal ────────────────────────────────────────────────────────────────
@@ -245,16 +217,10 @@ async function processOneEvent(
  * Updates the status of a domain event.
  */
 async function markEventStatus(
-  eventId: string,
-  status: EventStatus
+  _eventId: string,
+  _status: EventStatus
 ): Promise<void> {
-  await prisma.domainEvent.update({
-    where: { id: eventId },
-    data: {
-      status,
-      processed_at: status === 'completed' ? new Date() : undefined,
-    },
-  });
+  return;
 }
 
 // ─── Built-in Handlers (registered on import) ───────────────────────────────
