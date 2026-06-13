@@ -6,6 +6,9 @@
 import type { ModuleSlug } from '@/lib/core-functions/catalog';
 
 export const PORTAL_MODULE_PATH_RULES: Array<{ prefix: string; slug: ModuleSlug }> = [
+  { prefix: '/admin/payslips', slug: 'payroll' },
+  { prefix: '/admin/leave-requests', slug: 'leave' },
+  { prefix: '/admin/leave-', slug: 'leave' },
   { prefix: '/hr/payroll', slug: 'payroll' },
   { prefix: '/hr/salary-', slug: 'payroll' },
   { prefix: '/hr/compensation', slug: 'payroll' },
@@ -57,4 +60,14 @@ export type PortalPathModuleGate =
 export function portalPathModuleGate(pathname: string): PortalPathModuleGate {
   const slug = moduleSlugForPortalPath(pathname);
   return slug ? { kind: 'single', slug } : { kind: 'none' };
+}
+
+export function isPortalPathAllowedByModules(
+  pathname: string,
+  enabledModules: ReadonlySet<string>
+): boolean {
+  const gate = portalPathModuleGate(pathname);
+  if (gate.kind === 'none') return true;
+  if (gate.kind === 'single') return enabledModules.has(gate.slug);
+  return gate.slugs.some((slug) => enabledModules.has(slug));
 }

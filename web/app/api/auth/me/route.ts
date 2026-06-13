@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthEmployee, AuthError } from '@/lib/auth-guard';
 import { createAuditLog, AUDIT_ACTIONS } from '@/lib/audit';
+import {
+  deriveEmployeeOnboardingFlags,
+  hydrateAuthResponseCookies,
+} from '@/lib/auth-state-cookies';
+import { getAuthModulePayload } from '@/lib/core-functions/resolve';
 import prisma from '@/lib/prisma';
 
 export const dynamic = 'force-dynamic';
@@ -17,8 +22,8 @@ export async function GET(request: NextRequest) {
   try {
     const employee = await getAuthEmployee();
 
-    // Handle super admin separately (no org_id, no company)
     if (employee.primary_role === 'super_admin') {
+      const modulePayload = await getAuthModulePayload(null);
       const response = NextResponse.json({
         id: employee.id,
         email: employee.email,
@@ -33,54 +38,61 @@ export async function GET(request: NextRequest) {
         timezone: 'Asia/Kolkata',
         company: null,
         is_super_admin: true,
+        employee_onboarding_completed: true,
+        employee_welcome_pending: false,
+        enabledModules: modulePayload.enabledModules,
+        moduleCap: modulePayload.moduleCap,
+        moduleFeatures: modulePayload.moduleFeatures,
       });
 
-      // Set role cookies for middleware
-      const cookieOpts = {
-        path: '/',
-        sameSite: 'lax' as const,
-        secure: process.env.NODE_ENV === 'production',
-        maxAge: 60 * 60 * 24, // 24 hours
-        httpOnly: true,
-      };
-
-      response.cookies.set('continuum-role', 'super_admin', cookieOpts);
-      response.cookies.set('continuum-roles', 'super_admin', cookieOpts);
+      await hydrateAuthResponseCookies(response, {
+        employeeId: employee.id,
+        primaryRole: employee.primary_role,
+        secondaryRoles: null,
+        orgId: null,
+      });
 
       return response;
     }
 
-    // Regular employee flow
-    // Fetch designation (not included in getAuthEmployee)
-    const employeeDetails = await prisma.employee.findUnique({
-      where: { id: employee.id },
-      select: { designation: true },
-    });
-
-    // Fetch company to get onboarding status and timezone
-    let company = null;
-    if (employee.org_id) {
-      company = await prisma.company.findUnique({
-        where: { id: employee.org_id },
+    const [employeeDetails, company, profile, modulePayload] = await Promise.all([
+      prisma.employee.findUnique({
+        where: { id: employee.id },
+        select: { designation: true },
+      }),
+      employee.org_id
+        ? prisma.company.findUnique({
+            where: { id: employee.org_id },
+            select: {
+              id: true,
+              name: true,
+              onboarding_completed: true,
+              join_code: true,
+              timezone: true,
+            },
+          })
+        : Promise.resolve(null),
+      prisma.employee.findUnique({
+        where: { id: employee.id },
         select: {
-          id: true,
-          name: true,
-          onboarding_completed: true,
-          join_code: true,
-          timezone: true,
+          phone: true,
+          current_address: true,
+          tutorial_completed: true,
         },
-      });
-    }
+      }),
+      getAuthModulePayload(employee.org_id),
+    ]);
 
-    // Build list of all roles (primary + secondary)
     const allRoles: string[] = [employee.primary_role];
     if (employee.secondary_roles && Array.isArray(employee.secondary_roles)) {
-      for (const r of employee.secondary_roles) {
-        if (typeof r === 'string' && !allRoles.includes(r)) {
-          allRoles.push(r);
+      for (const role of employee.secondary_roles) {
+        if (typeof role === 'string' && !allRoles.includes(role)) {
+          allRoles.push(role);
         }
       }
     }
+
+    const onboardingFlags = deriveEmployeeOnboardingFlags(employee.primary_role, profile);
 
     const response = NextResponse.json({
       id: employee.id,
@@ -94,36 +106,41 @@ export async function GET(request: NextRequest) {
       org_id: employee.org_id,
       status: employee.status,
       timezone: company?.timezone || 'Asia/Kolkata',
-      company: company ? {
-        id: company.id,
-        name: company.name,
-        onboarding_completed: company.onboarding_completed,
-        join_code: company.join_code,
-        timezone: company.timezone,
-      } : null,
+      company: company
+        ? {
+            id: company.id,
+            name: company.name,
+            onboarding_completed: company.onboarding_completed,
+            join_code: company.join_code,
+            timezone: company.timezone,
+          }
+        : null,
+      employee_onboarding_completed: onboardingFlags.employee_onboarding_completed,
+      employee_welcome_pending: onboardingFlags.employee_welcome_pending,
+      enabledModules: modulePayload.enabledModules,
+      moduleCap: modulePayload.moduleCap,
+      moduleFeatures: modulePayload.moduleFeatures,
     });
 
-    // Set role cookies for middleware portal enforcement (HttpOnly for security)
-    const cookieOpts = {
-      path: '/',
-      sameSite: 'lax' as const,
-      secure: process.env.NODE_ENV === 'production',
-      maxAge: 60 * 60 * 24, // 24 hours
-      httpOnly: true, // Secure: middleware reads server-side, client uses /api/auth/me
-    };
+    await hydrateAuthResponseCookies(response, {
+      employeeId: employee.id,
+      primaryRole: employee.primary_role,
+      secondaryRoles: employee.secondary_roles,
+      orgId: employee.org_id,
+    });
 
-    response.cookies.set('continuum-role', employee.primary_role, cookieOpts);
-    response.cookies.set('continuum-roles', allRoles.join(','), cookieOpts);
-
-    // Log successful sign-in to audit trail (best effort, non-blocking)
-    const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
+    const ip =
+      request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
       request.headers.get('x-real-ip') ||
       'unknown';
     const userAgent = request.headers.get('user-agent') || undefined;
     const referrer = request.headers.get('referer') || undefined;
 
-    // Only log if coming from sign-in page (avoid logging on page refreshes)
-    if (referrer && (referrer.includes('/sign-in') || referrer.includes('/sign-up')) && employee.org_id) {
+    if (
+      referrer &&
+      (referrer.includes('/sign-in') || referrer.includes('/sign-up')) &&
+      employee.org_id
+    ) {
       void createAuditLog({
         companyId: employee.org_id,
         actorId: employee.id,
@@ -137,9 +154,7 @@ export async function GET(request: NextRequest) {
           primary_role: employee.primary_role,
           signed_in_at: new Date().toISOString(),
         },
-      }).catch(() => {
-        // Ignore audit failures - login should still succeed
-      });
+      }).catch(() => {});
     }
 
     return response;

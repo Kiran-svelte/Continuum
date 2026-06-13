@@ -4,8 +4,8 @@ import * as React from "react"
 import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Lock, Mail, ArrowRight, Loader2 } from "lucide-react"
-import { getDefaultPortalForRoles, isDemoAuthEnabled, isSafeRedirectPath } from "@/lib/auth-routing"
-import { requiresCompanyOnboarding, requiresEmployeeOnboarding } from '@/lib/employee-onboarding'
+import { getDefaultPortalForRoles, isDemoAuthEnabled } from "@/lib/auth-routing"
+import { resolvePostSignInPath, type PostSignInMe } from '@/lib/post-sign-in-routing'
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { AuthShell } from "@/components/design-system"
@@ -51,6 +51,32 @@ export const SignIn1 = () => {
   }
 
   React.useEffect(() => () => stopProgressMessages(), [])
+
+  React.useEffect(() => {
+    let cancelled = false
+
+    async function redirectIfAuthenticated() {
+      try {
+        const meResponse = await fetch('/api/auth/me', { credentials: 'include' })
+        if (!meResponse.ok || cancelled) return
+
+        const me = (await meResponse.json()) as PostSignInMe & {
+          email_verification?: { verified?: boolean }
+        }
+
+        if (me.email_verification?.verified === false) return
+
+        router.replace(resolvePostSignInPath(me, { redirectTarget }))
+      } catch {
+        // Remain on sign-in when session lookup fails.
+      }
+    }
+
+    void redirectIfAuthenticated()
+    return () => {
+      cancelled = true
+    }
+  }, [redirectTarget, router])
 
   React.useEffect(() => {
     const verifyToken = searchParams?.get("verify_token")
@@ -100,7 +126,7 @@ export const SignIn1 = () => {
       const response = await fetch("/api/auth/signin", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ identifier, password }),
+        body: JSON.stringify({ email: identifier.trim(), password }),
         credentials: "include",
       })
 
@@ -124,14 +150,7 @@ export const SignIn1 = () => {
         return
       }
 
-      const me = (await meResponse.json()) as {
-        primary_role?: string
-        secondary_roles?: string[] | null
-        status?: string
-        org_id?: string | null
-        company?: { onboarding_completed?: boolean } | null
-        employee_onboarding_completed?: boolean
-        employee_welcome_pending?: boolean
+      const me = (await meResponse.json()) as PostSignInMe & {
         email_verification?: { verified?: boolean }
       }
 
@@ -141,32 +160,8 @@ export const SignIn1 = () => {
         return
       }
 
-      const primaryRole = (me.primary_role || '').toLowerCase()
-      const needsCompanyOnboarding =
-        requiresCompanyOnboarding(primaryRole) &&
-        (!me.org_id || me.company?.onboarding_completed === false || me.status === 'onboarding')
-      if (needsCompanyOnboarding) {
-        router.push('/onboarding')
-        return
-      }
-
-      if (requiresEmployeeOnboarding(primaryRole) && me.employee_onboarding_completed === false) {
-        router.push('/employee/onboarding')
-        return
-      }
-
-      if (requiresEmployeeOnboarding(primaryRole) && me.employee_welcome_pending === true) {
-        router.push('/employee/welcome')
-        return
-      }
-
-      if (isSafeRedirectPath(redirectTarget)) {
-        router.push(redirectTarget)
-        return
-      }
-
-      const email = identifier.trim();
-      let destination = getDefaultPortalForRoles(me.primary_role, me.secondary_roles);
+      const email = identifier.trim()
+      let destination = resolvePostSignInPath(me, { redirectTarget })
       if (demoAuthEnabled && email.toLowerCase() === "super@demo.continuum.io") {
         destination = '/super-admin/dashboard'
       }

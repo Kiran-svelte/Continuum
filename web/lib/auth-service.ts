@@ -23,6 +23,7 @@ import {
   type TokenPair,
 } from '@/lib/jwt-service';
 import { verifyPassword, hashPassword } from '@/lib/password-service';
+import { COOKIE_ROLE, COOKIE_ROLES } from '@/lib/brand';
 import type { Role, Employee } from '@prisma/client';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -544,8 +545,8 @@ export function setAuthCookies(response: NextResponse, accessToken: string, refr
 export function clearAuthCookies(response: NextResponse): void {
   response.cookies.set(ACCESS_COOKIE_NAME, '', { maxAge: 0, path: '/' });
   response.cookies.set(REFRESH_COOKIE_NAME, '', { maxAge: 0, path: '/api/auth' });
-  response.cookies.set('continuum-role', '', { maxAge: 0, path: '/' });
-  response.cookies.set('continuum-roles', '', { maxAge: 0, path: '/' });
+  response.cookies.set(COOKIE_ROLE, '', { maxAge: 0, path: '/' });
+  response.cookies.set(COOKIE_ROLES, '', { maxAge: 0, path: '/' });
 }
 
 /**

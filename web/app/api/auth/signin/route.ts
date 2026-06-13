@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { signIn, signInSuperAdmin, setAuthCookies } from '@/lib/auth-service';
+import { hydrateAuthResponseCookies } from '@/lib/auth-state-cookies';
 import { createAuditLog, AUDIT_ACTIONS } from '@/lib/audit';
 
 export const dynamic = 'force-dynamic';
@@ -81,6 +82,15 @@ export async function POST(request: NextRequest) {
     // Set auth cookies
     if (result.accessToken && result.refreshToken) {
       setAuthCookies(response, result.accessToken, result.refreshToken);
+    }
+
+    if (result.user) {
+      await hydrateAuthResponseCookies(response, {
+        employeeId: result.user.id,
+        primaryRole: result.user.role,
+        secondaryRoles: result.user.roles,
+        orgId: result.user.org_id,
+      });
     }
 
     // Log successful login

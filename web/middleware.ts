@@ -743,15 +743,11 @@ export async function middleware(request: NextRequest) {
       }
 
       if (userRoles.length === 0) {
-        // Authenticated but no role claim yet.
-        // Use the role hint cookie when possible; otherwise fail closed to employee onboarding.
-        const hintedRole = request.cookies.get(COOKIE_ROLE)?.value?.toLowerCase() || '';
-        const fallbackUrl = request.nextUrl.clone();
-        fallbackUrl.pathname = requiresCompanyOnboarding(hintedRole)
-          ? '/onboarding'
-          : '/employee/onboarding';
-        fallbackUrl.search = '';
-        return NextResponse.redirect(fallbackUrl);
+        const signInUrl = request.nextUrl.clone();
+        signInUrl.pathname = '/sign-in';
+        signInUrl.searchParams.set('error', 'role_required');
+        signInUrl.search = signInUrl.searchParams.toString();
+        return NextResponse.redirect(signInUrl);
       }
 
       const allowedRoles = PORTAL_ROLE_MAP[portalPrefix];

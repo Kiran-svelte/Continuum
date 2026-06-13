@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { refreshTokens, setAuthCookies, clearAuthCookies } from '@/lib/auth-service';
+import { hydrateAuthResponseCookies } from '@/lib/auth-state-cookies';
 import { getRefreshTokenFromCookies } from '@/lib/jwt-service';
 
 export const dynamic = 'force-dynamic';
@@ -45,6 +46,15 @@ export async function POST(request: NextRequest) {
     // Set new auth cookies
     if (result.accessToken && result.refreshToken) {
       setAuthCookies(response, result.accessToken, result.refreshToken);
+    }
+
+    if (result.user) {
+      await hydrateAuthResponseCookies(response, {
+        employeeId: result.user.id,
+        primaryRole: result.user.role,
+        secondaryRoles: result.user.roles,
+        orgId: result.user.org_id,
+      });
     }
 
     return response;
