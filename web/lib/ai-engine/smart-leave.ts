@@ -199,7 +199,7 @@ async function assessTeamCoverage(
         company_id: companyId,
         status: 'approved',
         emp_id: { not: employeeId },
-        Employee_LeaveRequest_emp_idToEmployee: { department: employee.department },
+        employee: { department: employee.department },
         start_date: { lte: endDate },
         end_date: { gte: startDate },
       },

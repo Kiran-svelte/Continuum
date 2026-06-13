@@ -49,7 +49,34 @@ interface ApprovalChainLink {
 /** HR Partner is treated as level 5 in the sequence. */
 const HR_PARTNER_LEVEL = 5;
 
-// ─── Public API ──────────────────────────────────────────────────────────────
+interface SequentialTrailMeta {
+  approval_level?: number;
+  approval_trail?: ApprovalTrailEntry[];
+}
+
+function readSequentialMeta(constraintResult: unknown): SequentialTrailMeta {
+  if (!constraintResult || typeof constraintResult !== 'object' || Array.isArray(constraintResult)) {
+    return {};
+  }
+  const sequential = (constraintResult as { _sequential?: SequentialTrailMeta })._sequential;
+  return sequential ?? {};
+}
+
+function mergeSequentialMeta(
+  constraintResult: unknown,
+  patch: SequentialTrailMeta
+): Record<string, unknown> {
+  const base =
+    constraintResult && typeof constraintResult === 'object' && !Array.isArray(constraintResult)
+      ? { ...(constraintResult as Record<string, unknown>) }
+      : {};
+  const current = readSequentialMeta(base);
+  base._sequential = {
+    ...current,
+    ...patch,
+  };
+  return base;
+}
 
 /**
  * Resolve the ordered approval chain for an employee.
@@ -115,15 +142,17 @@ export async function checkSequentialApproval(
     select: {
       emp_id: true,
       company_id: true,
-      approval_level: true,
-      approval_trail: true,
       status: true,
+      constraint_result: true,
     },
   });
 
   if (!request) {
     return { isAllowed: false, reason: 'request_not_found', approverLevel: null, isFinalApproval: false, nextApproverId: null };
   }
+
+  const sequential = readSequentialMeta(request.constraint_result);
+  const currentLevel = sequential.approval_level ?? 0;
 
   const chain = await resolveApprovalChain(request.company_id, request.emp_id);
 
@@ -138,11 +167,7 @@ export async function checkSequentialApproval(
     };
   }
 
-  // Anyone can always REJECT (safety valve — rejection terminates the chain)
-  // But APPROVAL must follow sequence
-
   const approverIndex = chain.findIndex((link) => link.approverId === approverId);
-  const currentLevel = request.approval_level ?? 0;
 
   // HR/admin/director can always reject at any point (safety valve)
   const isPrivilegedRole = ['hr', 'admin', 'director', 'super_admin'].includes(
@@ -160,7 +185,7 @@ export async function checkSequentialApproval(
   }
 
   // Find the next expected approver in the chain
-  const completedLevels = getCompletedLevels(request.approval_trail);
+  const completedLevels = getCompletedLevels(sequential.approval_trail);
   const nextPendingLink = chain.find(
     (link) => !completedLevels.includes(link.level)
   );
@@ -227,22 +252,25 @@ export async function checkSequentialApproval(
 export async function recordApprovalStep(
   requestId: string,
   entry: ApprovalTrailEntry,
-  isFinalApproval: boolean,
-  nextApproverId: string | null
+  _isFinalApproval: boolean,
+  _nextApproverId: string | null
 ): Promise<void> {
   const request = await prisma.leaveRequest.findUnique({
     where: { id: requestId },
-    select: { approval_trail: true },
+    select: { constraint_result: true },
   });
 
-  const existingTrail = parseApprovalTrail(request?.approval_trail);
+  const sequential = readSequentialMeta(request?.constraint_result);
+  const existingTrail = parseApprovalTrail(sequential.approval_trail);
   existingTrail.push(entry);
 
   await prisma.leaveRequest.update({
     where: { id: requestId },
     data: {
-      approval_level: entry.level,
-      approval_trail: JSON.parse(JSON.stringify(existingTrail)),
+      constraint_result: mergeSequentialMeta(request?.constraint_result, {
+        approval_level: entry.level,
+        approval_trail: existingTrail,
+      }),
       updated_at: new Date(),
     },
   });
