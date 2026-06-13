@@ -46,7 +46,7 @@ export async function ensureMe(): Promise<MeResponse | null> {
     return first.me;
   }
 
-  // Second attempt: Supabase client session - mint session cookie
+  // Second attempt: Supabase client session, mint session cookie
   try {
     const { data } = await supabaseGetSession();
     if (!data.session) {
