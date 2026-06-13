@@ -222,46 +222,50 @@ model Company {
   updated_at DateTime  @updatedAt
   deleted_at DateTime?
 
-  employees              Employee[]
-  leave_types            LeaveType[]
-  leave_balances         LeaveBalance[]
-  leave_requests         LeaveRequest[]
-  leave_encashments      LeaveEncashment[]
-  leave_rules            LeaveRule[]
-  constraint_policies    ConstraintPolicy[]
-  attendances            Attendance[]
-  attendance_regs        AttendanceRegularization[]
-  approval_hierarchies   ApprovalHierarchy[]
-  organization_units     OrganizationUnit[]
-  job_levels             JobLevel[]
-  salary_structures      SalaryStructure[]
-  salary_components      SalaryComponent[]
-  salary_revisions       SalaryRevision[]
-  payroll_runs           PayrollRun[]
-  payroll_slips          PayrollSlip[]
-  documents              Document[]
-  reimbursements         Reimbursement[]
-  employee_movements     EmployeeMovement[]
-  status_histories       EmployeeStatusHistory[]
-  exit_checklists        ExitChecklist[]
-  employee_shifts        EmployeeShift[]
-  shifts                 Shift[]
-  notifications          Notification[]
-  notification_templates NotificationTemplate[]
-  notification_prefs     NotificationPreference[]
-  audit_logs             AuditLog[]
-  settings_audit_logs    SettingsAuditLog[]
-  public_holidays        PublicHoliday[]
-  settings               CompanySettings?
-  subscriptions          Subscription[]
-  payments               Payment[]
-  usage_records          UsageRecord[]
-  api_keys               ApiKey[]
-  otp_tokens             OtpToken[]
-  role_permissions       RolePermission[]
-  employee_invites       EmployeeInvite[]
-  user_invites           UserInvite[]
-  role_templates         RoleTemplate[]
+  employees               Employee[]
+  leave_types             LeaveType[]
+  leave_balances          LeaveBalance[]
+  leave_requests          LeaveRequest[]
+  leave_encashments       LeaveEncashment[]
+  leave_rules             LeaveRule[]
+  constraint_policies     ConstraintPolicy[]
+  attendances             Attendance[]
+  attendance_regs         AttendanceRegularization[]
+  approval_hierarchies    ApprovalHierarchy[]
+  organization_units      OrganizationUnit[]
+  job_levels              JobLevel[]
+  salary_structures       SalaryStructure[]
+  salary_components       SalaryComponent[]
+  salary_revisions        SalaryRevision[]
+  payroll_runs            PayrollRun[]
+  payroll_slips           PayrollSlip[]
+  documents               Document[]
+  reimbursements          Reimbursement[]
+  employee_movements      EmployeeMovement[]
+  status_histories        EmployeeStatusHistory[]
+  exit_checklists         ExitChecklist[]
+  employee_shifts         EmployeeShift[]
+  shifts                  Shift[]
+  notifications           Notification[]
+  notification_templates  NotificationTemplate[]
+  notification_prefs      NotificationPreference[]
+  audit_logs              AuditLog[]
+  settings_audit_logs     SettingsAuditLog[]
+  public_holidays         PublicHoliday[]
+  settings                CompanySettings?
+  subscriptions           Subscription[]
+  payments                Payment[]
+  usage_records           UsageRecord[]
+  api_keys                ApiKey[]
+  otp_tokens              OtpToken[]
+  role_permissions        RolePermission[]
+  employee_invites        EmployeeInvite[]
+  user_invites            UserInvite[]
+  role_templates          RoleTemplate[]
+  channel_identity_links  ChannelIdentityLink[]
+  whatsapp_tenant_config  WhatsAppTenantConfig?
+  idempotency_records     IdempotencyRecord[]
+  assistant_conversations AssistantConversation[]
 
   @@index([deleted_at])
 }
@@ -358,8 +362,9 @@ model Employee {
   generated_payrolls PayrollRun[] @relation("PayrollGenerator")
   approved_payrolls  PayrollRun[] @relation("PayrollApprover")
 
-  sent_invites   UserInvite[]   @relation("InviteSender")
-  refresh_tokens RefreshToken[]
+  sent_invites           UserInvite[]          @relation("InviteSender")
+  refresh_tokens         RefreshToken[]
+  channel_identity_links ChannelIdentityLink[]
 
   @@index([org_id])
   @@index([manager_id])
@@ -1008,12 +1013,18 @@ model Payment {
   amount              Float
   currency            String        @default("INR")
   status              PaymentStatus @default(pending)
+  razorpay_order_id   String?       @unique
   razorpay_payment_id String?
+  razorpay_signature  String?
+  cashfree_order_id   String?       @unique
+  cashfree_payment_id String?
+  paid_at             DateTime?
   stripe_payment_id   String?
   created_at          DateTime      @default(now())
 
   @@index([company_id])
   @@index([subscription_id])
+  @@index([status])
 }
 
 model UsageRecord {
@@ -1322,4 +1333,129 @@ model TutorialProgress {
 
   @@unique([employee_id, step_id])
   @@index([employee_id])
+}
+
+// ─── Zero UI Channel Identity (L5-03-001) ────────────────────────────────────
+
+/// Maps an employee to a messaging channel (e.g., WhatsApp) identity.
+/// Revocable on phone change, employee termination, or admin block.
+model ChannelIdentityLink {
+  id            String    @id @default(uuid())
+  company_id    String
+  company       Company   @relation(fields: [company_id], references: [id], onDelete: Cascade)
+  employee_id   String
+  employee      Employee  @relation(fields: [employee_id], references: [id], onDelete: Cascade)
+  channel       String    @db.VarChar(32) // 'whatsapp'
+  external_id   String    @db.VarChar(32) // Meta wa_id (digits, no +)
+  phone_e164    String    @db.VarChar(20)
+  verified_at   DateTime
+  revoked_at    DateTime?
+  revoke_reason String?   @db.VarChar(64)
+  created_at    DateTime  @default(now())
+  updated_at    DateTime  @updatedAt
+
+  @@unique([company_id, channel, external_id])
+  @@index([company_id, phone_e164])
+  @@index([employee_id, channel])
+}
+
+/// Stores OTP challenge for channel phone verification.
+model ChannelVerificationChallenge {
+  id           String    @id @default(uuid())
+  company_id   String
+  employee_id  String
+  channel      String    @db.VarChar(32)
+  phone_e164   String    @db.VarChar(20)
+  code_hash    String // bcrypt cost 10
+  attempts     Int       @default(0)
+  max_attempts Int       @default(3)
+  expires_at   DateTime
+  consumed_at  DateTime?
+  created_at   DateTime  @default(now())
+
+  @@index([company_id, employee_id, channel])
+  @@index([expires_at])
+}
+
+/// Per-tenant WhatsApp Business Account configuration.
+/// access_token_enc is AES-256-GCM encrypted (never returned in GET responses).
+model WhatsAppTenantConfig {
+  id                String   @id @default(uuid())
+  company_id        String   @unique
+  company           Company  @relation(fields: [company_id], references: [id], onDelete: Cascade)
+  phone_number_id   String   @unique @db.VarChar(32)
+  waba_id           String?  @db.VarChar(64)
+  access_token_enc  String // AES-256-GCM: base64(iv+ciphertext+tag)
+  messaging_enabled Boolean  @default(true)
+  connected_at      DateTime @default(now())
+  created_at        DateTime @default(now())
+  updated_at        DateTime @updatedAt
+
+  @@index([company_id])
+}
+
+/// Idempotency record for headless service calls.
+/// Caches ServiceResult for 24h to prevent duplicate operations.
+model IdempotencyRecord {
+  id              String   @id @default(uuid())
+  company_id      String
+  employee_id     String
+  idempotency_key String   @db.VarChar(128)
+  response_json   Json
+  http_status     Int
+  expires_at      DateTime
+  created_at      DateTime @default(now())
+
+  company Company @relation(fields: [company_id], references: [id], onDelete: Cascade)
+
+  @@unique([company_id, employee_id, idempotency_key])
+  @@index([company_id])
+  @@index([expires_at])
+}
+
+/// Persistent conversation context for the Continuum assistant.
+model AssistantConversation {
+  id               String    @id @default(uuid())
+  company_id       String
+  employee_id      String
+  channel          String    @db.VarChar(32) // 'web' | 'whatsapp'
+  draft_json       Json?
+  draft_expires_at DateTime?
+  created_at       DateTime  @default(now())
+  updated_at       DateTime  @updatedAt
+
+  company  Company                  @relation(fields: [company_id], references: [id], onDelete: Cascade)
+  messages AssistantMessageRecord[]
+
+  @@unique([company_id, employee_id, channel])
+  @@index([company_id, employee_id])
+}
+
+/// Individual message records for conversation history (pruned to 40).
+model AssistantMessageRecord {
+  id              String                @id @default(uuid())
+  conversation_id String
+  conversation    AssistantConversation @relation(fields: [conversation_id], references: [id], onDelete: Cascade)
+  company_id      String
+  role            String                @db.VarChar(16) // 'user' | 'assistant'
+  content         String
+  created_at      DateTime              @default(now())
+
+  @@index([conversation_id])
+  @@index([company_id])
+  @@index([created_at])
+}
+
+/// Channel blocklist — silently ignores messages from blocked senders.
+model ChannelBlocklist {
+  id          String   @id @default(uuid())
+  company_id  String
+  channel     String   @db.VarChar(32) // 'whatsapp'
+  external_id String   @db.VarChar(64)
+  reason      String?
+  created_by  String?
+  created_at  DateTime @default(now())
+
+  @@unique([company_id, channel, external_id])
+  @@index([company_id])
 }

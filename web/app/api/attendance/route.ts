@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { getAuthEmployee, AuthError } from '@/lib/auth-guard';
+import { getAuthEmployee, requireCompanyContext, AuthError } from '@/lib/auth-guard';
+import { assertModule } from '@/lib/core-functions/assert-module';
+import { buildContextFromSession } from '@/lib/channel/context-from-session';
+import { clockAttendanceService } from '@/lib/services/attendance-clock';
+import { getTodayAttendanceService } from '@/lib/services/attendance-today';
+import { serviceResultToLegacyResponse } from '@/lib/services/service-response';
+import { parseBoundedInt } from '@/lib/api-guards';
 
 export const dynamic = 'force-dynamic';
 
@@ -15,13 +21,34 @@ export const dynamic = 'force-dynamic';
  */
 export async function GET(request: NextRequest) {
   try {
-    const employee = await getAuthEmployee();
+    const employee = await getAuthEmployee(request);
+    requireCompanyContext(employee);
+    const moduleGuard = await assertModule(employee.org_id!, 'attendance');
+    if (moduleGuard) return moduleGuard;
 
     const { searchParams } = new URL(request.url);
+    if (searchParams.get('today') === '1') {
+      const ctx = buildContextFromSession(employee, { channel: 'web' });
+      const result = await getTodayAttendanceService(ctx);
+      return serviceResultToLegacyResponse(result);
+    }
+
     const now = new Date();
-    const month = parseInt(searchParams.get('month') ?? String(now.getMonth() + 1), 10);
-    const year = parseInt(searchParams.get('year') ?? String(now.getFullYear()), 10);
-    const limit = Math.min(100, parseInt(searchParams.get('limit') ?? '31', 10));
+    const month = parseBoundedInt(searchParams.get('month'), {
+      defaultValue: now.getMonth() + 1,
+      min: 1,
+      max: 12,
+    });
+    const year = parseBoundedInt(searchParams.get('year'), {
+      defaultValue: now.getFullYear(),
+      min: 2000,
+      max: 2100,
+    });
+    const limit = parseBoundedInt(searchParams.get('limit'), {
+      defaultValue: 31,
+      min: 1,
+      max: 100,
+    });
 
     const startDate = new Date(year, month - 1, 1);
     const endDate = new Date(year, month, 0, 23, 59, 59);
@@ -29,7 +56,7 @@ export async function GET(request: NextRequest) {
     const records = await prisma.attendance.findMany({
       where: {
         emp_id: employee.id,
-        company_id: employee.org_id!,
+        company_id: employee.org_id,
         date: {
           gte: startDate,
           lte: endDate,
@@ -93,110 +120,27 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
-    const employee = await getAuthEmployee();
-    const body = await request.json();
-    const { action, is_wfh } = body;
+    const employee = await getAuthEmployee(request);
+    requireCompanyContext(employee);
+    const body = await request.json().catch(() => ({}));
 
-    if (!action || !['check_in', 'check_out'].includes(action)) {
-      return NextResponse.json({ error: 'Invalid action. Use check_in or check_out.' }, { status: 400 });
-    }
-
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
-
-    // Find today's attendance record
-    let attendance = await prisma.attendance.findFirst({
-      where: {
-        emp_id: employee.id,
-        company_id: employee.org_id!,
-        date: {
-          gte: today,
-          lt: tomorrow,
-        },
-      },
+    const ctx = buildContextFromSession(employee, {
+      channel: 'web',
+      idempotencyKey: request.headers.get('Idempotency-Key') ?? undefined,
     });
 
-    const now = new Date();
-
-    // Fetch company settings for grace period and half-day detection
-    const company = await prisma.company.findUnique({
-      where: { id: employee.org_id! },
-      select: {
-        work_start: true,
-        work_end: true,
-        grace_period_minutes: true,
-        half_day_hours: true,
-      },
+    const result = await clockAttendanceService(ctx, {
+      action: body.action,
+      is_wfh: body.is_wfh,
     });
 
-    if (action === 'check_in') {
-      if (attendance?.check_in) {
-        return NextResponse.json({ error: 'Already checked in today.' }, { status: 400 });
-      }
-
-      // Determine if the employee is late based on work_start + grace period
-      const [startH, startM] = (company?.work_start || '09:00').split(':').map(Number);
-      const workStartTime = new Date(now);
-      workStartTime.setHours(startH, startM, 0, 0);
-
-      const graceMs = (company?.grace_period_minutes ?? 15) * 60 * 1000;
-      const graceCutoff = new Date(workStartTime.getTime() + graceMs);
-
-      const status = now > graceCutoff ? 'late' : 'present';
-
-      if (attendance) {
-        attendance = await prisma.attendance.update({
-          where: { id: attendance.id },
-          data: {
-            check_in: now,
-            status,
-            is_wfh: is_wfh ?? false,
-          },
-        });
-      } else {
-        attendance = await prisma.attendance.create({
-          data: {
-            emp_id: employee.id,
-            company_id: employee.org_id!,
-            date: today,
-            check_in: now,
-            status,
-            is_wfh: is_wfh ?? false,
-          },
-        });
-      }
-    } else if (action === 'check_out') {
-      if (!attendance?.check_in) {
-        return NextResponse.json({ error: 'Must check in first.' }, { status: 400 });
-      }
-      if (attendance.check_out) {
-        return NextResponse.json({ error: 'Already checked out today.' }, { status: 400 });
-      }
-
-      const checkIn = new Date(attendance.check_in);
-      const totalHours = (now.getTime() - checkIn.getTime()) / (1000 * 60 * 60);
-
-      // Auto-detect half-day if total hours worked is below the threshold
-      const halfDayThreshold = company?.half_day_hours ?? 4;
-      let checkoutStatus = attendance.status; // preserve 'late' if they were late
-      if (totalHours < halfDayThreshold) {
-        checkoutStatus = 'half_day';
-      }
-
-      attendance = await prisma.attendance.update({
-        where: { id: attendance.id },
-        data: {
-          check_out: now,
-          total_hours: parseFloat(totalHours.toFixed(2)),
-          status: checkoutStatus,
-        },
-      });
+    if (result.ok) {
+      return NextResponse.json({ attendance: result.data });
     }
 
-    return NextResponse.json({ attendance });
+    return serviceResultToLegacyResponse(result);
   } catch (error) {
+    console.error('[Attendance POST] Error:', error);
     if (error instanceof AuthError) {
       return NextResponse.json({ error: error.message }, { status: error.status });
     }
