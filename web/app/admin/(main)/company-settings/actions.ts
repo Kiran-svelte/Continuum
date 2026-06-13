@@ -17,11 +17,11 @@ type SystemConfigPayload = {
 export async function fetchLiveCompanyState() {
   try {
     const employee = await getAuthEmployee();
-    const scoped = requireCompanyContext(employee);
-    requirePermissionGuard(scoped, 'company.edit_settings');
+    requireCompanyContext(employee);
+    requirePermissionGuard(employee, 'company.edit_settings');
 
     const company = await prisma.company.findUnique({
-      where: { id: scoped.org_id },
+      where: { id: employee.org_id },
     });
 
     if (!company) {
@@ -41,11 +41,11 @@ export async function fetchLiveCompanyState() {
 export async function updateSystemConfig(payload: SystemConfigPayload) {
   try {
     const employee = await getAuthEmployee();
-    const scoped = requireCompanyContext(employee);
-    requirePermissionGuard(scoped, 'company.edit_settings');
+    requireCompanyContext(employee);
+    requirePermissionGuard(employee, 'company.edit_settings');
 
     const company = await prisma.company.findUnique({
-      where: { id: scoped.org_id },
+      where: { id: employee.org_id },
     });
 
     if (!company) throw new Error("Company not found for current session.");
