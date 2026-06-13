@@ -1,4 +1,5 @@
 import { cn } from '@/lib/utils';
+import { getCardVariantClass } from '@/lib/ui/twentyfirst-adapter';
 
 interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
   variant?: 'default' | 'elevated' | 'bordered' | 'ghost' | 'glass' | 'premium';
@@ -10,15 +11,10 @@ export function Card({ className, variant = 'default', interactive = false, glow
   return (
     <div
       className={cn(
-        'rounded-xl transition-all duration-200',
-        variant === 'default' && 'border border-border/60 bg-card text-card-foreground shadow-sm dark:border-slate-800/50 dark:shadow-none',
-        variant === 'elevated' && 'bg-card text-card-foreground shadow-md dark:shadow-black/20 dark:border dark:border-slate-800/50',
-        variant === 'bordered' && 'border-2 border-border bg-card text-card-foreground',
-        variant === 'ghost' && 'bg-transparent',
-        variant === 'glass' && 'glass-card text-card-foreground',
-        variant === 'premium' && 'premium-card text-card-foreground',
-        interactive && 'cursor-pointer hover:border-primary/40 hover:shadow-md active:scale-[0.99]',
-        glow && 'dark:glow-primary',
+        'rounded-2xl transition-all duration-200 border',
+        getCardVariantClass(variant),
+        interactive && 'cursor-pointer hover:border-primary/40 hover:shadow-md hover:-translate-y-0.5',
+        glow && 'shadow-[0_10px_30px_color-mix(in_srgb,var(--primary)_10%,transparent)]',
         className
       )}
       {...props}
@@ -30,7 +26,7 @@ export function Card({ className, variant = 'default', interactive = false, glow
 
 export function CardHeader({ className, children }: React.HTMLAttributes<HTMLDivElement>) {
   return (
-    <div className={cn('px-6 py-4 border-b border-border/40 dark:border-slate-800/40', className)}>
+    <div className={cn('px-6 py-4 border-b border-border/60', className)}>
       {children}
     </div>
   );
@@ -42,7 +38,7 @@ export function CardContent({ className, children }: React.HTMLAttributes<HTMLDi
 
 export function CardFooter({ className, children }: React.HTMLAttributes<HTMLDivElement>) {
   return (
-    <div className={cn('px-6 py-4 border-t border-border/40 dark:border-slate-800/40 bg-muted/20', className)}>
+    <div className={cn('px-6 py-4 border-t border-border/60 bg-muted/40', className)}>
       {children}
     </div>
   );

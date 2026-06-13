@@ -1,5 +1,6 @@
 import { cn } from '@/lib/utils';
 import { forwardRef } from 'react';
+import { getFormFieldMessageClass, getFormFieldToneClass } from '@/lib/ui/twentyfirst-adapter';
 
 export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   label?: string;
@@ -12,11 +13,11 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
     const inputId = id || label?.toLowerCase().replace(/\s/g, '-');
 
     return (
-      <div className="w-full">
+      <div className="w-full readable-copy">
         {label && (
           <label
             htmlFor={inputId}
-            className="block text-sm font-medium text-foreground dark:text-white/90 mb-1.5"
+            className="block text-sm font-medium text-foreground/90 mb-1.5"
           >
             {label}
           </label>
@@ -26,16 +27,13 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
           ref={ref}
           className={cn(
             'w-full rounded-xl border px-3.5 py-2.5 text-sm',
-            'bg-white dark:bg-white/5',
-            'text-foreground dark:text-white',
-            'placeholder:text-muted-foreground dark:placeholder:text-white/40',
+            'bg-[var(--bg-surface)]',
+            'text-foreground',
+            'placeholder:text-muted-foreground',
             'transition-all duration-200',
-            'focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary/50',
-            'dark:focus:shadow-[0_0_15px_rgba(var(--primary-rgb),0.15)]',
+            'focus:outline-none focus:border-primary/60 focus:[box-shadow:var(--focus-ring)]',
             'disabled:cursor-not-allowed disabled:opacity-50',
-            error
-              ? 'border-red-500/80 focus:ring-red-500/40 dark:border-red-400/50'
-              : 'border-gray-200 dark:border-white/10 hover:border-primary/30 dark:hover:border-white/20',
+            getFormFieldToneClass(Boolean(error)),
             className
           )}
           {...props}
@@ -43,8 +41,8 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
         {(error || helperText) && (
           <p
             className={cn(
-              'mt-1.5 text-sm',
-              error ? 'text-red-500 dark:text-red-400' : 'text-muted-foreground dark:text-white/50'
+              'mt-1.5 break-words text-sm leading-6',
+              getFormFieldMessageClass(Boolean(error))
             )}
           >
             {error || helperText}
@@ -68,11 +66,11 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
     const inputId = id || label?.toLowerCase().replace(/\s/g, '-');
 
     return (
-      <div className="w-full">
+      <div className="w-full readable-copy">
         {label && (
           <label
             htmlFor={inputId}
-            className="block text-sm font-medium text-foreground dark:text-white/90 mb-1.5"
+            className="block text-sm font-medium text-foreground/90 mb-1.5"
           >
             {label}
           </label>
@@ -82,16 +80,13 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
           ref={ref}
           className={cn(
             'w-full rounded-xl border px-3.5 py-2.5 text-sm',
-            'bg-white dark:bg-white/5',
-            'text-foreground dark:text-white',
-            'placeholder:text-muted-foreground dark:placeholder:text-white/40',
+            'bg-[var(--bg-surface)]',
+            'text-foreground',
+            'placeholder:text-muted-foreground',
             'transition-all duration-200 resize-y min-h-[100px]',
-            'focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary/50',
-            'dark:focus:shadow-[0_0_15px_rgba(var(--primary-rgb),0.15)]',
+            'focus:outline-none focus:border-primary/60 focus:[box-shadow:var(--focus-ring)]',
             'disabled:cursor-not-allowed disabled:opacity-50',
-            error
-              ? 'border-red-500/80 focus:ring-red-500/40 dark:border-red-400/50'
-              : 'border-gray-200 dark:border-white/10 hover:border-primary/30 dark:hover:border-white/20',
+            getFormFieldToneClass(Boolean(error)),
             className
           )}
           {...props}
@@ -99,8 +94,8 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
         {(error || helperText) && (
           <p
             className={cn(
-              'mt-1.5 text-sm',
-              error ? 'text-red-500 dark:text-red-400' : 'text-muted-foreground dark:text-white/50'
+              'mt-1.5 break-words text-sm leading-6',
+              getFormFieldMessageClass(Boolean(error))
             )}
           >
             {error || helperText}
@@ -117,19 +112,19 @@ export interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElemen
   label?: string;
   error?: string;
   helperText?: string;
-  options: { value: string; label: string }[];
+  options?: { value: string; label: string }[];
 }
 
 export const Select = forwardRef<HTMLSelectElement, SelectProps>(
-  ({ className, label, error, helperText, options, id, ...props }, ref) => {
+  ({ className, label, error, helperText, options, children, id, ...props }, ref) => {
     const inputId = id || label?.toLowerCase().replace(/\s/g, '-');
 
     return (
-      <div className="w-full">
+      <div className="w-full readable-copy">
         {label && (
           <label
             htmlFor={inputId}
-            className="block text-sm font-medium text-foreground dark:text-white/90 mb-1.5"
+            className="block text-sm font-medium text-foreground/90 mb-1.5"
           >
             {label}
           </label>
@@ -139,20 +134,17 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
           ref={ref}
           className={cn(
             'w-full rounded-xl border px-3.5 py-2.5 text-sm',
-            'bg-white dark:bg-white/5',
-            'text-foreground dark:text-white',
+            'bg-[var(--bg-surface)]',
+            'text-foreground',
             'transition-all duration-200',
-            'focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary/50',
-            'dark:focus:shadow-[0_0_15px_rgba(var(--primary-rgb),0.15)]',
+            'focus:outline-none focus:border-primary/60 focus:[box-shadow:var(--focus-ring)]',
             'disabled:cursor-not-allowed disabled:opacity-50',
-            error
-              ? 'border-red-500/80 focus:ring-red-500/40 dark:border-red-400/50'
-              : 'border-gray-200 dark:border-white/10 hover:border-primary/30 dark:hover:border-white/20',
+            getFormFieldToneClass(Boolean(error)),
             className
           )}
           {...props}
         >
-          {options.map((option) => (
+          {children ?? options?.map((option) => (
             <option key={option.value} value={option.value}>
               {option.label}
             </option>
@@ -161,8 +153,8 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
         {(error || helperText) && (
           <p
             className={cn(
-              'mt-1.5 text-sm',
-              error ? 'text-red-500 dark:text-red-400' : 'text-muted-foreground dark:text-white/50'
+              'mt-1.5 break-words text-sm leading-6',
+              getFormFieldMessageClass(Boolean(error))
             )}
           >
             {error || helperText}
@@ -191,8 +183,8 @@ export const Checkbox = forwardRef<HTMLInputElement, CheckboxProps>(
           id={inputId}
           ref={ref}
           className={cn(
-            'h-4 w-4 rounded border-white/20 bg-white/5 text-primary',
-            'focus:ring-2 focus:ring-primary/40',
+            'h-4 w-4 rounded border-[var(--border)] bg-[var(--bg-surface)] text-primary',
+            'focus:[box-shadow:var(--focus-ring)]',
             'disabled:cursor-not-allowed disabled:opacity-50',
             'transition-colors duration-200',
             'accent-primary',
@@ -205,13 +197,13 @@ export const Checkbox = forwardRef<HTMLInputElement, CheckboxProps>(
             {label && (
               <label
                 htmlFor={inputId}
-                className="text-sm font-medium text-foreground dark:text-white/90 cursor-pointer"
+                className="text-sm font-medium text-foreground/90 cursor-pointer"
               >
                 {label}
               </label>
             )}
             {description && (
-              <p className="text-sm text-muted-foreground dark:text-white/50">{description}</p>
+              <p className="break-words text-sm leading-6 text-muted-foreground">{description}</p>
             )}
           </div>
         )}
