@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAuthEmployee, AuthError } from '@/lib/auth-guard';
+import { getAuthEmployee, AuthError, requireCompanyContext } from '@/lib/auth-guard';
 import { buildContextFromSession } from '@/lib/channel/context-from-session';
 import { cancelLeaveService } from '@/lib/services/leave-cancel';
 import { serviceResultToLegacyResponse } from '@/lib/services/service-response';
@@ -15,6 +15,7 @@ export async function POST(
 ) {
   try {
     const employee = await getAuthEmployee();
+    requireCompanyContext(employee);
     const { requestId } = await params;
     const body = await request.json().catch(() => ({}));
 

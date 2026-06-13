@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { getAuthEmployee, AuthError } from '@/lib/auth-guard';
+import { getAuthEmployee, AuthError, requireCompanyContext } from '@/lib/auth-guard';
 import { buildContextFromSession } from '@/lib/channel/context-from-session';
 import { getLatestPayslipService } from '@/lib/services/payslip-latest';
 import { serviceResultToLegacyResponse } from '@/lib/services/service-response';
@@ -14,6 +14,7 @@ export async function GET(request: NextRequest) {
   try {
     void request;
     const employee = await getAuthEmployee();
+    requireCompanyContext(employee);
     const ctx = buildContextFromSession(employee, { channel: 'web' });
     const result = await getLatestPayslipService(ctx);
     return serviceResultToLegacyResponse(result);
