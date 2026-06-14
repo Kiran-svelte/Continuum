@@ -203,11 +203,11 @@ async function executeSubmitLeave(
       select: {
         negative_balance: true,
         sla_hours: true,
-        CompanySettings: { select: { hr_alerts: true } },
+        settings: { select: { hr_alerts: true } },
       },
     });
 
-    const hrAlerts = company?.CompanySettings?.hr_alerts as Record<string, unknown> | null;
+    const hrAlerts = company?.settings?.hr_alerts as Record<string, unknown> | null;
     const aiConfig =
       hrAlerts?.ai && typeof hrAlerts.ai === 'object'
         ? (hrAlerts.ai as Record<string, unknown>)
@@ -369,7 +369,7 @@ async function executeSubmitLeave(
         create: {
           id: uuidv4(),
           emp_id: employee.id,
-          company_id: employee.org_id,
+          company_id: employee.org_id!,
           leave_type: leaveType,
           year: balanceYear,
           annual_entitlement: balanceSnapshot!.annual_entitlement,
@@ -409,7 +409,7 @@ async function executeSubmitLeave(
         data: {
           id: uuidv4(),
           emp_id: employee.id,
-          company_id: employee.org_id,
+          company_id: employee.org_id!,
           leave_type: leaveType,
           start_date: startDate,
           end_date: endDate,

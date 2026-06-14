@@ -69,3 +69,21 @@ export async function ensureMe(): Promise<MeResponse | null> {
     return null;
   }
 }
+
+export async function forceClientSignOut(): Promise<void> {
+  try {
+    await fetch('/api/auth/signout', {
+      method: 'POST',
+      credentials: 'include',
+    });
+  } catch {
+    // Client sign-out should continue locally even if the network request fails.
+  }
+
+  try {
+    const { getSupabaseBrowserClient } = await import('@/lib/supabase');
+    await getSupabaseBrowserClient().auth.signOut();
+  } catch {
+    // Supabase may be unconfigured in JWT-only deployments.
+  }
+}

@@ -44,8 +44,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { email, role, department, phone: rawPhone } = parsed.data;
-    const phone = rawPhone ? normalizePhone(rawPhone) : undefined;
+    const { email, role, department, phone } = parsed.data;
+    const normalizedPhone = phone ? normalizePhone(phone) : undefined;
+    if (normalizedPhone && !normalizedPhone.ok) {
+      return NextResponse.json(
+        { error: normalizedPhone.message, code: normalizedPhone.code },
+        { status: 400 }
+      );
+    }
 
     // Check if employee already exists
     const existingEmployee = await prisma.employee.findFirst({
@@ -103,7 +109,13 @@ export async function POST(request: NextRequest) {
       action: AUDIT_ACTIONS.EMPLOYEE_STATUS_CHANGE,
       entityType: 'EmployeeInvite',
       entityId: invite.id,
-      newState: { email, role, department, phone, expires_at: expiresAt.toISOString() },
+      newState: {
+        email,
+        role,
+        department,
+        phone_provided: Boolean(normalizedPhone?.ok),
+        expires_at: expiresAt.toISOString(),
+      },
     });
 
     // Send invite email (non-blocking)

@@ -80,7 +80,7 @@ async function executeApproveLeave(
   const leaveRequest = await prisma.leaveRequest.findUnique({
     where: { id: requestId },
     include: {
-      Employee_LeaveRequest_emp_idToEmployee: true,
+      employee: true,
     },
   });
 
@@ -234,7 +234,7 @@ async function executeApproveLeave(
     );
   }
 
-  const emp = leaveRequest.Employee_LeaveRequest_emp_idToEmployee;
+  const emp = leaveRequest.employee;
   const employeeName = `${emp.first_name} ${emp.last_name}`;
   const startDate = leaveRequest.start_date.toISOString().split('T')[0]!;
   const endDate = leaveRequest.end_date.toISOString().split('T')[0]!;

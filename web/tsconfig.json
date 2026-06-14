@@ -16,6 +16,6 @@
     "plugins": [{"name": "next"}],
     "paths": {"@/*": ["./*"]}
   },
-  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
-  "exclude": ["node_modules", "scripts"]
+  "include": ["next-env.d.ts", "app/**/*.ts", "app/**/*.tsx", "components/**/*.ts", "components/**/*.tsx", "hooks/**/*.ts", "hooks/**/*.tsx", "lib/**/*.ts", "types/**/*.d.ts", "middleware.ts", "next.config.ts", ".next/types/**/*.ts"],
+  "exclude": ["node_modules", "scripts", "tests", "test-results", "playwright.config.ts", "prisma/**/*.ts", "web"]
 }
