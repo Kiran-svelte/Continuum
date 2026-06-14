@@ -30,6 +30,33 @@ export type PermissionCode =
   | 'payroll.generate'
   | 'payroll.approve'
   | 'payroll.process'
+  // Performance (5)
+  | 'performance.view_all'
+  | 'performance.view_team_goals'
+  | 'performance.set_own_goals'
+  | 'performance.manage_goals'
+  | 'performance.manage_reviews'
+  // Recruitment (5)
+  | 'recruitment.view_all'
+  | 'recruitment.create_posting'
+  | 'recruitment.manage_applications'
+  | 'recruitment.manage_pipeline'
+  | 'recruitment.create_offer'
+  // Learning (3)
+  | 'lms.manage_courses'
+  | 'lms.manage_enrollments'
+  | 'lms.view_all_enrollments'
+  // Expenses / travel / reimbursements (6)
+  | 'expenses.view_all'
+  | 'expenses.approve'
+  | 'expenses.manage_policy'
+  | 'travel.view_all'
+  | 'travel.approve'
+  | 'reimbursement.approve_any'
+  // Compensation (3)
+  | 'compensation.view_cycles'
+  | 'compensation.manage_cycles'
+  | 'compensation.approve'
   // Employee (6)
   | 'employee.view_own'
   | 'employee.view_team'
@@ -103,6 +130,32 @@ export const PERMISSION_CATALOG: PermissionDefinition[] = [
   { code: 'payroll.generate', module: 'payroll', description: 'Generate payroll run' },
   { code: 'payroll.approve', module: 'payroll', description: 'Approve payroll run' },
   { code: 'payroll.process', module: 'payroll', description: 'Process payroll payments' },
+  { code: 'compensation.view_cycles', module: 'compensation', description: 'View compensation cycles' },
+  { code: 'compensation.manage_cycles', module: 'compensation', description: 'Create and manage compensation cycles' },
+  { code: 'compensation.approve', module: 'compensation', description: 'Approve compensation recommendations' },
+  // Performance module
+  { code: 'performance.view_all', module: 'performance', description: 'View all performance records' },
+  { code: 'performance.view_team_goals', module: 'performance', description: 'View team goals' },
+  { code: 'performance.set_own_goals', module: 'performance', description: 'Set own goals' },
+  { code: 'performance.manage_goals', module: 'performance', description: 'Manage goals' },
+  { code: 'performance.manage_reviews', module: 'performance', description: 'Manage review cycles and instances' },
+  // Recruitment module
+  { code: 'recruitment.view_all', module: 'recruitment', description: 'View all recruitment records' },
+  { code: 'recruitment.create_posting', module: 'recruitment', description: 'Create job postings' },
+  { code: 'recruitment.manage_applications', module: 'recruitment', description: 'Manage job applications' },
+  { code: 'recruitment.manage_pipeline', module: 'recruitment', description: 'Manage recruitment pipeline stages' },
+  { code: 'recruitment.create_offer', module: 'recruitment', description: 'Create offer letters' },
+  // Learning module
+  { code: 'lms.manage_courses', module: 'lms', description: 'Create and manage courses' },
+  { code: 'lms.manage_enrollments', module: 'lms', description: 'Manage course enrollments' },
+  { code: 'lms.view_all_enrollments', module: 'lms', description: 'View all course enrollments' },
+  // Expense, travel, and reimbursement modules
+  { code: 'expenses.view_all', module: 'expenses', description: 'View all expenses' },
+  { code: 'expenses.approve', module: 'expenses', description: 'Approve expenses' },
+  { code: 'expenses.manage_policy', module: 'expenses', description: 'Manage expense policy' },
+  { code: 'travel.view_all', module: 'travel', description: 'View all travel requests' },
+  { code: 'travel.approve', module: 'travel', description: 'Approve travel requests' },
+  { code: 'reimbursement.approve_any', module: 'reimbursement', description: 'Approve any reimbursement' },
   // Employee module
   { code: 'employee.view_own', module: 'employee', description: 'View own profile' },
   { code: 'employee.view_team', module: 'employee', description: 'View team profiles' },
@@ -151,11 +204,13 @@ const TEAM_LEAD_PERMISSIONS: PermissionCode[] = [
   'attendance.view_team',
   'employee.view_team',
   'reports.view_team',
+  'performance.view_team_goals',
 ];
 
 const MANAGER_PERMISSIONS: PermissionCode[] = [
   ...TEAM_LEAD_PERMISSIONS,
   'attendance.regularize',
+  'performance.manage_goals',
 ];
 
 const DIRECTOR_PERMISSIONS: PermissionCode[] = [
@@ -165,6 +220,9 @@ const DIRECTOR_PERMISSIONS: PermissionCode[] = [
   'employee.view_all',
   'reports.view_all',
   'company.view_settings',
+  'performance.view_all',
+  'expenses.view_all',
+  'travel.view_all',
 ];
 
 const HR_PERMISSIONS: PermissionCode[] = [
@@ -176,6 +234,7 @@ const HR_PERMISSIONS: PermissionCode[] = [
   'attendance.override',
   'payroll.view_all',
   'payroll.generate',
+  'payroll.approve',
   'employee.edit_any',
   'employee.onboard',
   'employee.terminate',
@@ -186,6 +245,23 @@ const HR_PERMISSIONS: PermissionCode[] = [
   'company.manage_policies',
   'notifications.manage_templates',
   'notifications.configure',
+  'performance.manage_goals',
+  'performance.manage_reviews',
+  'recruitment.view_all',
+  'recruitment.create_posting',
+  'recruitment.manage_applications',
+  'recruitment.manage_pipeline',
+  'recruitment.create_offer',
+  'lms.manage_courses',
+  'lms.manage_enrollments',
+  'lms.view_all_enrollments',
+  'compensation.view_cycles',
+  'compensation.manage_cycles',
+  'compensation.approve',
+  'expenses.approve',
+  'expenses.manage_policy',
+  'travel.approve',
+  'reimbursement.approve_any',
 ];
 
 const ADMIN_PERMISSIONS: PermissionCode[] = [...ALL_PERMISSION_CODES];

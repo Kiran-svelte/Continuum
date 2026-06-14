@@ -40,7 +40,7 @@ export async function getLatestPayslipService(
       },
       orderBy: [{ year: 'desc' }, { month: 'desc' }],
       include: {
-        PayrollRun: { select: { status: true } },
+        payroll_run: { select: { status: true } },
       },
     });
 
@@ -56,7 +56,7 @@ export async function getLatestPayslipService(
       gross: slip.gross,
       total_deductions: slip.total_deductions,
       payroll_run_id: slip.payroll_run_id,
-      run_status: slip.PayrollRun?.status ?? null,
+      run_status: slip.payroll_run?.status ?? null,
     });
   } catch (error) {
     logger.error('get_latest_payslip_service_error', {

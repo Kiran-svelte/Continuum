@@ -1,0 +1,139 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
+import prisma from '@/lib/prisma';
+import { getCurrentUser } from '@/lib/auth-service';
+import type { Role } from '@prisma/client';
+
+export const dynamic = 'force-dynamic';
+
+const updateInviteSchema = z.object({
+  email: z.string().email().optional(),
+  firstName: z.string().min(1).max(100).optional(),
+  lastName: z.string().min(1).max(100).optional(),
+  role: z.enum(['admin', 'hr', 'director', 'manager']).optional(),
+});
+
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const currentUser = await getCurrentUser();
+    if (!currentUser || currentUser.role !== 'super_admin') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const { id } = await params;
+    const body = await request.json().catch(() => ({}));
+    const parsed = updateInviteSchema.safeParse(body);
+
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: 'Validation failed', details: parsed.error.flatten() },
+        { status: 400 }
+      );
+    }
+
+    const invite = await prisma.userInvite.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        email: true,
+        status: true,
+      },
+    });
+
+    if (!invite) {
+      return NextResponse.json({ error: 'Invite not found' }, { status: 404 });
+    }
+
+    if (invite.status !== 'pending') {
+      return NextResponse.json(
+        { error: 'Only pending invites can be edited' },
+        { status: 400 }
+      );
+    }
+
+    const { email, firstName, lastName, role } = parsed.data;
+    if (!email && !firstName && !lastName && !role) {
+      return NextResponse.json(
+        { error: 'At least one editable field is required' },
+        { status: 400 }
+      );
+    }
+
+    const updateData: Record<string, unknown> = {
+      updated_at: new Date(),
+    };
+
+    if (email) {
+      const normalizedEmail = email.trim().toLowerCase();
+
+      const existingEmployee = await prisma.employee.findUnique({
+        where: { email: normalizedEmail },
+        select: { id: true },
+      });
+
+      if (existingEmployee) {
+        return NextResponse.json(
+          { error: 'An existing user already uses this email' },
+          { status: 409 }
+        );
+      }
+
+      const existingPendingInvite = await prisma.userInvite.findFirst({
+        where: {
+          id: { not: invite.id },
+          email: normalizedEmail,
+          status: 'pending',
+        },
+        select: { id: true },
+      });
+
+      if (existingPendingInvite) {
+        return NextResponse.json(
+          { error: 'A pending invite already exists for this email' },
+          { status: 409 }
+        );
+      }
+
+      updateData.email = normalizedEmail;
+    }
+
+    if (firstName) {
+      updateData.first_name = firstName.trim();
+    }
+
+    if (lastName) {
+      updateData.last_name = lastName.trim();
+    }
+
+    if (role) {
+      updateData.role = role as Role;
+    }
+
+    const updatedInvite = await prisma.userInvite.update({
+      where: { id: invite.id },
+      data: updateData,
+      select: {
+        id: true,
+        email: true,
+        first_name: true,
+        last_name: true,
+        role: true,
+        status: true,
+        expires_at: true,
+        updated_at: true,
+      },
+    });
+
+    return NextResponse.json({ success: true, invite: updatedInvite });
+  } catch (error) {
+    console.error('[SUPER ADMIN INVITE PATCH] Error:', error);
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    return NextResponse.json(
+      { error: 'Failed to update invite', details: message },
+      { status: 500 }
+    );
+  }
+}

@@ -12,6 +12,7 @@
  * @module lib/sequential-approval
  */
 import prisma from '@/lib/prisma';
+import { Prisma } from '@prisma/client';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -65,7 +66,7 @@ function readSequentialMeta(constraintResult: unknown): SequentialTrailMeta {
 function mergeSequentialMeta(
   constraintResult: unknown,
   patch: SequentialTrailMeta
-): Record<string, unknown> {
+): Prisma.InputJsonValue {
   const base =
     constraintResult && typeof constraintResult === 'object' && !Array.isArray(constraintResult)
       ? { ...(constraintResult as Record<string, unknown>) }
@@ -75,7 +76,7 @@ function mergeSequentialMeta(
     ...current,
     ...patch,
   };
-  return base;
+  return base as Prisma.InputJsonValue;
 }
 
 /**

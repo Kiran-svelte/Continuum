@@ -457,6 +457,37 @@ export async function sendInviteEmail(
   return sendEmail(to, `${escapeHtml(inviterName)} invited you to join ${escapeHtml(companyName)}`, html, { category: 'invite' });
 }
 
+export async function sendSuperAdminUserInviteEmail(
+  to: string,
+  firstName: string,
+  inviterName: string,
+  role: string,
+  inviteUrl: string,
+  expiresAt: Date
+): Promise<EmailResult> {
+  const roleLabel = role.replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase());
+  const expiryLabel = expiresAt.toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  });
+
+  const html = wrapTemplate(`
+    <h2 style="color: #2563eb;">Continuum platform invitation</h2>
+    <p>Hi <strong>${escapeHtml(firstName)}</strong>,</p>
+    <p><strong>${escapeHtml(inviterName)}</strong> invited you to join Continuum as <strong>${escapeHtml(roleLabel)}</strong>.</p>
+    <div style="text-align: center; margin: 24px 0;">
+      <a href="${escapeHtml(inviteUrl)}"
+         style="background: #2563eb; color: white; padding: 12px 32px; border-radius: 6px; text-decoration: none; font-weight: 600; display: inline-block;">
+        Accept Invitation
+      </a>
+    </div>
+    <p style="color: #666; font-size: 14px;">This invitation expires on <strong>${escapeHtml(expiryLabel)}</strong>.</p>
+  `);
+
+  return sendEmail(to, `Continuum invitation from ${escapeHtml(inviterName)}`, html, { category: 'invite' });
+}
+
 export async function sendLeaveAutoApprovedEmail(
   to: string,
   employeeName: string,
@@ -502,6 +533,55 @@ export async function sendSignupConfirmationEmail(
 
   return sendEmail(to, 'Your Continuum account has been created', html, { category: 'welcome' });
 }
+
+export async function sendEmailVerificationLinkEmail(
+  to: string,
+  name: string,
+  verificationUrl: string
+): Promise<EmailResult> {
+  const html = wrapTemplate(`
+    <h2 style="color: #2563eb;">Verify your email address</h2>
+    <p>Hi <strong>${escapeHtml(name)}</strong>,</p>
+    <p>Please verify your email address so your Continuum account can receive security and HR notifications.</p>
+    <div style="text-align: center; margin: 24px 0;">
+      <a href="${escapeHtml(verificationUrl)}"
+         style="background: #2563eb; color: white; padding: 12px 32px; border-radius: 6px; text-decoration: none; font-weight: 600; display: inline-block;">
+        Verify Email
+      </a>
+    </div>
+    <p style="color: #666; font-size: 14px;">If you did not request this email, you can safely ignore it.</p>
+  `);
+
+  return sendEmail(to, 'Verify your Continuum email address', html, { category: 'security' });
+}
+
+export async function sendCompanyOwnerCredentialsEmail(
+  to: string,
+  ownerName: string,
+  companyName: string,
+  temporaryPassword: string,
+  loginUrl: string
+): Promise<EmailResult> {
+  const html = wrapTemplate(`
+    <h2 style="color: #2563eb;">Continuum company owner credentials</h2>
+    <p>Hi <strong>${escapeHtml(ownerName || 'there')}</strong>,</p>
+    <p>Your owner login for <strong>${escapeHtml(companyName)}</strong> has been regenerated.</p>
+    <table style="width: 100%; border-collapse: collapse; margin: 16px 0;">
+      <tr><td style="padding: 8px; border-bottom: 1px solid #eee; color: #666;">Email</td><td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>${escapeHtml(to)}</strong></td></tr>
+      <tr><td style="padding: 8px; border-bottom: 1px solid #eee; color: #666;">Temporary password</td><td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>${escapeHtml(temporaryPassword)}</strong></td></tr>
+    </table>
+    <div style="text-align: center; margin: 24px 0;">
+      <a href="${escapeHtml(loginUrl)}"
+         style="background: #2563eb; color: white; padding: 12px 32px; border-radius: 6px; text-decoration: none; font-weight: 600; display: inline-block;">
+        Sign In
+      </a>
+    </div>
+    <p style="color: #666; font-size: 14px;">You will be asked to change this password after sign-in.</p>
+  `);
+
+  return sendEmail(to, `Continuum credentials for ${escapeHtml(companyName)}`, html, { category: 'security' });
+}
+
 export async function sendPasswordResetEmail(
   to: string,
   resetUrl: string

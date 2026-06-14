@@ -77,7 +77,7 @@ async function executeClockAttendance(
       grace_period_minutes: true,
       half_day_hours: true,
       timezone: true,
-      CompanySettings: {
+      settings: {
         select: {
           check_in_reminders: true,
           check_out_reminders: true,
@@ -90,8 +90,8 @@ async function executeClockAttendance(
     return serviceError('VALIDATION_ERROR', 'Company configuration not found.', 400);
   }
 
-  const checkInConfig = asRecord(company.CompanySettings?.check_in_reminders);
-  const checkOutConfig = asRecord(company.CompanySettings?.check_out_reminders);
+  const checkInConfig = asRecord(company.settings?.check_in_reminders);
+  const checkOutConfig = asRecord(company.settings?.check_out_reminders);
   const configuredGraceMinutes =
     typeof checkInConfig.grace_period_minutes === 'number'
       ? checkInConfig.grace_period_minutes

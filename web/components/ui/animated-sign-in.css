@@ -1,0 +1,190 @@
+.login-container {
+  position: relative;
+  min-height: 100vh;
+  width: 100%;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  background: radial-gradient(circle at 20% 20%, rgba(255, 122, 69, 0.14), transparent 38%),
+    radial-gradient(circle at 80% 80%, rgba(28, 181, 224, 0.14), transparent 40%),
+    linear-gradient(160deg, #050505, #111827);
+}
+
+.login-container::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: url("https://images.unsplash.com/photo-1469474968028-56623f02e42e?auto=format&fit=crop&w=1400&q=80");
+  background-size: cover;
+  background-position: center;
+  opacity: 0.12;
+  transform: scale(1.03);
+}
+
+.particles-canvas {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+}
+
+.theme-toggle {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 9999px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  background: rgba(17, 24, 39, 0.65);
+  color: #fff;
+  cursor: pointer;
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+}
+
+.login-card {
+  position: relative;
+  z-index: 2;
+  width: min(92vw, 430px);
+}
+
+.login-card-inner {
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 1rem;
+  padding: 1.5rem;
+  background: rgba(9, 9, 11, 0.78);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  box-shadow: 0 20px 45px rgba(0, 0, 0, 0.45);
+}
+
+.login-header h1 {
+  color: #fff;
+  font-size: 1.7rem;
+  font-weight: 700;
+}
+
+.login-header p {
+  margin-top: 0.3rem;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 0.95rem;
+}
+
+.login-form {
+  margin-top: 1.2rem;
+}
+
+.form-field {
+  position: relative;
+  margin-bottom: 1rem;
+}
+
+.form-field input {
+  width: 100%;
+  border-radius: 0.7rem;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  background: rgba(255, 255, 255, 0.06);
+  color: #fff;
+  padding: 0.95rem 0.85rem;
+  outline: none;
+}
+
+.form-field label {
+  position: absolute;
+  left: 0.8rem;
+  top: 0.8rem;
+  color: rgba(255, 255, 255, 0.6);
+  transition: all 0.2s ease;
+  pointer-events: none;
+}
+
+.form-field.active label {
+  top: -0.55rem;
+  background: rgba(9, 9, 11, 0.9);
+  font-size: 0.75rem;
+  padding: 0 0.35rem;
+}
+
+.toggle-password {
+  position: absolute;
+  right: 0.7rem;
+  top: 0.75rem;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.75);
+  border: none;
+  cursor: pointer;
+}
+
+.error-message {
+  margin-top: 0.35rem;
+  display: block;
+  color: #ff9ea2;
+  font-size: 0.78rem;
+}
+
+.form-options {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+}
+
+.remember-me,
+.forgot-password,
+.signup-prompt {
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 0.85rem;
+}
+
+.login-button {
+  width: 100%;
+  border: none;
+  border-radius: 0.7rem;
+  padding: 0.85rem 1rem;
+  color: white;
+  font-weight: 700;
+  background: linear-gradient(90deg, #ff5722, #ff8a5b);
+  cursor: pointer;
+}
+
+.separator {
+  margin: 1rem 0;
+  text-align: center;
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 0.8rem;
+}
+
+.social-login {
+  display: flex;
+  gap: 0.6rem;
+  justify-content: center;
+}
+
+.social-button {
+  width: 2.4rem;
+  height: 2.4rem;
+  border-radius: 0.6rem;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  background: rgba(255, 255, 255, 0.06);
+  color: #fff;
+  cursor: pointer;
+}
+
+.signup-prompt {
+  margin-top: 1rem;
+  text-align: center;
+}
+
+.dark-mode .login-container {
+  background: linear-gradient(160deg, #020617, #0b1120);
+}
+
+@media (max-width: 640px) {
+  .login-card-inner {
+    padding: 1rem;
+  }
+}

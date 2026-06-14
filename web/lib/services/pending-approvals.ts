@@ -7,6 +7,7 @@
 import prisma from '@/lib/prisma';
 import { serviceOk, serviceError } from './types';
 import type { ServiceResult, AssistantExecutionContext } from './types';
+import type { LeaveRequestStatus, Prisma } from '@prisma/client';
 import logger from '@/lib/logger';
 
 /** Pagination defaults. */
@@ -76,10 +77,11 @@ export async function listPendingApprovalsService(
       return serviceOk({ approvals: [], total: 0, page, pageSize });
     }
 
-    const where = {
+    const pendingStatuses: LeaveRequestStatus[] = ['pending', 'escalated'];
+    const where: Prisma.LeaveRequestWhereInput = {
       company_id: ctx.orgId,
       emp_id: { in: subordinateIds },
-      status: { in: ['pending', 'escalated'] },
+      status: { in: pendingStatuses },
     };
 
     const [requests, total] = await Promise.all([
