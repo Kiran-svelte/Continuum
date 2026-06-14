@@ -5,6 +5,7 @@ import { getCurrentUser } from '@/lib/auth-service';
 import type { Role } from '@prisma/client';
 import { randomUUID } from 'crypto';
 import { sendInviteEmail } from '@/lib/email-service';
+import { validateReportingManager } from '@/lib/invite-reporting-manager';
 
 export const dynamic = 'force-dynamic';
 
@@ -14,6 +15,7 @@ const updateInviteSchema = z.object({
   lastName: z.string().min(1).max(100).optional(),
   role: z.enum(['admin', 'hr', 'director', 'manager', 'team_lead', 'employee']).optional(),
   department: z.string().max(120).optional().nullable(),
+  managerId: z.string().uuid().optional().nullable(),
 });
 
 export async function PATCH(
@@ -47,7 +49,7 @@ export async function PATCH(
         id,
         company_id: user.orgId,
       },
-      select: { id: true, email: true, status: true },
+      select: { id: true, email: true, status: true, role: true, manager_id: true },
     });
 
     if (!invite) {
@@ -67,8 +69,8 @@ export async function PATCH(
       );
     }
 
-    const { email, firstName, lastName, role, department } = parsed.data;
-    if (!email && !firstName && !lastName && !role && department === undefined) {
+    const { email, firstName, lastName, role, department, managerId } = parsed.data;
+    if (!email && !firstName && !lastName && !role && department === undefined && managerId === undefined) {
       return NextResponse.json(
         { error: 'At least one field is required' },
         { status: 400 }
@@ -116,6 +118,22 @@ export async function PATCH(
     if (lastName) updateData.last_name = lastName.trim();
     if (role) updateData.role = role as Role;
     if (department !== undefined) updateData.department = department?.trim() || null;
+
+    const effectiveRole = (role ?? invite.role) as Role;
+    const effectiveManagerId =
+      managerId !== undefined ? managerId : (invite.manager_id as string | null);
+
+    const managerValidation = await validateReportingManager(
+      user.orgId,
+      effectiveRole,
+      effectiveManagerId
+    );
+    if (!managerValidation.ok) {
+      return NextResponse.json({ error: managerValidation.error }, { status: 400 });
+    }
+    if (managerId !== undefined || role) {
+      updateData.manager_id = managerValidation.managerId;
+    }
 
     const updatedInvite = await prisma.userInvite.update({
       where: { id: invite.id },

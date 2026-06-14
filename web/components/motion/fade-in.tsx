@@ -1,6 +1,5 @@
 'use client';
 
-import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { ReactNode } from 'react';
 
@@ -10,24 +9,9 @@ interface StaggerContainerProps {
   delay?: number;
 }
 
-export function StaggerContainer({ children, className, delay = 0.1 }: StaggerContainerProps) {
-  return (
-    <motion.div
-      initial="hidden"
-      animate="show"
-      viewport={{ once: true }}
-      variants={{
-        hidden: { opacity: 0 },
-        show: {
-          opacity: 1,
-          transition: { staggerChildren: delay },
-        },
-      }}
-      className={className}
-    >
-      {children}
-    </motion.div>
-  );
+/** Enterprise static layout wrapper — no stagger animation on operational surfaces. */
+export function StaggerContainer({ children, className }: StaggerContainerProps) {
+  return <div className={className}>{children}</div>;
 }
 
 interface FadeInProps {
@@ -38,30 +22,7 @@ interface FadeInProps {
   duration?: number;
 }
 
-export function FadeIn({
-  children,
-  className,
-  direction = 'up',
-  delay = 0,
-  duration = 0.5,
-}: FadeInProps) {
-  const directions = {
-    up: { y: 40, x: 0 },
-    down: { y: -40, x: 0 },
-    left: { x: 40, y: 0 },
-    right: { x: -40, y: 0 },
-    none: { x: 0, y: 0 },
-  };
-
-  return (
-    <motion.div
-      variants={{
-        hidden: { opacity: 0, ...directions[direction] },
-        show: { opacity: 1, x: 0, y: 0, transition: { duration, delay, ease: 'easeOut' } },
-      }}
-      className={className}
-    >
-      {children}
-    </motion.div>
-  );
+/** Enterprise static layout wrapper — no fade/slide animation on operational surfaces. */
+export function FadeIn({ children, className }: FadeInProps) {
+  return <div className={cn(className)}>{children}</div>;
 }

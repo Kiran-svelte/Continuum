@@ -13,6 +13,7 @@ export const PORTAL_MODULE_PATH_RULES: Array<{ prefix: string; slug: ModuleSlug 
   { prefix: '/admin/payslips', slug: 'payroll' },
   { prefix: '/admin/people', slug: 'employees' },
   { prefix: '/admin/directory', slug: 'employees' },
+  { prefix: '/admin/org-chart', slug: 'employees' },
   { prefix: '/admin/leave-requests', slug: 'leave' },
   { prefix: '/admin/leave-', slug: 'leave' },
   { prefix: '/admin/policy-settings', slug: 'leave' },
@@ -43,6 +44,7 @@ export const PORTAL_MODULE_PATH_RULES: Array<{ prefix: string; slug: ModuleSlug 
   { prefix: '/hr/bulk-import', slug: 'employees' },
   { prefix: '/hr/employee-movements', slug: 'employees' },
   { prefix: '/hr/directory', slug: 'employees' },
+  { prefix: '/hr/org-chart', slug: 'employees' },
   { prefix: '/hr/organization', slug: 'directory' },
   { prefix: '/hr/exit-checklist', slug: 'exit' },
 
@@ -92,6 +94,7 @@ export const PORTAL_MODULE_PATH_RULES: Array<{ prefix: string; slug: ModuleSlug 
   { prefix: '/manager/team', slug: 'employees' },
   { prefix: '/manager/people', slug: 'employees' },
   { prefix: '/manager/directory', slug: 'employees' },
+  { prefix: '/manager/org-chart', slug: 'employees' },
   { prefix: '/manager/performance', slug: 'performance' },
   { prefix: '/manager/payslips', slug: 'payroll' },
   { prefix: '/manager/payroll-advances', slug: 'payroll' },

@@ -3,6 +3,7 @@ import prisma from '@/lib/prisma';
 import { getAuthEmployee, requireRole, AuthError } from '@/lib/auth-guard';
 import { checkApiRateLimit, getRateLimitHeaders } from '@/lib/api-rate-limit';
 import { createAuditLog, AUDIT_ACTIONS } from '@/lib/audit';
+import { validateReportingManager } from '@/lib/invite-reporting-manager';
 
 export const dynamic = 'force-dynamic';
 
@@ -190,6 +191,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: errors.join(' ') }, { status: 400 });
     }
 
+    const effectiveRole = role || 'employee';
+    const managerValidation = await validateReportingManager(
+      employee.org_id!,
+      effectiveRole,
+      managerId
+    );
+    if (!managerValidation.ok) {
+      return NextResponse.json({ error: managerValidation.error }, { status: 400 });
+    }
+
     // ── Check for duplicate email within the company ────────────────────
     const existing = await prisma.employee.findFirst({
       where: {
@@ -221,7 +232,7 @@ export async function POST(request: NextRequest) {
         designation: designation?.trim() || null,
         gender: gender,
         date_of_joining: new Date(dateOfJoining),
-        manager_id: managerId || null,
+        manager_id: managerValidation.managerId,
         status: 'active',
       },
     });

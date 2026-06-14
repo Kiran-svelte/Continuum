@@ -2,7 +2,17 @@
 
 Source: production feedback (2026-06-14) — reporting structure, nav redirects, unstable UI.
 
-## P0 — Fixed in this release (wave 2 — global)
+## P0 — Fixed in wave 3 (global UX)
+
+| ID | Issue | Fix |
+|----|-------|-----|
+| UX-15 | FadeIn/StaggerContainer jitter on operational pages | `fade-in.tsx` — static wrappers, no framer-motion on portal surfaces |
+| UX-16 | Manager routes served stale inline pages | Manager operational routes re-export canonical `components/pages/manager/*-view` |
+| UX-17 | No org-wide reporting tree | `/admin/org-chart`, `/hr/org-chart`, `/manager/org-chart` + nav |
+| UX-18 | Silent redirect when people_ops denied | `AccessDeniedPanel` on manager people view |
+| UX-19 | Employee create / bulk import / invite edit skip manager | `validateReportingManager` on POST `/api/employees`, bulk import, PATCH invite |
+
+## P0 — Fixed in wave 2 (global)
 
 | ID | Issue | Fix |
 |----|-------|-----|
@@ -35,18 +45,19 @@ Source: production feedback (2026-06-14) — reporting structure, nav redirects,
 | UX-11 | Module hook hardcodes `employees` always on | Align with super-admin module cap |
 | UX-12 | Orphan `/manager/payroll-advances` route | Add nav or remove route |
 | UX-13 | Admin people-invite direct-auth mode | Reconcile with company invite API or remove mode |
-| UX-14 | Full org chart (tree) | New `/hr/org-chart` backed by `manager_id` graph |
+| UX-14 | Full org chart (tree) | **Done (wave 3)** — `/admin/org-chart`, `/hr/org-chart`, `/manager/org-chart` |
 
 ## P2 — Enterprise hardening backlog
 
-- Capability-denied pages show in-portal message (not silent redirect)
-- Bulk import requires manager column
-- Employee POST `/api/employees` require managerId for non-admin roles
-- E2E tests: manager team nav, invite with manager, directory visibility
+- Permission-aware nav for remaining capability-gated routes
+- HR employee detail: editable reporting manager
+- Bulk import UI documents required `manager_email` column
 - Remove duplicate `team-view.tsx` mock data path
+- E2E tests: manager team nav, invite with manager, directory visibility
 
 ## Verification checklist
 
+- [ ] `/admin/org-chart`, `/hr/org-chart`, `/manager/org-chart` load reporting tree
 - [ ] Manager: **My Team** loads (not dashboard)
 - [ ] Manager: **Invite Team Member** succeeds with reporting manager
 - [ ] Admin/HR: **Directory** shows “Reports to …”

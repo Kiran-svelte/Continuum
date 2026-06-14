@@ -11,6 +11,10 @@ import { randomUUID } from 'crypto';
 import prisma from '@/lib/prisma';
 import { getAuthEmployee, AuthError, requirePermissionGuard} from '@/lib/auth-guard';
 import { createAuditLog, AUDIT_ACTIONS } from '@/lib/audit';
+import {
+  ROLES_REQUIRING_REPORTING_MANAGER,
+  validateReportingManager,
+} from '@/lib/invite-reporting-manager';
 import type { Role } from '@prisma/client';
 
 export const dynamic = 'force-dynamic';
@@ -194,7 +198,32 @@ async function processRow(
   }
 
   const role = resolveRole(row.role);
-  const managerId = row.manager_email ? managerLookup.get(row.manager_email.toLowerCase()) : undefined;
+
+  if (ROLES_REQUIRING_REPORTING_MANAGER.has(role) && !row.manager_email?.trim()) {
+    return {
+      email: row.email || 'unknown',
+      status: 'error',
+      reason: `manager_email is required for role "${role}".`,
+    };
+  }
+
+  let managerId: string | null | undefined = row.manager_email
+    ? managerLookup.get(row.manager_email.trim().toLowerCase())
+    : undefined;
+
+  if (row.manager_email?.trim() && !managerId) {
+    return {
+      email: row.email || 'unknown',
+      status: 'error',
+      reason: `Reporting manager email "${row.manager_email.trim()}" was not found.`,
+    };
+  }
+
+  const managerValidation = await validateReportingManager(companyId, role, managerId ?? null);
+  if (!managerValidation.ok) {
+    return { email: row.email || 'unknown', status: 'error', reason: managerValidation.error };
+  }
+  managerId = managerValidation.managerId;
 
   try {
     const existing = await prisma.employee.findUnique({

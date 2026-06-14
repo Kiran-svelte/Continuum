@@ -1,1 +1,3 @@
-export { NotificationsPage as default } from '@/components/notifications-page';
+import NotificationsView from '@/components/pages/manager/notifications-view';
+
+export default NotificationsView;
