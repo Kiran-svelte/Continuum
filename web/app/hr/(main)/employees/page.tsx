@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback, Fragment } from 'react';
+import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { StaggerContainer, FadeIn } from '@/components/motion';
 import { GlassPanel } from '@/components/glass-panel';
@@ -144,6 +145,7 @@ const modalVariants = {
 // ─── Component ──────────────────────────────────────────────────────────────
 
 export default function EmployeesPage() {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<'all' | 'pending'>('all');
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [pendingRegistrations, setPendingRegistrations] = useState<PendingRegistration[]>([]);
@@ -519,7 +521,7 @@ export default function EmployeesPage() {
               <UserPlus className="w-4 h-4" />
               Add Employee
             </Button>
-            <Button variant="outline" onClick={() => setShowInviteModal(true)}>
+            <Button variant="outline" onClick={() => router.push('/hr/employees/invite')}>
               Invite by Email
             </Button>
             <Button

@@ -14,6 +14,7 @@ test('moduleSlugForPortalPath uses segment boundaries and longest prefix', () =>
   assert.equal(moduleSlugForPortalPath('/manager/team'), 'employees');
   assert.equal(moduleSlugForPortalPath('/manager/team-attendance'), 'attendance');
   assert.equal(moduleSlugForPortalPath('/manager/team-calendar'), 'leave');
-  assert.equal(moduleSlugForPortalPath('/admin/directory'), 'directory');
-  assert.equal(moduleSlugForPortalPath('/hr/directory'), 'directory');
+  assert.equal(moduleSlugForPortalPath('/admin/directory'), 'employees');
+  assert.equal(moduleSlugForPortalPath('/hr/directory'), 'employees');
+  assert.equal(moduleSlugForPortalPath('/employee/directory'), 'employees');
 });

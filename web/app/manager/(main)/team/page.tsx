@@ -1,8 +1,9 @@
 'use client';
 
 import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
+import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
-import { TiltCard, FadeIn, StaggerContainer } from '@/components/motion';
+import { FadeIn, StaggerContainer } from '@/components/motion';
 import { GlassPanel } from '@/components/glass-panel';
 import { PageHeader } from '@/components/page-header';
 import { Badge } from '@/components/ui/badge';
@@ -556,7 +557,7 @@ export default function ManagerTeamPage() {
           icon={<Users className="w-6 h-6 text-primary" />}
         />
         <FadeIn>
-          <TiltCard>
+<div className="w-full">
             <GlassPanel className="border-red-500/30 p-12 text-center">
               <div className="w-16 h-16 rounded-full bg-red-500/10 flex items-center justify-center mx-auto ring-4 ring-red-500/20">
                 <AlertCircle className="w-8 h-8 text-red-400" />
@@ -572,7 +573,7 @@ export default function ManagerTeamPage() {
                 Try Again
               </Button>
             </GlassPanel>
-          </TiltCard>
+          </div>
         </FadeIn>
       </div>
     );
@@ -588,17 +589,25 @@ export default function ManagerTeamPage() {
           icon={<Users className="w-6 h-6 text-primary" />}
         />
         <FadeIn>
-          <TiltCard>
+<div className="w-full">
             <GlassPanel className="p-12 text-center">
               <div className="w-20 h-20 rounded-full bg-white/5 flex items-center justify-center mx-auto border-2 border-white/10">
                 <Users className="w-10 h-10 text-white/30" />
               </div>
               <p className="text-white font-semibold mt-5 text-lg">No direct reports found</p>
               <p className="text-white/60 text-sm mt-2 max-w-sm mx-auto">
-                Team members assigned to you will appear here. Contact HR to update reporting structure.
+                Team members assigned to you will appear here. Contact HR to update reporting structure, or invite someone now.
               </p>
+              <div className="mt-6 flex flex-wrap justify-center gap-3">
+                <Link href="/manager/people/invite" className="btn btn-primary btn-sm no-underline">
+                  Invite Team Member
+                </Link>
+                <Link href="/manager/directory" className="btn btn-outline btn-sm no-underline">
+                  Open Directory
+                </Link>
+              </div>
             </GlassPanel>
-          </TiltCard>
+          </div>
         </FadeIn>
       </div>
     );
@@ -620,6 +629,16 @@ export default function ManagerTeamPage() {
           title="My Team"
           description={`${totalCount} team member${totalCount !== 1 ? 's' : ''} reporting to you`}
           icon={<Users className="w-6 h-6 text-primary" />}
+          action={
+            <div className="flex flex-wrap gap-2">
+              <Link href="/manager/directory" className="btn btn-outline btn-sm no-underline">
+                Company Directory
+              </Link>
+              <Link href="/manager/people/invite" className="btn btn-primary btn-sm no-underline">
+                Invite Team Member
+              </Link>
+            </div>
+          }
         />
 
         {/* Summary cards */}
@@ -697,7 +716,7 @@ function MetricCard({ icon: Icon, label, value, color }: { icon: React.ElementTy
 
   return (
     <FadeIn>
-      <TiltCard>
+      <div className="w-full">
         <GlassPanel className="p-5 h-full">
           <div className="flex items-center gap-4">
             <div className={`p-3 rounded-lg shadow-lg ${colorClasses[color]}`}>
@@ -709,7 +728,7 @@ function MetricCard({ icon: Icon, label, value, color }: { icon: React.ElementTy
             </div>
           </div>
         </GlassPanel>
-      </TiltCard>
+      </div>
     </FadeIn>
   );
 }

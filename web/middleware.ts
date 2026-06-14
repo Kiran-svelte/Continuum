@@ -25,6 +25,7 @@ import {
   BRAND_JWT_AUDIENCES,
 } from '@/lib/brand';
 import { moduleSlugForPortalPath } from '@/lib/middleware-module-paths';
+import { resolvePortalLegacyRedirect } from '@/lib/portal-legacy-redirects';
 
 // ─── JWT Token Verification (Edge-compatible) ────────────────────────────────
 
@@ -596,6 +597,13 @@ export async function middleware(request: NextRequest) {
   // M3: Legacy /onboarding/company → 308 permanent redirect to /onboarding (L5-01-007)
   if (pathname === '/onboarding/company' || pathname.startsWith('/onboarding/company/')) {
     return NextResponse.redirect(new URL('/onboarding', request.url), 308);
+  }
+
+  const legacyTarget = resolvePortalLegacyRedirect(pathname);
+  if (legacyTarget) {
+    const legacyUrl = request.nextUrl.clone();
+    legacyUrl.pathname = legacyTarget;
+    return NextResponse.redirect(legacyUrl, 308);
   }
 
   // 8.5 Role-aware onboarding gate for authenticated users on non-API routes.

@@ -136,6 +136,19 @@ export default async function DashboardView() {
       <LeavePulseRow
         actions={[
           {
+            label: 'My team',
+            description: teamSize > 0 ? `${teamSize} direct report(s)` : 'Assign reporting lines and view roster',
+            href: '/manager/team',
+            icon: Users,
+            emphasis: teamSize === 0 ? 'primary' : 'default',
+          },
+          {
+            label: 'Company directory',
+            description: 'See who reports to whom org-wide',
+            href: '/manager/directory',
+            icon: LEAVE_PULSE_ICONS.balance,
+          },
+          {
             label: 'Request leave',
             description: 'Submit your own time-off request',
             href: '/manager/request-leave',

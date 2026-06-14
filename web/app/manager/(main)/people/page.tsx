@@ -1,3 +1,6 @@
-import PeopleView from '@/components/pages/manager/people-view';
+import { redirect } from 'next/navigation';
 
-export default PeopleView;
+/** Legacy People Operations list — canonical surface is My Team. */
+export default function ManagerPeopleRedirectPage() {
+  redirect('/manager/team');
+}

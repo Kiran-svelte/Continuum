@@ -1,8 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Users, Mail, UserPlus, CheckCircle, AlertCircle, Loader2, ArrowRight, Copy, Lightbulb } from 'lucide-react';
+import { ensureMe } from '@/lib/client-auth';
 
 interface InvitedUser {
   email: string;
@@ -30,16 +31,34 @@ export default function InviteTeamPage() {
     role: 'hr',
   });
 
+  const [inviterId, setInviterId] = useState<string | null>(null);
+
+  useEffect(() => {
+    void ensureMe().then((me) => {
+      if (me?.id) setInviterId(me.id);
+    });
+  }, []);
+
   const handleInvite = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setLoading(true);
 
+    if (formData.role !== 'admin' && !inviterId) {
+      setError('Unable to resolve your account. Refresh and try again.');
+      setLoading(false);
+      return;
+    }
+
     try {
       const response = await fetch('/api/company/invite-user', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
+        credentials: 'include',
+        body: JSON.stringify({
+          ...formData,
+          managerId: formData.role === 'admin' ? undefined : inviterId,
+        }),
       });
 
       const data = await response.json();

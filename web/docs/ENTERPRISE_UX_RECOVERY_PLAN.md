@@ -2,7 +2,18 @@
 
 Source: production feedback (2026-06-14) — reporting structure, nav redirects, unstable UI.
 
-## P0 — Fixed in this release
+## P0 — Fixed in this release (wave 2 — global)
+
+| ID | Issue | Fix |
+|----|-------|-----|
+| UX-09 | Nav changed but pages unchanged (inline legacy routes) | Middleware 308 `/manager/people` → `/manager/team`; server redirect on people page |
+| UX-10 | Directory hidden when `directory` module off | Directory nav + API gated on **employees** module (always on) |
+| UX-11 | HR employees quick-invite skipped reporting manager | Quick invite routes to `/hr/employees/invite` (full form) |
+| UX-12 | Onboarding invites skipped reporting manager | Auto-assign inviter as `managerId` for non-admin roles |
+| UX-13 | Manager team page still used TiltCard wrappers | Removed TiltCard from live team page; added Directory + Invite CTAs |
+| UX-14 | Manager dashboard had no path to roster/directory | Leave pulse + empty team state link to My Team / Directory / Invite |
+
+## P0 — Fixed in wave 1
 
 | ID | Issue | Fix |
 |----|-------|-----|
