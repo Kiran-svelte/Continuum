@@ -694,6 +694,20 @@ export async function middleware(request: NextRequest) {
           .map((s) => s.trim())
           .filter(Boolean)
       );
+      const hasSessionCookie =
+        Boolean(request.cookies.get(ACCESS_TOKEN_COOKIE)?.value) ||
+        Boolean(request.cookies.get(COOKIE_SESSION)?.value);
+
+      // Fail closed: authenticated portal visit without module cookie must not bypass gating.
+      if (enabled.size === 0 && hasSessionCookie) {
+        const stale = request.nextUrl.clone();
+        stale.pathname = '/sign-in';
+        stale.searchParams.set('reason', 'module-session-stale');
+        stale.searchParams.set('redirect', pathname);
+        stale.search = stale.searchParams.toString();
+        return NextResponse.redirect(stale);
+      }
+
       if (enabled.size > 0 && !enabled.has(moduleSlug)) {
         const disabled = request.nextUrl.clone();
         disabled.pathname = '/module-disabled';

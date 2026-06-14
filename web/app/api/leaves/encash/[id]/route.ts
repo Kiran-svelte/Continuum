@@ -4,6 +4,7 @@ import prisma from '@/lib/prisma';
 import { getAuthEmployee, requireRole, AuthError } from '@/lib/auth-guard';
 import { checkApiRateLimit, getRateLimitHeaders } from '@/lib/api-rate-limit';
 import { createAuditLog, AUDIT_ACTIONS } from '@/lib/audit';
+import { requireModuleForOrg } from '@/lib/core-functions/guard-handler';
 
 export const dynamic = 'force-dynamic';
 
@@ -18,6 +19,8 @@ export async function PATCH(
   try {
     const employee = await getAuthEmployee();
     requireRole(employee, 'hr', 'admin', 'director');
+    const moduleGuard = await requireModuleForOrg(employee.org_id, 'leave');
+    if (moduleGuard) return moduleGuard;
 
     const rateLimit = checkApiRateLimit(employee.id, 'leaves/approve');
     if (!rateLimit.allowed) {

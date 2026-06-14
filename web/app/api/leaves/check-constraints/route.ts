@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthEmployee, AuthError } from '@/lib/auth-guard';
 import { checkApiRateLimit, getRateLimitHeaders } from '@/lib/api-rate-limit';
+import { requireModuleForOrg } from '@/lib/core-functions/guard-handler';
 
 export const dynamic = 'force-dynamic';
 
@@ -13,6 +14,8 @@ export const dynamic = 'force-dynamic';
 export async function POST(request: NextRequest) {
   try {
     const employee = await getAuthEmployee();
+    const moduleGuard = await requireModuleForOrg(employee.org_id, 'leave');
+    if (moduleGuard) return moduleGuard;
 
     const rateLimit = checkApiRateLimit(employee.id, 'general');
     if (!rateLimit.allowed) {

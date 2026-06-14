@@ -4,6 +4,7 @@ import { getAuthEmployee, requireRole, AuthError } from '@/lib/auth-guard';
 import { createAuditLog, AUDIT_ACTIONS } from '@/lib/audit';
 import { sendLeaveRejectionEmail } from '@/lib/email-service';
 import { sendNotification, sendPusherEvent } from '@/lib/notification-service';
+import { requireModuleForOrg } from '@/lib/core-functions/guard-handler';
 
 export const dynamic = 'force-dynamic';
 
@@ -14,6 +15,8 @@ export async function POST(
   try {
     const employee = await getAuthEmployee();
     requireRole(employee, 'manager', 'hr', 'admin', 'director');
+    const moduleGuard = await requireModuleForOrg(employee.org_id, 'leave');
+    if (moduleGuard) return moduleGuard;
 
     const { requestId } = await params;
     const body = await request.json().catch(() => ({}));

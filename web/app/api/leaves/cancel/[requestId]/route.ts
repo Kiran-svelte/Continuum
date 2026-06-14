@@ -3,6 +3,7 @@ import { getAuthEmployee, AuthError, requireCompanyContext } from '@/lib/auth-gu
 import { buildContextFromSession } from '@/lib/channel/context-from-session';
 import { cancelLeaveService } from '@/lib/services/leave-cancel';
 import { serviceResultToLegacyResponse } from '@/lib/services/service-response';
+import { requireModuleForOrg } from '@/lib/core-functions/guard-handler';
 
 export const dynamic = 'force-dynamic';
 
@@ -16,6 +17,9 @@ export async function POST(
   try {
     const employee = await getAuthEmployee();
     requireCompanyContext(employee);
+    const moduleGuard = await requireModuleForOrg(employee.org_id, 'leave');
+    if (moduleGuard) return moduleGuard;
+
     const { requestId } = await params;
     const body = await request.json().catch(() => ({}));
 

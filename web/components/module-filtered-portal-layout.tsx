@@ -1,5 +1,6 @@
 'use client';
 
+import { useMemo } from 'react';
 import { PortalLayout, type PortalConfig } from '@/components/portal-layout';
 import { buildPortalNav, type PortalSlug } from '@/lib/navigation/portal-nav';
 import { useCompanyModules } from '@/hooks/use-company-modules';
@@ -12,6 +13,7 @@ interface ModuleFilteredPortalLayoutProps {
 
 /**
  * Client portal shell that filters navigation by enabled company modules.
+ * Never guesses modules while loading — avoids flashing unauthorized nav links.
  */
 export function ModuleFilteredPortalLayout({
   portal,
@@ -19,10 +21,13 @@ export function ModuleFilteredPortalLayout({
   children,
 }: ModuleFilteredPortalLayoutProps) {
   const { enabledModules, loading } = useCompanyModules();
-  const navItems =
-    enabledModules.length > 0 || !loading
-      ? buildPortalNav(portal, enabledModules)
-      : buildPortalNav(portal, ['leave', 'attendance', 'payroll', 'documents', 'employees']);
+
+  const navItems = useMemo(() => {
+    if (loading) {
+      return buildPortalNav(portal, []);
+    }
+    return buildPortalNav(portal, enabledModules);
+  }, [portal, enabledModules, loading]);
 
   return (
     <PortalLayout
@@ -30,6 +35,7 @@ export function ModuleFilteredPortalLayout({
         ...config,
         navItems,
         showPortalSwitcher: config.showPortalSwitcher ?? true,
+        navLoading: loading,
       }}
     >
       {children}

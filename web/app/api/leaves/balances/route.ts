@@ -1,12 +1,16 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { getAuthEmployee, AuthError } from '@/lib/auth-guard';
+import { requireModuleForOrg } from '@/lib/core-functions/guard-handler';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
   try {
     const employee = await getAuthEmployee();
+    const moduleGuard = await requireModuleForOrg(employee.org_id, 'leave');
+    if (moduleGuard) return moduleGuard;
+
     const currentYear = new Date().getFullYear();
 
     let balances = await prisma.leaveBalance.findMany({

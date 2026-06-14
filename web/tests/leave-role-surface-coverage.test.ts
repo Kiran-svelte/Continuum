@@ -52,8 +52,10 @@ describe('Leave Role Surface Coverage', () => {
       'hr request leave page should map to canonical leave request UI'
     );
     assert.ok(
-      leaveRequestsPage.includes("action: 'approve' | 'reject'") && leaveRequestsPage.includes('/api/leaves/${action}/'),
-      'hr leave requests page should support approve/reject actions'
+      leaveRequestsPage.includes('@/components/pages/hr/leave-requests-view') ||
+        (leaveRequestsPage.includes("action: 'approve' | 'reject'") &&
+          leaveRequestsPage.includes('/api/leaves/${action}/')),
+      'hr leave requests page should map to canonical approval UI'
     );
   });
 

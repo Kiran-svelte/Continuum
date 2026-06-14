@@ -76,6 +76,8 @@ export interface PortalConfig {
   accentColor?: string;
   roleLabel: string;
   showPortalSwitcher?: boolean;
+  /** When true, sidebar shows a loading skeleton instead of partial nav. */
+  navLoading?: boolean;
 }
 
 export function PortalLayout({ children, config }: { children: React.ReactNode, config: PortalConfig }) {
@@ -254,7 +256,18 @@ export function PortalLayout({ children, config }: { children: React.ReactNode, 
         </div>
 
         <div className="flex-1 space-y-0.5 overflow-y-auto p-3">
-          {navGroups.map((group, groupIdx) => {
+          {config.navLoading ? (
+            <div className="space-y-2 px-1 py-2" aria-busy="true" aria-label="Loading navigation">
+              {Array.from({ length: 8 }).map((_, idx) => (
+                <div
+                  key={`nav-skeleton-${idx}`}
+                  className="h-9 animate-pulse rounded-[var(--radius)] bg-[var(--secondary)]"
+                />
+              ))}
+            </div>
+          ) : null}
+          {!config.navLoading
+            ? navGroups.map((group, groupIdx) => {
             const groupKey = group.name ?? `__ungrouped_${groupIdx}`;
             const isCollapsed = group.name ? collapsedGroups.has(group.name) : false;
 
@@ -323,7 +336,8 @@ export function PortalLayout({ children, config }: { children: React.ReactNode, 
                   : null}
               </div>
             );
-          })}
+          })
+            : null}
         </div>
 
         <div className="mt-auto shrink-0 border-t border-[var(--border)] p-4">

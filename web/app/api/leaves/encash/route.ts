@@ -5,6 +5,7 @@ import { getAuthEmployee, AuthError } from '@/lib/auth-guard';
 import { checkApiRateLimit, getRateLimitHeaders } from '@/lib/api-rate-limit';
 import { createAuditLog, AUDIT_ACTIONS } from '@/lib/audit';
 import { sanitizeInput } from '@/lib/security';
+import { requireModuleForOrg } from '@/lib/core-functions/guard-handler';
 
 export const dynamic = 'force-dynamic';
 
@@ -20,6 +21,8 @@ const encashmentSchema = z.object({
 export async function POST(request: NextRequest) {
   try {
     const employee = await getAuthEmployee();
+    const moduleGuardPost = await requireModuleForOrg(employee.org_id, 'leave');
+    if (moduleGuardPost) return moduleGuardPost;
 
     const rateLimit = checkApiRateLimit(employee.id, 'leaves/submit');
     if (!rateLimit.allowed) {
@@ -150,6 +153,8 @@ export async function POST(request: NextRequest) {
 export async function GET(request: NextRequest) {
   try {
     const employee = await getAuthEmployee();
+    const moduleGuardGet = await requireModuleForOrg(employee.org_id, 'leave');
+    if (moduleGuardGet) return moduleGuardGet;
 
     const rateLimit = checkApiRateLimit(employee.id, 'general');
     if (!rateLimit.allowed) {

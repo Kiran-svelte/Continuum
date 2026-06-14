@@ -3,6 +3,7 @@ import prisma from '@/lib/prisma';
 import { getAuthEmployee, requireRole, AuthError } from '@/lib/auth-guard';
 import { checkApiRateLimit, getRateLimitHeaders } from '@/lib/api-rate-limit';
 import { createAuditLog, AUDIT_ACTIONS } from '@/lib/audit';
+import { requireModuleForOrg } from '@/lib/core-functions/guard-handler';
 
 export const dynamic = 'force-dynamic';
 
@@ -24,6 +25,8 @@ const VALID_GENDER_FILTERS = ['male', 'female', 'all'] as const;
 export async function GET() {
   try {
     const employee = await getAuthEmployee();
+    const moduleGuardGet = await requireModuleForOrg(employee.org_id, 'leave');
+    if (moduleGuardGet) return moduleGuardGet;
 
     const rateLimit = checkApiRateLimit(employee.id, 'general');
     if (!rateLimit.allowed) {
@@ -93,6 +96,8 @@ export async function POST(request: NextRequest) {
   try {
     const employee = await getAuthEmployee();
     requireRole(employee, 'admin', 'hr');
+    const moduleGuardPost = await requireModuleForOrg(employee.org_id, 'leave');
+    if (moduleGuardPost) return moduleGuardPost;
 
     const rateLimit = checkApiRateLimit(employee.id, 'general');
     if (!rateLimit.allowed) {
@@ -268,6 +273,8 @@ export async function PUT(request: NextRequest) {
   try {
     const employee = await getAuthEmployee();
     requireRole(employee, 'admin', 'hr');
+    const moduleGuardPut = await requireModuleForOrg(employee.org_id, 'leave');
+    if (moduleGuardPut) return moduleGuardPut;
 
     const rateLimit = checkApiRateLimit(employee.id, 'general');
     if (!rateLimit.allowed) {
@@ -430,6 +437,8 @@ export async function DELETE(request: NextRequest) {
   try {
     const employee = await getAuthEmployee();
     requireRole(employee, 'admin', 'hr');
+    const moduleGuardDelete = await requireModuleForOrg(employee.org_id, 'leave');
+    if (moduleGuardDelete) return moduleGuardDelete;
 
     const rateLimit = checkApiRateLimit(employee.id, 'general');
     if (!rateLimit.allowed) {

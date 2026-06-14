@@ -20,6 +20,9 @@ export async function POST(
   try {
     const employee = await getAuthEmployee();
     requireCompanyContext(employee);
+    const moduleGuardPost = await requireModuleForOrg(employee.org_id, 'leave');
+    if (moduleGuardPost) return moduleGuardPost;
+
     const { requestId } = await params;
     const body = await request.json();
 
