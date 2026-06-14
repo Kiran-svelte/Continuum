@@ -4,9 +4,6 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import {
   ADMIN_NAV_ITEMS,
-  EMPLOYEE_NAV_ITEMS,
-  HR_NAV_ITEMS,
-  MANAGER_NAV_ITEMS,
   buildPortalNav,
 } from '@/lib/navigation/portal-nav';
 
@@ -15,19 +12,25 @@ function hasHref(items: { href: string }[], href: string): boolean {
 }
 
 test('role portals expose profile navigation entry', () => {
-  const adminLayout = readFileSync(resolve(process.cwd(), 'app/admin/(main)/layout.tsx'), 'utf8');
   const enabled = ['leave', 'attendance', 'employees', 'compliance', 'payroll', 'documents'] as const;
 
-  assert.equal(hasHref(ADMIN_NAV_ITEMS, '/admin/profile'), true);
+  assert.equal(hasHref(buildPortalNav('admin', enabled), '/admin/profile'), true);
   assert.equal(hasHref(buildPortalNav('hr', enabled), '/hr/profile'), true);
   assert.equal(hasHref(buildPortalNav('manager', enabled), '/manager/profile'), true);
   assert.equal(hasHref(buildPortalNav('employee', enabled), '/employee/profile'), true);
+  assert.equal(hasHref(ADMIN_NAV_ITEMS, '/admin/profile'), true);
+});
 
-  assert.equal(hasHref(HR_NAV_ITEMS, '/hr/profile'), true);
-  assert.equal(hasHref(MANAGER_NAV_ITEMS, '/manager/profile'), true);
-  assert.equal(hasHref(EMPLOYEE_NAV_ITEMS, '/employee/profile'), true);
+test('admin settings navigation stays in admin scope via portal-nav', () => {
+  const adminLayout = readFileSync(resolve(process.cwd(), 'app/admin/(main)/layout.tsx'), 'utf8');
+  const settingsHref = ADMIN_NAV_ITEMS.find((item) => item.label === 'Company Settings')?.href;
 
-  assert.equal(adminLayout.includes("href: '/admin/profile'"), false, 'admin layout should migrate to portal-nav in a follow-up PR');
+  assert.equal(settingsHref, '/admin/company-settings');
+  assert.equal(
+    ADMIN_NAV_ITEMS.some((item) => item.href === '/hr/settings'),
+    false
+  );
+  assert.equal(adminLayout.includes("href: '/hr/settings'"), false);
 });
 
 test('profile API supports edit and emergency add/delete operations', () => {

@@ -127,7 +127,7 @@ export const SUPER_ADMIN_NAV_ITEMS: ModuleNavItem[] = [
   item({ label: 'Dashboard', href: '/super-admin/dashboard', icon: 'LayoutDashboard', group: 'Platform' }),
   item({ label: 'Companies', href: '/super-admin/companies', icon: 'Building2', group: 'Platform' }),
   item({ label: 'Users', href: '/super-admin/users', icon: 'Users', group: 'Platform' }),
-  item({ label: 'Invitations', href: '/super-admin/invites', icon: 'FilePlus', group: 'Platform' }),
+  item({ label: 'Invitations', href: '/super-admin/users', icon: 'FilePlus', group: 'Platform' }),
   item({ label: 'Operations', href: '/super-admin/operations', icon: 'Activity', group: 'Platform' }),
 ];
 
@@ -182,6 +182,13 @@ export function buildPortalNav(
 
 export function getPortalNavDefinitions(portal: PortalSlug): ModuleNavItem[] {
   return PORTAL_NAV[portal];
+}
+
+/** Full nav for portals without module filtering (e.g. super admin). */
+export function getStaticPortalNav(portal: PortalSlug): NavItem[] {
+  return PORTAL_NAV[portal].map(
+    ({ moduleSlug: _moduleSlug, requiresAnyModule: _requiresAnyModule, ...nav }) => nav
+  );
 }
 
 /** Role portals that share the manager shell (manager + team_lead). */

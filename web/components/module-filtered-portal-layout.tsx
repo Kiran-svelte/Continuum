@@ -29,6 +29,7 @@ export function ModuleFilteredPortalLayout({
       config={{
         ...config,
         navItems,
+        showPortalSwitcher: config.showPortalSwitcher ?? true,
       }}
     >
       {children}

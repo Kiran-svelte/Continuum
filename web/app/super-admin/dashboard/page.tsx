@@ -2,7 +2,8 @@ import prisma from '@/lib/prisma';
 import { getCurrentUser } from '@/lib/auth-service';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
-import { Building2, Users, Mail, UserPlus, Send, ClipboardList, Settings, ArrowRight } from 'lucide-react';
+import { Building2, Users, Mail, UserPlus, Send, ClipboardList, Settings, ArrowRight, LayoutDashboard, CreditCard } from 'lucide-react';
+import { LeavePulseRow, LEAVE_PULSE_ICONS } from '@/components/dashboard/leave-pulse-row';
 
 /**
  * Super Admin Dashboard
@@ -58,6 +59,38 @@ export default async function SuperAdminDashboard() {
           Create User
         </Link>
       </div>
+
+      <LeavePulseRow
+        title="Platform control"
+        actions={[
+          {
+            label: 'All companies',
+            description: `${totalCompanies} tenant(s) on the platform`,
+            href: '/super-admin/companies',
+            icon: Building2,
+            emphasis: 'primary',
+          },
+          {
+            label: 'Subscription status',
+            description: 'Module caps, billing, and plan controls',
+            href: '/super-admin/operations',
+            icon: CreditCard,
+          },
+          {
+            label: 'Platform users',
+            description: `${totalEmployees} user record(s) across tenants`,
+            href: '/super-admin/users',
+            icon: Users,
+          },
+          {
+            label: 'Pending invites',
+            description: `${activeInvites} invitation(s) awaiting acceptance`,
+            href: '/super-admin/users',
+            icon: LEAVE_PULSE_ICONS.approvals,
+            badge: activeInvites,
+          },
+        ]}
+      />
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
