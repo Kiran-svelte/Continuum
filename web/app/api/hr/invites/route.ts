@@ -7,6 +7,7 @@ import { checkApiRateLimit, getRateLimitHeaders } from '@/lib/api-rate-limit';
 import { createAuditLog, AUDIT_ACTIONS } from '@/lib/audit';
 import { sendInviteEmail } from '@/lib/email-service';
 import { normalizePhone } from '@/lib/phone/normalize';
+import { validateReportingManager } from '@/lib/invite-reporting-manager';
 
 export const dynamic = 'force-dynamic';
 
@@ -15,6 +16,7 @@ const inviteSchema = z.object({
   phone: z.string().max(32).optional(),
   role: z.enum(['employee', 'team_lead', 'manager', 'director', 'hr', 'admin']).default('employee'),
   department: z.string().max(100).optional(),
+  managerId: z.string().uuid().optional(),
 });
 
 /**
@@ -44,13 +46,22 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { email, role, department, phone } = parsed.data;
+    const { email, role, department, phone, managerId } = parsed.data;
     const normalizedPhone = phone ? normalizePhone(phone) : undefined;
     if (normalizedPhone && !normalizedPhone.ok) {
       return NextResponse.json(
         { error: normalizedPhone.message, code: normalizedPhone.code },
         { status: 400 }
       );
+    }
+
+    const managerValidation = await validateReportingManager(
+      employee.org_id!,
+      role,
+      managerId
+    );
+    if (!managerValidation.ok) {
+      return NextResponse.json({ error: managerValidation.error }, { status: 400 });
     }
 
     // Check if employee already exists
@@ -91,6 +102,7 @@ export async function POST(request: NextRequest) {
         token,
         role: role as 'employee' | 'team_lead' | 'manager' | 'director' | 'hr' | 'admin',
         department: department || null,
+        manager_id: managerValidation.managerId,
         invited_by: employee.id,
         expires_at: expiresAt,
       },
@@ -113,6 +125,7 @@ export async function POST(request: NextRequest) {
         email,
         role,
         department,
+        manager_id: managerValidation.managerId,
         phone_provided: Boolean(normalizedPhone?.ok),
         expires_at: expiresAt.toISOString(),
       },

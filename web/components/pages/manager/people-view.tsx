@@ -50,7 +50,7 @@ export default async function PeopleView() {
   const hasAccess = actorRoles.some((role) => allowedRoles.includes(role));
 
   if (!hasAccess) {
-    redirect(getDefaultPortalForRoles(employee.primary_role, employee.secondary_roles));
+    redirect('/manager/team?error=people_ops_unavailable');
   }
 
   const users = await prisma.employee.findMany({

@@ -14,6 +14,7 @@ interface User {
   department: string | null;
   status: string;
   created_at: string;
+  manager?: { first_name: string; last_name: string } | null;
 }
 
 interface PeopleTableProps {
@@ -157,6 +158,7 @@ export function PeopleTable({ users, departments }: PeopleTableProps) {
               <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-[var(--muted-foreground)]">Name</th>
               <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-[var(--muted-foreground)]">Role</th>
               <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-[var(--muted-foreground)]">Department</th>
+              <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-[var(--muted-foreground)] hidden lg:table-cell">Reports To</th>
               <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-[var(--muted-foreground)]">Status</th>
               <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-[var(--muted-foreground)]">Created</th>
             </tr>
@@ -170,6 +172,11 @@ export function PeopleTable({ users, departments }: PeopleTableProps) {
                 </td>
                 <td className="px-4 py-3 capitalize">{user.primary_role}</td>
                 <td className="px-4 py-3">{user.department || 'Unassigned'}</td>
+                <td className="px-4 py-3 hidden lg:table-cell">
+                  {user.manager
+                    ? `${user.manager.first_name} ${user.manager.last_name}`.trim()
+                    : 'Unassigned'}
+                </td>
                 <td className="px-4 py-3 capitalize">{user.status}</td>
                 <td className="px-4 py-3 text-xs text-[var(--muted-foreground)]">
                   {new Date(user.created_at).toLocaleDateString('en-IN')}
@@ -178,7 +185,7 @@ export function PeopleTable({ users, departments }: PeopleTableProps) {
             ))}
             {filteredUsers.length === 0 && (
               <tr>
-                <td className="px-4 py-8 text-center text-sm text-[var(--muted-foreground)]" colSpan={5}>
+                <td className="px-4 py-8 text-center text-sm text-[var(--muted-foreground)]" colSpan={6}>
                   {hasActiveFilters
                     ? 'No employees match your filters. Try adjusting your criteria.'
                     : 'No users found for this organization.'}

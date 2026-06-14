@@ -37,10 +37,6 @@ interface CompanyRolesResponse {
 const ROLE_OPTIONS = [
   { value: 'employee', label: 'Employee' },
   { value: 'team_lead', label: 'Team Lead' },
-  { value: 'manager', label: 'Manager' },
-  { value: 'director', label: 'Director' },
-  { value: 'hr', label: 'HR' },
-  { value: 'admin', label: 'Admin' },
 ] as const;
 
 export default function PeopleInviteView() {
@@ -145,22 +141,31 @@ export default function PeopleInviteView() {
     setError(null);
     setSuccess(null);
 
+    if (!firstName.trim() || !lastName.trim() || !email.trim()) {
+      setError('First name, last name, and email are required.');
+      setLoading(false);
+      return;
+    }
+
+    if (role !== 'admin' && !managerId) {
+      setError('Reporting manager is required for every invited user.');
+      setLoading(false);
+      return;
+    }
+
     try {
-      const response = await fetchWithTimeout('/api/hr/invites', {
+      const response = await fetchWithTimeout('/api/company/invite-user', {
         method: 'POST',
         credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          authMode,
-          email,
-          username: username.trim() || undefined,
-          password: authMode === 'direct' ? password : undefined,
-          firstName: authMode === 'direct' ? firstName.trim() : undefined,
-          lastName: authMode === 'direct' ? lastName.trim() : undefined,
+          email: email.trim(),
+          firstName: firstName.trim(),
+          lastName: lastName.trim(),
           role,
-          department: department.trim() || undefined,
+          departmentId: department.trim() || undefined,
           managerId: managerId || undefined,
         }),
       }, REQUEST_TIMEOUT_MS);
@@ -171,14 +176,8 @@ export default function PeopleInviteView() {
         return;
       }
 
-      setSuccess(
-        authMode === 'direct'
-          ? 'User created. They can sign in immediately with the provided credentials.'
-          : 'Invitation created and queued for delivery.'
-      );
+      setSuccess('Invitation created. The new team member will report to the manager you selected.');
       setEmail('');
-      setUsername('');
-      setPassword('');
       setFirstName('');
       setLastName('');
       setRole('employee');
@@ -194,9 +193,9 @@ export default function PeopleInviteView() {
 
   return (
     <div className="mx-auto flex w-full max-w-[980px] flex-col gap-6 p-4 md:p-8">
-      <Link href="/manager/people" className="inline-flex items-center gap-2 text-sm text-[var(--muted-foreground)] hover:text-[var(--foreground)]">
+      <Link href="/manager/team" className="inline-flex items-center gap-2 text-sm text-[var(--muted-foreground)] hover:text-[var(--foreground)]">
         <ArrowLeft className="h-4 w-4" />
-        Back To People Operations
+        Back To My Team
       </Link>
 
       <header className="flex items-center gap-3">
@@ -204,9 +203,9 @@ export default function PeopleInviteView() {
           <UserPlus className="h-5 w-5" />
         </div>
         <div>
-          <h1 className="text-h2">Provision User</h1>
+          <h1 className="text-h2">Invite Team Member</h1>
           <p className="text-sm text-[var(--muted-foreground)]">
-            Capability-owner provisioning surface for People Operations.
+            Add someone to your team with a reporting manager assigned from day one.
           </p>
         </div>
       </header>
@@ -220,64 +219,37 @@ export default function PeopleInviteView() {
       <section className="card p-6">
         <form className="grid grid-cols-1 gap-4 md:grid-cols-2" onSubmit={handleSubmit}>
           <div className="md:col-span-2 rounded-lg border border-[var(--border)] bg-[var(--muted)]/20 px-3 py-3 text-sm text-[var(--muted-foreground)]">
-            Choose Invite Link to email a secure onboarding link, or Direct Credentials to create a login immediately.
+            Send an invitation email. The new hire must have a reporting manager before they can join your team.
           </div>
 
-          <div className="md:col-span-2 flex flex-wrap gap-2">
-            <Button
-              type="button"
-              className={`btn btn-sm ${authMode === 'invite' ? 'btn-primary' : 'btn-outline'}`}
-              onClick={() => setAuthMode('invite')}
-            >
-              Invite Link (Recommended)
-            </Button>
-            <Button
-              type="button"
-              className={`btn btn-sm ${authMode === 'direct' ? 'btn-primary' : 'btn-outline'}`}
-              onClick={() => setAuthMode('direct')}
-            >
-              Direct Credentials
-            </Button>
-          </div>
+          <label className="flex flex-col gap-2 text-sm text-[var(--foreground)]">
+            First Name
+            <Input
+              required
+              type="text"
+              className="input"
+              value={firstName}
+              onChange={(event) => setFirstName(event.target.value)}
+              placeholder="Alex"
+            />
+          </label>
 
-          <div className="md:col-span-2 text-xs text-[var(--muted-foreground)]">
-            {authMode === 'invite'
-              ? 'User receives an invitation email and sets their own password.'
-              : 'You provide username/password now and can share credentials securely with the user.'}
-          </div>
-
-          {authMode === 'direct' && (
-            <>
-              <label className="flex flex-col gap-2 text-sm text-[var(--foreground)]">
-                First Name
-                <Input
-                  required
-                  type="text"
-                  className="input"
-                  value={firstName}
-                  onChange={(event) => setFirstName(event.target.value)}
-                  placeholder="Alex"
-                />
-              </label>
-
-              <label className="flex flex-col gap-2 text-sm text-[var(--foreground)]">
-                Last Name
-                <Input
-                  required
-                  type="text"
-                  className="input"
-                  value={lastName}
-                  onChange={(event) => setLastName(event.target.value)}
-                  placeholder="Johnson"
-                />
-              </label>
-            </>
-          )}
+          <label className="flex flex-col gap-2 text-sm text-[var(--foreground)]">
+            Last Name
+            <Input
+              required
+              type="text"
+              className="input"
+              value={lastName}
+              onChange={(event) => setLastName(event.target.value)}
+              placeholder="Johnson"
+            />
+          </label>
 
           <label className="flex flex-col gap-2 text-sm text-[var(--foreground)] md:col-span-2">
-            Email Address {authMode === 'invite' ? '' : '(optional when username is set)'}
+            Email Address
             <Input
-              required={authMode === 'invite' && !username.trim()}
+              required
               type="email"
               className="input"
               value={email}
@@ -285,35 +257,6 @@ export default function PeopleInviteView() {
               placeholder="employee@company.com"
             />
           </label>
-
-          {authMode === 'direct' && (
-            <>
-              <label className="flex flex-col gap-2 text-sm text-[var(--foreground)]">
-                Username (optional)
-                <Input
-                  type="text"
-                  className="input"
-                  helperText="If blank, the user can sign in with email."
-                  value={username}
-                  onChange={(event) => setUsername(event.target.value.toLowerCase())}
-                  placeholder="alex.johnson"
-                />
-              </label>
-
-              <label className="flex flex-col gap-2 text-sm text-[var(--foreground)]">
-                Password
-                <Input
-                  required
-                  type="password"
-                  className="input"
-                  helperText="Use a temporary strong password; user should reset after first sign-in."
-                  value={password}
-                  onChange={(event) => setPassword(event.target.value)}
-                  placeholder="Create a secure password"
-                />
-              </label>
-            </>
-          )}
 
           <label className="flex flex-col gap-2 text-sm text-[var(--foreground)]">
             Role

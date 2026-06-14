@@ -87,6 +87,8 @@ export async function POST(request: NextRequest) {
           invite_accepted_at: new Date(),
           must_change_password: false,
           status: 'onboarding',
+          manager_id: employee.manager_id ?? invite.manager_id ?? undefined,
+          department: employee.department ?? invite.department ?? undefined,
         },
       });
     } else {
@@ -102,6 +104,8 @@ export async function POST(request: NextRequest) {
           invited_by_type: invite.invited_by_super_id ? 'super_admin' : 'employee',
           invite_accepted_at: new Date(),
           org_id: invite.company_id,
+          manager_id: invite.manager_id ?? null,
+          department: invite.department ?? null,
           status: 'onboarding',
         },
       });

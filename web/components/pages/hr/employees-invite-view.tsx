@@ -202,6 +202,11 @@ export default function EmployeesInviteView() {
       return;
     }
 
+    if (formData.role !== 'admin' && !formData.managerId) {
+      setError('Reporting manager is required for every invited user.');
+      return;
+    }
+
     setLoading(true);
     setError('');
 

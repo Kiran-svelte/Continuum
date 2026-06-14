@@ -133,23 +133,35 @@ export default function PeopleInviteView() {
     setError(null);
     setSuccess(null);
 
+    if (!firstName.trim() || !lastName.trim() || !email.trim()) {
+      const errorMessage = 'First name, last name, and email are required.';
+      setError(errorMessage);
+      toast.error(errorMessage);
+      setLoading(false);
+      return;
+    }
+
+    if (role !== 'admin' && !managerId) {
+      const errorMessage = 'Reporting manager is required for every invited user.';
+      setError(errorMessage);
+      toast.error(errorMessage);
+      setLoading(false);
+      return;
+    }
+
     try {
-      const response = await fetchWithTimeout('/api/hr/invites', {
+      const response = await fetchWithTimeout('/api/company/invite-user', {
         method: 'POST',
         credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          authMode,
-          email,
-          username: username.trim() || undefined,
-          password: authMode === 'direct' ? password : undefined,
-          firstName: authMode === 'direct' ? firstName.trim() : undefined,
-          lastName: authMode === 'direct' ? lastName.trim() : undefined,
-          phone: phone.trim() || undefined,
+          email: email.trim(),
+          firstName: firstName.trim(),
+          lastName: lastName.trim(),
           role,
-          department: department.trim() || undefined,
+          departmentId: department.trim() || undefined,
           managerId: managerId || undefined,
         }),
       }, REQUEST_TIMEOUT_MS);

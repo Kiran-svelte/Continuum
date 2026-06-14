@@ -3,14 +3,31 @@ import { v4 as uuidv4 } from 'uuid';
 import prisma from '@/lib/prisma';
 import { getCurrentUser } from '@/lib/auth-service';
 import { hashPassword, generateTemporaryPassword } from '@/lib/password-service';
+import {
+  assertManagerInviteRole,
+  validateReportingManager,
+} from '@/lib/invite-reporting-manager';
 import type { Role } from '@prisma/client';
 
 export const dynamic = 'force-dynamic';
 
+const COMPANY_INVITE_ROLES = new Set([
+  'admin',
+  'hr',
+  'director',
+  'manager',
+  'team_lead',
+  'employee',
+]);
+
+const HR_ADMIN_INVITE_ROLES = new Set(['admin', 'hr', 'super_admin']);
+const MANAGER_INVITE_ROLES = new Set(['manager', 'director', 'team_lead']);
+
 /**
  * POST /api/company/invite-user
- * 
- * Company admin/HR invites a new user to the company.
+ *
+ * Company admin/HR/manager invites a new user to the company.
+ * Persists reporting manager on the invite for production provisioning.
  */
 export async function POST(request: NextRequest) {
   try {
@@ -26,16 +43,18 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Only admin or HR can invite
-    if (!['admin', 'hr', 'super_admin'].includes(user.role)) {
+    const isHrAdmin = HR_ADMIN_INVITE_ROLES.has(user.role);
+    const isManagerLike = MANAGER_INVITE_ROLES.has(user.role);
+
+    if (!isHrAdmin && !isManagerLike) {
       return NextResponse.json(
-        { error: 'Only admins or HR can invite users' },
+        { error: 'You do not have permission to invite users' },
         { status: 403 }
       );
     }
 
     const body = await request.json();
-    const { email, firstName, lastName, role, departmentId, teamId, managerId } = body;
+    const { email, firstName, lastName, role, departmentId, managerId } = body;
 
     if (!email || !firstName || !lastName || !role) {
       return NextResponse.json(
@@ -44,10 +63,35 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate role is allowed by company config
+    const normalizedRole = String(role).trim().toLowerCase();
+    if (!COMPANY_INVITE_ROLES.has(normalizedRole)) {
+      return NextResponse.json({ error: 'Invalid role selected' }, { status: 400 });
+    }
+
+    if (isManagerLike && !isHrAdmin) {
+      const roleError = assertManagerInviteRole(normalizedRole);
+      if (roleError) {
+        return NextResponse.json({ error: roleError }, { status: 403 });
+      }
+    }
+
+    const resolvedManagerId =
+      isManagerLike && !isHrAdmin
+        ? managerId || user.id
+        : managerId;
+
+    const managerValidation = await validateReportingManager(
+      user.orgId,
+      normalizedRole,
+      resolvedManagerId
+    );
+    if (!managerValidation.ok) {
+      return NextResponse.json({ error: managerValidation.error }, { status: 400 });
+    }
+
     const company = await prisma.company.findUnique({
       where: { id: user.orgId },
-      select: { enabled_roles: true, requires_hr: true, requires_manager: true },
+      select: { enabled_roles: true },
     });
 
     if (!company) {
@@ -55,14 +99,13 @@ export async function POST(request: NextRequest) {
     }
 
     const enabledRoles = (company.enabled_roles as string[]) || [];
-    if (!enabledRoles.includes(role) && role !== 'employee') {
+    if (!enabledRoles.includes(normalizedRole) && normalizedRole !== 'employee') {
       return NextResponse.json(
-        { error: `Role "${role}" is not enabled for this company` },
+        { error: `Role "${normalizedRole}" is not enabled for this company` },
         { status: 400 }
       );
     }
 
-    // Check if email already exists
     const existingEmployee = await prisma.employee.findUnique({
       where: { email: email.toLowerCase() },
     });
@@ -74,7 +117,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check for pending invite
     const existingInvite = await prisma.userInvite.findFirst({
       where: {
         email: email.toLowerCase(),
@@ -90,30 +132,27 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Generate invite token
     const inviteToken = uuidv4();
-    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
-    // Create invitation
     const invite = await prisma.userInvite.create({
       data: {
         email: email.toLowerCase(),
-        role: role as Role,
+        role: normalizedRole as Role,
         first_name: firstName,
         last_name: lastName,
         token: inviteToken,
         company_id: user.orgId,
         invited_by_id: user.id,
-        department: departmentId || null,  // Store as string if needed
+        department: departmentId || null,
+        manager_id: managerValidation.managerId,
         expires_at: expiresAt,
         status: 'pending',
       },
     });
 
-    // Generate invite URL
     const inviteUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/invite/accept/${inviteToken}`;
 
-    // In development, also create employee with temp password
     let tempPassword: string | undefined;
     if (process.env.NODE_ENV === 'development') {
       tempPassword = generateTemporaryPassword();
@@ -124,13 +163,13 @@ export async function POST(request: NextRequest) {
           email: email.toLowerCase(),
           first_name: firstName,
           last_name: lastName,
-          primary_role: role as Role,
+          primary_role: normalizedRole as Role,
           password_hash: passwordHash,
           invited_by_id: user.id,
-          invited_by_type: user.role === 'hr' ? 'hr' : 'admin',
+          invited_by_type: user.role === 'hr' ? 'hr' : isManagerLike ? 'employee' : 'admin',
           org_id: user.orgId,
           department: departmentId || null,
-          manager_id: managerId || null,
+          manager_id: managerValidation.managerId,
           must_change_password: true,
           status: 'onboarding',
         },
@@ -143,6 +182,7 @@ export async function POST(request: NextRequest) {
         id: invite.id,
         email: invite.email,
         role: invite.role,
+        managerId: invite.manager_id,
         expiresAt: invite.expires_at,
       },
       inviteUrl,

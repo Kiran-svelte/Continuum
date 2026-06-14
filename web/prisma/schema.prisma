@@ -1448,6 +1448,7 @@ model EmployeeInvite {
   token      String    @unique
   role       Role      @default(employee)
   department String?
+  manager_id String?
   invited_by String
   expires_at DateTime
   used_at    DateTime?
@@ -1576,6 +1577,7 @@ model UserInvite {
   // Optional metadata
   department  String?
   designation String?
+  manager_id  String?
   message     String? // Personal message in invite email
 
   created_at DateTime @default(now())
@@ -1585,6 +1587,7 @@ model UserInvite {
   @@index([token])
   @@index([status])
   @@index([company_id])
+  @@index([manager_id])
 }
 
 // Role Template - Company-specific role configuration

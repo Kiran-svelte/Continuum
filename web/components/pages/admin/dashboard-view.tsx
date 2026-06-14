@@ -93,6 +93,9 @@ export default async function DashboardView() {
         primary_role: true,
         department: true,
         status: true,
+        manager: {
+          select: { first_name: true, last_name: true },
+        },
       },
     }),
     prisma.auditLog.findMany({
@@ -256,6 +259,7 @@ export default async function DashboardView() {
             <h3 className="text-h4 font-semibold">User Directory</h3>
             <div className="flex gap-2">
               <Input type="text" placeholder="Search users..." aria-label="Search users" className="input py-1 px-3 text-sm w-48 hidden md:block" />
+              <Link href="/admin/directory" className="btn btn-ghost btn-sm">Directory</Link>
               <Link href="/admin/people" className="btn btn-ghost btn-sm">View All</Link>
             </div>
           </div>
@@ -267,6 +271,7 @@ export default async function DashboardView() {
                   <th className="py-3 px-4 text-xs font-semibold text-[var(--muted-foreground)]">Name</th>
                   <th className="py-3 px-4 text-xs font-semibold text-[var(--muted-foreground)] hidden sm:table-cell">Role</th>
                   <th className="py-3 px-4 text-xs font-semibold text-[var(--muted-foreground)] hidden md:table-cell">Department</th>
+                  <th className="py-3 px-4 text-xs font-semibold text-[var(--muted-foreground)] hidden lg:table-cell">Reports To</th>
                   <th className="py-3 px-4 text-xs font-semibold text-[var(--muted-foreground)] text-right">Status</th>
                 </tr>
               </thead>
@@ -279,6 +284,11 @@ export default async function DashboardView() {
                     </td>
                     <td className="py-3 px-4 text-sm hidden sm:table-cell">{user.primary_role}</td>
                     <td className="py-3 px-4 text-sm hidden md:table-cell text-[var(--muted-foreground)]">{user.department || 'Unassigned'}</td>
+                    <td className="py-3 px-4 text-sm hidden lg:table-cell text-[var(--muted-foreground)]">
+                      {user.manager
+                        ? `${user.manager.first_name} ${user.manager.last_name}`.trim()
+                        : 'Unassigned'}
+                    </td>
                     <td className="py-3 px-4 text-right">
                       <span className={`px-2 py-1 text-[11px] font-medium rounded-full ${
                         user.status === 'active' ? 'bg-[var(--success-bg)] text-[var(--success)]' :

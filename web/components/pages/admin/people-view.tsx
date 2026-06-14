@@ -47,6 +47,9 @@ export default async function PeopleView() {
       department: true,
       status: true,
       created_at: true,
+      manager: {
+        select: { first_name: true, last_name: true },
+      },
     },
   });
 

@@ -60,6 +60,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { CommandKSearch } from '@/components/ui/command-k';
+import { isNavItemActive } from '@/lib/nav-active';
 
 export interface NavItem {
   label: string;
@@ -291,8 +292,7 @@ export function PortalLayout({ children, config }: { children: React.ReactNode, 
 
                 {!isCollapsed
                   ? group.items.map((item, idx) => {
-                      const isActive =
-                        currentPath === item.href || currentPath.startsWith(`${item.href}/`);
+                      const isActive = isNavItemActive(currentPath, item.href);
                       const Icon =
                         typeof item.icon === 'string'
                           ? iconRegistry[item.icon] ?? LayoutDashboard

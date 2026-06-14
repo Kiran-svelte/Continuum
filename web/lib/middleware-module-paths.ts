@@ -12,6 +12,7 @@ export const PORTAL_MODULE_PATH_RULES: Array<{ prefix: string; slug: ModuleSlug 
   // Admin
   { prefix: '/admin/payslips', slug: 'payroll' },
   { prefix: '/admin/people', slug: 'employees' },
+  { prefix: '/admin/directory', slug: 'directory' },
   { prefix: '/admin/leave-requests', slug: 'leave' },
   { prefix: '/admin/leave-', slug: 'leave' },
   { prefix: '/admin/policy-settings', slug: 'leave' },
@@ -41,6 +42,7 @@ export const PORTAL_MODULE_PATH_RULES: Array<{ prefix: string; slug: ModuleSlug 
   { prefix: '/hr/employees', slug: 'employees' },
   { prefix: '/hr/bulk-import', slug: 'employees' },
   { prefix: '/hr/employee-movements', slug: 'employees' },
+  { prefix: '/hr/directory', slug: 'directory' },
   { prefix: '/hr/organization', slug: 'directory' },
   { prefix: '/hr/exit-checklist', slug: 'exit' },
 
@@ -97,10 +99,23 @@ export const PORTAL_MODULE_PATH_RULES: Array<{ prefix: string; slug: ModuleSlug 
   { prefix: '/manager/reports', slug: 'analytics' },
 ];
 
+const SORTED_PORTAL_MODULE_PATH_RULES = [...PORTAL_MODULE_PATH_RULES].sort(
+  (a, b) => b.prefix.length - a.prefix.length
+);
+
+function matchesModulePrefix(pathname: string, prefix: string): boolean {
+  if (pathname === prefix) return true;
+  // Intentional partial prefixes (e.g. /hr/leave-) must keep legacy prefix matching.
+  if (prefix.endsWith('-')) {
+    return pathname.startsWith(prefix);
+  }
+  return pathname.startsWith(`${prefix}/`);
+}
+
 export function moduleSlugForPortalPath(pathname: string): ModuleSlug | null {
   const normalized = pathname.split('?')[0] ?? pathname;
-  for (const rule of PORTAL_MODULE_PATH_RULES) {
-    if (normalized.startsWith(rule.prefix)) {
+  for (const rule of SORTED_PORTAL_MODULE_PATH_RULES) {
+    if (matchesModulePrefix(normalized, rule.prefix)) {
       return rule.slug;
     }
   }

@@ -9,6 +9,8 @@ interface TiltCardProps {
   className?: string;
   glowColor?: string;
   rotationIntensity?: number;
+  /** Enterprise surfaces should keep this false (default). */
+  enableTilt?: boolean;
 }
 
 export function TiltCard({
@@ -16,40 +18,45 @@ export function TiltCard({
   className,
   glowColor = 'rgba(0, 255, 255, 0.4)',
   rotationIntensity = 15,
+  enableTilt = false,
 }: TiltCardProps) {
   const ref = useRef<HTMLDivElement>(null);
-  
+
   const x = useMotionValue(0);
   const y = useMotionValue(0);
-  
+
   const xSpring = useSpring(x, { stiffness: 300, damping: 30 });
   const ySpring = useSpring(y, { stiffness: 300, damping: 30 });
 
   const rotateX = useTransform(ySpring, [-0.5, 0.5], [rotationIntensity, -rotationIntensity]);
   const rotateY = useTransform(xSpring, [-0.5, 0.5], [-rotationIntensity, rotationIntensity]);
 
-  const handleMouseMove = useCallback((e: MouseEvent<HTMLDivElement>) => {
-    if (!ref.current) return;
-    
-    const rect = ref.current.getBoundingClientRect();
-    
-    const width = rect.width;
-    const height = rect.height;
-    
-    const mouseX = e.clientX - rect.left;
-    const mouseY = e.clientY - rect.top;
-    
-    const xPct = (mouseX / width) - 0.5;
-    const yPct = (mouseY / height) - 0.5;
-    
-    x.set(xPct);
-    y.set(yPct);
-  }, [x, y]);
+  const handleMouseMove = useCallback(
+    (e: MouseEvent<HTMLDivElement>) => {
+      if (!enableTilt || !ref.current) return;
+
+      const rect = ref.current.getBoundingClientRect();
+      const width = rect.width;
+      const height = rect.height;
+      const mouseX = e.clientX - rect.left;
+      const mouseY = e.clientY - rect.top;
+      const xPct = mouseX / width - 0.5;
+      const yPct = mouseY / height - 0.5;
+
+      x.set(xPct);
+      y.set(yPct);
+    },
+    [enableTilt, x, y]
+  );
 
   const handleMouseLeave = () => {
     x.set(0);
     y.set(0);
   };
+
+  if (!enableTilt) {
+    return <div className={cn('relative w-full h-full', className)}>{children}</div>;
+  }
 
   return (
     <motion.div
@@ -62,17 +69,16 @@ export function TiltCard({
         transformStyle: 'preserve-3d',
       }}
       className={cn(
-        "relative transition-all duration-200 w-full h-full",
-        "group perspective-1000",
+        'relative transition-all duration-200 w-full h-full group perspective-1000',
         className
       )}
       whileHover={{ scale: 1.02 }}
       whileTap={{ scale: 0.98 }}
     >
-      <div 
+      <div
         className="absolute inset-0 z-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none rounded-xl blur-xl"
         style={{
-          background: `radial-gradient(circle at 50% 50%, ${glowColor} 0%, transparent 70%)`
+          background: `radial-gradient(circle at 50% 50%, ${glowColor} 0%, transparent 70%)`,
         }}
       />
       <div className="relative z-10 w-full h-full transform-gpu" style={{ transform: 'translateZ(20px)' }}>
