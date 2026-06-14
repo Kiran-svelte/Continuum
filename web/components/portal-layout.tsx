@@ -5,11 +5,16 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { SignOutButton } from '@/components/sign-out-button';
 import { NotificationBell } from '@/components/notification-bell';
+import { PortalSwitcher } from '@/components/portal-switcher';
 import { CanView } from '@/components/auth/can-view';
 import { PortalBreadcrumbs } from '@/components/design-system';
 import {
   Menu,
   MonitorPlay,
+  ChevronDown,
+  ChevronRight,
+  CreditCard,
+  Mail,
   LayoutDashboard,
   Users,
   Building2,
@@ -70,6 +75,7 @@ export interface PortalConfig {
   navItems: NavItem[];
   accentColor?: string;
   roleLabel: string;
+  showPortalSwitcher?: boolean;
 }
 
 export function PortalLayout({ children, config }: { children: React.ReactNode, config: PortalConfig }) {
@@ -77,6 +83,7 @@ export function PortalLayout({ children, config }: { children: React.ReactNode, 
   const pathname = usePathname();
   const currentPath = pathname ?? '';
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
   const [isNavigating, startTransition] = useTransition();
   const [displayName, setDisplayName] = useState('User');
 
@@ -135,9 +142,37 @@ export function PortalLayout({ children, config }: { children: React.ReactNode, 
       Upload,
       Crosshair,
       Bell,
+      CreditCard,
+      Mail,
     }),
     []
   );
+
+  const navGroups = useMemo(() => {
+    const groups: Array<{ name: string | null; items: NavItem[] }> = [];
+    for (const item of config.navItems) {
+      const groupName = item.group ?? null;
+      const last = groups[groups.length - 1];
+      if (last && last.name === groupName) {
+        last.items.push(item);
+      } else {
+        groups.push({ name: groupName, items: [item] });
+      }
+    }
+    return groups;
+  }, [config.navItems]);
+
+  const toggleGroup = (groupName: string) => {
+    setCollapsedGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(groupName)) {
+        next.delete(groupName);
+      } else {
+        next.add(groupName);
+      }
+      return next;
+    });
+  };
 
   useEffect(() => {
     config.navItems.forEach((item) => router.prefetch(item.href));
@@ -219,68 +254,92 @@ export function PortalLayout({ children, config }: { children: React.ReactNode, 
         </div>
 
         <div className="flex-1 space-y-0.5 overflow-y-auto p-3">
-          {config.navItems.map((item, idx) => {
-            const isActive = currentPath === item.href || currentPath.startsWith(`${item.href}/`);
-            const Icon =
-              typeof item.icon === 'string'
-                ? iconRegistry[item.icon] ?? LayoutDashboard
-                : item.icon;
-            const prevGroup = idx > 0 ? config.navItems[idx - 1].group : undefined;
-            const isNewGroup = item.group && item.group !== prevGroup;
-
-            const linkEl = (
-              <Link
-                href={item.href}
-                prefetch
-                onMouseEnter={() => router.prefetch(item.href)}
-                onClick={(e) => {
-                  e.preventDefault();
-                  setSidebarOpen(false);
-                  startTransition(() => router.push(item.href));
-                }}
-                className={`
-                  group flex w-full items-center gap-3 rounded-[var(--radius)] px-3 py-2.5 text-sm font-medium transition-all duration-150
-                  ${isActive
-                    ? 'bg-[color-mix(in_srgb,var(--primary)_14%,transparent)] text-[var(--primary)] shadow-[var(--shadow-xs)]'
-                    : 'text-[var(--muted-foreground)] hover:bg-[var(--secondary)] hover:text-[var(--foreground)]'}
-                `}
-              >
-                <Icon
-                  className={`h-4 w-4 shrink-0 ${isActive ? 'text-[var(--primary)]' : 'opacity-60 group-hover:opacity-100'}`}
-                  aria-hidden
-                />
-                <span className="truncate">{item.label}</span>
-              </Link>
-            );
+          {navGroups.map((group, groupIdx) => {
+            const groupKey = group.name ?? `__ungrouped_${groupIdx}`;
+            const isCollapsed = group.name ? collapsedGroups.has(group.name) : false;
 
             return (
-              <React.Fragment key={`${item.href}-${idx}`}>
-                {isNewGroup && (
-                  <div
-                    className={`${idx > 0 ? 'mt-4 border-t border-[var(--border)] pt-3' : 'pt-1'} px-2 pb-1 text-[10px] font-bold uppercase tracking-widest text-[var(--muted-foreground)] opacity-70`}
+              <div key={groupKey} className={groupIdx > 0 && group.name ? 'mt-1' : ''}>
+                {group.name ? (
+                  <button
+                    type="button"
+                    onClick={() => toggleGroup(group.name!)}
+                    className={`mb-1 flex w-full items-center justify-between rounded-[var(--radius)] px-2 py-1.5 text-left text-[10px] font-bold uppercase tracking-widest text-[var(--muted-foreground)] opacity-80 hover:opacity-100 ${groupIdx > 0 ? 'mt-3 border-t border-[var(--border)] pt-3' : 'pt-1'}`}
+                    aria-expanded={!isCollapsed}
                   >
-                    {item.group}
-                  </div>
-                )}
-                {item.permission ? (
-                  <CanView require={item.permission}>{linkEl}</CanView>
-                ) : (
-                  linkEl
-                )}
-              </React.Fragment>
+                    <span>{group.name}</span>
+                    {isCollapsed ? (
+                      <ChevronRight className="h-3 w-3 shrink-0" aria-hidden />
+                    ) : (
+                      <ChevronDown className="h-3 w-3 shrink-0" aria-hidden />
+                    )}
+                  </button>
+                ) : null}
+
+                {!isCollapsed
+                  ? group.items.map((item, idx) => {
+                      const isActive =
+                        currentPath === item.href || currentPath.startsWith(`${item.href}/`);
+                      const Icon =
+                        typeof item.icon === 'string'
+                          ? iconRegistry[item.icon] ?? LayoutDashboard
+                          : item.icon;
+
+                      const linkEl = (
+                        <Link
+                          href={item.href}
+                          prefetch
+                          onMouseEnter={() => router.prefetch(item.href)}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            setSidebarOpen(false);
+                            startTransition(() => router.push(item.href));
+                          }}
+                          className={`
+                            group flex w-full items-center gap-3 rounded-[var(--radius)] px-3 py-2.5 text-sm font-medium transition-all duration-150
+                            ${isActive
+                              ? 'bg-[color-mix(in_srgb,var(--primary)_14%,transparent)] text-[var(--primary)] shadow-[var(--shadow-xs)]'
+                              : 'text-[var(--muted-foreground)] hover:bg-[var(--secondary)] hover:text-[var(--foreground)]'}
+                          `}
+                        >
+                          <Icon
+                            className={`h-4 w-4 shrink-0 ${isActive ? 'text-[var(--primary)]' : 'opacity-60 group-hover:opacity-100'}`}
+                            aria-hidden
+                          />
+                          <span className="truncate">{item.label}</span>
+                        </Link>
+                      );
+
+                      return (
+                        <div key={`${item.href}-${idx}`}>
+                          {item.permission ? (
+                            <CanView require={item.permission}>{linkEl}</CanView>
+                          ) : (
+                            linkEl
+                          )}
+                        </div>
+                      );
+                    })
+                  : null}
+              </div>
             );
           })}
         </div>
 
-        <div className="mt-auto flex shrink-0 items-center gap-3 border-t border-[var(--border)] p-4">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--primary)] text-sm font-semibold text-[var(--primary-foreground)] shadow-[var(--shadow-sm)]">
-            {initials}
+        <div className="mt-auto shrink-0 border-t border-[var(--border)] p-4">
+          <div className="mb-3 flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--primary)] text-sm font-semibold text-[var(--primary-foreground)] shadow-[var(--shadow-sm)]">
+              {initials}
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-semibold text-[var(--foreground)]">{displayName}</p>
+              <p className="truncate text-xs font-medium text-[var(--primary)]">{config.roleLabel}</p>
+            </div>
+            <SignOutButton variant="compact" />
           </div>
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-semibold text-[var(--foreground)]">{displayName}</p>
-            <p className="truncate text-xs font-medium text-[var(--primary)]">{config.roleLabel}</p>
-          </div>
-          <SignOutButton variant="compact" />
+          {config.showPortalSwitcher !== false ? (
+            <PortalSwitcher compact />
+          ) : null}
         </div>
       </aside>
 
@@ -306,7 +365,7 @@ export function PortalLayout({ children, config }: { children: React.ReactNode, 
           <NotificationBell />
         </header>
 
-        <div className="relative h-full w-full flex-1 overflow-y-auto">{children}</div>
+        <div className="relative h-full w-full flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">{children}</div>
       </main>
     </div>
   );

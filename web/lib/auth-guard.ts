@@ -268,21 +268,23 @@ export function requireSuperAdmin(employee: AuthEmployee): void {
 
 /** 
  * Requires employee to have company membership.
- * Returns AuthEmployeeWithCompany with guaranteed org_id.
+ * Narrows AuthEmployee so org_id is guaranteed for tenant-scoped routes.
  * Throws 403 if employee doesn't belong to any company.
  */
-export function requireCompanyMembership(employee: AuthEmployee): AuthEmployeeWithCompany {
+export function requireCompanyMembership(employee: AuthEmployee): asserts employee is AuthEmployeeWithCompany {
   // Super admins may not have org_id but can still access (they need to specify company)
   if (employee.primary_role === 'super_admin') {
-    // For super admin, we'll use a placeholder that routes must handle
-    return employee as AuthEmployeeWithCompany;
+    return;
   }
   
   if (!employee.org_id) {
     throw new AuthError('Forbidden: company membership required', 403);
   }
-  
-  return employee as AuthEmployeeWithCompany;
+}
+
+/** Ensures the employee has company context (alias used across API routes). */
+export function requireCompanyContext(employee: AuthEmployee): asserts employee is AuthEmployeeWithCompany {
+  requireCompanyMembership(employee);
 }
 
 export { VALID_ROLES };

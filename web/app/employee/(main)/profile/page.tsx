@@ -5,7 +5,8 @@ import { GlassPanel } from '@/components/glass-panel';
 import { PageHeader } from '@/components/page-header';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Pencil, CheckCircle, Phone, Building2, MapPin, Eye, EyeOff } from 'lucide-react';
+import Link from 'next/link';
+import { Pencil, CheckCircle, Phone, Building2, MapPin, Eye, EyeOff, MessageCircle } from 'lucide-react';
 import { StaggerContainer, FadeIn, TiltCard } from '@/components/motion';
 
 interface Profile {
@@ -251,8 +252,12 @@ export default function ProfilePage() {
                     <div className="grid grid-cols-2 gap-4">
                       <div>
                         <label className="block text-xs font-medium text-white/60 mb-1">Phone</label>
+                        <p className="text-[10px] text-white/50 mb-1">
+                          Used to verify WhatsApp HR. Must match your WhatsApp number.
+                        </p>
                         <input
                           type="tel"
+                          autoComplete="tel"
                           value={phone}
                           onChange={(e) => setPhone(e.target.value)}
                           className={inputClass}
@@ -416,6 +421,36 @@ export default function ProfilePage() {
           </GlassPanel>
           </TiltCard>
           </FadeIn>
+
+          {/* ---- WhatsApp HR ---- */}
+          {!editing && (
+            <FadeIn>
+            <TiltCard>
+            <GlassPanel className="glass-panel border-white/10 shadow-2xl relative overflow-hidden">
+              <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-emerald-400 to-green-500" />
+              <div className="p-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div>
+                  <h3 className="text-lg font-semibold text-white flex items-center gap-3 font-bold drop-shadow-md">
+                    <div className="p-2 rounded-lg bg-emerald-500/20 shadow-[0_0_10px_rgba(16,185,129,0.3)]">
+                      <MessageCircle className="w-5 h-5 text-emerald-400" />
+                    </div>
+                    WhatsApp HR
+                  </h3>
+                  <p className="text-sm text-white/60 mt-2 max-w-xl">
+                    Link your mobile number to request leave, check attendance, and view payslips over WhatsApp.
+                  </p>
+                </div>
+                <Link
+                  href="/employee/profile/whatsapp"
+                  className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition hover:brightness-110"
+                >
+                  Verify WhatsApp number
+                </Link>
+              </div>
+            </GlassPanel>
+            </TiltCard>
+            </FadeIn>
+          )}
 
           {/* ---- Emergency Contact Card ---- */}
           {!editing && (

@@ -1,160 +1,113 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getAuthEmployee, AuthError, requireCompanyContext } from '@/lib/auth-guard';
+import { buildContextFromSession } from '@/lib/channel/context-from-session';
+import { approveLeaveService } from '@/lib/services/leave-approve';
+import { serviceResultToLegacyResponse } from '@/lib/services/service-response';
 import prisma from '@/lib/prisma';
-import { getAuthEmployee, requireRole, AuthError } from '@/lib/auth-guard';
-import { createAuditLog, AUDIT_ACTIONS } from '@/lib/audit';
-import { sendLeaveApprovalEmail } from '@/lib/email-service';
-import { sendNotification, sendPusherEvent } from '@/lib/notification-service';
+import { canActOnLeaveRequest } from '@/lib/leave-approval-routing';
+import { canProcessLeaveApproval } from '@/lib/leave-workflow';
+import { requireModuleForOrg } from '@/lib/core-functions/guard-handler';
 
 export const dynamic = 'force-dynamic';
 
+/**
+ * POST /api/leaves/approve/[requestId] — thin wrapper over approveLeaveService.
+ */
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ requestId: string }> }
 ) {
   try {
     const employee = await getAuthEmployee();
-    requireRole(employee, 'manager', 'hr', 'admin', 'director');
-
+    requireCompanyContext(employee);
     const { requestId } = await params;
-    const body = await request.json().catch(() => ({}));
-    const comments = typeof body.comments === 'string' ? body.comments : null;
+    const body = await request.json();
+
+    const ctx = buildContextFromSession(employee, {
+      channel: 'web',
+      idempotencyKey: request.headers.get('Idempotency-Key') ?? undefined,
+    });
+
+    const result = await approveLeaveService(ctx, {
+      requestId,
+      action: body.action,
+      reason: body.reason,
+    });
+
+    if (result.ok) {
+      return NextResponse.json({
+        success: true,
+        message:
+          body.action === 'approve' ? 'Leave request approved' : 'Leave request rejected',
+        status: result.data.status,
+        is_final: result.data.is_final,
+      });
+    }
+
+    return serviceResultToLegacyResponse(result);
+  } catch (error) {
+    if (error instanceof AuthError) {
+      return NextResponse.json({ error: error.message }, { status: error.status });
+    }
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
+}
+
+/**
+ * GET /api/leaves/approve/[requestId]
+ */
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ requestId: string }> }
+) {
+  try {
+    void request;
+    const employee = await getAuthEmployee();
+    requireCompanyContext(employee);
+    const moduleGuardGet = await requireModuleForOrg(employee.org_id, 'leave');
+    if (moduleGuardGet) return moduleGuardGet;
+    const { requestId } = await params;
 
     const leaveRequest = await prisma.leaveRequest.findUnique({
       where: { id: requestId },
-      include: { employee: { select: { id: true, email: true, first_name: true, last_name: true, manager_id: true, org_id: true } } },
+      include: {
+        employee: {
+          select: { id: true, first_name: true, last_name: true, department: true, email: true },
+        },
+        approver: {
+          select: { id: true, first_name: true, last_name: true },
+        },
+      },
     });
 
     if (!leaveRequest) {
       return NextResponse.json({ error: 'Leave request not found' }, { status: 404 });
     }
 
-    if (leaveRequest.company_id !== employee.org_id!) {
+    if (leaveRequest.company_id !== employee.org_id) {
       return NextResponse.json({ error: 'Access denied' }, { status: 403 });
     }
 
-    // F-13: Approver must not be the same person as the requester
-    if (leaveRequest.emp_id === employee.id) {
-      return NextResponse.json(
-        { error: 'Cannot approve your own leave request' },
-        { status: 403 }
-      );
-    }
-
-    if (leaveRequest.status !== 'pending' && leaveRequest.status !== 'escalated') {
-      return NextResponse.json(
-        { error: `Cannot approve a request with status '${leaveRequest.status}'` },
-        { status: 400 }
-      );
-    }
-
-    // Verify approver is in hierarchy or is HR/admin
-    const isHrOrAdmin =
-      employee.primary_role === 'hr' ||
-      employee.primary_role === 'admin' ||
-      employee.primary_role === 'director';
-    const isDirectManager = leaveRequest.employee.manager_id === employee.id;
-
-    if (!isHrOrAdmin && !isDirectManager) {
-      return NextResponse.json(
-        { error: 'You are not authorized to approve this request' },
-        { status: 403 }
-      );
-    }
-
-    const previousState = {
-      status: leaveRequest.status,
-      approved_by: leaveRequest.approved_by,
-    };
-
-    // Atomically update status and balance in a transaction
-    const balanceYear = leaveRequest.start_date.getFullYear();
-    const updatedRequest = await prisma.$transaction(async (tx) => {
-      const updated = await tx.leaveRequest.update({
-        where: { id: requestId },
-        data: {
-          status: 'approved',
-          approved_by: employee.id,
-          approved_at: new Date(),
-          approver_comments: comments,
-        },
-      });
-
-      // Update leave balance: used_days += total_days, pending_days -= total_days
-      // Net effect on `remaining` is zero (both are subtracted in the formula).
-      await tx.leaveBalance.updateMany({
-        where: {
-          emp_id: leaveRequest.emp_id,
-          leave_type: leaveRequest.leave_type,
-          year: balanceYear,
-        },
-        data: {
-          used_days: { increment: leaveRequest.total_days },
-          pending_days: { decrement: leaveRequest.total_days },
-        },
-      });
-
-      return updated;
-    });
-
-    await createAuditLog({
-      companyId: employee.org_id!,
-      actorId: employee.id,
-      action: AUDIT_ACTIONS.LEAVE_APPROVE,
-      entityType: 'LeaveRequest',
-      entityId: requestId,
-      previousState,
-      newState: {
-        status: 'approved',
-        approved_by: employee.id,
-        approved_at: updatedRequest.approved_at,
+    return NextResponse.json({
+      leaveRequest: {
+        ...leaveRequest,
+        employee: leaveRequest.employee,
+        approver: leaveRequest.approver,
       },
+      canApprove:
+        canProcessLeaveApproval(leaveRequest.status) &&
+        leaveRequest.emp_id !== employee.id &&
+        (await canActOnLeaveRequest({
+          requesterId: leaveRequest.emp_id,
+          approverId: employee.id,
+          companyId: employee.org_id,
+          approverRole: employee.primary_role,
+        })),
     });
-
-    // Send approval email to employee (non-blocking)
-    try {
-      if (leaveRequest.employee.email) {
-        const startDate = leaveRequest.start_date.toISOString().split('T')[0];
-        const endDate = leaveRequest.end_date.toISOString().split('T')[0];
-        const employeeName = `${leaveRequest.employee.first_name} ${leaveRequest.employee.last_name}`;
-        const approverName = `${employee.first_name} ${employee.last_name}`;
-        await sendLeaveApprovalEmail(
-          leaveRequest.employee.email,
-          employeeName,
-          leaveRequest.leave_type,
-          startDate,
-          endDate,
-          approverName
-        );
-      }
-    } catch (emailError) {
-      console.error('[LeaveApprove] Email notification failed:', emailError);
-    }
-
-    // Real-time: notify the employee their leave was approved
-    sendPusherEvent(`user-${leaveRequest.emp_id}`, 'leave-request-approved', {
-      id: leaveRequest.id,
-      leave_type: leaveRequest.leave_type,
-      status: 'approved',
-    }).catch(() => {});
-
-    // DB notification for the employee
-    sendNotification(
-      leaveRequest.emp_id,
-      employee.org_id!,
-      'leave_approved',
-      'Leave Request Approved',
-      `Your ${leaveRequest.leave_type} leave from ${leaveRequest.start_date.toISOString().split('T')[0]} to ${leaveRequest.end_date.toISOString().split('T')[0]} has been approved`,
-      'in_app',
-    ).catch(() => {});
-
-    return NextResponse.json(updatedRequest);
   } catch (error) {
     if (error instanceof AuthError) {
       return NextResponse.json({ error: error.message }, { status: error.status });
     }
-    const message =
-      process.env.NODE_ENV === 'production' ? 'Internal server error' : String(error);
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json({ error: 'Failed to fetch approval information' }, { status: 500 });
   }
 }
-

@@ -10,6 +10,8 @@ import { Button } from '@/components/ui/button';
 import { Modal, ModalFooter } from '@/components/ui/modal';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ProgressBar } from '@/components/ui/progress';
+import { PortalSelect } from '@/components/ui/portal-select';
+import { PageSummaryStrip } from '@/components/ui/page-summary-strip';
 import { ensureMe } from '@/lib/client-auth';
 import {
   ClipboardCheck,
@@ -387,73 +389,31 @@ export default function HRExitChecklistPage() {
         )}
       </AnimatePresence>
 
-      {/* Summary Cards */}
-      <FadeIn className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <GlassPanel>
-          <div className="p-6 relative z-10">
-            <div className="flex items-center gap-4">
-              <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center">
-                <ClipboardCheck className="w-5 h-5 text-blue-400" />
-              </div>
-              <div>
-                <p className="text-sm text-white/60">Total Items</p>
-                <p className="text-2xl font-bold text-white">
-                  {stats.total}
-                </p>
-              </div>
-            </div>
-          </div>
-        </GlassPanel>
-
-        <GlassPanel>
-          <div className="p-6 relative z-10">
-            <div className="flex items-center gap-4">
-              <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center">
-                <CheckCircle2 className="w-5 h-5 text-emerald-400" />
-              </div>
-              <div>
-                <p className="text-sm text-white/60">Completed</p>
-                <p className="text-2xl font-bold text-white">
-                  {stats.completed}
-                </p>
-              </div>
-            </div>
-          </div>
-        </GlassPanel>
-
-        <GlassPanel>
-          <div className="p-6 relative z-10">
-            <div className="flex items-center gap-4">
-              <div className="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center">
-                <Clock className="w-5 h-5 text-amber-400" />
-              </div>
-              <div>
-                <p className="text-sm text-white/60">Pending</p>
-                <p className="text-2xl font-bold text-white">
-                  {stats.pending}
-                </p>
-              </div>
-            </div>
-          </div>
-        </GlassPanel>
+      {/* Summary Cards — hidden when empty */}
+      <FadeIn>
+        <PageSummaryStrip
+          stats={[
+            { label: 'Total Items', value: stats.total, icon: ClipboardCheck, tone: 'info' },
+            { label: 'Completed', value: stats.completed, icon: CheckCircle2, tone: 'success' },
+            { label: 'Open', value: stats.pending, icon: Clock, tone: 'warning' },
+          ]}
+        />
       </FadeIn>
 
-      {/* Filters */}
+      {/* Filters — only when there is data to filter */}
+      {!loading && stats.total > 0 && (
       <FadeIn className="flex flex-wrap items-center gap-4">
         <div className="flex-1 min-w-[200px]">
-          <select
+          <PortalSelect
+            aria-label="Filter by employee"
             value={employeeFilter}
-            onChange={(e) => setEmployeeFilter(e.target.value)}
-            className="w-full px-3 py-2 text-sm rounded-lg border border-white/10 bg-white/5 text-white focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors"
-          >
-            <option value="">All Employees</option>
-            {employees.map((emp) => (
-              <option key={emp.id} value={emp.id}>
-                {emp.first_name} {emp.last_name}
-                {emp.department ? ` - ${emp.department}` : ''}
-              </option>
-            ))}
-          </select>
+            onChange={setEmployeeFilter}
+            placeholder="All Employees"
+            options={employees.map((emp) => ({
+              value: emp.id,
+              label: `${emp.first_name} ${emp.last_name}${emp.department ? ` — ${emp.department}` : ''}`,
+            }))}
+          />
         </div>
 
         <div className="flex gap-2 flex-wrap">
@@ -469,7 +429,7 @@ export default function HRExitChecklistPage() {
               className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
                 statusFilter === f.value
                   ? 'bg-primary text-primary-foreground'
-                  : 'bg-white/5 text-white/60 hover:bg-white/10'
+                  : 'bg-[var(--secondary)] text-[var(--muted-foreground)] hover:bg-[var(--accent)] hover:text-[var(--foreground)]'
               }`}
             >
               {f.label}
@@ -477,6 +437,7 @@ export default function HRExitChecklistPage() {
           ))}
         </div>
       </FadeIn>
+      )}
 
       {/* Per-Employee Progress */}
       {employeeProgress.length > 0 && !employeeFilter && (
@@ -564,16 +525,18 @@ export default function HRExitChecklistPage() {
 
             {!loading && !error && filteredChecklists.length === 0 && (
               <div className="py-12 text-center">
-                <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center mx-auto">
-                  <Inbox className="w-5 h-5 text-white/40" />
+                <div className="w-12 h-12 rounded-xl bg-[var(--secondary)] flex items-center justify-center mx-auto">
+                  <Inbox className="w-6 h-6 text-[var(--muted-foreground)]" />
                 </div>
-                <p className="text-white/60 mt-3 text-sm">
-                  No checklist items found.
+                <p className="text-[var(--foreground)] mt-4 font-medium">
+                  No offboarding tasks yet
+                </p>
+                <p className="text-[var(--muted-foreground)] mt-2 text-sm max-w-md mx-auto">
+                  Add checklist items per departing employee — IT access revocation, asset return, payroll clearance, and HR sign-off.
                 </p>
                 <Button
-                  variant="outline"
+                  className="mt-4"
                   size="sm"
-                  className="mt-3"
                   onClick={() => setShowAddModal(true)}
                 >
                   <Plus className="w-3.5 h-3.5 mr-1" />
@@ -726,22 +689,18 @@ export default function HRExitChecklistPage() {
         <div className="space-y-4">
           {/* Employee Select */}
           <div>
-            <label className="block text-sm font-medium text-white mb-1.5">
+            <label className="block text-sm font-medium text-[var(--foreground)] mb-1.5">
               Employee
             </label>
-            <select
+            <PortalSelect
               value={formEmpId}
-              onChange={(e) => setFormEmpId(e.target.value)}
-              className="w-full px-3 py-2 text-sm rounded-lg border border-white/10 bg-white/5 text-white focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors"
-            >
-              <option value="">Select employee...</option>
-              {employees.map((emp) => (
-                <option key={emp.id} value={emp.id}>
-                  {emp.first_name} {emp.last_name}
-                  {emp.department ? ` - ${emp.department}` : ''}
-                </option>
-              ))}
-            </select>
+              onChange={setFormEmpId}
+              placeholder="Select employee..."
+              options={employees.map((emp) => ({
+                value: emp.id,
+                label: `${emp.first_name} ${emp.last_name}${emp.department ? ` — ${emp.department}` : ''}`,
+              }))}
+            />
           </div>
 
           {/* Task */}
@@ -763,17 +722,12 @@ export default function HRExitChecklistPage() {
             <label className="block text-sm font-medium text-white mb-1.5">
               Category
             </label>
-            <select
+            <PortalSelect
               value={formCategory}
-              onChange={(e) => setFormCategory(e.target.value)}
-              className="w-full px-3 py-2 text-sm rounded-lg border border-white/10 bg-white/5 text-white focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors"
-            >
-              {CATEGORY_OPTIONS.map((cat) => (
-                <option key={cat} value={cat}>
-                  {cat}
-                </option>
-              ))}
-            </select>
+              onChange={setFormCategory}
+              options={CATEGORY_OPTIONS.map((cat) => ({ value: cat, label: cat }))}
+              aria-label="Task category"
+            />
           </div>
 
           {/* Due Date */}

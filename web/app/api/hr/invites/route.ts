@@ -6,11 +6,13 @@ import { getAuthEmployee, requireRole } from '@/lib/auth-guard';
 import { checkApiRateLimit, getRateLimitHeaders } from '@/lib/api-rate-limit';
 import { createAuditLog, AUDIT_ACTIONS } from '@/lib/audit';
 import { sendInviteEmail } from '@/lib/email-service';
+import { normalizePhone } from '@/lib/phone/normalize';
 
 export const dynamic = 'force-dynamic';
 
 const inviteSchema = z.object({
   email: z.string().email().max(255),
+  phone: z.string().max(32).optional(),
   role: z.enum(['employee', 'team_lead', 'manager', 'director', 'hr', 'admin']).default('employee'),
   department: z.string().max(100).optional(),
 });
@@ -42,7 +44,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { email, role, department } = parsed.data;
+    const { email, role, department, phone: rawPhone } = parsed.data;
+    const phone = rawPhone ? normalizePhone(rawPhone) : undefined;
 
     // Check if employee already exists
     const existingEmployee = await prisma.employee.findFirst({
@@ -100,7 +103,7 @@ export async function POST(request: NextRequest) {
       action: AUDIT_ACTIONS.EMPLOYEE_STATUS_CHANGE,
       entityType: 'EmployeeInvite',
       entityId: invite.id,
-      newState: { email, role, department, expires_at: expiresAt.toISOString() },
+      newState: { email, role, department, phone, expires_at: expiresAt.toISOString() },
     });
 
     // Send invite email (non-blocking)

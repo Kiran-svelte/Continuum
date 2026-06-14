@@ -69,6 +69,8 @@ export const AUDIT_ACTIONS = {
   DOCUMENT_DELETE: 'DOCUMENT_DELETE',
   DOCUMENT_VERIFY: 'DOCUMENT_VERIFY',
   DOCUMENT_REJECT: 'DOCUMENT_REJECT',
+  // Assistant actions
+  ASSISTANT_ACTION: 'ASSISTANT_ACTION',
 } as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[keyof typeof AUDIT_ACTIONS];

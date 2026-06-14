@@ -20,4 +20,7 @@ prisma.$connect().catch((err) => {
 
 if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma;
 
+/** Direct client alias used by transactional onboarding/admin routes. */
+export const prismaDirect = prisma;
+
 export default prisma;
