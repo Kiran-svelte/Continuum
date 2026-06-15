@@ -13,7 +13,7 @@ export async function submitDocumentRecord(fileName: string, fileType: string) {
       error: 'Legacy upload action is disabled. Use /api/documents/upload with multipart/form-data.',
     };
   } catch (error: unknown) {
-    console.error("NeonDB Upload Error:", error);
+    console.error("Document upload error:", error);
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Failed to submit document record',

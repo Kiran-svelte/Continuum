@@ -40,6 +40,7 @@ const PREFLIGHT_MANIFEST = [
   'tests/continuum-assistant-actions.test.ts',
   'tests/security-channel.test.ts',
   'tests/zero-ui-web-minimal.test.ts',
+  'tests/supabase-migration-readiness.test.ts',
 ];
 
 const selectedTests = process.env.RUN_ALL_NODE_TESTS === '1'

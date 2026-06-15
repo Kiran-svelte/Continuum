@@ -221,28 +221,28 @@ describe('Auth Libraries', () => {
 // ─── CSP Configuration Tests ─────────────────────────────────────────────────
 
 describe('Content-Security-Policy Configuration', () => {
-  it('next.config.ts CSP should not include Supabase domains', async () => {
+  it('next.config.ts CSP should allow Supabase domains for auth/storage', async () => {
     const fs = await import('node:fs');
     const configPath = fileURLToPath(new URL('../next.config.ts', import.meta.url));
     
     if (fs.existsSync(configPath)) {
       const content = fs.readFileSync(configPath, 'utf-8');
       assert.ok(
-        !content.includes('supabase.co'),
-        'next.config.ts CSP should not include Supabase domains'
+        content.includes('supabase.co'),
+        'next.config.ts CSP should include Supabase domains'
       );
     }
   });
 
-  it('middleware.ts CSP should not include Supabase domains', async () => {
+  it('middleware.ts should keep CORS explicit instead of wildcarding Supabase origins', async () => {
     const fs = await import('node:fs');
     const middlewarePath = fileURLToPath(new URL('../middleware.ts', import.meta.url));
     
     if (fs.existsSync(middlewarePath)) {
       const content = fs.readFileSync(middlewarePath, 'utf-8');
       assert.ok(
-        !content.includes('supabase.co'),
-        'middleware.ts CSP should not include Supabase domains'
+        content.includes('ENV_ALLOWED_ORIGINS') && !content.includes('https://*.supabase.co'),
+        'middleware.ts should rely on configured app origins, not Supabase wildcard origins'
       );
     }
   });
@@ -341,14 +341,14 @@ describe('Onboarding Gate', () => {
 // ─── API Guard Hardening Tests ─────────────────────────────────────────────
 
 describe('API Guard Hardening', () => {
-  it('test-neon route should require super admin auth', async () => {
+  it('test-supabase route should require super admin auth', async () => {
     const fs = await import('node:fs');
-    const routePath = fileURLToPath(new URL('../app/api/test-neon/route.ts', import.meta.url));
+    const routePath = fileURLToPath(new URL('../app/api/test-supabase/route.ts', import.meta.url));
     const content = fs.readFileSync(routePath, 'utf-8');
 
     assert.ok(
       content.includes('requireSuperAdmin') && content.includes('getAuthEmployee'),
-      'test-neon route should enforce authenticated super admin access'
+      'test-supabase route should enforce authenticated super admin access'
     );
   });
 

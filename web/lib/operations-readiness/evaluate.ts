@@ -96,11 +96,11 @@ export async function evaluateOperationsReadiness(): Promise<{
       case 2: {
         if (envSet('DATABASE_URL') && docExists('docs/DISASTER_RECOVERY_PLAN.md')) {
           push(def, 'partial', ['DATABASE_URL set', 'DR plan documented'], [
-            'Enable Neon PITR / scheduled backups in Neon console',
+            'Enable Supabase PITR / scheduled backups in Supabase dashboard',
             'Run quarterly restore drill',
           ]);
         } else {
-          push(def, 'missing', [], ['Enable Neon backups', 'Document restore procedure']);
+          push(def, 'missing', [], ['Enable Supabase backups', 'Document restore procedure']);
         }
         break;
       }
@@ -198,7 +198,7 @@ export async function evaluateOperationsReadiness(): Promise<{
       }
       case 14: {
         push(def, 'partial', ['Platform billing is external'], [
-          'Set spend alerts in Vercel, Neon, and Better Stack dashboards',
+          'Set spend alerts in Vercel, Supabase, and Better Stack dashboards',
         ]);
         break;
       }
@@ -222,10 +222,10 @@ export async function evaluateOperationsReadiness(): Promise<{
       case 18: {
         if (envSet('DATABASE_URL') && envSet('DIRECT_URL')) {
           push(def, 'partial', ['Pooled DATABASE_URL + DIRECT_URL for migrations'], [
-            'Confirm Neon plan HA / read replicas if required',
+            'Confirm Supabase plan HA / read replicas if required',
           ]);
         } else {
-          push(def, 'missing', [], ['Configure Neon connection strings']);
+          push(def, 'missing', [], ['Configure Supabase pooler and direct connection strings']);
         }
         break;
       }

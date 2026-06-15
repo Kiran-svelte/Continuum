@@ -1,8 +1,9 @@
 import { PrismaClient } from '@prisma/client';
+import { resolveDatabaseUrl } from './database-provider';
 
 const globalForPrisma = globalThis as unknown as { prisma: PrismaClient };
 
-const databaseUrl = process.env.DATABASE_URL?.trim();
+const databaseUrl = resolveDatabaseUrl();
 
 export const prisma = globalForPrisma.prisma || new PrismaClient({
   log: process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error'],
@@ -13,10 +14,11 @@ export const prisma = globalForPrisma.prisma || new PrismaClient({
   },
 });
 
-// Set connection timeout
-prisma.$connect().catch((err) => {
-  console.error('Prisma connection error:', err);
-});
+if (process.env.PRISMA_EAGER_CONNECT === '1') {
+  prisma.$connect().catch((err) => {
+    console.error('Prisma connection error:', err);
+  });
+}
 
 if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma;
 

@@ -7,7 +7,7 @@
 
 import { logger } from './logger';
 import { statfsSync } from 'node:fs';
-import { neonAuth } from '../neon-auth';
+import { checkSupabaseProjectHealth } from '../supabase-project';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -220,33 +220,6 @@ function checkMemoryUsage(): ComponentCheck {
   };
 }
 
-async function checkNeonAuth(): Promise<ComponentCheck> {
-  const start = Date.now();
-  try {
-    if (!neonAuth.isConfigured()) {
-      return {
-        status: 'degraded',
-        message: 'Neon Auth not configured',
-        latency: Date.now() - start,
-      };
-    }
-
-    const healthCheck = await neonAuth.healthCheck();
-    return {
-      status: healthCheck.healthy ? 'healthy' : 'degraded',
-      message: healthCheck.error || 'Neon Auth JWKS accessible',
-      latency: Date.now() - start,
-    };
-  } catch (err) {
-    const message = err instanceof Error ? err.message : 'Neon Auth check failed';
-    return {
-      status: 'degraded', // Not critical for app function
-      message: `Neon Auth issue: ${message}`,
-      latency: Date.now() - start,
-    };
-  }
-}
-
 // ─── Disk Usage Check ─────────────────────────────────────────────────────────
 
 function checkDiskUsage(): ComponentCheck {
@@ -268,13 +241,13 @@ function deriveOverallStatus(checks: Record<string, ComponentCheck>): HealthStat
 }
 
 export async function checkHealth(): Promise<HealthCheckResult> {
-  const [database, constraintEngine, vault, redis, email, neonAuth] = await Promise.all([
+  const [database, constraintEngine, vault, redis, email, supabase] = await Promise.all([
     checkDatabase(),
     checkConstraintEngine(),
     checkVault(),
     checkRedis(),
     checkEmailService(),
-    checkNeonAuth(),
+    checkSupabaseProjectHealth(),
   ]);
 
   const checks: Record<string, ComponentCheck> = {
@@ -283,7 +256,7 @@ export async function checkHealth(): Promise<HealthCheckResult> {
     vault,
     redis,
     email,
-    neonAuth,
+    supabase,
     memory: checkMemoryUsage(),
     disk: checkDiskUsage(),
   };

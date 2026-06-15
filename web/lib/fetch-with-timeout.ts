@@ -1,4 +1,4 @@
-/** Default timeout for API calls. Increased to handle Neon cold-start latency (up to 30s). */
+/** Default timeout for API calls. Allows hosted database and serverless cold-start latency. */
 export const DEFAULT_FETCH_TIMEOUT_MS = 45_000;
 
 /** Extended timeout for onboarding wizard steps that initialize DB defaults on first run. */

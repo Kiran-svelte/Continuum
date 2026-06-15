@@ -13,7 +13,9 @@
     "db:migrate:dev": "prisma migrate dev",
     "db:migrate:deploy": "prisma migrate deploy",
     "db:migrate:status": "prisma migrate status",
-    "db:migrate:reset": "prisma migrate reset"
+    "db:migrate:reset": "prisma migrate reset",
+    "db:migrate:supabase": "tsx scripts/migrate-postgres-to-supabase.ts",
+    "db:smoke:supabase": "tsx scripts/test-supabase-connection.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.1.0",

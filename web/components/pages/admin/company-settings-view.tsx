@@ -189,7 +189,7 @@ export default function CompanySettingsView() {
            System Settings 
            <span className="text-[10px] bg-[var(--success)]/10 text-[var(--success)] border border-[var(--success)]/20 px-2 py-0.5 rounded-full uppercase tracking-wider font-bold animate-pulse">DB Live</span>
         </h1>
-        <p className="text-body mt-2 max-w-2xl">Configure foundational policies, localized timezones, and enterprise access controls directly on the Neon Postgres Pipeline.</p>
+        <p className="text-body mt-2 max-w-2xl">Configure foundational policies, localized timezones, and enterprise access controls directly on the managed Postgres pipeline.</p>
       </header>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-8 items-start">
