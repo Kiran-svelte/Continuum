@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { findNavMiddlewareGaps } from '@/lib/navigation/middleware-nav-coverage';
-import { moduleSlugForPortalPath } from '@/lib/middleware-module-paths';
+import { isPortalPathAllowedByModules, moduleSlugForPortalPath } from '@/lib/middleware-module-paths';
 
 test('portal nav module hrefs are covered by middleware prefix rules', () => {
   const gaps = findNavMiddlewareGaps();
@@ -25,4 +25,12 @@ test('critical leave workflow paths resolve to leave module', () => {
   assert.equal(moduleSlugForPortalPath('/hr/policy-settings'), 'leave');
   assert.equal(moduleSlugForPortalPath('/hr/employees'), 'employees');
   assert.equal(moduleSlugForPortalPath('/manager/team'), 'employees');
+});
+
+test('employees module paths stay reachable when cookie omits employees slug', () => {
+  const enabled = new Set(['leave', 'attendance']);
+  assert.equal(isPortalPathAllowedByModules('/manager/team', enabled), true);
+  assert.equal(isPortalPathAllowedByModules('/manager/directory', enabled), true);
+  assert.equal(isPortalPathAllowedByModules('/manager/org-chart', enabled), true);
+  assert.equal(isPortalPathAllowedByModules('/manager/performance', enabled), false);
 });

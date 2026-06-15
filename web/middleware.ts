@@ -716,7 +716,8 @@ export async function middleware(request: NextRequest) {
         return NextResponse.redirect(stale);
       }
 
-      if (enabled.size > 0 && !enabled.has(moduleSlug)) {
+      // employees is mandatory core HR — always allow (matches portal-nav ALWAYS_VISIBLE + isModuleEnabled).
+      if (enabled.size > 0 && moduleSlug !== 'employees' && !enabled.has(moduleSlug)) {
         const disabled = request.nextUrl.clone();
         disabled.pathname = '/module-disabled';
         disabled.searchParams.set('module', moduleSlug);

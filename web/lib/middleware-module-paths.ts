@@ -141,6 +141,9 @@ export function isPortalPathAllowedByModules(
 ): boolean {
   const gate = portalPathModuleGate(pathname);
   if (gate.kind === 'none') return true;
-  if (gate.kind === 'single') return enabledModules.has(gate.slug);
-  return gate.slugs.some((slug) => enabledModules.has(slug));
+  if (gate.kind === 'single') {
+    if (gate.slug === 'employees') return true;
+    return enabledModules.has(gate.slug);
+  }
+  return gate.slugs.some((slug) => slug === 'employees' || enabledModules.has(slug));
 }

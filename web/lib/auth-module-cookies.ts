@@ -19,9 +19,12 @@ export function setModuleHintCookies(
   modulePayload: AuthModulePayload,
   companyOnboardingCompleted: boolean
 ): void {
+  const enabledModules = modulePayload.enabledModules.includes('employees')
+    ? modulePayload.enabledModules
+    : (['employees', ...modulePayload.enabledModules] as AuthModulePayload['enabledModules']);
   response.cookies.set(
     COOKIE_ENABLED_MODULES,
-    modulePayload.enabledModules.join(','),
+    enabledModules.join(','),
     cookieOpts
   );
   response.cookies.set(
