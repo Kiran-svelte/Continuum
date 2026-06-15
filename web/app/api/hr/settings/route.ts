@@ -115,7 +115,7 @@ export async function GET() {
     }
     const message =
       process.env.NODE_ENV === 'production' ? 'Internal server error' : String(error);
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
 
@@ -251,6 +251,6 @@ export async function PATCH(request: NextRequest) {
     }
     const message =
       process.env.NODE_ENV === 'production' ? 'Internal server error' : String(error);
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

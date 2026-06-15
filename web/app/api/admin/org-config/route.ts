@@ -117,7 +117,7 @@ export async function GET() {
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Internal error';
     console.error('[ORG CONFIG GET]', message);
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
 
@@ -232,6 +232,6 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Internal error';
     console.error('[ORG CONFIG POST]', message);
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

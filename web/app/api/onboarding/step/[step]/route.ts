@@ -15,6 +15,7 @@ import {
   formatValidationDetails,
   normalizeOnboardingStepPayload,
 } from '@/lib/onboarding-step-payload-normalizer';
+import { logOnboardingApiError, onboardingSafeErrorBody } from '@/lib/onboarding/api-errors';
 
 export const dynamic = 'force-dynamic';
 
@@ -59,8 +60,12 @@ export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ step: string }> }
 ) {
+  let employeeIdForLog: string | undefined;
+  let companyIdForLog: string | undefined;
+
   try {
     const employee = await getAuthEmployee();
+    employeeIdForLog = employee.id;
     requirePermissionGuard(employee, 'employee.onboard');
 
     const rateLimit = checkApiRateLimit(employee.id, 'general');
@@ -72,6 +77,7 @@ export async function GET(
     }
 
     const companyId = employee.org_id;
+    companyIdForLog = companyId ?? undefined;
     if (!companyId) {
       return NextResponse.json({ error: 'Company not found for user' }, { status: 400 });
     }
@@ -124,8 +130,14 @@ export async function GET(
     if (error instanceof AuthError) {
       return NextResponse.json({ error: error.message }, { status: error.status });
     }
-    const message = error instanceof Error ? error.message : 'Failed to fetch onboarding step';
-    return NextResponse.json({ error: message }, { status: 500 });
+    logOnboardingApiError('step:get', error, {
+      companyId: companyIdForLog,
+      userId: employeeIdForLog,
+    });
+    return NextResponse.json(
+      onboardingSafeErrorBody('ONBOARDING_STEP_LOAD_FAILED'),
+      { status: 500 }
+    );
   }
 }
 
@@ -133,8 +145,12 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ step: string }> }
 ) {
+  let employeeIdForLog: string | undefined;
+  let companyIdForLog: string | undefined;
+
   try {
     const employee = await getAuthEmployee();
+    employeeIdForLog = employee.id;
     requirePermissionGuard(employee, 'employee.onboard');
 
     const rateLimit = checkApiRateLimit(employee.id, 'general');
@@ -146,6 +162,7 @@ export async function POST(
     }
 
     const companyId = employee.org_id;
+    companyIdForLog = companyId ?? undefined;
     if (!companyId) {
       return NextResponse.json({ error: 'Company not found for user' }, { status: 400 });
     }
@@ -275,7 +292,13 @@ export async function POST(
     if (error instanceof AuthError) {
       return NextResponse.json({ error: error.message }, { status: error.status });
     }
-    const message = error instanceof Error ? error.message : 'Failed to save onboarding step';
-    return NextResponse.json({ error: message }, { status: 500 });
+    logOnboardingApiError('step:post', error, {
+      companyId: companyIdForLog,
+      userId: employeeIdForLog,
+    });
+    return NextResponse.json(
+      onboardingSafeErrorBody('ONBOARDING_STEP_SAVE_FAILED'),
+      { status: 500 }
+    );
   }
 }

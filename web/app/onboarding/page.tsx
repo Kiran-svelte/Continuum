@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { StaggerContainer, FadeIn, TiltCard } from '@/components/motion';
 import { GlassPanel } from '@/components/glass-panel';
 import { createCompanyAndEmployee, joinCompanyAsEmployee } from '@/app/actions/auth';
+import { fetchWithTimeout, ONBOARDING_FETCH_TIMEOUT_MS } from '@/lib/fetch-with-timeout';
 import { resolvePostSignInPath } from '@/lib/post-sign-in-routing';
 import { LEAVE_TYPE_CATALOG } from '@/lib/leave-types-config';
 import { TOTAL_ONBOARDING_STEPS } from '@/lib/onboarding-step-contract';
@@ -50,6 +51,45 @@ const inputClass =
   'w-full bg-white/5 border border-white/10 text-white rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-primary/40 focus:border-primary/50 focus:outline-none placeholder:text-white/30';
 
 const labelClass = 'block text-sm font-medium text-white/90 mb-1';
+
+const ONBOARDING_COMPLETE_FALLBACK_ERROR =
+  'We could not finish setup right now. Your progress is saved. Please retry in a moment.';
+
+function parseJsonPayload(payload: unknown): Record<string, unknown> | null {
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+    return null;
+  }
+  return payload as Record<string, unknown>;
+}
+
+function looksLikeInternalError(message: string): boolean {
+  const normalized = message.toLowerCase();
+  return [
+    'prisma',
+    'transaction api error',
+    'invalid `',
+    'database',
+    'sql',
+    'stack',
+    'p20',
+    'p10',
+  ].some((needle) => normalized.includes(needle));
+}
+
+function getOnboardingApiErrorMessage(payload: unknown): string {
+  const body = parseJsonPayload(payload);
+  const rawError = body?.error;
+  const message =
+    typeof rawError === 'string'
+      ? rawError
+      : parseJsonPayload(rawError)?.message;
+
+  if (typeof message === 'string' && message.trim() && !looksLikeInternalError(message)) {
+    return message;
+  }
+
+  return ONBOARDING_COMPLETE_FALLBACK_ERROR;
+}
 
 // ─── Step data types ────────────────────────────────────────────────────────
 
@@ -1259,16 +1299,16 @@ function OnboardingPageInner() {
           half_day_hours: companyData.halfDayHours,
         };
 
-        const res = await fetch('/api/onboarding/complete', {
+        const res = await fetchWithTimeout('/api/onboarding/complete', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),
           credentials: 'include',
-        });
+        }, ONBOARDING_FETCH_TIMEOUT_MS);
 
-        const json = await res.json();
+        const json = await res.json().catch(() => null);
         if (!res.ok) {
-          setError(json.error ?? 'Failed to save onboarding data');
+          setError(getOnboardingApiErrorMessage(json));
           setSaving(false);
           return;
         }
@@ -1283,7 +1323,7 @@ function OnboardingPageInner() {
       setCurrentStep((s) => s + 1);
     } catch (err) {
       console.error('[Onboarding] handleNext error:', err);
-      setError(err instanceof Error ? err.message : 'An unexpected error occurred. Please try again.');
+      setError(ONBOARDING_COMPLETE_FALLBACK_ERROR);
     } finally {
       setSaving(false);
     }

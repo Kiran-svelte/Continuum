@@ -22,6 +22,8 @@ const testsRoot = resolve(process.cwd(), 'tests');
 const tsxCli = resolve(process.cwd(), 'node_modules', 'tsx', 'dist', 'cli.mjs');
 const PREFLIGHT_MANIFEST = [
   'tests/onboarding-step-contract-sync.test.ts',
+  'tests/onboarding-complete-production-hardening.test.ts',
+  'tests/api-safe-500-responses.test.ts',
   'tests/onboarding-finalize-flag.test.ts',
   'tests/onboarding-gate-matrix.test.ts',
   'tests/module-gating.test.ts',

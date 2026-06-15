@@ -2,12 +2,16 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAuthEmployee, AuthError, requirePermissionGuard} from '@/lib/auth-guard';
 import { checkApiRateLimit, getRateLimitHeaders } from '@/lib/api-rate-limit';
 import { buildPersonalizedOnboardingDefaults } from '@/lib/onboarding-defaults';
+import { logOnboardingApiError, onboardingSafeErrorBody } from '@/lib/onboarding/api-errors';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
+  let employeeIdForLog: string | undefined;
+
   try {
     const employee = await getAuthEmployee();
+    employeeIdForLog = employee.id;
     requirePermissionGuard(employee, 'employee.onboard');
 
     const rateLimit = checkApiRateLimit(employee.id, 'general');
@@ -44,7 +48,10 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: error.status });
     }
 
-    const message = error instanceof Error ? error.message : 'Failed to generate defaults';
-    return NextResponse.json({ error: message }, { status: 500 });
+    logOnboardingApiError('defaults', error, { userId: employeeIdForLog });
+    return NextResponse.json(
+      onboardingSafeErrorBody('ONBOARDING_DEFAULTS_FAILED'),
+      { status: 500 }
+    );
   }
 }

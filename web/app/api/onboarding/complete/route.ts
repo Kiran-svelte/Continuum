@@ -10,8 +10,24 @@ import { generateConstraintRules } from '@/lib/constraint-rules-config';
 import type { LeaveTypeConfig } from '@/lib/leave-types-config';
 import { DEFAULT_NOTIFICATION_TEMPLATES } from '@/lib/notification-templates-config';
 import { sendWelcomeEmail } from '@/lib/email-service';
+import { logger } from '@/lib/logger';
+import {
+  ONBOARDING_COMPLETE_RETRY_MESSAGE,
+  logOnboardingApiError,
+  onboardingSafeErrorBody,
+} from '@/lib/onboarding/api-errors';
 
 export const dynamic = 'force-dynamic';
+
+const ONBOARDING_TRANSACTION_OPTIONS = {
+  maxWait: 15_000,
+  timeout: 90_000,
+} as const;
+
+const ONBOARDING_COMPLETE_ERROR_RESPONSE = {
+  ...onboardingSafeErrorBody('ONBOARDING_COMPLETE_FAILED', ONBOARDING_COMPLETE_RETRY_MESSAGE),
+  code: 'ONBOARDING_COMPLETE_FAILED',
+};
 
 const leaveTypeSchema = z.object({
   code: z.string().min(1).max(20),
@@ -67,6 +83,29 @@ const onboardingSchema = z.object({
   half_day_hours: z.number().min(1).max(12).optional(),
 });
 
+async function seedDefaultNotificationTemplates(companyId: string): Promise<void> {
+  const existingTemplate = await prisma.notificationTemplate.findFirst({
+    where: { company_id: companyId },
+    select: { id: true },
+  });
+
+  if (existingTemplate) {
+    return;
+  }
+
+  await prisma.notificationTemplate.createMany({
+    data: DEFAULT_NOTIFICATION_TEMPLATES.map((t) => ({
+      company_id: companyId,
+      event: t.event,
+      channel: t.channel as 'email' | 'push' | 'in_app',
+      subject: t.subject,
+      body: t.body,
+      is_active: true,
+    })),
+    skipDuplicates: true,
+  });
+}
+
 /**
  * POST /api/onboarding/complete
  *
@@ -80,8 +119,12 @@ const onboardingSchema = z.object({
  * Only callable by the company `admin` role.
  */
 export async function POST(request: NextRequest) {
+  let employeeIdForLog: string | undefined;
+  let companyIdForLog: string | undefined;
+
   try {
     const employee = await getAuthEmployee();
+    employeeIdForLog = employee.id;
 
     const rateLimit = checkApiRateLimit(employee.id, 'general');
     if (!rateLimit.allowed) {
@@ -105,6 +148,7 @@ export async function POST(request: NextRequest) {
 
     const data = parsed.data;
     const companyId = employee.org_id!;
+    companyIdForLog = companyId;
 
     await prisma.$transaction(async (tx) => {
       // 1. Update company fields if provided
@@ -244,26 +288,6 @@ export async function POST(request: NextRequest) {
         });
       }
 
-      // 4b. Seed default notification templates (skip if already seeded).
-      //     Templates can be customised via the HR notification-templates page.
-      const existingTemplateCount = await tx.notificationTemplate.count({
-        where: { company_id: companyId },
-      });
-
-      if (existingTemplateCount === 0) {
-        await tx.notificationTemplate.createMany({
-          data: DEFAULT_NOTIFICATION_TEMPLATES.map((t) => ({
-            company_id: companyId,
-            event: t.event,
-            channel: t.channel as 'email' | 'push' | 'in_app',
-            subject: t.subject,
-            body: t.body,
-            is_active: true,
-          })),
-          skipDuplicates: true,
-        });
-      }
-
       // 5. Generate and save constraint rules based on selected leave types + config
       const allActiveLeaveTypes = await tx.leaveType.findMany({
         where: { company_id: companyId, is_active: true, deleted_at: null },
@@ -378,6 +402,16 @@ export async function POST(request: NextRequest) {
         where: { id: employee.id },
         data: { status: 'active' },
       });
+    }, ONBOARDING_TRANSACTION_OPTIONS);
+
+    // Non-critical post-completion setup must not block or roll back onboarding.
+    // Notification preferences still function if template seeding is retried later.
+    void seedDefaultNotificationTemplates(companyId).catch((err) => {
+      logger.warn('Default notification template seed failed after onboarding completion', {
+        companyId,
+        userId: employee.id,
+        error: err instanceof Error ? err.message : String(err),
+      });
     });
 
     // Fetch join_code and company name to return to the client
@@ -408,7 +442,12 @@ export async function POST(request: NextRequest) {
     if (error instanceof AuthError) {
       return NextResponse.json({ error: error.message }, { status: error.status });
     }
-    const message = error instanceof Error ? error.message : 'Onboarding save failed';
-    return NextResponse.json({ error: message }, { status: 500 });
+
+    logOnboardingApiError('complete', error, {
+      companyId: companyIdForLog,
+      userId: employeeIdForLog,
+    });
+
+    return NextResponse.json(ONBOARDING_COMPLETE_ERROR_RESPONSE, { status: 500 });
   }
 }

@@ -7,6 +7,11 @@ import { sendWelcomeEmail } from '@/lib/email-service';
 import { completeOnboardingState } from '@/lib/onboarding/server';
 import { resolveCompanyEmailNotificationSettings, shouldSendCompanyEmail } from '@/lib/company-email-notifications';
 import { hydrateAuthResponseCookies } from '@/lib/auth-state-cookies';
+import {
+  ONBOARDING_COMPLETE_RETRY_MESSAGE,
+  logOnboardingApiError,
+  onboardingSafeErrorBody,
+} from '@/lib/onboarding/api-errors';
 
 export const dynamic = 'force-dynamic';
 
@@ -17,8 +22,12 @@ export const dynamic = 'force-dynamic';
  * It avoids compiling/executing the full onboarding configuration pipeline.
  */
 export async function POST() {
+  let employeeIdForLog: string | undefined;
+  let companyIdForLog: string | undefined;
+
   try {
     const employee = await getAuthEmployee();
+    employeeIdForLog = employee.id;
     requireCompanyContext(employee);
 
     const rateLimit = checkApiRateLimit(employee.id, 'general');
@@ -32,6 +41,7 @@ export async function POST() {
     requirePermissionGuard(employee, 'employee.onboard');
 
     const companyId = employee.org_id;
+    companyIdForLog = companyId;
     const companySnapshot = await prismaDirect.company.findUnique({
       where: { id: companyId },
       select: { name: true },
@@ -120,7 +130,14 @@ export async function POST() {
       return NextResponse.json({ error: error.message }, { status: error.status });
     }
 
-    const message = error instanceof Error ? error.message : 'Onboarding finalize failed';
-    return NextResponse.json({ error: message }, { status: 500 });
+    logOnboardingApiError('finalize', error, {
+      companyId: companyIdForLog,
+      userId: employeeIdForLog,
+    });
+
+    return NextResponse.json(
+      onboardingSafeErrorBody('ONBOARDING_FINALIZE_FAILED', ONBOARDING_COMPLETE_RETRY_MESSAGE),
+      { status: 500 }
+    );
   }
 }
