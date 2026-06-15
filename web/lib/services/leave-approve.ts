@@ -161,6 +161,8 @@ async function executeApproveLeave(
         where: { id: requestId, status: currentRequest.status },
         data: {
           status: newStatus,
+          current_approver_id:
+            action === 'reject' || isFinalApproval ? null : sequentialCheck.nextApproverId,
           approved_by: ctx.employeeId,
           approved_at: now,
           approver_comments: sanitizedReason,

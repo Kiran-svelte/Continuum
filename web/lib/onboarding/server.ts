@@ -51,7 +51,7 @@ export async function completeOnboardingState(
 ): Promise<boolean> {
   const completion = await tx.company.updateMany({
     where: { id: companyId, onboarding_completed: false },
-    data: { onboarding_completed: true },
+    data: { onboarding_completed: true, onboarding_step: 13 },
   });
 
   await tx.employee.update({

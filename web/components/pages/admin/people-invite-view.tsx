@@ -160,6 +160,7 @@ export default function PeopleInviteView() {
           email: email.trim(),
           firstName: firstName.trim(),
           lastName: lastName.trim(),
+          phone: phone.trim() || undefined,
           role,
           departmentId: department.trim() || undefined,
           managerId: managerId || undefined,

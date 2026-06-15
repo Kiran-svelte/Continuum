@@ -46,12 +46,11 @@ export async function getTodayAttendanceService(
   try {
     const today = buildTodayStart();
 
-    const record = await prisma.attendance.findUnique({
+    const record = await prisma.attendance.findFirst({
       where: {
-        emp_id_date: {
-          emp_id: ctx.employeeId,
-          date: today,
-        },
+        emp_id: ctx.employeeId,
+        company_id: ctx.orgId,
+        date: today,
       },
       select: {
         date: true,

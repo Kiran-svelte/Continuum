@@ -253,8 +253,8 @@ export async function checkSequentialApproval(
 export async function recordApprovalStep(
   requestId: string,
   entry: ApprovalTrailEntry,
-  _isFinalApproval: boolean,
-  _nextApproverId: string | null
+  isFinalApproval: boolean,
+  nextApproverId: string | null
 ): Promise<void> {
   const request = await prisma.leaveRequest.findUnique({
     where: { id: requestId },
@@ -272,6 +272,8 @@ export async function recordApprovalStep(
         approval_level: entry.level,
         approval_trail: existingTrail,
       }),
+      approval_level: entry.level,
+      current_approver_id: isFinalApproval ? null : nextApproverId,
       updated_at: new Date(),
     },
   });

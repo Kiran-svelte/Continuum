@@ -49,6 +49,15 @@
 2. Verify `https://continuum.support/api/health` returns `healthy`.
 3. Run smoke: sign-in, HR dashboard, one API write.
 
+## 4.1 Channel table recovery
+
+Zero UI channel state is stored in PostgreSQL and must be recovered with the rest of the tenant database. During a restore, explicitly verify `ChannelIdentityLink`, `ChannelVerificationChallenge`, `WhatsAppTenantConfig`, `IdempotencyRecord`, `AssistantConversation`, `AssistantMessageRecord`, and `ChannelBlocklist` before re-enabling channel traffic.
+
+1. Restore Neon to the target point-in-time branch.
+2. Run `npx prisma migrate deploy` against the recovery branch.
+3. Check active `ChannelIdentityLink` rows for revoked phone links before reopening WhatsApp.
+4. Keep WhatsApp disabled until webhook signature, template, inbound, and outbound smoke evidence is refreshed.
+
 ## 5. Communication
 
 1. Update public **/status** (incidents section auto-shows unhealthy checks).

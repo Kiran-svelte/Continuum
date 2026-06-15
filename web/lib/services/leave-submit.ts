@@ -417,6 +417,10 @@ async function executeSubmitLeave(
           is_half_day: data.is_half_day,
           reason,
           status: requestStatus,
+          current_approver_id:
+            requestStatus === 'pending' || requestStatus === 'escalated'
+              ? approverRouting.approverId
+              : null,
           attachment_url: data.attachment_url ?? null,
           sla_deadline: requestStatus === 'pending' || requestStatus === 'escalated' ? slaDeadline : null,
           approved_at: requestStatus === 'approved' ? new Date() : undefined,

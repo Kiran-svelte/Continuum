@@ -99,7 +99,7 @@ export default function AcceptInvitePage() {
       // Redirect based on whether company setup is needed
       setTimeout(() => {
         if (data.needsCompanySetup) {
-          router.push('/onboarding/company');
+          router.push('/onboarding');
         } else {
           router.push('/employee/dashboard');
         }

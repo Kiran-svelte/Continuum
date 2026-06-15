@@ -8,13 +8,13 @@ import { TOTAL_ONBOARDING_STEPS } from '../lib/onboarding-step-contract';
  * G2 — onboarding step constant sync between contract and UI wizard.
  */
 test('onboarding TOTAL_STEPS matches TOTAL_ONBOARDING_STEPS contract (G2)', () => {
-  const viewSource = readFileSync(
-    resolve(process.cwd(), 'components/pages/onboarding/onboarding-view.tsx'),
+  const pageSource = readFileSync(
+    resolve(process.cwd(), 'app/onboarding/page.tsx'),
     'utf8'
   );
-  const match = viewSource.match(/const TOTAL_STEPS = (\d+)/);
-  assert.ok(match, 'TOTAL_STEPS constant must exist in onboarding-view.tsx');
-  assert.equal(Number(match[1]), TOTAL_ONBOARDING_STEPS);
+  assert.ok(pageSource.includes('const TOTAL_STEPS = TOTAL_ONBOARDING_STEPS'));
+  assert.ok(pageSource.includes('id: 13'));
+  assert.ok(pageSource.includes('case 12:'));
   assert.equal(TOTAL_ONBOARDING_STEPS, 13);
 });
 

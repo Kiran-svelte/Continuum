@@ -128,6 +128,27 @@
 
 ---
 
+## Zero UI Extreme (post pre-flight) — Master spec
+
+**Canonical vision:** [`../docs/zero_ui.md`](../docs/zero_ui.md)  
+**Traceability:** [`l5/09-zero-ui-extreme-traceability.md`](./l5/09-zero-ui-extreme-traceability.md)  
+**Target:** 164 chat-addressable operations across CF-001..CF-015; proactive + autonomous modes.
+
+| Phase | Chunk | Gate | Ops cumulative | Est. days |
+|-------|-------|------|----------------|-----------|
+| P1 | [09](./09-zero-ui-v2-orchestrator-complete.md) | ZUX-G1 | 40 | 12–15 |
+| P2 | [10](./10-zero-ui-proactive-whatsapp.md) | ZUX-G2 | 55 | 10–12 |
+| P3 | [11](./11-zero-ui-leave-attendance-extreme.md) | ZUX-G3 | 75 | 15–18 |
+| P4 | [12](./12-zero-ui-payroll-expenses-extreme.md) | ZUX-G4 | 95 | 15–18 |
+| P5 | [13](./13-zero-ui-people-directory-extreme.md) | ZUX-G5 | 115 | 12–15 |
+| P6 | [14](./14-zero-ui-talent-modules-extreme.md) | ZUX-G6 | 140 | 15–20 |
+| P7 | [15](./15-zero-ui-exit-compliance-analytics-extreme.md) | ZUX-G7 | 155 | 12–15 |
+| P8 | [16](./16-zero-ui-autonomy-enterprise-gates.md) | ZUX-G8 (GA) | 164+ | 15–20 |
+
+**Depends on:** Chunks 01–08 complete (G1–G6 PASS) + Chunk 05 WhatsApp live before P2 E2E.
+
+---
+
 ## Execution sprints
 
 | Sprint | Chunks | Deliverable |
@@ -140,6 +161,10 @@
 | 6 | 04 + 07 | Assistant v1 + phone profile UI |
 | 7 | 08 | Tests, runbooks, sign-off |
 | 8+ | 05 | WhatsApp (post gates) |
+| 9 | 09 | Orchestrator A1–A10 + server drafts |
+| 10 | 10 | Proactive WhatsApp |
+| 11–14 | 11–14 | Module extreme (leave → talent) |
+| 15–16 | 15–16 | Compliance + autonomy GA |
 
 ---
 
@@ -154,13 +179,22 @@ chunk_05: blocked_until_gates
 chunk_06: not_started
 chunk_07: not_started
 chunk_08: not_started
-last_updated: 2026-06-13
+chunk_09_zero_ui_v2: not_started
+chunk_10_zero_ui_proactive: not_started
+chunk_11_zero_ui_leave_attendance: not_started
+chunk_12_zero_ui_payroll_expenses: not_started
+chunk_13_zero_ui_people: not_started
+chunk_14_zero_ui_talent: not_started
+chunk_15_zero_ui_compliance: not_started
+chunk_16_zero_ui_enterprise_ga: not_started
+last_updated: 2026-06-15
 ```
 
 ---
 
 ## Governance cross-links
 
+- [`docs/zero_ui.md`](../docs/zero_ui.md) — Zero UI Extreme master specification (164 ops, architecture, GA gates)
 - `AGENTS.md` — `web/` authoritative; token-first UI; no mock prod data
 - `docs/specs/00-master-blueprint.md` — 15 truth statements (web north star)
 - `web/docs/CONTINUUM_GUIDE_ACTIONS.md` — current in-app assistant (superseded by `ZERO_UI_V1_ACTIONS.md` after Chunk 04)
