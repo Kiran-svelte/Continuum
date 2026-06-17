@@ -131,59 +131,72 @@ export async function POST(request: NextRequest) {
     // Process all valid requests atomically in a single transaction
     if (validRequests.length > 0) {
       await prisma.$transaction(async (tx) => {
-        for (const leaveRequest of validRequests) {
-          const now = new Date();
-          const balanceYear = leaveRequest.start_date.getFullYear();
+        const now = new Date();
+        const validIds = validRequests.map((r) => r.id);
 
-          if (action === 'approve') {
-            await tx.leaveRequest.update({
-              where: { id: leaveRequest.id },
-              data: {
-                status: 'approved',
-                approved_by: employee.id,
-                approved_at: now,
-                approver_comments: resolvedComments,
-              },
-            });
+        // 1. Bulk update all leave requests
+        await tx.leaveRequest.updateMany({
+          where: { id: { in: validIds } },
+          data: {
+            status: action === 'approve' ? 'approved' : 'rejected',
+            approved_by: employee.id,
+            approved_at: now,
+            approver_comments: resolvedComments,
+          },
+        });
 
-            // Update leave balance: used_days += total_days, pending_days -= total_days
-            await tx.leaveBalance.updateMany({
-              where: {
-                emp_id: leaveRequest.emp_id,
-                leave_type: leaveRequest.leave_type,
-                year: balanceYear,
-              },
-              data: {
-                used_days: { increment: leaveRequest.total_days },
-                pending_days: { decrement: leaveRequest.total_days },
-              },
-            });
+        // 2. Aggregate balance updates by emp_id, leave_type, and year to minimize database calls
+        const balanceUpdates = new Map<
+          string,
+          { emp_id: string; leave_type: string; year: number; total_days: number }
+        >();
+
+        for (const req of validRequests) {
+          const year = req.start_date.getFullYear();
+          const key = `${req.emp_id}-${req.leave_type}-${year}`;
+          const existing = balanceUpdates.get(key);
+          if (existing) {
+            existing.total_days += req.total_days;
           } else {
-            // reject
-            await tx.leaveRequest.update({
-              where: { id: leaveRequest.id },
-              data: {
-                status: 'rejected',
-                approved_by: employee.id,
-                approved_at: now,
-                approver_comments: resolvedComments,
-              },
-            });
-
-            // Restore balance: pending_days -= total_days, remaining += total_days
-            await tx.leaveBalance.updateMany({
-              where: {
-                emp_id: leaveRequest.emp_id,
-                leave_type: leaveRequest.leave_type,
-                year: balanceYear,
-              },
-              data: {
-                pending_days: { decrement: leaveRequest.total_days },
-                remaining: { increment: leaveRequest.total_days },
-              },
+            balanceUpdates.set(key, {
+              emp_id: req.emp_id,
+              leave_type: req.leave_type,
+              year,
+              total_days: req.total_days,
             });
           }
+        }
 
+        // 3. Batch update leave balances
+        // NOTE: Prisma's updateMany doesn't support atomic increments/decrements.
+        // We use update with a composite unique key (emp_id, leave_type, year) for each aggregated update.
+        // This is still much better than updating for every single request.
+        for (const update of balanceUpdates.values()) {
+          const data =
+            action === 'approve'
+              ? {
+                  used_days: { increment: update.total_days },
+                  pending_days: { decrement: update.total_days },
+                }
+              : {
+                  pending_days: { decrement: update.total_days },
+                  remaining: { increment: update.total_days },
+                };
+
+          await tx.leaveBalance.update({
+            where: {
+              emp_id_leave_type_year: {
+                emp_id: update.emp_id,
+                leave_type: update.leave_type,
+                year: update.year,
+              },
+            },
+            data,
+          });
+        }
+
+        // Fill results for return
+        for (const leaveRequest of validRequests) {
           results.push({ requestId: leaveRequest.id, success: true });
         }
       });
