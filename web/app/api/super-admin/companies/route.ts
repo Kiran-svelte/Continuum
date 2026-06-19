@@ -4,7 +4,12 @@ import { getCurrentUser } from '@/lib/auth-service';
 import { hashPassword } from '@/lib/password-service';
 import { validatePassword } from '@/lib/password-validation';
 import { buildAppUrl } from '@/lib/url-origin';
-import { createAuditLog } from '@/lib/audit';
+import {
+  auditSuperAdminMetadata,
+  resolveAuditActorId,
+  safeCreateAuditLog,
+} from '@/lib/audit';
+import { resolveEmployeeInvitedBy } from '@/lib/user-invite-inviter';
 import { assertValidCompanyTimezone } from '@/lib/api-guards';
 import { TOTAL_ONBOARDING_STEPS } from '@/lib/onboarding-step-contract';
 import type { Prisma, Role } from '@prisma/client';
@@ -102,6 +107,11 @@ export async function POST(request: NextRequest) {
 
     const passwordHash = await hashPassword(ownerPassword);
     const joinCode = generateJoinCode();
+    const invitedBy = await resolveEmployeeInvitedBy({
+      id: currentUser.id,
+      email: currentUser.email,
+      role: currentUser.role,
+    });
 
     // Transaction: Create company, owner, and initialize settings
     const result = await prisma.$transaction(async (tx) => {
@@ -132,8 +142,8 @@ export async function POST(request: NextRequest) {
           primary_role: ownerRole as Role,
           password_hash: passwordHash,
           status: 'onboarding',
-          invited_by_id: currentUser.id,
-          invited_by_type: 'super_admin',
+          invited_by_id: invitedBy.invited_by_id,
+          invited_by_type: invitedBy.invited_by_type,
           updated_at: new Date(),
         },
       });
@@ -162,9 +172,9 @@ export async function POST(request: NextRequest) {
     });
 
     // Audit log - outside transaction for proper hash chain integrity
-    await createAuditLog({
+    await safeCreateAuditLog({
       companyId: result.company.id,
-      actorId: currentUser.id,
+      actorId: resolveAuditActorId(currentUser),
       action: 'company_created',
       entityType: 'company',
       entityId: result.company.id,
@@ -172,6 +182,7 @@ export async function POST(request: NextRequest) {
         company_name: companyName,
         owner_email: ownerEmail,
         created_by: 'super_admin',
+        ...auditSuperAdminMetadata(currentUser),
       },
       ipAddress: request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip'),
       userAgent: request.headers.get('user-agent'),
@@ -233,6 +244,8 @@ export async function GET(request: NextRequest) {
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '20');
     const search = searchParams.get('search') || '';
+    // Server-side status filter: pending | in_progress | completed
+    const statusFilter = searchParams.get('status') || '';
 
     const skip = (page - 1) * limit;
 
@@ -245,6 +258,17 @@ export async function GET(request: NextRequest) {
       where.OR = [
         { name: { contains: search, mode: 'insensitive' } },
       ];
+    }
+
+    // Apply onboarding status filter server-side to ensure correct pagination totals.
+    if (statusFilter === 'pending') {
+      where.onboarding_step = 0;
+      where.onboarding_completed = false;
+    } else if (statusFilter === 'in_progress') {
+      where.onboarding_step = { gt: 0, lt: TOTAL_ONBOARDING_STEPS };
+      where.onboarding_completed = false;
+    } else if (statusFilter === 'completed') {
+      where.onboarding_completed = true;
     }
 
     // Fetch companies with employee count

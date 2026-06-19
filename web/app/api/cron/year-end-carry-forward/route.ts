@@ -36,9 +36,9 @@ export async function GET(request: NextRequest) {
     const processYear = now.getMonth() === 0 ? currentYear - 1 : currentYear; // previous year if run in Jan
     const newYear = processYear + 1;
 
-    // Fetch all companies with their active leave types so we know carry-forward caps
+    // Fetch all active (non-deleted) companies with their active leave types.
     const companies = await prisma.company.findMany({
-      where: { onboarding_completed: true },
+      where: { onboarding_completed: true, deleted_at: null },
       select: {
         id: true,
         leave_types: {
@@ -197,10 +197,11 @@ export async function GET(request: NextRequest) {
       errors: errors.length > 0 ? errors : undefined,
     });
   } catch (error) {
-    const message =
-      process.env.NODE_ENV === 'production'
-        ? 'Internal server error'
-        : `Year-end carry-forward failed: ${error instanceof Error ? error.message : String(error)}`;
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error('[CRON year-end-carry-forward] Fatal error:', errorMessage, error);
+    return NextResponse.json(
+      { error: 'Internal server error', ...(process.env.NODE_ENV !== 'production' && { detail: errorMessage }) },
+      { status: 500 }
+    );
   }
 }

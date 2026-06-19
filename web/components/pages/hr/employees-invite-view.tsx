@@ -13,7 +13,6 @@ import {
   Send,
   CheckCircle,
   Copy,
-  Upload,
   FileSpreadsheet,
   AlertCircle,
   Loader2,
@@ -105,6 +104,7 @@ export default function EmployeesInviteView() {
   const [mode, setMode] = useState<'single' | 'bulk'>('single');
   const [accountMode, setAccountMode] = useState<'invite' | 'direct'>('invite');
   const [bulkAccountMode, setBulkAccountMode] = useState<'invite' | 'direct'>('invite');
+  const [bulkManagerId, setBulkManagerId] = useState('');
   const [formData, setFormData] = useState<InviteFormData>(EMPTY_FORM);
   const [bulkData, setBulkData] = useState('');
   const [loading, setLoading] = useState(false);
@@ -154,7 +154,9 @@ export default function EmployeesInviteView() {
 
   async function fetchPendingInvites() {
     try {
-      const res = await fetchWithTimeout('/api/company/invite-user?status=pending', undefined, REQUEST_TIMEOUT_MS);
+      // GET /api/hr/invites is the correct endpoint for listing pending invites.
+      // /api/company/invite-user only exports POST — calling GET on it returns 405.
+      const res = await fetchWithTimeout('/api/hr/invites', undefined, REQUEST_TIMEOUT_MS);
       if (!res.ok) return;
       const data = await res.json().catch(() => ({}));
       setPendingInvites(data.invites || []);
@@ -291,6 +293,8 @@ export default function EmployeesInviteView() {
             lastName,
             role,
             department,
+            // Manager is set from the bulk-level dropdown, not per-row CSV.
+            managerId: bulkManagerId || undefined,
           };
         } else {
           const [username, email, firstName, lastName, role = 'employee', department = '', password] = values;
@@ -314,6 +318,8 @@ export default function EmployeesInviteView() {
             lastName,
             role,
             department,
+            // Manager is set from the bulk-level dropdown, not per-row CSV.
+            managerId: bulkManagerId || undefined,
           };
         }
 
@@ -745,7 +751,27 @@ export default function EmployeesInviteView() {
               </>
             )}
           </div>
-          
+          {/* Bulk default manager dropdown */}
+          <div className="mb-4">
+            <label className="input-label">Default Reporting Manager</label>
+            <Select
+              title="Default Reporting Manager"
+              value={bulkManagerId}
+              onChange={(e) => setBulkManagerId(e.target.value)}
+              className="input"
+            >
+              <option value="">No manager (direct to HR)</option>
+              {managers.map(manager => (
+                <option key={manager.id} value={manager.id}>
+                  {manager.first_name} {manager.last_name} ({manager.email})
+                </option>
+              ))}
+            </Select>
+            <p className="text-xs text-muted mt-1">
+              Applied to every row in this batch. Individual overrides are not supported in bulk mode.
+            </p>
+          </div>
+
           <Textarea
             value={bulkData}
             onChange={(e) => setBulkData(e.target.value)}
@@ -758,11 +784,7 @@ export default function EmployeesInviteView() {
             className="input font-mono text-sm"
           />
 
-          <div className="mt-6 flex justify-between items-center">
-            <Button className="btn-secondary inline-flex items-center gap-2">
-              <Upload className="h-4 w-4" />
-              Upload CSV
-            </Button>
+          <div className="mt-6 flex justify-end">
             <Button
               onClick={handleBulkInvite}
               disabled={loading}

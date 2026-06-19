@@ -37,10 +37,6 @@ export async function validateReportingManager(
     };
   }
 
-  if (!managerId) {
-    return { ok: true, managerId: null };
-  }
-
   const manager = await prisma.employee.findFirst({
     where: {
       id: managerId,

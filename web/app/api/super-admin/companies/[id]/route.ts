@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { getCurrentUser } from '@/lib/auth-service';
-import { createAuditLog } from '@/lib/audit';
+import {
+  auditSuperAdminMetadata,
+  resolveAuditActorId,
+  safeCreateAuditLog,
+} from '@/lib/audit';
 import { assertValidCompanyTimezone } from '@/lib/api-guards';
 import { TOTAL_ONBOARDING_STEPS } from '@/lib/onboarding-step-contract';
 
@@ -237,13 +241,13 @@ export async function PATCH(
     });
 
     // Audit log
-    await createAuditLog({
+    await safeCreateAuditLog({
       companyId,
-      actorId: currentUser.id,
+      actorId: resolveAuditActorId(currentUser),
       action: 'company_updated',
       entityType: 'company',
       entityId: companyId,
-      newState: body,
+      newState: { ...body, ...auditSuperAdminMetadata(currentUser) },
       ipAddress: request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip'),
       userAgent: request.headers.get('user-agent'),
     });
@@ -266,8 +270,10 @@ export async function PATCH(
 
 /**
  * DELETE /api/super-admin/companies/[id]
- * 
- * Soft delete a company.
+ *
+ * Soft-deletes a company by setting deleted_at.
+ * Idempotent: calling DELETE on an already-deleted company returns success.
+ * Returns 404 only when the company record does not exist at all.
  */
 export async function DELETE(
   request: NextRequest,
@@ -281,22 +287,41 @@ export async function DELETE(
 
     const { id: companyId } = await params;
 
-    // Soft delete the company
-    await prisma.company.update({
+    // Verify the company exists before attempting to update (prevents Prisma RecordNotFoundError).
+    const existing = await prisma.company.findUnique({
       where: { id: companyId },
-      data: {
-        deleted_at: new Date(),
-      },
+      select: { id: true, name: true, deleted_at: true },
     });
 
-    // Audit log
-    await createAuditLog({
+    if (!existing) {
+      return NextResponse.json({ error: 'Company not found' }, { status: 404 });
+    }
+
+    // Idempotent: already deleted — return success without re-writing the timestamp.
+    if (existing.deleted_at) {
+      return NextResponse.json({
+        success: true,
+        message: 'Company already deleted',
+      });
+    }
+
+    // Soft delete the company.
+    await prisma.company.update({
+      where: { id: companyId },
+      data: { deleted_at: new Date() },
+    });
+
+    // Audit log — super-admin actor_id must be null (SuperAdmin id is not in Employee FK)
+    await safeCreateAuditLog({
       companyId,
-      actorId: currentUser.id,
+      actorId: resolveAuditActorId(currentUser),
       action: 'company_deleted',
       entityType: 'company',
       entityId: companyId,
-      newState: { deleted_at: new Date().toISOString() },
+      newState: {
+        deleted_at: new Date().toISOString(),
+        ...auditSuperAdminMetadata(currentUser),
+      },
       ipAddress: request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip'),
       userAgent: request.headers.get('user-agent'),
     });

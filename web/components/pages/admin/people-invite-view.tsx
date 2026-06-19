@@ -8,6 +8,7 @@ import { fetchWithTimeout, mapFetchErrorMessage } from '@/lib/fetch-with-timeout
 import { Input, Select } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 
+/** Manager option shape for the reporting manager dropdown. */
 interface ManagerOption {
   id: string;
   first_name: string;
@@ -15,8 +16,7 @@ interface ManagerOption {
   email: string;
 }
 
-const REQUEST_TIMEOUT_MS = 15_000;
-
+/** Pending invite shape returned by GET /api/hr/invites. */
 interface PendingInvite {
   id: string;
   email: string;
@@ -26,6 +26,7 @@ interface PendingInvite {
   used_at: string | null;
 }
 
+/** Company roles API response shape. */
 interface CompanyRolesResponse {
   invitePolicy?: {
     allowedRoles: string[];
@@ -34,6 +35,7 @@ interface CompanyRolesResponse {
   };
 }
 
+/** All invitable roles (super_admin excluded by design). */
 const ROLE_OPTIONS = [
   { value: 'employee', label: 'Employee' },
   { value: 'team_lead', label: 'Team Lead' },
@@ -43,6 +45,19 @@ const ROLE_OPTIONS = [
   { value: 'admin', label: 'Admin' },
 ] as const;
 
+/** Milliseconds before a fetch request times out. */
+const REQUEST_TIMEOUT_MS = 15_000;
+
+/**
+ * PeopleInviteView — Admin portal user provisioning surface.
+ *
+ * Supports two auth modes:
+ *   - invite: sends an email invitation; user sets their own password.
+ *   - direct: admin provides credentials immediately (no email required).
+ *
+ * Both modes require first name, last name, role, and reporting manager
+ * (except for admin role which has no reporting chain).
+ */
 export default function PeopleInviteView() {
   const [authMode, setAuthMode] = useState<'invite' | 'direct'>('invite');
   const [email, setEmail] = useState('');
@@ -62,9 +77,17 @@ export default function PeopleInviteView() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
+  /**
+   * Loads the company invite policy and pending invites.
+   * Uses GET /api/hr/invites which returns the correct pending invite list.
+   */
   async function loadPendingInvites() {
     try {
-      const policyResponse = await fetchWithTimeout('/api/company/roles', { credentials: 'include' }, REQUEST_TIMEOUT_MS);
+      const policyResponse = await fetchWithTimeout(
+        '/api/company/roles',
+        { credentials: 'include' },
+        REQUEST_TIMEOUT_MS
+      );
       if (policyResponse.ok) {
         const policyData = await policyResponse.json().catch(() => ({} as CompanyRolesResponse));
         const allowedRoles = policyData.invitePolicy?.allowedRoles ?? [];
@@ -77,7 +100,12 @@ export default function PeopleInviteView() {
         setPolicyNote(policyData.invitePolicy?.note || null);
       }
 
-      const response = await fetchWithTimeout('/api/hr/invites', { credentials: 'include' }, REQUEST_TIMEOUT_MS);
+      // Correct endpoint for pending invites list (UserInvite records).
+      const response = await fetchWithTimeout(
+        '/api/company/invite-user',
+        { credentials: 'include' },
+        REQUEST_TIMEOUT_MS
+      );
       if (!response.ok) {
         return;
       }
@@ -91,8 +119,10 @@ export default function PeopleInviteView() {
   useEffect(() => {
     void loadPendingInvites();
     void loadManagers();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  /** Loads employees eligible to be a reporting manager. */
   async function loadManagers() {
     try {
       const res = await fetchWithTimeout(
@@ -127,14 +157,45 @@ export default function PeopleInviteView() {
     [availableRoles]
   );
 
+  /**
+   * Handles form submission for both invite and direct credential modes.
+   * First name, last name are always required regardless of authMode.
+   *
+   * @throws Displays inline error on any fetch or validation failure.
+   */
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setLoading(true);
     setError(null);
     setSuccess(null);
 
-    if (!firstName.trim() || !lastName.trim() || !email.trim()) {
-      const errorMessage = 'First name, last name, and email are required.';
+    // Both modes require first and last name; email required for invite, username or email for direct.
+    if (!firstName.trim() || !lastName.trim()) {
+      const errorMessage = 'First name and last name are required.';
+      setError(errorMessage);
+      toast.error(errorMessage);
+      setLoading(false);
+      return;
+    }
+
+    if (authMode === 'invite' && !email.trim()) {
+      const errorMessage = 'Email is required for invitation links.';
+      setError(errorMessage);
+      toast.error(errorMessage);
+      setLoading(false);
+      return;
+    }
+
+    if (authMode === 'direct' && !email.trim() && !username.trim()) {
+      const errorMessage = 'Provide an email or username for direct credential provisioning.';
+      setError(errorMessage);
+      toast.error(errorMessage);
+      setLoading(false);
+      return;
+    }
+
+    if (authMode === 'direct' && !password.trim()) {
+      const errorMessage = 'Password is required for direct credential provisioning.';
       setError(errorMessage);
       toast.error(errorMessage);
       setLoading(false);
@@ -150,22 +211,27 @@ export default function PeopleInviteView() {
     }
 
     try {
-      const response = await fetchWithTimeout('/api/company/invite-user', {
-        method: 'POST',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
+      const response = await fetchWithTimeout(
+        '/api/company/invite-user',
+        {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            authMode,
+            email: email.trim() || undefined,
+            username: authMode === 'direct' ? username.trim() || undefined : undefined,
+            password: authMode === 'direct' ? password || undefined : undefined,
+            firstName: firstName.trim(),
+            lastName: lastName.trim(),
+            phone: phone.trim() || undefined,
+            role,
+            departmentId: department.trim() || undefined,
+            managerId: managerId || undefined,
+          }),
         },
-        body: JSON.stringify({
-          email: email.trim(),
-          firstName: firstName.trim(),
-          lastName: lastName.trim(),
-          phone: phone.trim() || undefined,
-          role,
-          departmentId: department.trim() || undefined,
-          managerId: managerId || undefined,
-        }),
-      }, REQUEST_TIMEOUT_MS);
+        REQUEST_TIMEOUT_MS
+      );
 
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) {
@@ -175,15 +241,23 @@ export default function PeopleInviteView() {
         return;
       }
 
+      if (authMode === 'invite' && payload.email && payload.email.sent === false) {
+        toast.warning('Invitation saved but email delivery failed.', {
+          description: payload.warning || payload.email?.error || 'Share the invite link manually.',
+          duration: 8000,
+        });
+      }
+
       const successMessage =
         authMode === 'direct'
           ? 'User created. They can sign in immediately with the provided credentials.'
           : 'Invitation created and queued for delivery.';
       setSuccess(successMessage);
       toast.success(successMessage, {
-        description: authMode === 'direct'
-          ? `${firstName} ${lastName} (${email || username}) has been provisioned as ${role}.`
-          : `Invitation sent to ${email}.`,
+        description:
+          authMode === 'direct'
+            ? `${firstName} ${lastName} (${email || username}) has been provisioned as ${role}.`
+            : `Invitation sent to ${email}.`,
         duration: 6000,
       });
       setEmail('');
@@ -207,7 +281,10 @@ export default function PeopleInviteView() {
 
   return (
     <div className="mx-auto flex w-full max-w-[980px] flex-col gap-6 p-4 md:p-8">
-      <Link href="/admin/people" className="inline-flex items-center gap-2 text-sm text-[var(--muted-foreground)] hover:text-[var(--foreground)]">
+      <Link
+        href="/admin/people"
+        className="inline-flex items-center gap-2 text-sm text-[var(--muted-foreground)] hover:text-[var(--foreground)]"
+      >
         <ArrowLeft className="h-4 w-4" />
         Back To People Operations
       </Link>
@@ -261,33 +338,30 @@ export default function PeopleInviteView() {
               : 'You provide username/password now and can share credentials securely with the user.'}
           </div>
 
-          {authMode === 'direct' && (
-            <>
-              <label className="flex flex-col gap-2 text-sm text-[var(--foreground)]">
-                First Name
-                <Input
-                  required
-                  type="text"
-                  className="input"
-                  value={firstName}
-                  onChange={(event) => setFirstName(event.target.value)}
-                  placeholder="Alex"
-                />
-              </label>
+          {/* First Name and Last Name are always required regardless of authMode. */}
+          <label className="flex flex-col gap-2 text-sm text-[var(--foreground)]">
+            First Name
+            <Input
+              required
+              type="text"
+              className="input"
+              value={firstName}
+              onChange={(event) => setFirstName(event.target.value)}
+              placeholder="Alex"
+            />
+          </label>
 
-              <label className="flex flex-col gap-2 text-sm text-[var(--foreground)]">
-                Last Name
-                <Input
-                  required
-                  type="text"
-                  className="input"
-                  value={lastName}
-                  onChange={(event) => setLastName(event.target.value)}
-                  placeholder="Johnson"
-                />
-              </label>
-            </>
-          )}
+          <label className="flex flex-col gap-2 text-sm text-[var(--foreground)]">
+            Last Name
+            <Input
+              required
+              type="text"
+              className="input"
+              value={lastName}
+              onChange={(event) => setLastName(event.target.value)}
+              placeholder="Johnson"
+            />
+          </label>
 
           <label className="flex flex-col gap-2 text-sm text-[var(--foreground)] md:col-span-2">
             Email Address {authMode === 'invite' ? '' : '(optional when username is set)'}
@@ -441,4 +515,3 @@ export default function PeopleInviteView() {
     </div>
   );
 }
-

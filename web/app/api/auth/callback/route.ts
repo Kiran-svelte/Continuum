@@ -13,17 +13,25 @@ import type { NextRequest } from 'next/server';
  * via POST /api/auth/session.
  */
 export async function GET(request: NextRequest) {
-  const { searchParams, origin } = new URL(request.url);
-  const next = searchParams.get('next') ?? '/employee/dashboard';
+  try {
+    const { searchParams, origin } = new URL(request.url);
+    const rawNext = searchParams.get('next') ?? '/employee/dashboard';
 
-  const forwardedHost = request.headers.get('x-forwarded-host');
-  const isLocalEnv = process.env.NODE_ENV === 'development';
+    // Validate next is a relative path to prevent open-redirect attacks.
+    const next = rawNext.startsWith('/') ? rawNext : '/employee/dashboard';
 
-  if (isLocalEnv) {
-    return NextResponse.redirect(`${origin}${next}`);
-  } else if (forwardedHost) {
-    return NextResponse.redirect(`https://${forwardedHost}${next}`);
-  } else {
-    return NextResponse.redirect(`${origin}${next}`);
+    const forwardedHost = request.headers.get('x-forwarded-host');
+    const isLocalEnv = process.env.NODE_ENV === 'development';
+
+    if (isLocalEnv) {
+      return NextResponse.redirect(`${origin}${next}`);
+    } else if (forwardedHost) {
+      return NextResponse.redirect(`https://${forwardedHost}${next}`);
+    } else {
+      return NextResponse.redirect(`${origin}${next}`);
+    }
+  } catch (error) {
+    console.error('[GET /api/auth/callback] Error:', error instanceof Error ? error.message : String(error));
+    return NextResponse.redirect('/employee/dashboard');
   }
 }

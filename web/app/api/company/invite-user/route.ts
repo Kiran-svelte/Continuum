@@ -2,14 +2,20 @@ import { NextRequest, NextResponse } from 'next/server';
 import { v4 as uuidv4 } from 'uuid';
 import prisma from '@/lib/prisma';
 import { getCurrentUser } from '@/lib/auth-service';
-import { hashPassword, generateTemporaryPassword } from '@/lib/password-service';
+import { hashPassword, validatePassword } from '@/lib/password-service';
 import {
   assertManagerInviteRole,
   validateReportingManager,
 } from '@/lib/invite-reporting-manager';
+import { isEmailVerified } from '@/lib/product-readiness';
+import { sendInviteEmail } from '@/lib/email-service';
+import { buildInviteAcceptUrl } from '@/lib/invite-url';
+import { promiseTimeout } from '@/lib/promise-timeout';
 import type { Role } from '@prisma/client';
 
 export const dynamic = 'force-dynamic';
+
+const INVITE_EMAIL_TIMEOUT_MS = 12_000;
 
 const COMPANY_INVITE_ROLES = new Set([
   'admin',
@@ -23,11 +29,71 @@ const COMPANY_INVITE_ROLES = new Set([
 const HR_ADMIN_INVITE_ROLES = new Set(['admin', 'hr', 'super_admin']);
 const MANAGER_INVITE_ROLES = new Set(['manager', 'director', 'team_lead']);
 
+function resolveInviteEmail(
+  email: string | undefined,
+  username: string | undefined,
+  joinCode: string
+): string | null {
+  const normalizedEmail = email?.trim().toLowerCase();
+  if (normalizedEmail) return normalizedEmail;
+  const normalizedUsername = username?.trim().toLowerCase();
+  if (!normalizedUsername) return null;
+  return `${normalizedUsername}@${joinCode.toLowerCase()}.continuum.local`;
+}
+
+/**
+ * GET /api/company/invite-user
+ * Lists pending company user invites for admin/HR.
+ */
+export async function GET() {
+  try {
+    const user = await getCurrentUser();
+    if (!user?.orgId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    if (!['admin', 'hr', 'super_admin'].includes(user.role)) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    const invites = await prisma.userInvite.findMany({
+      where: {
+        company_id: user.orgId,
+        status: 'pending',
+        expires_at: { gt: new Date() },
+      },
+      orderBy: { created_at: 'desc' },
+      take: 50,
+      select: {
+        id: true,
+        email: true,
+        role: true,
+        department: true,
+        expires_at: true,
+        created_at: true,
+      },
+    });
+
+    return NextResponse.json({
+      invites: invites.map((invite) => ({
+        id: invite.id,
+        email: invite.email,
+        role: invite.role,
+        department: invite.department,
+        expires_at: invite.expires_at,
+        used_at: null,
+        created_at: invite.created_at,
+      })),
+    });
+  } catch (error) {
+    console.error('[COMPANY INVITE LIST] Error:', error);
+    return NextResponse.json({ error: 'Failed to load invites' }, { status: 500 });
+  }
+}
+
 /**
  * POST /api/company/invite-user
  *
- * Company admin/HR/manager invites a new user to the company.
- * Persists reporting manager on the invite for production provisioning.
+ * Company admin/HR/manager invites or directly provisions a user.
  */
 export async function POST(request: NextRequest) {
   try {
@@ -53,12 +119,59 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const body = await request.json();
-    const { email, firstName, lastName, role, departmentId, managerId } = body;
+    let emailVerificationWarning: string | undefined;
+    if (user.role !== 'super_admin') {
+      const verified = await isEmailVerified(user.id);
+      if (!verified) {
+        emailVerificationWarning =
+          'Your email is not verified yet. Invites will still be created, but verify your email for security notifications.';
+      }
+    }
 
-    if (!email || !firstName || !lastName || !role) {
+    const body = await request.json();
+    const {
+      authMode = 'invite',
+      email,
+      username,
+      password,
+      firstName,
+      lastName,
+      role,
+      departmentId,
+      department,
+      managerId,
+      phone,
+    } = body;
+
+    const departmentValue = departmentId || department || null;
+
+    if (!firstName?.trim() || !lastName?.trim() || !role) {
       return NextResponse.json(
-        { error: 'Email, first name, last name, and role are required' },
+        { error: 'First name, last name, and role are required' },
+        { status: 400 }
+      );
+    }
+
+    const companyRecord = await prisma.company.findUnique({
+      where: { id: user.orgId },
+      select: { enabled_roles: true, name: true, join_code: true },
+    });
+
+    if (!companyRecord) {
+      return NextResponse.json({ error: 'Company not found' }, { status: 404 });
+    }
+
+    const resolvedEmail = resolveInviteEmail(email, username, companyRecord.join_code ?? '');
+    if (!resolvedEmail) {
+      return NextResponse.json(
+        { error: 'Email or username is required' },
+        { status: 400 }
+      );
+    }
+
+    if (authMode === 'direct' && !password) {
+      return NextResponse.json(
+        { error: 'Password is required for direct credential provisioning' },
         { status: 400 }
       );
     }
@@ -76,9 +189,7 @@ export async function POST(request: NextRequest) {
     }
 
     const resolvedManagerId =
-      isManagerLike && !isHrAdmin
-        ? managerId || user.id
-        : managerId;
+      isManagerLike && !isHrAdmin ? managerId || user.id : managerId;
 
     const managerValidation = await validateReportingManager(
       user.orgId,
@@ -89,16 +200,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: managerValidation.error }, { status: 400 });
     }
 
-    const company = await prisma.company.findUnique({
-      where: { id: user.orgId },
-      select: { enabled_roles: true },
-    });
-
-    if (!company) {
-      return NextResponse.json({ error: 'Company not found' }, { status: 404 });
-    }
-
-    const enabledRoles = (company.enabled_roles as string[]) || [];
+    const enabledRoles = (companyRecord.enabled_roles as string[]) || [];
     if (!enabledRoles.includes(normalizedRole) && normalizedRole !== 'employee') {
       return NextResponse.json(
         { error: `Role "${normalizedRole}" is not enabled for this company` },
@@ -107,7 +209,7 @@ export async function POST(request: NextRequest) {
     }
 
     const existingEmployee = await prisma.employee.findUnique({
-      where: { email: email.toLowerCase() },
+      where: { email: resolvedEmail },
     });
 
     if (existingEmployee) {
@@ -119,7 +221,7 @@ export async function POST(request: NextRequest) {
 
     const existingInvite = await prisma.userInvite.findFirst({
       where: {
-        email: email.toLowerCase(),
+        email: resolvedEmail,
         status: 'pending',
         expires_at: { gt: new Date() },
       },
@@ -132,52 +234,96 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const inviterName = `${user.firstName} ${user.lastName}`.trim() || user.email;
+
+    if (authMode === 'direct') {
+      const passwordValidation = validatePassword(password);
+      if (!passwordValidation.valid) {
+        return NextResponse.json(
+          { error: passwordValidation.errors[0] || 'Password does not meet security requirements' },
+          { status: 400 }
+        );
+      }
+
+      const passwordHash = await hashPassword(password);
+      const employee = await prisma.employee.create({
+        data: {
+          email: resolvedEmail,
+          first_name: firstName.trim(),
+          last_name: lastName.trim(),
+          phone: phone?.trim() || null,
+          primary_role: normalizedRole as Role,
+          password_hash: passwordHash,
+          invited_by_id: user.id,
+          invited_by_type: user.role === 'hr' ? 'hr' : isManagerLike ? 'employee' : 'admin',
+          org_id: user.orgId,
+          department: departmentValue,
+          manager_id: managerValidation.managerId,
+          must_change_password: true,
+          status: 'active',
+        },
+      });
+
+      return NextResponse.json({
+        success: true,
+        mode: 'direct',
+        employee: {
+          id: employee.id,
+          email: employee.email,
+          role: employee.primary_role,
+        },
+      });
+    }
+
     const inviteToken = uuidv4();
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
     const invite = await prisma.userInvite.create({
       data: {
-        email: email.toLowerCase(),
+        email: resolvedEmail,
         role: normalizedRole as Role,
-        first_name: firstName,
-        last_name: lastName,
+        first_name: firstName.trim(),
+        last_name: lastName.trim(),
         token: inviteToken,
         company_id: user.orgId,
         invited_by_id: user.id,
-        department: departmentId || null,
+        department: departmentValue,
         manager_id: managerValidation.managerId,
         expires_at: expiresAt,
         status: 'pending',
       },
     });
 
-    const inviteUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/invite/accept/${inviteToken}`;
+    const inviteUrl = buildInviteAcceptUrl(inviteToken, { request });
 
-    let tempPassword: string | undefined;
-    if (process.env.NODE_ENV === 'development') {
-      tempPassword = generateTemporaryPassword();
-      const passwordHash = await hashPassword(tempPassword);
+    let inviteEmailSent = false;
+    let inviteEmailError: string | undefined;
 
-      await prisma.employee.create({
-        data: {
-          email: email.toLowerCase(),
-          first_name: firstName,
-          last_name: lastName,
-          primary_role: normalizedRole as Role,
-          password_hash: passwordHash,
-          invited_by_id: user.id,
-          invited_by_type: user.role === 'hr' ? 'hr' : isManagerLike ? 'employee' : 'admin',
-          org_id: user.orgId,
-          department: departmentId || null,
-          manager_id: managerValidation.managerId,
-          must_change_password: true,
-          status: 'onboarding',
-        },
-      });
+    try {
+      const emailResult = await promiseTimeout(
+        sendInviteEmail(
+          resolvedEmail,
+          companyRecord.name,
+          inviterName,
+          inviteToken,
+          normalizedRole,
+          departmentValue || undefined
+        ),
+        INVITE_EMAIL_TIMEOUT_MS,
+        'Invitation email delivery timed out'
+      );
+      inviteEmailSent = emailResult.success;
+      inviteEmailError = emailResult.error;
+    } catch (emailError) {
+      inviteEmailError =
+        emailError instanceof Error
+          ? emailError.message
+          : 'Invitation email delivery timed out';
     }
 
     return NextResponse.json({
       success: true,
+      mode: 'invite',
       invite: {
         id: invite.id,
         email: invite.email,
@@ -186,7 +332,20 @@ export async function POST(request: NextRequest) {
         expiresAt: invite.expires_at,
       },
       inviteUrl,
-      ...(process.env.NODE_ENV === 'development' && { tempPassword }),
+      inviteLink: inviteUrl,
+      email: {
+        attempted: true,
+        sent: inviteEmailSent,
+        error: inviteEmailError,
+      },
+      ...(inviteEmailSent
+        ? {}
+        : {
+            warning:
+              inviteEmailError ||
+              'Invitation saved but email delivery failed. Use resend or share the invite link manually.',
+          }),
+      ...(emailVerificationWarning ? { emailVerificationWarning } : {}),
     });
   } catch (error) {
     console.error('[COMPANY INVITE USER] Error:', error);

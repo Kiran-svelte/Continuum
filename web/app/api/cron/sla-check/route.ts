@@ -69,9 +69,9 @@ export async function GET(request: NextRequest) {
       breached_count: breachedRequests.length,
       escalated_count: escalatedCount,
     });
-  } catch {
-    const message =
-      process.env.NODE_ENV === 'production' ? 'Internal server error' : 'SLA check failed';
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error('[CRON sla-check] Fatal error:', errorMessage, error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

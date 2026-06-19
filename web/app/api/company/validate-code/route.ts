@@ -27,8 +27,8 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const company = await prisma.company.findUnique({
-      where: { join_code: code },
+    const company = await prisma.company.findFirst({
+      where: { join_code: code, deleted_at: null },
       select: { name: true },
     });
 
