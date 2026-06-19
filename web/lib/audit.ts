@@ -97,6 +97,35 @@ export interface AuditChainResult {
   details?: string;
 }
 
+/** Super-admin JWT subjects are not Employee rows — audit actor_id must stay null. */
+export function resolveAuditActorId(
+  user: { id: string; role: string } | null | undefined
+): string | null {
+  if (!user) return null;
+  return user.role === 'super_admin' ? null : user.id;
+}
+
+/** Preserve platform actor identity in audit metadata when actor_id is null. */
+export function auditSuperAdminMetadata(user: {
+  id: string;
+  role: string;
+}): Record<string, string> {
+  if (user.role !== 'super_admin') return {};
+  return { super_admin_actor_id: user.id };
+}
+
+/**
+ * Writes audit logs without failing the calling mutation when audit persistence fails.
+ */
+export async function safeCreateAuditLog(params: CreateAuditLogParams): Promise<string | null> {
+  try {
+    return await createAuditLog(params);
+  } catch (error) {
+    console.error('[Audit] Non-fatal audit log failure:', error);
+    return null;
+  }
+}
+
 // ─── Core Functions ──────────────────────────────────────────────────────────
 
 /** Computes SHA-256 hash for audit chain integrity */

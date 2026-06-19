@@ -3,9 +3,14 @@ import { v4 as uuidv4 } from 'uuid';
 import prisma from '@/lib/prisma';
 import { getCurrentUser } from '@/lib/auth-service';
 import { hashPassword, generateTemporaryPassword } from '@/lib/password-service';
+import { sendSuperAdminUserInviteEmail } from '@/lib/email-service';
+import { buildInviteAcceptUrl } from '@/lib/invite-url';
+import { promiseTimeout } from '@/lib/promise-timeout';
 import type { Role } from '@prisma/client';
 
 export const dynamic = 'force-dynamic';
+
+const INVITE_EMAIL_TIMEOUT_MS = 12_000;
 
 /**
  * POST /api/super-admin/users
@@ -93,9 +98,35 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // TODO: Send invitation email
-    // For now, we'll return the invite token for testing
-    const inviteUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/invite/accept/${inviteToken}`;
+    // Send invitation email
+    const inviteUrl = buildInviteAcceptUrl(inviteToken, { request });
+    let inviteEmailSent = false;
+    let inviteEmailError: string | undefined;
+
+    if (sendInvite) {
+      try {
+        const inviterName = `${currentUser.firstName} ${currentUser.lastName}`.trim() || currentUser.email;
+        const emailResult = await promiseTimeout(
+          sendSuperAdminUserInviteEmail(
+            email.toLowerCase(),
+            firstName,
+            inviterName,
+            role,
+            inviteUrl,
+            expiresAt
+          ),
+          INVITE_EMAIL_TIMEOUT_MS,
+          'Invitation email delivery timed out'
+        );
+        inviteEmailSent = emailResult.success;
+        inviteEmailError = emailResult.error;
+      } catch (emailError) {
+        inviteEmailError =
+          emailError instanceof Error
+            ? emailError.message
+            : 'Invitation email delivery timed out';
+      }
+    }
 
     // In development, also generate a temp password for easier testing
     let tempPassword: string | undefined;
@@ -130,6 +161,20 @@ export async function POST(request: NextRequest) {
         expires_at: invite.expires_at,
       },
       inviteUrl,
+      email: {
+        attempted: Boolean(sendInvite),
+        sent: inviteEmailSent,
+        error: inviteEmailError,
+      },
+      ...(inviteEmailSent
+        ? {}
+        : sendInvite
+          ? {
+              warning:
+                inviteEmailError ||
+                'Invitation saved but email delivery failed. Share the invite link manually.',
+            }
+          : {}),
       // Only include in development
       ...(process.env.NODE_ENV === 'development' && { tempPassword }),
     });

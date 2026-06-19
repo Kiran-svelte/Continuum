@@ -4,7 +4,11 @@ import { getCurrentUser } from '@/lib/auth-service';
 import { hashPassword, generateTemporaryPassword } from '@/lib/password-service';
 import { sendCompanyOwnerCredentialsEmail } from '@/lib/email-service';
 import { buildAppUrl } from '@/lib/url-origin';
-import { createAuditLog } from '@/lib/audit';
+import {
+  auditSuperAdminMetadata,
+  resolveAuditActorId,
+  safeCreateAuditLog,
+} from '@/lib/audit';
 
 export const dynamic = 'force-dynamic';
 
@@ -66,15 +70,16 @@ export async function POST(
     });
 
     // Audit log
-    await createAuditLog({
+    await safeCreateAuditLog({
       companyId,
-      actorId: currentUser.id,
+      actorId: resolveAuditActorId(currentUser),
       action: 'credentials_resent',
       entityType: 'employee',
       entityId: owner.id,
       newState: {
         owner_email: owner.email,
         resent_by: 'super_admin',
+        ...auditSuperAdminMetadata(currentUser),
       },
       ipAddress: request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip'),
       userAgent: request.headers.get('user-agent'),

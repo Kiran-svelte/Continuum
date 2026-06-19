@@ -5,9 +5,13 @@ import { getCurrentUser } from '@/lib/auth-service';
 import type { Role } from '@prisma/client';
 import { randomUUID } from 'crypto';
 import { sendInviteEmail } from '@/lib/email-service';
+import { buildInviteAcceptUrl } from '@/lib/invite-url';
+import { promiseTimeout } from '@/lib/promise-timeout';
 import { validateReportingManager } from '@/lib/invite-reporting-manager';
 
 export const dynamic = 'force-dynamic';
+
+const INVITE_EMAIL_TIMEOUT_MS = 12_000;
 
 const updateInviteSchema = z.object({
   email: z.string().email().optional(),
@@ -160,7 +164,7 @@ export async function PATCH(
 }
 
 export async function POST(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
@@ -186,15 +190,43 @@ export async function POST(
       select: { id: true, email: true, role: true, expires_at: true, department: true },
     });
     const company = await prisma.company.findUnique({ where: { id: user.orgId }, select: { name: true } });
-    void sendInviteEmail(
-      updated.email,
-      company?.name || 'your company',
-      `${user.firstName} ${user.lastName}`.trim() || user.email,
-      token,
-      updated.role,
-      updated.department || undefined
-    );
-    return NextResponse.json({ success: true, invite: updated });
+    const inviterName = `${user.firstName} ${user.lastName}`.trim() || user.email;
+
+    let inviteEmailSent = false;
+    let inviteEmailError: string | undefined;
+    try {
+      const emailResult = await promiseTimeout(
+        sendInviteEmail(
+          updated.email,
+          company?.name || 'your company',
+          inviterName,
+          token,
+          updated.role,
+          updated.department || undefined
+        ),
+        INVITE_EMAIL_TIMEOUT_MS,
+        'Invitation email delivery timed out'
+      );
+      inviteEmailSent = emailResult.success;
+      inviteEmailError = emailResult.error;
+    } catch (emailError) {
+      inviteEmailError =
+        emailError instanceof Error
+          ? emailError.message
+          : 'Invitation email delivery timed out';
+    }
+
+    return NextResponse.json({
+      success: true,
+      invite: updated,
+      inviteUrl: buildInviteAcceptUrl(token, { request }),
+      email: {
+        attempted: true,
+        sent: inviteEmailSent,
+        error: inviteEmailError,
+      },
+      message: inviteEmailSent ? 'Invitation email sent.' : 'Invite refreshed but email delivery failed.',
+    });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';
     return NextResponse.json({ error: 'Failed to resend invite', details: message }, { status: 500 });

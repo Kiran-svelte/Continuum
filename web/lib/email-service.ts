@@ -1,6 +1,31 @@
 import sgMail from '@sendgrid/mail';
 import nodemailer from 'nodemailer';
 import { redisEmailRateLimit } from '@/lib/redis';
+import { buildInviteAcceptUrl } from '@/lib/invite-url';
+
+// ─── Env normalization (Vercel / copy-paste safe) ───────────────────────────
+
+export function normalizeEnvValue(value: string | undefined): string {
+  if (value == null) return '';
+  let cleaned = value.replace(/^\uFEFF/, '').trim();
+  if (cleaned === 'undefined' || cleaned === 'null') return '';
+  if (
+    (cleaned.startsWith('"') && cleaned.endsWith('"')) ||
+    (cleaned.startsWith("'") && cleaned.endsWith("'"))
+  ) {
+    cleaned = cleaned.slice(1, -1).trim();
+  }
+  cleaned = cleaned.replace(/\\n|\\r/g, '').replace(/\r?\n/g, '');
+  return cleaned.trim();
+}
+
+export function resolveFirstEnvValue(keys: string[]): string {
+  for (const key of keys) {
+    const value = normalizeEnvValue(process.env[key]);
+    if (value) return value;
+  }
+  return '';
+}
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -22,7 +47,7 @@ interface EmailResult {
   messageId?: string;
   error?: string;
   /** Which transport delivered the email */
-  transport?: 'sendgrid' | 'smtp';
+  transport?: 'resend' | 'sendgrid' | 'smtp';
 }
 
 // ─── HTML Escaping (XSS Prevention) ─────────────────────────────────────────
@@ -52,13 +77,96 @@ function checkEmailRateLimit(): boolean {
   return emailSendTimestamps.length < MAX_EMAILS_PER_MINUTE;
 }
 
+// ─── Resend HTTP API Transport ──────────────────────────────────────────────
+
+function resolveEmailFromAddress(): { email: string; name: string; formatted: string } {
+  const email =
+    resolveFirstEnvValue([
+      'RESEND_FROM_EMAIL',
+      'EMAIL_FROM',
+      'SENDGRID_FROM_EMAIL',
+      'SMTP_FROM',
+    ]) || 'noreply@continuum.hr';
+  const name =
+    resolveFirstEnvValue(['EMAIL_FROM_NAME', 'RESEND_FROM_NAME', 'SENDGRID_FROM_NAME']) ||
+    'Continuum HR';
+  return { email, name, formatted: `${name} <${email}>` };
+}
+
+function resolveEmailProvider(): 'resend' | 'sendgrid' | 'smtp' {
+  const explicit = resolveFirstEnvValue(['EMAIL_PROVIDER']).toLowerCase();
+  if (explicit === 'resend' || explicit === 'sendgrid' || explicit === 'smtp') {
+    return explicit;
+  }
+  if (resolveFirstEnvValue(['RESEND_API_KEY'])) return 'resend';
+  if (resolveFirstEnvValue(['SENDGRID_API_KEY'])) return 'sendgrid';
+  return 'smtp';
+}
+
+async function sendViaResend(
+  to: string | string[],
+  subject: string,
+  html: string,
+  options?: EmailOptions
+): Promise<EmailResult> {
+  const apiKey = resolveFirstEnvValue(['RESEND_API_KEY']);
+  if (!apiKey) {
+    return { success: false, error: 'Resend API key not configured' };
+  }
+
+  const from = resolveEmailFromAddress();
+  const recipients = Array.isArray(to) ? to : [to];
+
+  try {
+    const response = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        from: from.formatted,
+        to: recipients,
+        subject,
+        html,
+        ...(options?.replyTo ? { reply_to: options.replyTo } : {}),
+        ...(options?.cc
+          ? { cc: Array.isArray(options.cc) ? options.cc : [options.cc] }
+          : {}),
+        ...(options?.bcc
+          ? { bcc: Array.isArray(options.bcc) ? options.bcc : [options.bcc] }
+          : {}),
+        ...(options?.category ? { tags: [{ name: 'category', value: options.category }] } : {}),
+      }),
+    });
+
+    const payload = (await response.json().catch(() => ({}))) as {
+      id?: string;
+      message?: string;
+      name?: string;
+    };
+
+    if (!response.ok) {
+      const errorMsg = payload.message || payload.name || `Resend HTTP ${response.status}`;
+      console.error(`[EmailService] Resend failed (${response.status}):`, errorMsg);
+      return { success: false, error: `Resend: ${errorMsg}` };
+    }
+
+    return { success: true, messageId: payload.id, transport: 'resend' };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Resend delivery failed';
+    console.error('[EmailService] Resend request error:', message);
+    return { success: false, error: `Resend: ${message}` };
+  }
+}
+
 // ─── SendGrid Web API Transport ─────────────────────────────────────────────
 
 let sgInitialized = false;
 
 function initSendGrid(): boolean {
   if (sgInitialized) return true;
-  const apiKey = process.env.SENDGRID_API_KEY?.trim();
+  const apiKey = resolveFirstEnvValue(['SENDGRID_API_KEY']);
   if (!apiKey) return false;
   sgMail.setApiKey(apiKey);
   sgInitialized = true;
@@ -75,8 +183,12 @@ async function sendViaSendGrid(
     return { success: false, error: 'SendGrid API key not configured' };
   }
 
-  const fromEmail = process.env.SENDGRID_FROM_EMAIL || process.env.SMTP_FROM || 'noreply@continuum.hr';
-  const fromName = process.env.SENDGRID_FROM_NAME || 'Continuum HR';
+  const fromEmail =
+    resolveFirstEnvValue(['SENDGRID_FROM_EMAIL', 'RESEND_FROM_EMAIL', 'SMTP_FROM', 'EMAIL_FROM']) ||
+    'noreply@continuum.hr';
+  const fromName =
+    resolveFirstEnvValue(['SENDGRID_FROM_NAME', 'EMAIL_FROM_NAME', 'RESEND_FROM_NAME']) ||
+    'Continuum HR';
 
   const msg: sgMail.MailDataRequired = {
     to: Array.isArray(to) ? to : [to],
@@ -126,10 +238,10 @@ async function sendViaSendGrid(
 // ─── SMTP Fallback Transport ────────────────────────────────────────────────
 
 function createSmtpTransport(): nodemailer.Transporter {
-  const smtpHost = process.env.SMTP_HOST?.trim() || 'smtp.sendgrid.net';
-  const smtpPort = parseInt(process.env.SMTP_PORT || '587', 10);
-  const smtpUser = process.env.SMTP_USER?.trim() || '';
-  const smtpPass = process.env.SMTP_PASS?.trim() || '';
+  const smtpHost = resolveFirstEnvValue(['SMTP_HOST']) || 'smtp.sendgrid.net';
+  const smtpPort = parseInt(resolveFirstEnvValue(['SMTP_PORT']) || '587', 10);
+  const smtpUser = resolveFirstEnvValue(['SMTP_USER']);
+  const smtpPass = resolveFirstEnvValue(['SMTP_PASS', 'SMTP_PASSWORD', 'EMAIL_SERVER_PASSWORD', 'GMAIL_APP_PASSWORD']);
 
   if (!smtpUser || !smtpPass) {
     console.warn('[EmailService] SMTP credentials not set — SMTP fallback will fail');
@@ -154,7 +266,7 @@ async function sendViaSmtp(
   options?: EmailOptions
 ): Promise<EmailResult> {
   const transporter = createSmtpTransport();
-  const from = `${process.env.SENDGRID_FROM_NAME || 'Continuum HR'} <${process.env.SMTP_FROM || process.env.SENDGRID_FROM_EMAIL || 'noreply@continuum.hr'}>`;
+  const from = resolveEmailFromAddress().formatted;
 
   const mailOptions: nodemailer.SendMailOptions = {
     from,
@@ -171,10 +283,10 @@ async function sendViaSmtp(
   return { success: true, messageId: info.messageId, transport: 'smtp' };
 }
 
-// ─── Core Send Function (SendGrid primary → SMTP fallback) ─────────────────
+// ─── Core Send Function (Resend → SendGrid → SMTP) ─────────────────────────
 
 /**
- * Sends an email via SendGrid Web API (primary) with SMTP fallback.
+ * Sends email via Resend (when configured), then SendGrid, then SMTP fallback.
  * Never crashes the calling process — all errors are caught and returned.
  */
 export async function sendEmail(
@@ -191,25 +303,34 @@ export async function sendEmail(
       return { success: false, error: 'Email rate limit exceeded' };
     }
 
-    const provider = process.env.EMAIL_PROVIDER?.trim() || 'sendgrid';
+    const provider = resolveEmailProvider();
+    const recipientLabel = Array.isArray(to) ? to.join(', ') : to;
 
-    // Try primary: SendGrid Web API
-    if (provider === 'sendgrid' || !provider) {
+    if (provider === 'resend') {
+      const resendResult = await sendViaResend(to, subject, html, options);
+      if (resendResult.success) {
+        emailSendTimestamps.push(Date.now());
+        console.log(`[EmailService] Sent via Resend to ${recipientLabel} (${options?.category || 'general'})`);
+        return resendResult;
+      }
+      console.warn(`[EmailService] Resend failed, falling back: ${resendResult.error}`);
+    }
+
+    if (provider === 'sendgrid' || provider === 'resend') {
       const sgResult = await sendViaSendGrid(to, subject, html, options);
       if (sgResult.success) {
         emailSendTimestamps.push(Date.now());
-        console.log(`[EmailService] Sent via SendGrid to ${Array.isArray(to) ? to.join(', ') : to} (${options?.category || 'general'})`);
+        console.log(`[EmailService] Sent via SendGrid to ${recipientLabel} (${options?.category || 'general'})`);
         return sgResult;
       }
-
-      // SendGrid failed — fall through to SMTP
-      console.warn(`[EmailService] SendGrid failed, falling back to SMTP: ${sgResult.error}`);
+      if (provider === 'sendgrid') {
+        console.warn(`[EmailService] SendGrid failed, falling back to SMTP: ${sgResult.error}`);
+      }
     }
 
-    // Fallback: SMTP
     const smtpResult = await sendViaSmtp(to, subject, html, options);
     emailSendTimestamps.push(Date.now());
-    console.log(`[EmailService] Sent via SMTP fallback to ${Array.isArray(to) ? to.join(', ') : to}`);
+    console.log(`[EmailService] Sent via SMTP fallback to ${recipientLabel}`);
     return smtpResult;
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown email error';
@@ -434,7 +555,7 @@ export async function sendInviteEmail(
   role: string,
   department?: string
 ): Promise<EmailResult> {
-  const signUpUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://continuum.hr'}/sign-up?invite=${token}`;
+  const inviteUrl = buildInviteAcceptUrl(token);
   const roleLabel = role.replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase());
 
   const html = wrapTemplate(`
@@ -446,12 +567,45 @@ export async function sendInviteEmail(
       ${department ? `<tr><td style="padding: 8px; border-bottom: 1px solid #eee; color: #666;">Department</td><td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>${escapeHtml(department)}</strong></td></tr>` : ''}
     </table>
     <div style="text-align: center; margin: 24px 0;">
-      <a href="${signUpUrl}"
+      <a href="${escapeHtml(inviteUrl)}"
          style="background: #2563eb; color: white; padding: 12px 32px; border-radius: 6px; text-decoration: none; font-weight: 600; display: inline-block;">
         Accept Invitation →
       </a>
     </div>
     <p style="color: #666; font-size: 14px;">This invitation expires in <strong>7 days</strong>. If you didn't expect this, you can safely ignore this email.</p>
+  `);
+
+  return sendEmail(to, `${escapeHtml(inviterName)} invited you to join ${escapeHtml(companyName)}`, html, { category: 'invite' });
+}
+
+export async function sendHybridInviteEmail(
+  to: string,
+  firstName: string,
+  companyName: string,
+  inviterName: string,
+  inviteUrl: string,
+  role: string,
+  temporaryPassword: string,
+  department?: string
+): Promise<EmailResult> {
+  const roleLabel = role.replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase());
+
+  const html = wrapTemplate(`
+    <h2 style="color: #2563eb;">You're Invited! 🎉</h2>
+    <p>Hi <strong>${escapeHtml(firstName)}</strong>,</p>
+    <p><strong>${escapeHtml(inviterName)}</strong> has invited you to join <strong>${escapeHtml(companyName)}</strong> on Continuum.</p>
+    <table style="width: 100%; border-collapse: collapse; margin: 16px 0;">
+      <tr><td style="padding: 8px; border-bottom: 1px solid #eee; color: #666;">Role</td><td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>${escapeHtml(roleLabel)}</strong></td></tr>
+      ${department ? `<tr><td style="padding: 8px; border-bottom: 1px solid #eee; color: #666;">Department</td><td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>${escapeHtml(department)}</strong></td></tr>` : ''}
+      <tr><td style="padding: 8px; border-bottom: 1px solid #eee; color: #666;">Temporary password</td><td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>${escapeHtml(temporaryPassword)}</strong></td></tr>
+    </table>
+    <div style="text-align: center; margin: 24px 0;">
+      <a href="${escapeHtml(inviteUrl)}"
+         style="background: #2563eb; color: white; padding: 12px 32px; border-radius: 6px; text-decoration: none; font-weight: 600; display: inline-block;">
+        Set Your Password →
+      </a>
+    </div>
+    <p style="color: #666; font-size: 14px;">You can also sign in with the temporary password above, then change it immediately.</p>
   `);
 
   return sendEmail(to, `${escapeHtml(inviterName)} invited you to join ${escapeHtml(companyName)}`, html, { category: 'invite' });

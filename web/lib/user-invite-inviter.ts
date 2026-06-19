@@ -148,3 +148,45 @@ export async function resolveAcceptedInviteInvitedByType(
 
   return resolvedRole === 'super_admin' ? 'super_admin' : 'employee';
 }
+
+export async function resolveEmployeeInvitedBy(
+  user: InviteActor,
+  options: ResolveUserInviteInviterOptions = {}
+): Promise<{ invited_by_id: string | null; invited_by_type: 'super_admin' | 'admin' | 'hr' | 'employee' }> {
+  const prismaClient = options.prismaClient ?? (prisma as unknown as InviteInviterPrismaLike);
+  const normalizedEmail = requireEmail(user.email);
+
+  if (user.role === 'super_admin') {
+    const superAdminById = await prismaClient.superAdmin.findUnique({
+      where: { id: user.id },
+      select: { id: true },
+    });
+    if (superAdminById) {
+      return { invited_by_id: null, invited_by_type: 'super_admin' };
+    }
+
+    const employeeById = await prismaClient.employee.findUnique({
+      where: { id: user.id },
+      select: { id: true },
+    });
+    if (employeeById) {
+      return { invited_by_id: employeeById.id, invited_by_type: 'super_admin' };
+    }
+
+    const employeeByEmail = await prismaClient.employee.findUnique({
+      where: { email: normalizedEmail },
+      select: { id: true },
+    });
+    if (employeeByEmail) {
+      return { invited_by_id: employeeByEmail.id, invited_by_type: 'super_admin' };
+    }
+
+    return { invited_by_id: null, invited_by_type: 'super_admin' };
+  }
+
+  if (user.role === 'hr') {
+    return { invited_by_id: user.id, invited_by_type: 'hr' };
+  }
+
+  return { invited_by_id: user.id, invited_by_type: user.role === 'admin' ? 'admin' : 'employee' };
+}

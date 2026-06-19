@@ -4,7 +4,11 @@ import { randomUUID } from 'crypto';
 import { getCurrentUser } from '@/lib/auth-service';
 import prisma from '@/lib/prisma';
 import { clampModulesForPlan } from '@/lib/core-functions/plan-modules';
-import { createAuditLog } from '@/lib/audit';
+import {
+  auditSuperAdminMetadata,
+  resolveAuditActorId,
+  safeCreateAuditLog,
+} from '@/lib/audit';
 
 export const dynamic = 'force-dynamic';
 
@@ -55,13 +59,18 @@ export async function PATCH(
 
     const { moduleCap: capped } = await clampModulesForPlan(companyId, body.plan);
 
-    await createAuditLog({
+    await safeCreateAuditLog({
       companyId,
-      actorId: currentUser.id,
+      actorId: resolveAuditActorId(currentUser),
       action: 'subscription.update',
       entityType: 'subscription',
       entityId: subscription.id,
-      newState: { plan: body.plan, status: subscription.status, moduleCap: capped },
+      newState: {
+        plan: body.plan,
+        status: subscription.status,
+        moduleCap: capped,
+        ...auditSuperAdminMetadata(currentUser),
+      },
     });
 
     return NextResponse.json({ subscription, moduleCap: capped });

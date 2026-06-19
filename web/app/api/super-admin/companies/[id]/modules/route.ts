@@ -5,15 +5,25 @@ import { validationErrorResponse } from '@/lib/api-errors';
 import {
   CORE_FUNCTION_CATALOG,
   isModuleSlug,
+  maxModulesForPlan,
   type ModuleSlug,
 } from '@/lib/core-functions/catalog';
 import {
   getCompanyModuleState,
   saveCompanyModuleState,
 } from '@/lib/core-functions/resolve';
-import { normalizeCap, validateDependencies } from '@/lib/core-functions/validate';
+import { getCompanySubscriptionPlan } from '@/lib/core-functions/company-plan';
+import {
+  normalizeCap,
+  validateCapWithinPlan,
+  validateDependencies,
+} from '@/lib/core-functions/validate';
 import prisma from '@/lib/prisma';
-import { createAuditLog } from '@/lib/audit';
+import {
+  auditSuperAdminMetadata,
+  resolveAuditActorId,
+  safeCreateAuditLog,
+} from '@/lib/audit';
 
 export const dynamic = 'force-dynamic';
 
@@ -103,6 +113,18 @@ export async function PATCH(
       ? normalizeCap(parsed.data.superAdminCap)
       : undefined;
 
+    if (capSlugs) {
+      const plan = await getCompanySubscriptionPlan(companyId);
+      const planLimit = maxModulesForPlan(plan);
+      const planIssues = validateCapWithinPlan(capSlugs, planLimit);
+      if (planIssues.length > 0) {
+        return validationErrorResponse(
+          Object.fromEntries(planIssues.map((i, idx) => [`cap.${idx}`, i.message])),
+          'Module cap exceeds billing plan limit'
+        );
+      }
+    }
+
     const enabledSlugs = parsed.data.enabledModules
       ? parsed.data.enabledModules.filter((s): s is ModuleSlug => isModuleSlug(s))
       : undefined;
@@ -132,15 +154,16 @@ export async function PATCH(
         : undefined,
     });
 
-    await createAuditLog({
+    await safeCreateAuditLog({
       companyId,
-      actorId: currentUser.id,
+      actorId: resolveAuditActorId(currentUser),
       action: 'module_config_updated',
       entityType: 'CompanySettings',
       entityId: companyId,
       newState: {
         superAdminCap: saved.superAdminCap,
         enabledModules: saved.enabledSlugs,
+        ...auditSuperAdminMetadata(currentUser),
       },
     });
 
