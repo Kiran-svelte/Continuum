@@ -3,6 +3,7 @@ import prisma from '@/lib/prisma';
 import { getAuthEmployee, requireRole, AuthError } from '@/lib/auth-guard';
 import { checkApiRateLimit, getRateLimitHeaders } from '@/lib/api-rate-limit';
 import { createAuditLog, AUDIT_ACTIONS } from '@/lib/audit';
+import { deactivateEmployeeAndReleaseEmail } from '@/lib/employee-email-lifecycle';
 
 export const dynamic = 'force-dynamic';
 
@@ -369,13 +370,8 @@ export async function DELETE(
       }
     }
 
-    // Soft delete
-    await prisma.employee.update({
-      where: { id },
-      data: {
-        status: 'terminated',
-        deleted_at: new Date(),
-      },
+    await prisma.$transaction(async (tx) => {
+      await deactivateEmployeeAndReleaseEmail(tx, { employeeId: id });
     });
 
     // Status history

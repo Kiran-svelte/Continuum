@@ -8,10 +8,27 @@ import { sendInviteEmail } from '@/lib/email-service';
 import { buildInviteAcceptUrl } from '@/lib/invite-url';
 import { promiseTimeout } from '@/lib/promise-timeout';
 import { validateReportingManager } from '@/lib/invite-reporting-manager';
+import { findEmployeeBlockingEmail } from '@/lib/employee-email-lifecycle';
 
 export const dynamic = 'force-dynamic';
 
 const INVITE_EMAIL_TIMEOUT_MS = 12_000;
+
+const HR_ADMIN_INVITE_ROLES = new Set(['admin', 'hr', 'super_admin']);
+const MANAGER_INVITE_ROLES = new Set(['manager', 'director', 'team_lead']);
+
+function canManageCompanyInvite(
+  user: { id: string; role: Role },
+  invite: { manager_id: string | null; invited_by_id?: string | null }
+): boolean {
+  if (HR_ADMIN_INVITE_ROLES.has(user.role)) {
+    return true;
+  }
+  if (!MANAGER_INVITE_ROLES.has(user.role)) {
+    return false;
+  }
+  return invite.manager_id === user.id || invite.invited_by_id === user.id;
+}
 
 const updateInviteSchema = z.object({
   email: z.string().email().optional(),
@@ -39,9 +56,9 @@ export async function PATCH(
       );
     }
 
-    if (!['admin', 'hr', 'super_admin'].includes(user.role)) {
+    if (!['admin', 'hr', 'super_admin', 'manager', 'director', 'team_lead'].includes(user.role)) {
       return NextResponse.json(
-        { error: 'Only admins or HR can edit invites' },
+        { error: 'You do not have permission to edit invites' },
         { status: 403 }
       );
     }
@@ -53,11 +70,22 @@ export async function PATCH(
         id,
         company_id: user.orgId,
       },
-      select: { id: true, email: true, status: true, role: true, manager_id: true },
+      select: {
+        id: true,
+        email: true,
+        status: true,
+        role: true,
+        manager_id: true,
+        invited_by_id: true,
+      },
     });
 
     if (!invite) {
       return NextResponse.json({ error: 'Invite not found' }, { status: 404 });
+    }
+
+    if (!canManageCompanyInvite(user, invite)) {
+      return NextResponse.json({ error: 'You do not have permission to edit this invite' }, { status: 403 });
     }
 
     if (invite.status !== 'pending') {
@@ -88,11 +116,8 @@ export async function PATCH(
     if (email) {
       const normalizedEmail = email.trim().toLowerCase();
 
-      const existingEmployee = await prisma.employee.findUnique({
-        where: { email: normalizedEmail },
-        select: { id: true },
-      });
-      if (existingEmployee) {
+      const blockingEmployee = await findEmployeeBlockingEmail(prisma, normalizedEmail);
+      if (blockingEmployee) {
         return NextResponse.json(
           { error: 'An existing user already uses this email' },
           { status: 409 }
@@ -170,16 +195,27 @@ export async function POST(
   try {
     const user = await getCurrentUser();
     if (!user || !user.orgId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    if (!['admin', 'hr', 'super_admin'].includes(user.role)) {
-      return NextResponse.json({ error: 'Only admins or HR can resend invites' }, { status: 403 });
+    if (!['admin', 'hr', 'super_admin', 'manager', 'director', 'team_lead'].includes(user.role)) {
+      return NextResponse.json({ error: 'You do not have permission to resend invites' }, { status: 403 });
     }
 
     const { id } = await params;
     const invite = await prisma.userInvite.findFirst({
       where: { id, company_id: user.orgId },
-      select: { id: true, email: true, status: true, role: true, department: true },
+      select: {
+        id: true,
+        email: true,
+        status: true,
+        role: true,
+        department: true,
+        manager_id: true,
+        invited_by_id: true,
+      },
     });
     if (!invite) return NextResponse.json({ error: 'Invite not found' }, { status: 404 });
+    if (!canManageCompanyInvite(user, invite)) {
+      return NextResponse.json({ error: 'You do not have permission to resend this invite' }, { status: 403 });
+    }
     if (invite.status !== 'pending') return NextResponse.json({ error: 'Only pending invites can be resent' }, { status: 400 });
 
     const token = randomUUID();
@@ -240,15 +276,18 @@ export async function DELETE(
   try {
     const user = await getCurrentUser();
     if (!user || !user.orgId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    if (!['admin', 'hr', 'super_admin'].includes(user.role)) {
-      return NextResponse.json({ error: 'Only admins or HR can revoke invites' }, { status: 403 });
+    if (!['admin', 'hr', 'super_admin', 'manager', 'director', 'team_lead'].includes(user.role)) {
+      return NextResponse.json({ error: 'You do not have permission to revoke invites' }, { status: 403 });
     }
     const { id } = await params;
     const invite = await prisma.userInvite.findFirst({
       where: { id, company_id: user.orgId },
-      select: { id: true, status: true },
+      select: { id: true, status: true, manager_id: true, invited_by_id: true },
     });
     if (!invite) return NextResponse.json({ error: 'Invite not found' }, { status: 404 });
+    if (!canManageCompanyInvite(user, invite)) {
+      return NextResponse.json({ error: 'You do not have permission to revoke this invite' }, { status: 403 });
+    }
     if (invite.status !== 'pending') return NextResponse.json({ error: 'Only pending invites can be revoked' }, { status: 400 });
     await prisma.userInvite.update({
       where: { id: invite.id },

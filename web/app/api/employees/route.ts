@@ -4,6 +4,7 @@ import { getAuthEmployee, requireRole, AuthError } from '@/lib/auth-guard';
 import { checkApiRateLimit, getRateLimitHeaders } from '@/lib/api-rate-limit';
 import { createAuditLog, AUDIT_ACTIONS } from '@/lib/audit';
 import { validateReportingManager } from '@/lib/invite-reporting-manager';
+import { findEmployeeBlockingEmail } from '@/lib/employee-email-lifecycle';
 
 export const dynamic = 'force-dynamic';
 
@@ -201,17 +202,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: managerValidation.error }, { status: 400 });
     }
 
-    // ── Check for duplicate email within the company ────────────────────
-    const existing = await prisma.employee.findFirst({
-      where: {
-        email: email.trim().toLowerCase(),
-        org_id: employee.org_id!,
-        deleted_at: null,
-      },
-      select: { id: true },
-    });
+    const blockingEmployee = await findEmployeeBlockingEmail(prisma, email);
 
-    if (existing) {
+    if (blockingEmployee) {
       return NextResponse.json(
         { error: 'An employee with this email already exists in your company.' },
         { status: 409 }

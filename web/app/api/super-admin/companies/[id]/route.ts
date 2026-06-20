@@ -8,6 +8,7 @@ import {
 } from '@/lib/audit';
 import { assertValidCompanyTimezone } from '@/lib/api-guards';
 import { TOTAL_ONBOARDING_STEPS } from '@/lib/onboarding-step-contract';
+import { purgeCompanyById } from '@/lib/tenancy/purge-company';
 
 export const dynamic = 'force-dynamic';
 
@@ -271,9 +272,8 @@ export async function PATCH(
 /**
  * DELETE /api/super-admin/companies/[id]
  *
- * Soft-deletes a company by setting deleted_at.
- * Idempotent: calling DELETE on an already-deleted company returns success.
- * Returns 404 only when the company record does not exist at all.
+ * Permanently deletes a company and all tenant data (Prisma cascades).
+ * Idempotent: returns success when the company record no longer exists.
  */
 export async function DELETE(
   request: NextRequest,
@@ -287,48 +287,48 @@ export async function DELETE(
 
     const { id: companyId } = await params;
 
-    // Verify the company exists before attempting to update (prevents Prisma RecordNotFoundError).
     const existing = await prisma.company.findUnique({
       where: { id: companyId },
       select: { id: true, name: true, deleted_at: true },
     });
 
     if (!existing) {
-      return NextResponse.json({ error: 'Company not found' }, { status: 404 });
-    }
-
-    // Idempotent: already deleted — return success without re-writing the timestamp.
-    if (existing.deleted_at) {
       return NextResponse.json({
         success: true,
         message: 'Company already deleted',
       });
     }
 
-    // Soft delete the company.
-    await prisma.company.update({
-      where: { id: companyId },
-      data: { deleted_at: new Date() },
-    });
-
-    // Audit log — super-admin actor_id must be null (SuperAdmin id is not in Employee FK)
     await safeCreateAuditLog({
       companyId,
       actorId: resolveAuditActorId(currentUser),
       action: 'company_deleted',
       entityType: 'company',
       entityId: companyId,
+      previousState: {
+        name: existing.name,
+        deleted_at: existing.deleted_at?.toISOString() ?? null,
+      },
       newState: {
-        deleted_at: new Date().toISOString(),
+        purge: true,
         ...auditSuperAdminMetadata(currentUser),
       },
       ipAddress: request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip'),
       userAgent: request.headers.get('user-agent'),
     });
 
+    const result = await purgeCompanyById(companyId);
+
+    if (result.alreadyGone) {
+      return NextResponse.json({
+        success: true,
+        message: 'Company already deleted',
+      });
+    }
+
     return NextResponse.json({
       success: true,
-      message: 'Company deleted successfully',
+      message: 'Company and all associated data deleted permanently',
     });
   } catch (error) {
     console.error('[SUPER ADMIN DELETE COMPANY] Error:', error);

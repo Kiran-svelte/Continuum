@@ -16,6 +16,7 @@ import type { Prisma, Role } from '@prisma/client';
 import { buildDefaultModuleSeed } from '@/lib/core-functions/resolve';
 import { isModuleSlug, type ModuleSlug } from '@/lib/core-functions/catalog';
 import { clampEnabledToCap, validateDependencies } from '@/lib/core-functions/validate';
+import { findEmployeeBlockingEmail } from '@/lib/employee-email-lifecycle';
 
 export const dynamic = 'force-dynamic';
 
@@ -93,12 +94,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check if email already exists
-    const existingUser = await prisma.employee.findUnique({
-      where: { email: ownerEmail.toLowerCase() },
-    });
+    const blockingOwner = await findEmployeeBlockingEmail(prisma, ownerEmail);
 
-    if (existingUser) {
+    if (blockingOwner) {
       return NextResponse.json(
         { error: 'A user with this email already exists' },
         { status: 409 }

@@ -5,6 +5,10 @@ import { normalizeEmail } from '@/lib/email-normalization';
 import { getCurrentUser } from '@/lib/auth-service';
 import { hashPassword } from '@/lib/password-service';
 import { validatePassword } from '@/lib/password-validation';
+import {
+  deactivateEmployeeAndReleaseEmail,
+  findEmployeeBlockingEmail,
+} from '@/lib/employee-email-lifecycle';
 
 export const dynamic = 'force-dynamic';
 
@@ -65,15 +69,11 @@ export async function PATCH(
         return NextResponse.json({ error: 'Email is required' }, { status: 400 });
       }
 
-      const existingEmployee = await prisma.employee.findFirst({
-        where: {
-          email: normalizedEmail,
-          id: { not: employee.id },
-        },
-        select: { id: true },
+      const blockingEmployee = await findEmployeeBlockingEmail(prisma, normalizedEmail, {
+        excludeEmployeeId: employee.id,
       });
 
-      if (existingEmployee) {
+      if (blockingEmployee) {
         return NextResponse.json(
           { error: 'Another user already uses this email' },
           { status: 409 }
@@ -167,13 +167,8 @@ export async function DELETE(
       return NextResponse.json({ error: 'User already deactivated' }, { status: 400 });
     }
 
-    await prisma.employee.update({
-      where: { id: employee.id },
-      data: {
-        status: 'terminated',
-        deleted_at: new Date(),
-        updated_at: new Date(),
-      },
+    await prisma.$transaction(async (tx) => {
+      await deactivateEmployeeAndReleaseEmail(tx, { employeeId: employee.id });
     });
 
     return NextResponse.json({ success: true });

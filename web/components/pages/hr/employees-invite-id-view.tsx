@@ -13,7 +13,7 @@ export default async function EmployeesInviteIdView({ params }: PageProps) {
   const { id } = await params;
   const user = await getCurrentUser();
 
-  if (!user || !['admin', 'hr', 'super_admin'].includes(user.role)) {
+  if (!user || !['admin', 'hr', 'manager', 'director', 'team_lead', 'super_admin'].includes(user.role)) {
     redirect('/sign-in');
   }
 

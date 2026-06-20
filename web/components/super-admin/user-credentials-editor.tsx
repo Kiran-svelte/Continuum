@@ -1,7 +1,10 @@
 'use client';
 
 import { useState } from 'react';
-import { AlertCircle, CheckCircle2, KeyRound, Loader2, Mail } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { AlertCircle, CheckCircle2, KeyRound, Loader2, Mail, Trash2 } from 'lucide-react';
+import { ConfirmDialog } from '@/components/ui/modal';
+import { Button } from '@/components/ui/button';
 
 type Props = {
   userId: string;
@@ -13,8 +16,11 @@ export default function UserCredentialsEditor({ userId, initialEmail }: Props) {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [deactivating, setDeactivating] = useState(false);
+  const [showDeactivateConfirm, setShowDeactivateConfirm] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const router = useRouter();
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -65,6 +71,29 @@ export default function UserCredentialsEditor({ userId, initialEmail }: Props) {
       setError('Failed to update credentials. Please try again.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const onDeactivate = async () => {
+    setError(null);
+    setDeactivating(true);
+    try {
+      const response = await fetch(`/api/super-admin/users/${userId}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        setError(data.error || 'Failed to deactivate user');
+        return;
+      }
+      setShowDeactivateConfirm(false);
+      router.push('/super-admin/users');
+      router.refresh();
+    } catch {
+      setError('Failed to deactivate user. Please try again.');
+    } finally {
+      setDeactivating(false);
     }
   };
 
@@ -135,6 +164,34 @@ export default function UserCredentialsEditor({ userId, initialEmail }: Props) {
           Save Credentials
         </button>
       </form>
+
+      <div className="pt-4 border-t border-border">
+        <h3 className="text-sm font-semibold text-foreground mb-2">Account Management</h3>
+        <p className="text-sm text-muted mb-3">
+          Deactivating removes platform access for this user.
+        </p>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="text-destructive hover:bg-destructive/10 inline-flex items-center gap-2"
+          onClick={() => setShowDeactivateConfirm(true)}
+        >
+          <Trash2 className="w-4 h-4" />
+          Deactivate User
+        </Button>
+      </div>
+
+      <ConfirmDialog
+        isOpen={showDeactivateConfirm}
+        onClose={() => setShowDeactivateConfirm(false)}
+        onConfirm={onDeactivate}
+        title="Deactivate user?"
+        description="This sets the account to terminated and removes sign-in access. You can restore access later by updating credentials."
+        confirmLabel="Deactivate"
+        variant="danger"
+        loading={deactivating}
+      />
     </section>
   );
 }

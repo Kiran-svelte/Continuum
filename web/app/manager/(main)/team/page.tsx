@@ -748,37 +748,44 @@ function TeamMemberCard({ member, isExpanded, isOnLeave, onToggleExpand, detailC
       layout
       className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden transition-all duration-300 hover:border-primary/30 hover:shadow-2xl hover:shadow-primary/10"
     >
-      <button
-        type="button"
-        onClick={() => onToggleExpand(member.id)}
-        className="w-full text-left p-4 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 rounded-lg"
-      >
-        <div className="flex items-center gap-4">
-          {/* Avatar */}
-          <div className={`relative w-14 h-14 rounded-full flex items-center justify-center text-xl font-bold shrink-0 shadow-lg ${
-            isOnLeave
-              ? 'bg-gradient-to-br from-amber-500 to-orange-600 text-white shadow-amber-500/20'
-              : 'bg-gradient-to-br from-blue-500 to-violet-600 text-white shadow-blue-500/20'
-          }`}>
-            {getInitials(member.first_name, member.last_name)}
-            <div className={`absolute bottom-0 right-0 w-4 h-4 rounded-full border-2 border-white/10 ${isOnLeave ? 'bg-amber-400' : 'bg-green-400'}`} />
-          </div>
+      <div className="p-4">
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => onToggleExpand(member.id)}
+            className="flex-1 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 rounded-lg"
+          >
+            <div className="flex items-center gap-4">
+              <div className={`relative w-14 h-14 rounded-full flex items-center justify-center text-xl font-bold shrink-0 shadow-lg ${
+                isOnLeave
+                  ? 'bg-gradient-to-br from-amber-500 to-orange-600 text-white shadow-amber-500/20'
+                  : 'bg-gradient-to-br from-blue-500 to-violet-600 text-white shadow-blue-500/20'
+              }`}>
+                {getInitials(member.first_name, member.last_name)}
+                <div className={`absolute bottom-0 right-0 w-4 h-4 rounded-full border-2 border-white/10 ${isOnLeave ? 'bg-amber-400' : 'bg-green-400'}`} />
+              </div>
 
-          {/* Name + meta */}
-          <div className="flex-1 min-w-0">
-            <p className="text-base font-semibold text-white truncate">{member.first_name} {member.last_name}</p>
-            <p className="text-sm text-white/60 truncate">{member.designation || 'N/A'}</p>
-            {member.status !== 'active' && (
-              <Badge variant={STATUS_BADGE[member.status] ?? 'default'} size="sm" className="mt-1 capitalize">{member.status.replace(/_/g, ' ')}</Badge>
-            )}
-          </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-base font-semibold text-white truncate">{member.first_name} {member.last_name}</p>
+                <p className="text-sm text-white/60 truncate">{member.designation || 'N/A'}</p>
+                {member.status !== 'active' && (
+                  <Badge variant={STATUS_BADGE[member.status] ?? 'default'} size="sm" className="mt-1 capitalize">{member.status.replace(/_/g, ' ')}</Badge>
+                )}
+              </div>
 
-          {/* Expand chevron */}
-          <motion.div animate={{ rotate: isExpanded ? 180 : 0 }} transition={{ duration: 0.2 }}>
-            <ChevronDown className="w-5 h-5 text-white/50" />
-          </motion.div>
+              <motion.div animate={{ rotate: isExpanded ? 180 : 0 }} transition={{ duration: 0.2 }}>
+                <ChevronDown className="w-5 h-5 text-white/50" />
+              </motion.div>
+            </div>
+          </button>
+          <Link
+            href={`/manager/directory?search=${encodeURIComponent(member.email)}`}
+            className="text-xs text-primary hover:underline shrink-0 px-2 py-1"
+          >
+            Directory
+          </Link>
         </div>
-      </button>
+      </div>
 
       {/* Expandable detail section */}
       <AnimatePresence initial={false}>

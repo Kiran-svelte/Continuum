@@ -4,6 +4,10 @@ import { hashPassword, validatePassword } from '@/lib/password-service';
 import { generateTokenPair, getAccessCookieOptions, getRefreshCookieOptions, ACCESS_COOKIE_NAME, REFRESH_COOKIE_NAME } from '@/lib/jwt-service';
 import { v4 as uuidv4 } from 'uuid';
 import type { Role } from '@prisma/client';
+import {
+  deactivateEmployeeAndReleaseEmail,
+  employeeHoldsEmail,
+} from '@/lib/employee-email-lifecycle';
 
 export const dynamic = 'force-dynamic';
 
@@ -73,10 +77,17 @@ export async function POST(request: NextRequest) {
     // Hash the password
     const passwordHash = await hashPassword(password);
 
-    // Check if employee record already exists (created during invite in dev mode)
+    // Check if employee record already exists (created during direct provisioning)
     let employee = await prisma.employee.findUnique({
       where: { email: invite.email.toLowerCase() },
     });
+
+    if (employee && !employeeHoldsEmail(employee)) {
+      await prisma.$transaction(async (tx) => {
+        await deactivateEmployeeAndReleaseEmail(tx, { employeeId: employee!.id });
+      });
+      employee = null;
+    }
 
     if (employee) {
       // Update existing employee

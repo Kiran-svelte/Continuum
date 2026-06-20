@@ -8,6 +8,7 @@ import { provisionTemporaryInviteAccess } from '@/lib/invite-provisioning';
 import { sendHybridInviteEmail } from '@/lib/email-service';
 import { buildInviteAcceptUrl } from '@/lib/invite-url';
 import { promiseTimeout } from '@/lib/promise-timeout';
+import { findEmployeeBlockingEmail } from '@/lib/employee-email-lifecycle';
 
 export const dynamic = 'force-dynamic';
 
@@ -76,12 +77,8 @@ export async function PATCH(
     if (email) {
       const normalizedEmail = email.trim().toLowerCase();
 
-      const existingEmployee = await prisma.employee.findUnique({
-        where: { email: normalizedEmail },
-        select: { id: true },
-      });
-
-      if (existingEmployee) {
+      const blockingEmployee = await findEmployeeBlockingEmail(prisma, normalizedEmail);
+      if (blockingEmployee) {
         return NextResponse.json(
           { error: 'An existing user already uses this email' },
           { status: 409 }
@@ -239,5 +236,42 @@ export async function POST(
     console.error('[SUPER ADMIN INVITE RESEND] Error:', error);
     const message = error instanceof Error ? error.message : 'Unknown error';
     return NextResponse.json({ error: 'Failed to resend invite', details: message }, { status: 500 });
+  }
+}
+
+export async function DELETE(
+  _request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const currentUser = await getCurrentUser();
+    if (!currentUser || currentUser.role !== 'super_admin') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const { id } = await params;
+    const invite = await prisma.userInvite.findUnique({
+      where: { id },
+      select: { id: true, status: true },
+    });
+
+    if (!invite) {
+      return NextResponse.json({ error: 'Invite not found' }, { status: 404 });
+    }
+
+    if (invite.status !== 'pending') {
+      return NextResponse.json({ error: 'Only pending invites can be revoked' }, { status: 400 });
+    }
+
+    await prisma.userInvite.update({
+      where: { id: invite.id },
+      data: { status: 'revoked', updated_at: new Date() },
+    });
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error('[SUPER ADMIN INVITE REVOKE] Error:', error);
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    return NextResponse.json({ error: 'Failed to revoke invite', details: message }, { status: 500 });
   }
 }

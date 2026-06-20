@@ -6,6 +6,7 @@ import { hashPassword, generateTemporaryPassword } from '@/lib/password-service'
 import { sendSuperAdminUserInviteEmail } from '@/lib/email-service';
 import { buildInviteAcceptUrl } from '@/lib/invite-url';
 import { promiseTimeout } from '@/lib/promise-timeout';
+import { findEmployeeBlockingEmail } from '@/lib/employee-email-lifecycle';
 import type { Role } from '@prisma/client';
 
 export const dynamic = 'force-dynamic';
@@ -52,12 +53,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check if email already exists
-    const existingEmployee = await prisma.employee.findUnique({
-      where: { email: email.toLowerCase() },
-    });
+    const blockingEmployee = await findEmployeeBlockingEmail(prisma, email);
 
-    if (existingEmployee) {
+    if (blockingEmployee) {
       return NextResponse.json(
         { error: 'A user with this email already exists' },
         { status: 400 }

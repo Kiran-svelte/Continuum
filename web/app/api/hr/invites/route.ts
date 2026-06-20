@@ -8,6 +8,7 @@ import { createAuditLog, AUDIT_ACTIONS } from '@/lib/audit';
 import { sendInviteEmail } from '@/lib/email-service';
 import { normalizePhone } from '@/lib/phone/normalize';
 import { validateReportingManager } from '@/lib/invite-reporting-manager';
+import { findEmployeeBlockingEmail } from '@/lib/employee-email-lifecycle';
 
 export const dynamic = 'force-dynamic';
 
@@ -64,11 +65,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: managerValidation.error }, { status: 400 });
     }
 
-    // Check if employee already exists
-    const existingEmployee = await prisma.employee.findFirst({
-      where: { email, org_id: employee.org_id!, deleted_at: null },
-    });
-    if (existingEmployee) {
+    const blockingEmployee = await findEmployeeBlockingEmail(prisma, email);
+    if (blockingEmployee) {
       return NextResponse.json(
         { error: 'An employee with this email already exists' },
         { status: 409 }

@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 import { fetchWithTimeout, mapFetchErrorMessage } from '@/lib/fetch-with-timeout';
 import { Input, Select } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { PendingInviteActions } from '@/components/invite/pending-invite-actions';
 
 /** Manager option shape for the reporting manager dropdown. */
 interface ManagerOption {
@@ -488,6 +489,7 @@ export default function PeopleInviteView() {
                 <th className="px-4 py-2 text-xs font-semibold uppercase tracking-wide text-[var(--muted-foreground)]">Role</th>
                 <th className="px-4 py-2 text-xs font-semibold uppercase tracking-wide text-[var(--muted-foreground)]">Department</th>
                 <th className="px-4 py-2 text-xs font-semibold uppercase tracking-wide text-[var(--muted-foreground)]">Expires</th>
+                <th className="px-4 py-2 text-xs font-semibold uppercase tracking-wide text-[var(--muted-foreground)]">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -499,11 +501,19 @@ export default function PeopleInviteView() {
                   <td className="px-4 py-2 text-xs text-[var(--muted-foreground)]">
                     {new Date(invite.expires_at).toLocaleString('en-IN')}
                   </td>
+                  <td className="px-4 py-2">
+                    <PendingInviteActions
+                      inviteId={invite.id}
+                      editHref={`/hr/employees/invite/${invite.id}`}
+                      apiBase="/api/company/invite-user"
+                      onComplete={() => void loadPendingInvites()}
+                    />
+                  </td>
                 </tr>
               ))}
               {activePending.length === 0 && (
                 <tr>
-                  <td className="px-4 py-6 text-center text-sm text-[var(--muted-foreground)]" colSpan={4}>
+                  <td className="px-4 py-6 text-center text-sm text-[var(--muted-foreground)]" colSpan={5}>
                     No active pending invites.
                   </td>
                 </tr>

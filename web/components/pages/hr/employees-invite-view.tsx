@@ -22,6 +22,7 @@ import { ensureMe } from '@/lib/client-auth';
 import { fetchWithTimeout, mapFetchErrorMessage } from '@/lib/fetch-with-timeout';
 import { Button } from '@/components/ui/button';
 import { Input, Select, Textarea } from '@/components/ui/input';
+import { PendingInviteActions } from '@/components/invite/pending-invite-actions';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -154,9 +155,7 @@ export default function EmployeesInviteView() {
 
   async function fetchPendingInvites() {
     try {
-      // GET /api/hr/invites is the correct endpoint for listing pending invites.
-      // /api/company/invite-user only exports POST — calling GET on it returns 405.
-      const res = await fetchWithTimeout('/api/hr/invites', undefined, REQUEST_TIMEOUT_MS);
+      const res = await fetchWithTimeout('/api/company/invite-user', undefined, REQUEST_TIMEOUT_MS);
       if (!res.ok) return;
       const data = await res.json().catch(() => ({}));
       setPendingInvites(data.invites || []);
@@ -820,12 +819,12 @@ export default function EmployeesInviteView() {
                     {invite.first_name} {invite.last_name} · {invite.role} · expires {new Date(invite.expires_at).toLocaleDateString()}
                   </p>
                 </div>
-                <Link
-                  href={`/hr/employees/invite/${invite.id}`}
-                  className="btn-secondary text-xs"
-                >
-                  Edit
-                </Link>
+                <PendingInviteActions
+                  inviteId={invite.id}
+                  editHref={`/hr/employees/invite/${invite.id}`}
+                  apiBase="/api/company/invite-user"
+                  onComplete={() => void fetchPendingInvites()}
+                />
               </div>
             ))}
           </div>

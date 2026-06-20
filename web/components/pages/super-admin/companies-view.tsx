@@ -120,7 +120,7 @@ export default function CompaniesView() {
   };
 
   const deleteCompany = async (company: Company) => {
-    const confirmed = window.confirm(`Delete company "${company.name}"? This will soft-delete it.`);
+    const confirmed = window.confirm(`Delete company "${company.name}"? This permanently removes the company and all associated users and data.`);
     if (!confirmed) {
       return;
     }
@@ -148,7 +148,7 @@ export default function CompaniesView() {
     }
 
     const confirmed = window.confirm(
-      `Delete ${selectedCompanyIds.size} selected compan${selectedCompanyIds.size > 1 ? 'ies' : 'y'}? This will soft-delete them.`
+      `Delete ${selectedCompanyIds.size} selected compan${selectedCompanyIds.size > 1 ? 'ies' : 'y'}? This permanently removes ${selectedCompanyIds.size > 1 ? 'them' : 'it'} and all associated users and data.`
     );
     if (!confirmed) {
       return;

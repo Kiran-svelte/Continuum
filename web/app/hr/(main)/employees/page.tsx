@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback, Fragment } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import { StaggerContainer, FadeIn } from '@/components/motion';
 import { GlassPanel } from '@/components/glass-panel';
@@ -727,6 +728,12 @@ export default function EmployeesPage() {
                                 >
                                   {expandedEmployeeId === emp.id ? 'Close' : 'View'}
                                 </button>
+                                <Link
+                                  href={`/hr/employees/${emp.id}`}
+                                  className="text-xs text-white/60 hover:text-white hover:underline font-medium px-1"
+                                >
+                                  Profile
+                                </Link>
                                 <button
                                   className="p-1 rounded hover:bg-white/10 transition-colors text-white/60 hover:text-white"
                                   title="Edit employee"

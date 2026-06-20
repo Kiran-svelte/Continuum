@@ -11,6 +11,7 @@ import { isEmailVerified } from '@/lib/product-readiness';
 import { sendInviteEmail } from '@/lib/email-service';
 import { buildInviteAcceptUrl } from '@/lib/invite-url';
 import { promiseTimeout } from '@/lib/promise-timeout';
+import { findEmployeeBlockingEmail } from '@/lib/employee-email-lifecycle';
 import type { Role } from '@prisma/client';
 
 export const dynamic = 'force-dynamic';
@@ -45,13 +46,16 @@ function resolveInviteEmail(
  * GET /api/company/invite-user
  * Lists pending company user invites for admin/HR.
  */
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     const user = await getCurrentUser();
     if (!user?.orgId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-    if (!['admin', 'hr', 'super_admin'].includes(user.role)) {
+
+    const isHrAdmin = ['admin', 'hr', 'super_admin'].includes(user.role);
+    const isManagerLike = ['manager', 'director', 'team_lead'].includes(user.role);
+    if (!isHrAdmin && !isManagerLike) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
@@ -60,12 +64,19 @@ export async function GET() {
         company_id: user.orgId,
         status: 'pending',
         expires_at: { gt: new Date() },
+        ...(isHrAdmin
+          ? {}
+          : {
+              OR: [{ manager_id: user.id }, { invited_by_id: user.id }],
+            }),
       },
       orderBy: { created_at: 'desc' },
       take: 50,
       select: {
         id: true,
         email: true,
+        first_name: true,
+        last_name: true,
         role: true,
         department: true,
         expires_at: true,
@@ -77,6 +88,8 @@ export async function GET() {
       invites: invites.map((invite) => ({
         id: invite.id,
         email: invite.email,
+        first_name: invite.first_name,
+        last_name: invite.last_name,
         role: invite.role,
         department: invite.department,
         expires_at: invite.expires_at,
@@ -208,11 +221,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const existingEmployee = await prisma.employee.findUnique({
-      where: { email: resolvedEmail },
-    });
+    const blockingEmployee = await findEmployeeBlockingEmail(prisma, resolvedEmail);
 
-    if (existingEmployee) {
+    if (blockingEmployee) {
       return NextResponse.json(
         { error: 'A user with this email already exists' },
         { status: 400 }

@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { Building2, Users, Mail, UserPlus, Send, ClipboardList, Settings, ArrowRight, LayoutDashboard, CreditCard } from 'lucide-react';
 import { LeavePulseRow, LEAVE_PULSE_ICONS } from '@/components/dashboard/leave-pulse-row';
+import { activeCompanyWhere, activeEmployeeWhere } from '@/lib/tenancy/active-tenant-query';
 
 /**
  * Super Admin Dashboard
@@ -23,8 +24,8 @@ export default async function SuperAdminDashboard() {
     activeInvites,
     recentCompanies,
   ] = await Promise.all([
-    prisma.company.count(),
-    prisma.employee.count(),
+    prisma.company.count({ where: activeCompanyWhere }),
+    prisma.employee.count({ where: activeEmployeeWhere }),
     prisma.userInvite.count({
       where: {
         status: 'pending',
@@ -32,6 +33,7 @@ export default async function SuperAdminDashboard() {
       },
     }),
     prisma.company.findMany({
+      where: activeCompanyWhere,
       take: 5,
       orderBy: { created_at: 'desc' },
       select: {

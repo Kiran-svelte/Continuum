@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { AlertCircle, CheckCircle2, Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { PendingInviteActions } from '@/components/invite/pending-invite-actions';
 
 type Props = {
   inviteId: string;
@@ -122,6 +123,15 @@ export default function HrInviteCredentialsEditor({
         {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
         Save Invite
       </button>
+
+      <div className="pt-4 border-t border-border">
+        <h3 className="text-sm font-semibold text-foreground mb-2">Invite Management</h3>
+        <PendingInviteActions
+          inviteId={inviteId}
+          apiBase="/api/company/invite-user"
+          onComplete={() => router.push('/hr/employees/invite')}
+        />
+      </div>
     </form>
   );
 }

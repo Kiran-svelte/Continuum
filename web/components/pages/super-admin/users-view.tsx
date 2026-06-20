@@ -7,6 +7,7 @@ import { revalidatePath } from 'next/cache';
 import { sendSuperAdminUserInviteEmail } from '@/lib/email-service';
 import { buildAppUrl } from '@/lib/url-origin';
 import { Button } from '@/components/ui/button';
+import { ConfirmFormButton } from '@/components/ui/confirm-form-button';
 
 async function resendInviteAction(formData: FormData) {
   'use server';
@@ -311,14 +312,15 @@ export default async function UsersView() {
                               </form>
                               <form action={revokeInviteAction} className="inline">
                                 <input type="hidden" name="inviteId" value={invite.id} />
-                                <Button
+                                <ConfirmFormButton
                                   type="submit"
+                                  confirmMessage={`Revoke invitation for ${invite.email}?`}
                                   className="px-3 py-1.5 text-xs font-medium text-destructive hover:bg-destructive/10 rounded transition-colors"
                                   variant="ghost"
                                   size="sm"
                                 >
                                   Revoke
-                                </Button>
+                                </ConfirmFormButton>
                               </form>
                             </div>
                           </td>
@@ -396,14 +398,15 @@ export default async function UsersView() {
                               </Link>
                               <form action={deactivateUserAction} className="inline">
                                 <input type="hidden" name="userId" value={emp.id} />
-                                <Button
+                                <ConfirmFormButton
                                   type="submit"
+                                  confirmMessage={`Deactivate ${emp.first_name} ${emp.last_name}? They will lose platform access.`}
                                   className="px-3 py-1.5 text-xs font-medium text-destructive hover:bg-destructive/10 rounded transition-colors"
                                   variant="ghost"
                                   size="sm"
                                 >
                                   Deactivate
-                                </Button>
+                                </ConfirmFormButton>
                               </form>
                             </div>
                           </td>

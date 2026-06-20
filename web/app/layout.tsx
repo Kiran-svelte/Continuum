@@ -5,6 +5,7 @@ import { TutorialProvider } from '@/components/tutorial/tutorial-provider';
 import { AuthProvider } from '@/components/auth/auth-provider';
 import { GlobalErrorBoundary } from '@/components/global-error-boundary';
 import { Toaster } from '@/components/ui/toaster';
+import { ClarityAnalytics } from '@/components/analytics/clarity-analytics';
 import './globals.css';
 
 const fontSans = Geist({
@@ -115,6 +116,7 @@ export default function RootLayout({
         <GlobalErrorBoundary>
           <ThemeProvider defaultTheme="dark" storageKey="continuum-theme">
             <AuthProvider>
+              <ClarityAnalytics />
               <TutorialProvider>
                 {children}
               </TutorialProvider>
