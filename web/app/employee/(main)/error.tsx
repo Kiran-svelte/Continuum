@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react';
 import { AlertTriangle, RefreshCcw, Home } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 export default function EmployeeError({
   error,
@@ -28,13 +29,14 @@ export default function EmployeeError({
           <p className="text-xs text-white/60 font-mono">Error ID: {error.digest}</p>
         )}
         <div className="flex items-center justify-center gap-3 pt-2">
-          <button
+          <Button
             onClick={reset}
             className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors"
+            id="employee-error-retry-btn"
           >
             <RefreshCcw className="w-4 h-4" />
             Try Again
-          </button>
+          </Button>
           <a
             href="/employee/dashboard"
             className="inline-flex items-center gap-2 px-4 py-2 border border-white/10 text-white rounded-lg text-sm font-medium hover:bg-white/5 transition-colors"

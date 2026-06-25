@@ -4,6 +4,7 @@ import { getAuthEmployee, requireRole, AuthError } from '@/lib/auth-guard';
 import { checkApiRateLimit, getRateLimitHeaders } from '@/lib/api-rate-limit';
 import { createAuditLog, AUDIT_ACTIONS } from '@/lib/audit';
 import { sanitizeInput } from '@/lib/security';
+import { assertModule } from '@/lib/core-functions/assert-module';
 
 export const dynamic = 'force-dynamic';
 
@@ -26,6 +27,8 @@ export async function GET() {
       );
     }
     requireRole(employee, 'admin', 'hr', 'director');
+    const moduleGuard = await assertModule(employee.org_id!, 'directory');
+    if (moduleGuard) return moduleGuard;
 
     const companyId = employee.org_id!;
 
@@ -137,6 +140,8 @@ export async function POST(request: NextRequest) {
     }
 
     requireRole(employee, 'admin', 'hr');
+    const moduleGuard = await assertModule(employee.org_id!, 'directory');
+    if (moduleGuard) return moduleGuard;
 
     const body = await request.json().catch(() => ({}));
     const { name, type, parentId, headId, costCenter } = body as {
@@ -242,6 +247,8 @@ export async function PUT(request: NextRequest) {
     }
 
     requireRole(employee, 'admin', 'hr');
+    const moduleGuard = await assertModule(employee.org_id!, 'directory');
+    if (moduleGuard) return moduleGuard;
 
     const body = await request.json().catch(() => ({}));
     const { id, name, type, parentId, headId, costCenter } = body as {

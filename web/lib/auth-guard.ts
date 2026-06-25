@@ -244,6 +244,27 @@ export function requirePermissionGuard(
   }
 }
 
+/**
+ * Guards access to employee directory/list endpoints.
+ * Allows users with either broad company visibility or team visibility.
+ */
+export function requireEmployeeListAccess(employee: AuthEmployee): void {
+  // Super admin always allowed.
+  if (employee.primary_role === 'super_admin') return;
+
+  if (
+    hasPermission(employee.permissions, 'employee.view_all') ||
+    hasPermission(employee.permissions, 'employee.view_team')
+  ) {
+    return;
+  }
+
+  throw new AuthError(
+    "Forbidden: missing permission 'employee.view_all' or 'employee.view_team'",
+    403
+  );
+}
+
 /** Validates tenant isolation: employee must belong to the target company */
 export function requireCompanyAccess(
   employee: AuthEmployee,

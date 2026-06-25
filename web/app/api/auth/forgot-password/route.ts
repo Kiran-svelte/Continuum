@@ -14,8 +14,11 @@ const schema = z.object({
  * POST /api/auth/forgot-password
  *
  * Initiates the forgot password flow by generating a token and sending an email.
+ * In production, always returns the same neutral message to prevent email enumeration.
  */
 export async function POST(request: NextRequest) {
+  const neutralMessage = 'If that email exists in our system, we have sent a reset link.';
+
   try {
     const body = await request.json();
     const { email } = schema.parse(body);
@@ -33,9 +36,14 @@ export async function POST(request: NextRequest) {
       select: { id: true }
     }) : null;
 
-    // To prevent email enumeration, we always return success
+    // In production, return the neutral response immediately to prevent enumeration
+    if (process.env.NODE_ENV === 'production' && !employee && !superAdmin) {
+      return NextResponse.json({ success: true, message: neutralMessage });
+    }
+
     if (!employee && !superAdmin) {
-      return NextResponse.json({ success: true, message: 'If that email exists in our system, we have sent a reset link.' });
+      // Non-production: still neutral body but may include diagnostic hints below
+      return NextResponse.json({ success: true, message: neutralMessage });
     }
 
     // Generate token
@@ -56,14 +64,29 @@ export async function POST(request: NextRequest) {
 
     // Send email
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || (request.headers.get('host') ? `https://${request.headers.get('host')}` : 'http://localhost:3000');
-    const resetUrl = `${baseUrl}/reset-password?token=${rawToken}&email=${encodeURIComponent(emailLower)}`;
+    const reset_link = `${baseUrl}/reset-password?token=${rawToken}&email=${encodeURIComponent(emailLower)}`;
 
-    await sendPasswordResetEmail(emailLower, resetUrl);
+    await sendPasswordResetEmail(emailLower, reset_link);
 
-    return NextResponse.json({ success: true, message: 'If that email exists in our system, we have sent a reset link.' });
+    // In production, return neutral message — never reveal delivery status
+    if (process.env.NODE_ENV === 'production') {
+      return NextResponse.json({ success: true, message: neutralMessage });
+    }
+
+    // Non-production: expose diagnostic hints for development and testing
+    return NextResponse.json({
+      success: true,
+      message: neutralMessage,
+      delivered: true,
+      reset_link,
+    });
 
   } catch (error) {
     console.error('[AUTH FORGOT PASSWORD] Error:', error);
+    // In production, return neutral response even on error to prevent enumeration
+    if (process.env.NODE_ENV === 'production') {
+      return NextResponse.json({ success: true, message: neutralMessage });
+    }
     return NextResponse.json(
       { error: 'Failed to process request.' },
       { status: 500 }

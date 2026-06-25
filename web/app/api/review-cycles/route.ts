@@ -16,6 +16,7 @@ import {
   AuthError,
 } from '@/lib/auth-guard';
 import { randomUUID } from 'crypto';
+import { assertModule } from '@/lib/core-functions/assert-module';
 
 export const dynamic = 'force-dynamic';
 
@@ -27,6 +28,8 @@ export async function GET(request: NextRequest) {
   try {
     const employee = await getAuthEmployee(request);
     requireCompanyContext(employee);
+    const moduleGuard = await assertModule(employee.org_id!, 'performance');
+    if (moduleGuard) return moduleGuard;
 
     const url = new URL(request.url);
     const status = url.searchParams.get('status');
@@ -61,6 +64,8 @@ export async function POST(request: NextRequest) {
   try {
     const employee = await getAuthEmployee(request);
     requireCompanyContext(employee);
+    const moduleGuard = await assertModule(employee.org_id!, 'performance');
+    if (moduleGuard) return moduleGuard;
     requirePermissionGuard(employee, 'performance.manage_reviews');
 
     const body = await request.json();

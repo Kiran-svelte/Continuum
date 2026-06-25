@@ -160,18 +160,20 @@ export default function AuthErrorPage({ error, reset }: AuthErrorPageProps) {
                 Need help signing in?
               </p>
               <div className="flex justify-center space-x-4 text-xs">
-                <button
-                  className="text-primary hover:text-primary/80 underline"
+                <Button
+                  variant="ghost"
+                  className="text-primary hover:text-primary/80 underline p-0 h-auto text-xs"
                   onClick={() => window.location.href = '/auth/forgot-password'}
                 >
                   Reset Password
-                </button>
-                <button
-                  className="text-primary hover:text-primary/80 underline"
+                </Button>
+                <Button
+                  variant="ghost"
+                  className="text-primary hover:text-primary/80 underline p-0 h-auto text-xs"
                   onClick={() => window.open('mailto:support@continuum-hr.com', '_blank')}
                 >
                   Contact Support
-                </button>
+                </Button>
               </div>
             </div>
           </div>

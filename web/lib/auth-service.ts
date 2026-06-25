@@ -23,7 +23,17 @@ import {
   type TokenPair,
 } from '@/lib/jwt-service';
 import { verifyPassword, hashPassword } from '@/lib/password-service';
-import { COOKIE_ROLE, COOKIE_ROLES } from '@/lib/brand';
+import {
+  COOKIE_SESSION,
+  COOKIE_ROLE,
+  COOKIE_ROLES,
+  COOKIE_ONBOARDING,
+  COOKIE_EMP_ONBOARDING,
+  COOKIE_EMP_WELCOME,
+  COOKIE_ENABLED_MODULES,
+  COOKIE_COMPANY_SETUP,
+} from '@/lib/brand';
+import { isDemoAuthEnabled } from '@/lib/auth-routing';
 import type { Role, Employee } from '@prisma/client';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -545,8 +555,14 @@ export function setAuthCookies(response: NextResponse, accessToken: string, refr
 export function clearAuthCookies(response: NextResponse): void {
   response.cookies.set(ACCESS_COOKIE_NAME, '', { maxAge: 0, path: '/' });
   response.cookies.set(REFRESH_COOKIE_NAME, '', { maxAge: 0, path: '/api/auth' });
+  response.cookies.set(COOKIE_SESSION, '', { maxAge: 0, path: '/' });
   response.cookies.set(COOKIE_ROLE, '', { maxAge: 0, path: '/' });
   response.cookies.set(COOKIE_ROLES, '', { maxAge: 0, path: '/' });
+  response.cookies.set(COOKIE_ONBOARDING, '', { maxAge: 0, path: '/' });
+  response.cookies.set(COOKIE_EMP_ONBOARDING, '', { maxAge: 0, path: '/' });
+  response.cookies.set(COOKIE_EMP_WELCOME, '', { maxAge: 0, path: '/' });
+  response.cookies.set(COOKIE_ENABLED_MODULES, '', { maxAge: 0, path: '/' });
+  response.cookies.set(COOKIE_COMPANY_SETUP, '', { maxAge: 0, path: '/' });
 }
 
 /**
@@ -577,14 +593,19 @@ export async function setAuthCookiesAsync(tokens: TokenPair): Promise<void> {
   });
 }
 
-/**
- * Clears auth cookies on sign-out (async version).
- */
 export async function clearAuthCookiesAsync(): Promise<void> {
   const cookieStore = await cookies();
 
   cookieStore.set(ACCESS_COOKIE_NAME, '', { maxAge: 0 });
   cookieStore.set(REFRESH_COOKIE_NAME, '', { maxAge: 0, path: '/api/auth' });
+  cookieStore.set(COOKIE_SESSION, '', { maxAge: 0 });
+  cookieStore.set(COOKIE_ROLE, '', { maxAge: 0 });
+  cookieStore.set(COOKIE_ROLES, '', { maxAge: 0 });
+  cookieStore.set(COOKIE_ONBOARDING, '', { maxAge: 0 });
+  cookieStore.set(COOKIE_EMP_ONBOARDING, '', { maxAge: 0 });
+  cookieStore.set(COOKIE_EMP_WELCOME, '', { maxAge: 0 });
+  cookieStore.set(COOKIE_ENABLED_MODULES, '', { maxAge: 0 });
+  cookieStore.set(COOKIE_COMPANY_SETUP, '', { maxAge: 0 });
 }
 
 // ─── Password Management ────────────────────────────────────────────────────

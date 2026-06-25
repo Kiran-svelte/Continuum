@@ -4,6 +4,7 @@ import { getAuthEmployee, requireRole, AuthError } from '@/lib/auth-guard';
 import { checkApiRateLimit, getRateLimitHeaders } from '@/lib/api-rate-limit';
 import { createAuditLog } from '@/lib/audit';
 import { sendNotification } from '@/lib/notification-service';
+import { assertModule } from '@/lib/core-functions/assert-module';
 
 export const dynamic = 'force-dynamic';
 
@@ -38,6 +39,8 @@ const VALID_STATUSES = ['pending', 'verified', 'rejected', 'expired'] as const;
 export async function GET(request: NextRequest) {
   try {
     const employee = await getAuthEmployee();
+    const moduleGuard = await assertModule(employee.org_id!, 'documents');
+    if (moduleGuard) return moduleGuard;
 
     const rateLimit = checkApiRateLimit(employee.id, 'general');
     if (!rateLimit.allowed) {
@@ -141,6 +144,8 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const employee = await getAuthEmployee();
+    const moduleGuard = await assertModule(employee.org_id!, 'documents');
+    if (moduleGuard) return moduleGuard;
 
     const rateLimit = checkApiRateLimit(employee.id, 'general');
     if (!rateLimit.allowed) {
@@ -275,6 +280,8 @@ export async function POST(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   try {
     const employee = await getAuthEmployee();
+    const moduleGuard = await assertModule(employee.org_id!, 'documents');
+    if (moduleGuard) return moduleGuard;
     requireRole(employee, 'admin', 'hr');
 
     const rateLimit = checkApiRateLimit(employee.id, 'general');
@@ -412,6 +419,8 @@ export async function PUT(request: NextRequest) {
 export async function PATCH(request: NextRequest) {
   try {
     const employee = await getAuthEmployee();
+    const moduleGuard = await assertModule(employee.org_id!, 'documents');
+    if (moduleGuard) return moduleGuard;
 
     const rateLimit = checkApiRateLimit(employee.id, 'general');
     if (!rateLimit.allowed) {
@@ -561,6 +570,8 @@ export async function PATCH(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
   try {
     const employee = await getAuthEmployee();
+    const moduleGuard = await assertModule(employee.org_id!, 'documents');
+    if (moduleGuard) return moduleGuard;
 
     const rateLimit = checkApiRateLimit(employee.id, 'general');
     if (!rateLimit.allowed) {

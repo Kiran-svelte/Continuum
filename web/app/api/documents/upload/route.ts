@@ -4,6 +4,7 @@ import prisma from '@/lib/prisma';
 import { getAuthEmployee, AuthError } from '@/lib/auth-guard';
 import { checkApiRateLimit, getRateLimitHeaders } from '@/lib/api-rate-limit';
 import { createAuditLog } from '@/lib/audit';
+import { assertModule } from '@/lib/core-functions/assert-module';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -124,6 +125,8 @@ async function trySupabaseUpload(
 export async function POST(request: NextRequest) {
   try {
     const employee = await getAuthEmployee();
+    const moduleGuard = await assertModule(employee.org_id!, 'documents');
+    if (moduleGuard) return moduleGuard;
 
     // ── Rate limiting ───────────────────────────────────────────────────
     const rateLimit = checkApiRateLimit(employee.id, 'general');

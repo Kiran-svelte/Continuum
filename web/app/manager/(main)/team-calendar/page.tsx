@@ -74,8 +74,18 @@ const LEAVE_TYPE_COLORS: Record<string, { gradient: string; text: string; dot: s
 };
 const DEFAULT_LEAVE_COLOR = { gradient: 'from-slate-400 to-slate-600', text: 'text-slate-100', dot: 'bg-slate-300' };
 const MEMBER_COLORS = [
-  '#3b82f6', '#10b981', '#8b5cf6', '#f59e0b', '#ef4444', '#14b8a6',
-  '#ec4899', '#6366f1', '#f97316', '#06b6d4', '#84cc16', '#e11d48'
+  'var(--color-blue-500)',
+  'var(--color-emerald-500)',
+  'var(--color-violet-500)',
+  'var(--color-amber-500)',
+  'var(--color-red-500)',
+  'var(--color-teal-500)',
+  'var(--color-pink-500)',
+  'var(--color-indigo-500)',
+  'var(--color-orange-500)',
+  'var(--color-cyan-500)',
+  'var(--color-lime-500)',
+  'var(--color-rose-700)',
 ];
 
 /* ------------------------------------------------------------------ */

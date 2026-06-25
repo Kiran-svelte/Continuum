@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { getAuthEmployee, requireRole, AuthError } from '@/lib/auth-guard';
+import { getAuthEmployee, requireRole, requireEmployeeListAccess, AuthError } from '@/lib/auth-guard';
 import { checkApiRateLimit, getRateLimitHeaders } from '@/lib/api-rate-limit';
 import { createAuditLog, AUDIT_ACTIONS } from '@/lib/audit';
 
@@ -33,6 +33,7 @@ export async function GET(request: NextRequest) {
     }
 
     requireRole(employee, 'admin', 'hr', 'director', 'manager');
+    requireEmployeeListAccess(employee);
 
     const { searchParams } = new URL(request.url);
     const page = Math.max(1, parseInt(searchParams.get('page') ?? '1', 10));
@@ -48,15 +49,31 @@ export async function GET(request: NextRequest) {
       deleted_at: null,
     };
 
-    if (managerId) where.manager_id = managerId;
+    const hasCompanyWideView = employee.permissions.includes('employee.view_all');
+    const managerScopedRole =
+      employee.primary_role === 'manager' || employee.primary_role === 'team_lead';
+
+    if (managerId) {
+      where.manager_id = managerId;
+    } else if (managerScopedRole && !hasCompanyWideView) {
+      // Fail-safe default: managers only see their team unless explicitly granted company-wide visibility.
+      where.OR = [{ manager_id: employee.id }, { id: employee.id }];
+    }
 
     if (search) {
-      where.OR = [
+      const searchFilter = [
         { first_name: { contains: search, mode: 'insensitive' } },
         { last_name: { contains: search, mode: 'insensitive' } },
         { email: { contains: search, mode: 'insensitive' } },
         { designation: { contains: search, mode: 'insensitive' } },
       ];
+
+      if (Array.isArray(where.OR)) {
+        where.AND = [{ OR: where.OR as Record<string, unknown>[] }, { OR: searchFilter }];
+        delete where.OR;
+      } else {
+        where.OR = searchFilter;
+      }
     }
     if (status) where.status = status;
     if (department) where.department = { contains: department, mode: 'insensitive' };

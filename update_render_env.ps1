@@ -1,31 +1,65 @@
-$api = "rnd_KXurhFBeqnlX09eE7NHWTWNfWfIz"
-$svcId = "srv-d6m4h5bh46gs73be7iog"
-$h = @{"Authorization"="Bearer $api";"Accept"="application/json";"Content-Type"="application/json"}
-
-Write-Host "=== Getting current Render env vars ==="
-$existing = Invoke-RestMethod -Uri "https://api.render.com/v1/services/$svcId/env-vars" -Headers $h
-Write-Host "Current vars:"
-$existing | ForEach-Object { Write-Host "  $($_.envVar.key)" }
-
-Write-Host "`n=== Adding new env vars ==="
-# Need to PUT all env vars at once (Render replaces all)
-$allVars = @(
-    @{ key = "PYTHON_VERSION"; value = "3.11.0" }
-    @{ key = "FLASK_ENV"; value = "production" }
-    @{ key = "DATABASE_URL"; value = "postgresql://postgres.wbjgultqxqjjxzbdaxdt:Kiran%40Supabase@aws-1-ap-south-1.pooler.supabase.com:5432/postgres" }
-    @{ key = "DIRECT_URL"; value = "postgresql://postgres.wbjgultqxqjjxzbdaxdt:Kiran%40Supabase@aws-1-ap-south-1.pooler.supabase.com:5432/postgres" }
-    @{ key = "CRON_SECRET"; value = "uqUNpEE6dRWiXFxCJ6I+X1FyVm0tPilVuk093jbjrDM=" }
-    @{ key = "NEXT_PUBLIC_APP_URL"; value = "https://web-bice-eight-83.vercel.app" }
+param(
+    [string]$EnvFilePath = ".\.env.render.local",
+    [string]$ServiceId = $env:RENDER_SERVICE_ID,
+    [string]$ApiKey = $env:RENDER_API_KEY
 )
 
+if ([string]::IsNullOrWhiteSpace($ApiKey)) {
+    throw "RENDER_API_KEY is required. Set it in the shell, not in this script."
+}
+
+if ([string]::IsNullOrWhiteSpace($ServiceId)) {
+    throw "RENDER_SERVICE_ID is required."
+}
+
+if (-not (Test-Path -LiteralPath $EnvFilePath)) {
+    throw "Env file not found: $EnvFilePath. Use an ignored local file such as .env.render.local."
+}
+
+function Read-EnvFile {
+    param([string]$Path)
+
+    $vars = @()
+    foreach ($line in (Get-Content -LiteralPath $Path)) {
+        if ($line -match '^\s*#' -or [string]::IsNullOrWhiteSpace($line)) {
+            continue
+        }
+
+        if ($line -match '^([^=]+)=(.*)$') {
+            $vars += @{
+                key = $Matches[1].Trim()
+                value = $Matches[2].Trim().Trim('"')
+            }
+        }
+    }
+
+    return $vars
+}
+
+$headers = @{
+    "Authorization" = "Bearer $ApiKey"
+    "Accept" = "application/json"
+    "Content-Type" = "application/json"
+}
+
+Write-Host "Reading Render env vars from $EnvFilePath"
+$allVars = Read-EnvFile -Path $EnvFilePath
+
+if ($allVars.Count -eq 0) {
+    throw "No env vars found in $EnvFilePath."
+}
+
 $body = $allVars | ConvertTo-Json -Depth 3
-Write-Host "Sending $($allVars.Count) env vars..."
+
 try {
-    $result = Invoke-RestMethod -Uri "https://api.render.com/v1/services/$svcId/env-vars" -Method PUT -Headers $h -Body $body
-    Write-Host "Success! Vars set:"
+    $result = Invoke-RestMethod `
+        -Uri "https://api.render.com/v1/services/$ServiceId/env-vars" `
+        -Method PUT `
+        -Headers $headers `
+        -Body $body
+    Write-Host "Success. Vars set:"
     $result | ForEach-Object { Write-Host "  $($_.envVar.key)" }
 } catch {
     Write-Host "Error: $($_.ErrorDetails.Message)"
+    throw
 }
-
-Write-Host "`n=== Done ===" 

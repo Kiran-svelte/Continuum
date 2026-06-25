@@ -28,9 +28,9 @@ export async function POST(request: NextRequest) {
     const result = await refreshTokens(refreshToken);
 
     if (!result.success) {
-      // Clear cookies on failure
+      // Clear cookies on failure — session is invalid, client must re-authenticate
       const response = NextResponse.json(
-        { error: result.error || 'Token refresh failed' },
+        { error: result.error || 'Token refresh failed', requiresReauth: true },
         { status: 401 }
       );
       clearAuthCookies(response);

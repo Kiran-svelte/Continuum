@@ -8,6 +8,24 @@ import { signOutAll } from '@/lib/auth-service';
 
 export const dynamic = 'force-dynamic';
 
+// ─── Helpers ─────────────────────────────────────────────────────────────────────────
+
+/**
+ * Verifies the signed password-reset token by SHA-256 hash lookup.
+ * Returns the DB record when valid, null otherwise.
+ */
+async function verifyPasswordResetToken(email: string, rawToken: string) {
+  const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex');
+  return prisma.passwordResetToken.findFirst({
+    where: {
+      email,
+      token_hash: tokenHash,
+      is_used: false,
+      expires_at: { gt: new Date() },
+    },
+  });
+}
+
 const schema = z.object({
   email: z.string().email(),
   token: z.string().min(1),
@@ -26,19 +44,8 @@ export async function POST(request: NextRequest) {
 
     const emailLower = email.toLowerCase();
 
-    // Verify token
-    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
-
-    const resetRecord = await prisma.passwordResetToken.findFirst({
-      where: {
-        email: emailLower,
-        token_hash: tokenHash,
-        is_used: false,
-        expires_at: {
-          gt: new Date()
-        }
-      }
-    });
+    // Verify signed reset token
+    const resetRecord = await verifyPasswordResetToken(emailLower, token);
 
     if (!resetRecord) {
       return NextResponse.json(

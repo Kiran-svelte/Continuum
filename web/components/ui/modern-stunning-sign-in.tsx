@@ -161,6 +161,7 @@ export const SignIn1 = () => {
       }
 
       const email = identifier.trim()
+      // resolvePostSignInPath routes admins in setup to /onboarding, employees to /employee/dashboard, etc.
       let destination = resolvePostSignInPath(me, { redirectTarget })
       if (demoAuthEnabled && email.toLowerCase() === "super@demo.continuum.io") {
         destination = '/super-admin/dashboard'

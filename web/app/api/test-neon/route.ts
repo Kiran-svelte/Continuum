@@ -1,10 +1,20 @@
 import { NextResponse } from 'next/server';
 import { neonAuth } from '@/lib/neon-auth';
+import { getAuthEmployee, AuthError } from '@/lib/auth-guard';
 
 export const dynamic = 'force-dynamic';
 
+function requireSuperAdmin(role: string) {
+  if (role !== 'super_admin') {
+    throw Object.assign(new AuthError('Forbidden', 403), { status: 403 });
+  }
+}
+
 export async function GET() {
   try {
+    const employee = await getAuthEmployee();
+    requireSuperAdmin(employee.primary_role);
+
     console.log('Testing Neon Auth service...');
     
     const results = {
@@ -44,6 +54,9 @@ export async function GET() {
 
     return NextResponse.json(results);
   } catch (error) {
+    if (error instanceof AuthError) {
+      return NextResponse.json({ error: error.message }, { status: error.status });
+    }
     console.error('Neon Auth test error:', error);
     return NextResponse.json(
       { 
@@ -53,4 +66,4 @@ export async function GET() {
       { status: 500 }
     );
   }
-}
+}

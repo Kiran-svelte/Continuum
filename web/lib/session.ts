@@ -15,10 +15,15 @@
 
 import { SignJWT, jwtVerify, type JWTPayload } from 'jose';
 import { cookies } from 'next/headers';
+import {
+  COOKIE_SESSION,
+  BRAND_JWT_ISSUER,
+  BRAND_JWT_AUDIENCES,
+} from '@/lib/brand';
 
 // ─── Constants ──────────────────────────────────────────────────────────────
 
-export const SESSION_COOKIE_NAME = 'continuum-session';
+export const SESSION_COOKIE_NAME = COOKIE_SESSION;
 export const SESSION_MAX_AGE = 60 * 60 * 24 * 7; // 7 days in seconds
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -78,8 +83,8 @@ export async function createSessionToken(payload: {
     .setProtectedHeader({ alg: 'HS256' })
     .setIssuedAt()
     .setExpirationTime(`${SESSION_MAX_AGE}s`)
-    .setIssuer('continuum')
-    .setAudience('continuum-web')
+    .setIssuer(BRAND_JWT_ISSUER)
+    .setAudience(BRAND_JWT_AUDIENCES)
     .sign(secret);
 }
 
@@ -93,8 +98,8 @@ export async function verifySessionToken(token: string): Promise<SessionPayload>
   const secret = getSecret();
 
   const { payload } = await jwtVerify(token, secret, {
-    issuer: 'continuum',
-    audience: 'continuum-web',
+    issuer: BRAND_JWT_ISSUER,
+    audience: BRAND_JWT_AUDIENCES,
   });
 
   if (!payload.uid || !payload.email) {

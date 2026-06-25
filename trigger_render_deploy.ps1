@@ -1,13 +1,33 @@
-$api = "rnd_KXurhFBeqnlX09eE7NHWTWNfWfIz"
-$svcId = "srv-d6m4h5bh46gs73be7iog"
-$h = @{"Authorization"="Bearer $api";"Accept"="application/json";"Content-Type"="application/json"}
+param(
+    [string]$ServiceId = $env:RENDER_SERVICE_ID,
+    [string]$ApiKey = $env:RENDER_API_KEY
+)
+
+if ([string]::IsNullOrWhiteSpace($ApiKey)) {
+    throw "RENDER_API_KEY is required. Set it in the shell, not in this script."
+}
+
+if ([string]::IsNullOrWhiteSpace($ServiceId)) {
+    throw "RENDER_SERVICE_ID is required."
+}
+
+$headers = @{
+    "Authorization" = "Bearer $ApiKey"
+    "Accept" = "application/json"
+    "Content-Type" = "application/json"
+}
 
 Write-Host "=== Triggering Render Deploy ==="
 try {
-    $r = Invoke-RestMethod -Uri "https://api.render.com/v1/services/$svcId/deploys" -Method POST -Headers $h -Body '{}'
-    Write-Host "Deploy triggered: $($r.id) status: $($r.status)"
-    Write-Host "Full: $($r | ConvertTo-Json)"
+    $result = Invoke-RestMethod `
+        -Uri "https://api.render.com/v1/services/$ServiceId/deploys" `
+        -Method POST `
+        -Headers $headers `
+        -Body '{}'
+    Write-Host "Deploy triggered: $($result.id) status: $($result.status)"
 } catch {
     Write-Host "Error: $($_.ErrorDetails.Message)"
+    throw
 }
-Write-Host "=== Done ===" 
+
+Write-Host "=== Done ==="

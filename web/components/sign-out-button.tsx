@@ -3,6 +3,16 @@
 import { useRouter } from 'next/navigation';
 import { supabaseSignOut } from '@/lib/supabase';
 import { LogOut } from 'lucide-react';
+import {
+  COOKIE_SESSION,
+  COOKIE_ROLE,
+  COOKIE_ROLES,
+  COOKIE_ONBOARDING,
+  COOKIE_EMP_ONBOARDING,
+  COOKIE_EMP_WELCOME,
+  COOKIE_ENABLED_MODULES,
+  COOKIE_COMPANY_SETUP,
+} from '@/lib/brand';
 
 interface SignOutButtonProps {
   variant?: 'sidebar' | 'compact';
@@ -20,9 +30,18 @@ export function SignOutButton({ variant = 'sidebar' }: SignOutButtonProps) {
     }
 
     // 2. Clear all auth/role cookies client-side (backup for API response cookies)
-    document.cookie = 'continuum-session=; path=/; max-age=0';
-    document.cookie = 'continuum-role=; path=/; max-age=0';
-    document.cookie = 'continuum-roles=; path=/; max-age=0';
+    const clearCookie = (name: string) => {
+      document.cookie = `${name}=; path=/; max-age=0; SameSite=Lax`;
+    };
+
+    clearCookie(COOKIE_SESSION);
+    clearCookie(COOKIE_ROLE);
+    clearCookie(COOKIE_ROLES);
+    clearCookie(COOKIE_ONBOARDING);
+    clearCookie(COOKIE_EMP_ONBOARDING);
+    clearCookie(COOKIE_EMP_WELCOME);
+    clearCookie(COOKIE_ENABLED_MODULES);
+    clearCookie(COOKIE_COMPANY_SETUP);
     localStorage.removeItem('preferred_portal');
 
     // Clear Supabase client-side auth state

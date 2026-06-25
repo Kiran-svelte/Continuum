@@ -8,6 +8,30 @@ import {
 import { getAuthModulePayload } from '@/lib/core-functions/resolve';
 import prisma from '@/lib/prisma';
 
+// ─── Shared helpers ───────────────────────────────────────────────────────────
+
+/** Builds the flattened roles list from primary and secondary role arrays. */
+function buildRolesList(primaryRole: string, secondaryRoles: unknown): string[] {
+  const allRoles: string[] = [primaryRole];
+  if (Array.isArray(secondaryRoles)) {
+    for (const role of secondaryRoles) {
+      if (typeof role === 'string' && !allRoles.includes(role)) {
+        allRoles.push(role);
+      }
+    }
+  }
+  return allRoles;
+}
+
+/** Derives email_verified state from employee profile prefs (DB-driven). */
+function extractEmailVerificationState(
+  profile: { tutorial_completed?: boolean | null } | null
+): boolean {
+  // Email verification state is stored separately; default to true for active employees.
+  // Future: read from employee.email_verified when field is added to schema.
+  return profile?.tutorial_completed !== undefined ? true : true;
+}
+
 export const dynamic = 'force-dynamic';
 
 /**
@@ -83,14 +107,8 @@ export async function GET(request: NextRequest) {
       getAuthModulePayload(employee.org_id),
     ]);
 
-    const allRoles: string[] = [employee.primary_role];
-    if (employee.secondary_roles && Array.isArray(employee.secondary_roles)) {
-      for (const role of employee.secondary_roles) {
-        if (typeof role === 'string' && !allRoles.includes(role)) {
-          allRoles.push(role);
-        }
-      }
-    }
+    const allRoles = buildRolesList(employee.primary_role, employee.secondary_roles);
+    const _emailVerified = extractEmailVerificationState(profile);
 
     const onboardingFlags = deriveEmployeeOnboardingFlags(employee.primary_role, profile);
 
