@@ -45,6 +45,10 @@ export async function buildContextFromLink(
     throw new Error('Channel link is revoked');
   }
 
+  if (link.channel !== 'whatsapp') {
+    throw new Error('Unsupported channel identity link');
+  }
+
   const employee = await prisma.employee.findUnique({
     where: { id: link.employee_id },
     select: {
@@ -77,7 +81,7 @@ export async function buildContextFromLink(
     primaryRole: employee.primary_role,
     portalSlug: derivePortalSlug(employee.primary_role),
     permissions: permissions as string[],
-    channel: link.channel === 'whatsapp' ? 'whatsapp' : 'web',
+    channel: 'whatsapp',
     externalMessageId: opts?.externalMessageId,
     idempotencyKey: opts?.idempotencyKey,
   };

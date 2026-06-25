@@ -21,16 +21,52 @@ Key requirements carried into this plan:
 - Hard-coded secrets, unsafe redirects, and asymmetric sessions are release blockers.
 - Observability, SLOs, alerts, and incident runbooks are part of production readiness.
 
-## Current blockers
+## Implementation checkpoint
 
-- The docs folder itself is dirty: older tracked docs are deleted and a new untracked docs set exists.
-- `main` was behind `origin/main` by 8 commits at audit time.
-- `npm run build` fails because live routes import deleted components.
-- `npx tsc --noEmit --pretty false` fails on missing modules.
-- `npm test` fails with auth, RBAC, onboarding, UI guard, and module-gating failures.
-- `npm run lint` fails.
-- Production dependencies have high/critical audit findings.
-- Deployment scripts contained live-looking secrets and have been moved to local-env-driven scripts as the first remediation step.
+Checkpoint date: 2026-06-25.
+
+Completed in the first remediation pass:
+
+- The branch is `codex/global-web-remediation`.
+- The docs under `docs/` were reviewed before remediation work.
+- The build and typecheck baseline is restored.
+- The full test suite passes.
+- The auth and UI migration focused tests pass.
+- The UI migration guard now passes for final-wave shared primitive conversions.
+- The exact leaked-value scan is clean after excluding the remediation plan's example command.
+- Sign-out and refresh-failure cookie cleanup now uses the shared session cookie name and clears the known auth, role, onboarding, module, and company-setup cookies.
+- Super-admin demo fallback is now gated by `isDemoAuthEnabled()` instead of being an unconditional production fallback.
+
+Remaining blockers after this pass:
+
+- `npm run lint` still fails on broad pre-existing lint debt across app routes and libraries, especially `no-explicit-any`, unused imports/vars, and `prefer-const`.
+- Dependency audit remediation still needs a dedicated pass.
+- `auth-service.ts` still has legacy inline refresh-token persistence for employee auth instead of fully using `web/lib/refresh-token.ts`.
+- Super-admin refresh-token symmetry remains unresolved because the existing `RefreshToken` model is employee-linked.
+- Document upload/storage hardening remains pending.
+- Onboarding data-map and end-to-end onboarding contract cleanup remains pending.
+- CI still needs a single reliable gate for secret scan, lint, typecheck, tests, build, and audit.
+- `.vercel/` is present as an untracked local directory and must remain uncommitted.
+
+Verified proof in this pass:
+
+```powershell
+cd web
+npx tsc --noEmit --pretty false --incremental false
+npx tsx --test tests/auth-flow.test.ts tests/ui21-redesign-migration-guard.test.ts
+npm test
+npm run build
+```
+
+Current proof results:
+
+- TypeScript: pass.
+- Focused auth/UI tests: pass, 36 tests.
+- Full tests: pass, 325 tests.
+- Production build: pass.
+- Secret scan for previously exposed exact values: pass, no matches.
+- Diff whitespace check: pass.
+- Lint: fail, existing global lint backlog remains.
 
 ## Files to edit
 
@@ -104,7 +140,7 @@ Key requirements carried into this plan:
 
 ## Phase 0: Contain secrets and unsafe repo state
 
-Status: in progress.
+Status: completed for the known exposed values in this pass; external credential rotation is still required.
 
 Tasks:
 
@@ -123,8 +159,11 @@ rg -n "BEGIN PRIVATE KEY|SUPABASE_SERVICE_ROLE_KEY|postgresql://|CRON_SECRET|DAT
 Expected outcome:
 
 - No live secret material remains in tracked source.
+- Exposed credentials are rotated outside the repository.
 
 ## Phase 1: Restore build and typecheck baseline
+
+Status: completed in this pass.
 
 Tasks:
 
@@ -146,8 +185,11 @@ Expected outcome:
 
 - No module-not-found errors.
 - Build reaches application compilation instead of route-import failure.
+- Typecheck and production build pass.
 
 ## Phase 2: Auth and session hardening
+
+Status: partially completed in this pass.
 
 Tasks:
 
@@ -176,8 +218,11 @@ npx tsc --noEmit --pretty false
 Expected outcome:
 
 - Safe redirects, session symmetry, and auth flow tests pass.
+- Remaining work: hashed-at-rest refresh-token path adoption and super-admin refresh-token symmetry.
 
 ## Phase 3: RBAC, module gates, and tenant boundaries
+
+Status: not completed in this pass beyond existing green regression coverage.
 
 Tasks:
 
@@ -199,6 +244,8 @@ Expected outcome:
 - Disabled modules and unauthorized roles cannot operate through direct APIs.
 
 ## Phase 4: Document storage and upload hardening
+
+Status: not completed in this pass.
 
 Tasks:
 
@@ -223,6 +270,8 @@ Expected outcome:
 
 ## Phase 5: Onboarding and signup contract
 
+Status: not completed in this pass.
+
 Tasks:
 
 - Make one canonical onboarding view.
@@ -245,6 +294,8 @@ Expected outcome:
 - Onboarding cannot be completed with missing required setup.
 
 ## Phase 6: Non-functional quality
+
+Status: not completed in this pass; lint remains the active blocker.
 
 Tasks:
 
@@ -270,6 +321,8 @@ Expected outcome:
 
 ## Phase 7: CI and regression gates
 
+Status: not completed in this pass.
+
 Tasks:
 
 - Ensure CI runs install, Prisma generate, lint, typecheck, tests, build, secret scan, and audit.
@@ -292,6 +345,8 @@ Expected outcome:
 
 ## Phase 8: UI and journey smoke
 
+Status: partially completed in this pass.
+
 Tasks:
 
 - Verify role dashboards and restored pages render.
@@ -310,6 +365,7 @@ npm run build
 Expected outcome:
 
 - Core enterprise journey pages render and route correctly.
+- Current verified subset: UI migration guard passes, full tests pass, and production build passes.
 
 ## Final doublecheck
 

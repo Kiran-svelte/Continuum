@@ -61,7 +61,7 @@ function ToggleSwitch({
   disabled?: boolean;
 }) {
   return (
-    <button
+    <Button
       type="button"
       role="switch"
       aria-checked={value ? 'true' : 'false'}
@@ -77,7 +77,7 @@ function ToggleSwitch({
           value ? 'translate-x-6' : 'translate-x-0'
         }`}
       />
-    </button>
+    </Button>
   );
 }
 

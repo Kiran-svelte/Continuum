@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { ensureMe } from '@/lib/client-auth';
 import { fetchWithTimeout, mapFetchErrorMessage } from '@/lib/fetch-with-timeout';
+import { reportApiActionOutcome } from '@/lib/client/report-action-outcome';
 import { Button } from '@/components/ui/button';
 import { Input, Select, Textarea } from '@/components/ui/input';
 
@@ -51,6 +52,10 @@ interface InviteResult {
   mode?: 'invite' | 'direct';
   inviteLink?: string;
   error?: string;
+  /** Whether the invitation email was actually delivered. */
+  emailSent?: boolean;
+  /** Delivery error detail when emailSent is false. */
+  emailError?: string;
 }
 
 interface CompanyRoles {
@@ -115,6 +120,7 @@ export default function EmployeesInviteView() {
   const [departments, setDepartments] = useState<{ id: string; name: string }[]>([]);
   const [pendingInvites, setPendingInvites] = useState<PendingInvite[]>([]);
   const [managers, setManagers] = useState<ManagerOption[]>([]);
+  const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
   useEffect(() => {
     ensureMe().then(() => {
@@ -230,6 +236,8 @@ export default function EmployeesInviteView() {
         return;
       }
 
+      reportApiActionOutcome(data);
+
       const identifier = formData.email || formData.username;
 
       setResults([{
@@ -237,6 +245,8 @@ export default function EmployeesInviteView() {
         success: true,
         mode: data.mode,
         inviteLink: data.inviteLink,
+        emailSent: data.emailSent,
+        emailError: data.emailError,
       }]);
       setShowSuccess(true);
       setFormData(EMPTY_FORM);
@@ -322,7 +332,8 @@ export default function EmployeesInviteView() {
           const data = await res.json().catch(() => ({}));
 
           if (res.ok) {
-            newResults.push({ email: identifier, success: true, mode: data.mode, inviteLink: data.inviteLink });
+            reportApiActionOutcome(data);
+            newResults.push({ email: identifier, success: true, mode: data.mode, inviteLink: data.inviteLink, emailSent: data.emailSent, emailError: data.emailError });
           } else {
             newResults.push({ email: identifier, success: false, error: data.error });
           }
@@ -344,8 +355,11 @@ export default function EmployeesInviteView() {
     }
   }
 
-  function copyInviteLink(link: string) {
-    navigator.clipboard.writeText(link);
+  function copyInviteLink(link: string, key: string) {
+    navigator.clipboard.writeText(link).then(() => {
+      setCopiedKey(key);
+      window.setTimeout(() => setCopiedKey((current) => (current === key ? null : current)), 2000);
+    });
   }
 
   const availableRoles = companyRoles 
@@ -434,41 +448,74 @@ export default function EmployeesInviteView() {
           </div>
           
           <div className="space-y-2">
-            {results.map((result, i) => (
-              <div 
-                key={i}
-                className={`flex items-center justify-between p-3 rounded-lg ${
-                  result.success ? 'bg-success/5 border border-success/20' : 'bg-error/5 border border-error/20'
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  {result.success ? (
-                    <CheckCircle className="h-5 w-5 text-success" />
-                  ) : (
-                    <AlertCircle className="h-5 w-5 text-error" />
-                  )}
-                  <span className="text-foreground">{result.email}</span>
-                  {result.success && result.mode && (
-                    <span className="text-xs text-muted uppercase tracking-wide">
-                      {result.mode === 'direct' ? 'Account created' : 'Invitation sent'}
-                    </span>
-                  )}
-                  {result.error && (
-                    <span className="text-error text-sm">- {result.error}</span>
+            {results.map((result, i) => {
+              const emailFailed = result.success && result.mode !== 'direct' && result.emailSent === false;
+              const tone = !result.success
+                ? 'error'
+                : emailFailed
+                  ? 'warning'
+                  : 'success';
+              const toneClasses = {
+                success: 'bg-success/5 border-success/20',
+                warning: 'bg-warning/5 border-warning/30',
+                error: 'bg-error/5 border-error/20',
+              }[tone];
+              const copyKey = `${result.email}-${i}`;
+              const isCopied = copiedKey === copyKey;
+              return (
+                <div
+                  key={copyKey}
+                  className={`flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between p-3 rounded-lg border ${toneClasses}`}
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    {tone === 'success' ? (
+                      <CheckCircle className="h-5 w-5 text-success shrink-0" />
+                    ) : tone === 'warning' ? (
+                      <AlertCircle className="h-5 w-5 text-warning shrink-0" />
+                    ) : (
+                      <AlertCircle className="h-5 w-5 text-error shrink-0" />
+                    )}
+                    <span className="text-foreground truncate">{result.email}</span>
+                    {result.success && (
+                      <span className="text-xs text-muted uppercase tracking-wide whitespace-nowrap">
+                        {result.mode === 'direct'
+                          ? 'Account created'
+                          : emailFailed
+                            ? 'Email not sent'
+                            : 'Invitation emailed'}
+                      </span>
+                    )}
+                    {result.error && (
+                      <span className="text-error text-sm">- {result.error}</span>
+                    )}
+                  </div>
+                  {result.success && result.inviteLink && (
+                    <Button
+                      onClick={() => copyInviteLink(result.inviteLink!, copyKey)}
+                      className="btn-secondary inline-flex items-center gap-1 text-xs shrink-0"
+                    >
+                      {isCopied ? <CheckCircle className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+                      {isCopied ? 'Copied' : 'Copy Link'}
+                    </Button>
                   )}
                 </div>
-                {result.success && result.inviteLink && (
-                  <Button
-                    onClick={() => copyInviteLink(result.inviteLink!)}
-                    className="btn-secondary inline-flex items-center gap-1 text-xs"
-                  >
-                    <Copy className="h-3 w-3" />
-                    Copy Link
-                  </Button>
-                )}
-              </div>
-            ))}
+              );
+            })}
           </div>
+
+          {results.some((r) => r.success && r.mode !== 'direct' && r.emailSent === false) && (
+            <div className="mt-4 flex items-start gap-3 rounded-lg border border-warning/30 bg-warning/5 p-3">
+              <AlertCircle className="h-5 w-5 text-warning shrink-0 mt-0.5" />
+              <div className="text-sm text-foreground">
+                <p className="font-medium">The invitation email could not be delivered.</p>
+                <p className="text-muted mt-0.5">
+                  The invite was still created. Use{' '}
+                  <span className="font-medium text-foreground">Copy Link</span> above to share it
+                  manually, then verify email delivery under Admin settings.
+                </p>
+              </div>
+            </div>
+          )}
 
           <div className="flex gap-3 mt-6">
             <Button

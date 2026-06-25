@@ -27,6 +27,8 @@ Master product specification index for Continuum enterprise operations.
 
 ## Primary Linked Specs
 
+- `zero_ui_agentic_architecture.md` — Zero UI agent design, orchestration, scenarios, stack
+- `enterprise_real_journey_scenarios.md` — enterprise journey contract
 - `prd.md`
 - `trd.md`
 - `backend_schema.md`

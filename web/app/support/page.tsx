@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { GlassPanel } from '@/components/glass-panel';
 import { FadeIn, StaggerContainer, TiltCard, AmbientBackground } from '@/components/motion';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Mail, MessageCircle, Phone, Search, ExternalLink, BookOpen, HelpCircle, FileText, Users, Settings } from 'lucide-react';
 
 const SUPPORT_CATEGORIES = [
@@ -97,7 +98,7 @@ export default function SupportPage() {
 
             <div className="relative max-w-xl mx-auto">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/50" />
-              <input
+              <Input
                 type="text"
                 placeholder="Search for help articles..."
                 value={searchQuery}
@@ -146,9 +147,11 @@ export default function SupportPage() {
                 expandedFaq === index ? 'border-primary/30 shadow-[0_0_15px_rgba(var(--primary-rgb),0.15)]' : ''
               }`}
             >
-              <button
+              <Button
+                type="button"
+                variant="ghost"
                 onClick={() => setExpandedFaq(expandedFaq === index ? null : index)}
-                className="w-full text-left"
+                className="h-auto w-full justify-start bg-transparent p-0 text-left hover:bg-transparent"
               >
                 <div className="px-6 py-4">
                   <div className="flex items-center justify-between">
@@ -167,7 +170,7 @@ export default function SupportPage() {
                     </svg>
                   </div>
                 </div>
-              </button>
+              </Button>
               <AnimatePresence>
                 {expandedFaq === index && (
                   <motion.div

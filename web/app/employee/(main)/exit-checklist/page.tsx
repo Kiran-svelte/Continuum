@@ -331,7 +331,11 @@ export default function EmployeeExitChecklistPage() {
                                   : 'border-white/10'
                               }`}
                             >
-                              <button
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                aria-label={item.completed ? 'Mark task incomplete' : 'Mark task complete'}
                                 onClick={() => {
                                   if (cl.status !== 'completed') {
                                     toggleChecklist(cl.id, true);
@@ -340,7 +344,7 @@ export default function EmployeeExitChecklistPage() {
                                   }
                                 }}
                                 disabled={toggling === cl.id}
-                                className="mt-1 shrink-0"
+                                className="mt-1 min-h-0 shrink-0 rounded-full bg-transparent p-0 hover:bg-transparent"
                               >
                                 {toggling === cl.id ? (
                                   <Loader2 className="w-5 h-5 text-white/50 animate-spin" />
@@ -349,7 +353,7 @@ export default function EmployeeExitChecklistPage() {
                                 ) : (
                                   <Circle className="w-5 h-5 text-white/40 hover:text-primary transition-colors" />
                                 )}
-                              </button>
+                              </Button>
 
                               <div className="flex-1 min-w-0">
                                 <p className={`text-sm font-medium ${

@@ -44,6 +44,7 @@ export async function POST(
           body.action === 'approve' ? 'Leave request approved' : 'Leave request rejected',
         status: result.data.status,
         is_final: result.data.is_final,
+        actionOutcome: result.data.actionOutcome,
       });
     }
 

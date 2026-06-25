@@ -10,6 +10,7 @@ import { generateConstraintRules } from '@/lib/constraint-rules-config';
 import type { LeaveTypeConfig } from '@/lib/leave-types-config';
 import { DEFAULT_NOTIFICATION_TEMPLATES } from '@/lib/notification-templates-config';
 import { sendWelcomeEmail } from '@/lib/email-service';
+import { deliverAfterResponse } from '@/lib/email/deliver';
 
 export const dynamic = 'force-dynamic';
 
@@ -396,12 +397,18 @@ export async function POST(request: NextRequest) {
       newState: { onboarding_completed: true },
     });
 
-    // Send welcome email (fire-and-forget)
     const empName = `${employee.first_name} ${employee.last_name}`.trim() || employee.email;
     const companyName = company?.name || 'your company';
-    sendWelcomeEmail(employee.email, empName, companyName).catch((err) => {
-      console.error('[ONBOARDING COMPLETE] Failed to send welcome email:', err);
-    });
+    deliverAfterResponse(
+      'onboarding-complete-welcome',
+      () => sendWelcomeEmail(employee.email, empName, companyName),
+      {
+        actorEmployeeId: employee.id,
+        companyId,
+        actionTitle: 'Onboarding completed',
+        sideEffectLabel: `Welcome email to ${employee.email}`,
+      },
+    );
 
     return NextResponse.json({ success: true, join_code: company?.join_code ?? null });
   } catch (error) {

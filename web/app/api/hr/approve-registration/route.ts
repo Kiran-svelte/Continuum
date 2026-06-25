@@ -5,6 +5,7 @@ import { getAuthEmployee, requireRole } from '@/lib/auth-guard';
 import { checkApiRateLimit, getRateLimitHeaders } from '@/lib/api-rate-limit';
 import { createAuditLog, AUDIT_ACTIONS } from '@/lib/audit';
 import { sendRegistrationApprovedEmail, sendRegistrationRejectedEmail } from '@/lib/email-service';
+import { deliverAfterResponse } from '@/lib/email/deliver';
 
 export const dynamic = 'force-dynamic';
 
@@ -104,12 +105,22 @@ export async function POST(request: NextRequest) {
         newState: { status: statusToSet, approved_by: employee.id },
       });
 
-      // Send approval email (non-blocking)
-      void sendRegistrationApprovedEmail(
-        targetEmployee.email,
-        `${targetEmployee.first_name} ${targetEmployee.last_name}`,
-        targetEmployee.company?.name ?? 'Unknown Company'
-      ).catch((err) => console.error('[ApproveReg] Email failed:', err));
+      // Side-effect email: guaranteed to run after the response via after().
+      deliverAfterResponse(
+        'registration-approved',
+        () =>
+          sendRegistrationApprovedEmail(
+            targetEmployee.email,
+            `${targetEmployee.first_name} ${targetEmployee.last_name}`,
+            targetEmployee.company?.name ?? 'Unknown Company',
+          ),
+        {
+          actorEmployeeId: employee.id,
+          companyId: employee.org_id!,
+          actionTitle: 'Registration approved',
+          sideEffectLabel: `Approval email to ${targetEmployee.email}`,
+        },
+      );
 
       return NextResponse.json({
         success: true,
@@ -147,12 +158,22 @@ export async function POST(request: NextRequest) {
         newState: { status: 'suspended', rejected_by: employee.id, reason: rejection_reason },
       });
 
-      // Send rejection email (non-blocking)
-      void sendRegistrationRejectedEmail(
-        targetEmployee.email,
-        `${targetEmployee.first_name} ${targetEmployee.last_name}`,
-        rejection_reason || 'Your registration was not approved'
-      ).catch((err) => console.error('[RejectReg] Email failed:', err));
+      // Side-effect email: guaranteed to run after the response via after().
+      deliverAfterResponse(
+        'registration-rejected',
+        () =>
+          sendRegistrationRejectedEmail(
+            targetEmployee.email,
+            `${targetEmployee.first_name} ${targetEmployee.last_name}`,
+            rejection_reason || 'Your registration was not approved',
+          ),
+        {
+          actorEmployeeId: employee.id,
+          companyId: employee.org_id!,
+          actionTitle: 'Registration rejected',
+          sideEffectLabel: `Rejection email to ${targetEmployee.email}`,
+        },
+      );
 
       return NextResponse.json({
         success: true,

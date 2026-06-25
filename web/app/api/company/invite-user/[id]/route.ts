@@ -5,6 +5,8 @@ import { getCurrentUser } from '@/lib/auth-service';
 import type { Role } from '@prisma/client';
 import { randomUUID } from 'crypto';
 import { sendInviteEmail } from '@/lib/email-service';
+import { buildAppUrl } from '@/lib/url-origin';
+import { buildActionOutcome, sideEffectFromEmail } from '@/lib/action-outcome';
 
 export const dynamic = 'force-dynamic';
 
@@ -168,15 +170,34 @@ export async function POST(
       select: { id: true, email: true, role: true, expires_at: true, department: true },
     });
     const company = await prisma.company.findUnique({ where: { id: user.orgId }, select: { name: true } });
-    void sendInviteEmail(
+    // Await delivery so a failed resend is reported instead of being silently
+    // dropped when the serverless function suspends after the response.
+    const emailResult = await sendInviteEmail(
       updated.email,
       company?.name || 'your company',
       `${user.firstName} ${user.lastName}`.trim() || user.email,
       token,
       updated.role,
-      updated.department || undefined
-    );
-    return NextResponse.json({ success: true, invite: updated });
+      updated.department || undefined,
+      buildAppUrl(`/invite/accept/${token}`),
+    ).catch((err) => {
+      console.error('[InviteResend] Email failed:', err);
+      return { success: false, error: err instanceof Error ? err.message : 'Email delivery failed' };
+    });
+    const actionOutcome = buildActionOutcome({
+      primarySucceeded: true,
+      title: emailResult.success ? 'Invitation resent' : 'Invite updated — email not delivered',
+      sideEffects: [
+        sideEffectFromEmail(`Invitation email to ${updated.email}`, emailResult),
+      ],
+    });
+    return NextResponse.json({
+      success: true,
+      emailSent: emailResult.success,
+      emailError: emailResult.success ? null : emailResult.error ?? 'Email delivery failed',
+      actionOutcome,
+      invite: updated,
+    });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';
     return NextResponse.json({ error: 'Failed to resend invite', details: message }, { status: 500 });

@@ -5,6 +5,7 @@ This folder is the source of truth for enterprise readiness, Zero UI behavior, a
 ## Canonical Contract
 
 - Primary behavioral contract: `enterprise_real_journey_scenarios.md`
+- Zero UI agentic architecture: `zero_ui_agentic_architecture.md`
 - System specification index: `SPEC.md`
 - Active execution and remediation: `GLOBAL_WEB_REMEDIATION_IMPLEMENTATION_PLAN.md`
 

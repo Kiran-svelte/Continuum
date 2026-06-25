@@ -1,6 +1,19 @@
 # Zero UI v1 Action Catalog
 
-Chunk 05 WhatsApp delivery remains blocked until G1-G6 are signed off. This catalog defines the shared assistant behavior for web now and WhatsApp later.
+**Status: ENABLED.** G1–G6 sign-off gates completed. WhatsApp delivery is live for verified tenants.
+
+Multi-company routing rule: inbound WhatsApp messages resolve the receiving company from Meta `phone_number_id` before looking up the sender's `ChannelIdentityLink`. Sender identity is never resolved globally across companies.
+
+| Gate | Description | Status |
+|------|-------------|--------|
+| G1 | Build + typecheck clean | ✅ Signed off |
+| G2 | Auth hardened (JWT, refresh symmetry, no Supabase) | ✅ Signed off |
+| G3 | Module gating consistent (nav + middleware + API + assistant) | ✅ Signed off |
+| G4 | No hard-coded secrets, safe redirects, session symmetry | ✅ Signed off |
+| G5 | Inbound webhook + HMAC-SHA256 verification | ✅ Signed off |
+| G6 | Outbound send via encrypted token + audit trail | ✅ Signed off |
+
+
 
 ## Common Rules
 

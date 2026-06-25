@@ -3,6 +3,9 @@ import { v4 as uuidv4 } from 'uuid';
 import prisma from '@/lib/prisma';
 import { getCurrentUser } from '@/lib/auth-service';
 import { hashPassword, generateTemporaryPassword } from '@/lib/password-service';
+import { sendInviteEmail } from '@/lib/email-service';
+import { buildAppUrl } from '@/lib/url-origin';
+import { buildActionOutcome, sideEffectFromEmail } from '@/lib/action-outcome';
 import type { Role } from '@prisma/client';
 
 export const dynamic = 'force-dynamic';
@@ -47,7 +50,7 @@ export async function POST(request: NextRequest) {
     // Validate role is allowed by company config
     const company = await prisma.company.findUnique({
       where: { id: user.orgId },
-      select: { enabled_roles: true, requires_hr: true, requires_manager: true },
+      select: { name: true, enabled_roles: true, requires_hr: true, requires_manager: true },
     });
 
     if (!company) {
@@ -110,8 +113,26 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // Generate invite URL
-    const inviteUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/invite/accept/${inviteToken}`;
+    // Generate invite URL (canonical acceptance flow for userInvite tokens)
+    const inviteUrl = buildAppUrl(`/invite/accept/${inviteToken}`);
+
+    // Send the invitation email. This IS the purpose of the request, so we
+    // AWAIT delivery (a fire-and-forget promise is killed when the serverless
+    // function freezes after the response) and report the outcome so HR can
+    // fall back to sharing the copy-link if delivery failed.
+    const inviterName = `${user.firstName ?? ''} ${user.lastName ?? ''}`.trim() || user.email;
+    const emailResult = await sendInviteEmail(
+      invite.email,
+      company.name ?? 'your company',
+      inviterName,
+      inviteToken,
+      role,
+      typeof departmentId === 'string' ? departmentId : undefined,
+      inviteUrl,
+    ).catch((err) => {
+      console.error('[CompanyInviteUser] Email failed:', err);
+      return { success: false, error: err instanceof Error ? err.message : 'Email delivery failed' };
+    });
 
     // In development, also create employee with temp password
     let tempPassword: string | undefined;
@@ -137,14 +158,33 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    const emailSideEffect = sideEffectFromEmail(
+      `Invitation email to ${invite.email}`,
+      emailResult,
+    );
+    const actionOutcome = buildActionOutcome({
+      primarySucceeded: true,
+      title: emailResult.success ? 'Invitation sent' : 'Invitation created — email not delivered',
+      message: emailResult.success
+        ? `An invitation email was sent to ${invite.email}.`
+        : `The invite was saved. Share the link manually: ${emailResult.error ?? 'email delivery failed'}.`,
+      sideEffects: [emailSideEffect],
+    });
+
     return NextResponse.json({
       success: true,
+      mode: 'invite',
+      emailSent: emailResult.success,
+      emailError: emailResult.success ? null : emailResult.error ?? 'Email delivery failed',
+      actionOutcome,
       invite: {
         id: invite.id,
         email: invite.email,
         role: invite.role,
         expiresAt: invite.expires_at,
       },
+      // `inviteLink` is the field the UI reads; `inviteUrl` kept for back-compat.
+      inviteLink: inviteUrl,
       inviteUrl,
       ...(process.env.NODE_ENV === 'development' && { tempPassword }),
     });

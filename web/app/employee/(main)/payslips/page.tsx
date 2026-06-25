@@ -6,6 +6,7 @@ import { GlassPanel } from '@/components/glass-panel';
 import { PageHeader } from '@/components/page-header';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Select } from '@/components/ui/input';
 import { Modal } from '@/components/ui/modal';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ensureMe } from '@/lib/client-auth';
@@ -124,16 +125,15 @@ export default function EmployeePayslipsPage() {
         icon={<Banknote className="h-6 w-6 text-primary" />}
         action={
           <TiltCard>
-            <select
+            <Select
               className="px-4 py-2.5 rounded-xl border border-white/20 bg-black/50 text-sm font-semibold text-white shadow-[0_0_15px_rgba(255,255,255,0.1)] backdrop-blur-md focus:outline-none focus:ring-2 focus:ring-primary transition-all duration-300 hover:bg-white/10"
-              value={selectedYear}
+              value={String(selectedYear)}
               onChange={(e) => setSelectedYear(parseInt(e.target.value))}
-            >
-              {[0, -1, -2].map((offset) => {
-                const y = new Date().getFullYear() + offset;
-                return <option key={y} value={y} className="bg-black text-white">{y}</option>;
+              options={[0, -1, -2].map((offset) => {
+                const year = new Date().getFullYear() + offset;
+                return { value: String(year), label: String(year) };
               })}
-            </select>
+            />
           </TiltCard>
         }
       />

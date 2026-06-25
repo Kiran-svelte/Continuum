@@ -24,6 +24,16 @@ import {
 } from '@/lib/leave-workflow';
 import { emitEvent } from '@/lib/event-bus';
 import { dispatchNotification } from '@/lib/notifications/dispatch';
+import {
+  buildActionOutcome,
+  formatSideEffectsSummary,
+  sideEffectFailed,
+  sideEffectFromEmail,
+  sideEffectSent,
+  sideEffectSkipped,
+  type ActionOutcome,
+  type ActionSideEffect,
+} from '@/lib/action-outcome';
 import { withIdempotency } from './idempotency';
 import { guardCompanySetup, guardModule } from './_shared/guards';
 import { serviceOk, serviceError } from './types';
@@ -42,6 +52,7 @@ export interface LeaveApproveOutput {
   requestId: string;
   status: string;
   is_final?: boolean;
+  actionOutcome?: ActionOutcome;
 }
 
 async function executeApproveLeave(
@@ -247,9 +258,11 @@ async function executeApproveLeave(
     companySettings?.email_notifications
   );
 
+  const sideEffects: ActionSideEffect[] = [];
+
   if (action === 'approve') {
     if (emp.email && shouldSendCompanyEmail(emailNotificationSettings, 'general')) {
-      await sendLeaveApprovalEmail(
+      const emailResult = await sendLeaveApprovalEmail(
         emp.email,
         employeeName,
         leaveRequest.leave_type,
@@ -257,14 +270,35 @@ async function executeApproveLeave(
         endDate,
         approverName
       );
+      sideEffects.push(sideEffectFromEmail(`Approval email to ${emp.email}`, emailResult));
+    } else {
+      sideEffects.push(
+        sideEffectSkipped(
+          'email',
+          'Approval email to employee',
+          emp.email ? 'General email notifications disabled in company settings' : 'Employee has no email address',
+        )
+      );
     }
-    await sendPusherEvent(`user-${leaveRequest.emp_id}`, 'leave-approved', {
-      id: leaveRequest.id,
-      message: `Your ${leaveRequest.leave_type} leave has been approved`,
-    });
+
+    try {
+      await sendPusherEvent(`user-${leaveRequest.emp_id}`, 'leave-approved', {
+        id: leaveRequest.id,
+        message: `Your ${leaveRequest.leave_type} leave has been approved`,
+      });
+      sideEffects.push(sideEffectSent('push', 'Realtime approval update to employee'));
+    } catch (pushError) {
+      sideEffects.push(
+        sideEffectFailed(
+          'push',
+          'Realtime approval update to employee',
+          pushError instanceof Error ? pushError.message : 'Push delivery failed',
+        )
+      );
+    }
   } else {
     if (emp.email && shouldSendCompanyEmail(emailNotificationSettings, 'general')) {
-      await sendLeaveRejectionEmail(
+      const emailResult = await sendLeaveRejectionEmail(
         emp.email,
         employeeName,
         leaveRequest.leave_type,
@@ -273,12 +307,33 @@ async function executeApproveLeave(
         approverName,
         sanitizedReason || 'No reason provided'
       );
+      sideEffects.push(sideEffectFromEmail(`Rejection email to ${emp.email}`, emailResult));
+    } else {
+      sideEffects.push(
+        sideEffectSkipped(
+          'email',
+          'Rejection email to employee',
+          emp.email ? 'General email notifications disabled in company settings' : 'Employee has no email address',
+        )
+      );
     }
-    await sendPusherEvent(`user-${leaveRequest.emp_id}`, 'leave-rejected', {
-      id: leaveRequest.id,
-      message: `Your ${leaveRequest.leave_type} leave has been rejected`,
-      reason: sanitizedReason,
-    });
+
+    try {
+      await sendPusherEvent(`user-${leaveRequest.emp_id}`, 'leave-rejected', {
+        id: leaveRequest.id,
+        message: `Your ${leaveRequest.leave_type} leave has been rejected`,
+        reason: sanitizedReason,
+      });
+      sideEffects.push(sideEffectSent('push', 'Realtime rejection update to employee'));
+    } catch (pushError) {
+      sideEffects.push(
+        sideEffectFailed(
+          'push',
+          'Realtime rejection update to employee',
+          pushError instanceof Error ? pushError.message : 'Push delivery failed',
+        )
+      );
+    }
   }
 
   await createAuditLog({
@@ -310,7 +365,7 @@ async function executeApproveLeave(
     },
   }).catch((eventError) => logger.error('leave_approve_event_failed', { eventError }));
 
-  await dispatchNotification({
+  const dispatchResult = await dispatchNotification({
     event: action === 'approve' ? 'leave_approved' : 'leave_rejected',
     companyId: ctx.orgId,
     recipientEmployeeId: leaveRequest.emp_id,
@@ -322,11 +377,27 @@ async function executeApproveLeave(
       reason: sanitizedReason,
     },
   });
+  if (dispatchResult.in_app === 'sent') {
+    sideEffects.push(sideEffectSent('in_app', 'In-app leave decision notification to employee'));
+  } else if (dispatchResult.in_app === 'failed') {
+    sideEffects.push(sideEffectFailed('in_app', 'In-app leave decision notification to employee', 'Notification delivery failed'));
+  } else {
+    sideEffects.push(sideEffectSkipped('in_app', 'In-app leave decision notification to employee', 'No in-app notification template available'));
+  }
+
+  const sideEffectSummary = formatSideEffectsSummary(sideEffects);
+  const actionOutcome = buildActionOutcome({
+    primarySucceeded: true,
+    title: action === 'approve' ? 'Leave request approved' : 'Leave request rejected',
+    message: sideEffectSummary || undefined,
+    sideEffects,
+  });
 
   return serviceOk({
     requestId,
     status: newStatus,
     is_final: isFinalApproval || action === 'reject',
+    actionOutcome,
   });
 }
 

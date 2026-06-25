@@ -26,6 +26,16 @@ import { readRoleQuotaMap, sanitizeLeaveTypeCode, sanitizeRoleSlug } from '@/lib
 import { dispatchNotification } from '@/lib/notifications/dispatch';
 import { withIdempotency } from './idempotency';
 import {
+  buildActionOutcome,
+  formatSideEffectsSummary,
+  sideEffectFailed,
+  sideEffectFromEmail,
+  sideEffectSent,
+  sideEffectSkipped,
+  type ActionOutcome,
+  type ActionSideEffect,
+} from '@/lib/action-outcome';
+import {
   guardCompanySetup,
   guardModule,
   guardNotInNoticePeriod,
@@ -61,6 +71,8 @@ export interface LeaveSubmitOutput {
   } | null;
   approverChainLength?: number;
   approverRoutingReason?: string;
+  /** Transparent report of primary action + side effects for UI / assistant. */
+  actionOutcome?: ActionOutcome;
 }
 
 async function executeSubmitLeave(
@@ -515,18 +527,6 @@ async function executeSubmitLeave(
       status: requestStatus,
     }).catch((err) => console.error('[FireAndForget]', err instanceof Error ? err.message : err));
 
-    // Notify first approver in creator chain (approval hierarchy -> manager -> role fallback)
-    if (approverRouting.approverId) {
-      sendNotification(
-        approverRouting.approverId,
-        employee.org_id,
-        'leave_request',
-        'New Leave Request',
-        `${employee.first_name} ${employee.last_name} has requested ${data.leave_type} leave from ${data.start_date} to ${data.end_date}`,
-        'in_app',
-      ).catch((err) => console.error('[FireAndForget]', err instanceof Error ? err.message : err));
-    }
-
     const companySettings = await prisma.companySettings.findUnique({
       where: { company_id: employee.org_id },
       select: { email_notifications: true },
@@ -535,13 +535,14 @@ async function executeSubmitLeave(
       companySettings?.email_notifications
     );
 
-    // Send email notifications (non-blocking)
+    const sideEffects: ActionSideEffect[] = [];
+
+    // Send email notifications — failures become visible in actionOutcome
     try {
       const employeeName = `${employee.first_name} ${employee.last_name}`;
       if (requestStatus === 'approved') {
-        // Auto-approved - notify employee
         if (shouldSendCompanyEmail(emailNotificationSettings, 'general')) {
-          await sendLeaveAutoApprovedEmail(
+          const emailResult = await sendLeaveAutoApprovedEmail(
             employee.email,
             employeeName,
             leaveType,
@@ -549,34 +550,71 @@ async function executeSubmitLeave(
             data.end_date,
             (constraintResult?.confidence_score as number) || 0.9
           );
+          sideEffects.push(
+            sideEffectFromEmail(`Auto-approval email to ${employee.email}`, emailResult)
+          );
+        } else {
+          sideEffects.push(
+            sideEffectSkipped('email', 'Auto-approval email', 'Disabled in company email settings')
+          );
+        }
+      } else if (shouldSendCompanyEmail(emailNotificationSettings, 'manager_alert')) {
+        if (approverRouting.approverId) {
+          const approver = await prisma.employee.findUnique({
+            where: { id: approverRouting.approverId },
+            select: { email: true, first_name: true, last_name: true },
+          });
+          if (approver?.email) {
+            const approverName = `${approver.first_name} ${approver.last_name}`;
+            const emailResult = await sendLeaveSubmissionEmail(
+              approver.email,
+              approverName,
+              employeeName,
+              leaveType,
+              data.start_date,
+              data.end_date,
+              totalDays,
+              reason
+            );
+            sideEffects.push(
+              sideEffectFromEmail(`Approver notification to ${approver.email}`, emailResult)
+            );
+          } else {
+            sideEffects.push(
+              sideEffectSkipped('email', 'Approver notification', 'Assigned approver has no email address')
+            );
+          }
+        } else {
+          sideEffects.push(
+            sideEffectSkipped('email', 'Approver notification', approverRouting.reason ?? 'No approver resolved')
+          );
         }
       } else {
-        // Pending/escalated - notify primary approver in creator chain
-        if (shouldSendCompanyEmail(emailNotificationSettings, 'manager_alert')) {
-          if (approverRouting.approverId) {
-            const approver = await prisma.employee.findUnique({
-              where: { id: approverRouting.approverId },
-              select: { email: true, first_name: true, last_name: true },
-            });
-            if (approver?.email) {
-              const approverName = `${approver.first_name} ${approver.last_name}`;
-              await sendLeaveSubmissionEmail(
-                approver.email,
-                approverName,
-                employeeName,
-                leaveType,
-                data.start_date,
-                data.end_date,
-                totalDays,
-                reason
-              );
-            }
-          }
-        }
+        sideEffects.push(
+          sideEffectSkipped('email', 'Approver notification', 'Manager email alerts disabled in company settings')
+        );
       }
     } catch (emailError) {
+      const detail = emailError instanceof Error ? emailError.message : 'Email delivery failed';
       console.error('[LeaveSubmit] Email notification failed:', emailError);
-      // Don't fail the request if email fails
+      sideEffects.push(sideEffectFailed('email', 'Leave notification email', detail));
+    }
+
+    if (approverRouting.approverId) {
+      try {
+        await sendNotification(
+          approverRouting.approverId,
+          employee.org_id,
+          'leave_request',
+          'New Leave Request',
+          `${employee.first_name} ${employee.last_name} has requested ${data.leave_type} leave from ${data.start_date} to ${data.end_date}`,
+          'in_app',
+        );
+        sideEffects.push(sideEffectSent('in_app', 'In-app alert to approver'));
+      } catch (notifyError) {
+        const detail = notifyError instanceof Error ? notifyError.message : 'Notification failed';
+        sideEffects.push(sideEffectFailed('in_app', 'In-app alert to approver', detail));
+      }
     }
 
     // Fetch approver's profile to include in the response (powers "Sent to [Name]" UI).
@@ -603,7 +641,7 @@ async function executeSubmitLeave(
       }
     }
 
-    await dispatchNotification({
+    const dispatchResult = await dispatchNotification({
       event: 'leave_submitted',
       companyId: employee.org_id,
       recipientEmployeeId: employee.id,
@@ -614,6 +652,27 @@ async function executeSubmitLeave(
         dates: `${data.start_date} → ${data.end_date}`,
         reason,
       },
+    });
+    if (dispatchResult.in_app === 'sent') {
+      sideEffects.push(sideEffectSent('in_app', 'In-app confirmation to employee'));
+    } else if (dispatchResult.in_app === 'failed') {
+      sideEffects.push(sideEffectFailed('in_app', 'In-app confirmation to employee', 'Notification delivery failed'));
+    } else {
+      sideEffects.push(sideEffectSkipped('in_app', 'In-app confirmation to employee', 'No in-app notification template available'));
+    }
+    if (dispatchResult.whatsapp === 'sent') {
+      sideEffects.push(sideEffectSent('whatsapp', 'WhatsApp confirmation to employee'));
+    }
+
+    const sideEffectSummary = formatSideEffectsSummary(sideEffects);
+    const actionOutcome = buildActionOutcome({
+      primarySucceeded: true,
+      title:
+        requestStatus === 'approved'
+          ? 'Leave request auto-approved'
+          : 'Leave request submitted',
+      message: sideEffectSummary || undefined,
+      sideEffects,
     });
 
     return serviceOk({
@@ -626,6 +685,7 @@ async function executeSubmitLeave(
       pendingApprover,
       approverChainLength: approverRouting.allApproverIds.length,
       approverRoutingReason: approverRouting.reason,
+      actionOutcome,
     });
 }
 

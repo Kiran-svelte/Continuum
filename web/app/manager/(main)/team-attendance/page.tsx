@@ -710,9 +710,12 @@ export default function TeamAttendancePage() {
 function TabButton({ id, activeTab, setActiveTab, children }: { id: string, activeTab: string, setActiveTab: (id: string) => void, children: React.ReactNode }) {
   const isActive = activeTab === id;
   return (
-    <button
+    <Button
+      type="button"
+      variant="ghost"
+      size="sm"
       onClick={() => setActiveTab(id)}
-      className={`relative flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
+      className={`relative flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition-colors hover:bg-transparent ${
         isActive ? 'text-white' : 'text-white/60 hover:text-white'
       }`}
     >
@@ -723,7 +726,7 @@ function TabButton({ id, activeTab, setActiveTab, children }: { id: string, acti
         />
       )}
       <span className="relative z-10 flex items-center gap-2">{children}</span>
-    </button>
+    </Button>
   );
 }
 

@@ -198,16 +198,30 @@
     -moz-osx-font-smoothing: grayscale;
   }
 
+  /*
+   * Links are NOT underlined by default. The previous blanket
+   * `a { text-decoration: underline }` underlined every navigation card, table
+   * row, button-link, and quick action across the app. Underlines are now
+   * opt-in for genuine inline text links via `.prose a` or `.link-inline`.
+   */
   a {
+    color: inherit;
+    text-decoration: none;
+    transition: color 0.15s ease, text-decoration-color 0.15s ease;
+  }
+
+  /* Inline content links (article/help text) keep the underline affordance. */
+  .prose a,
+  .link-inline {
     color: var(--accent-foreground);
     text-decoration-line: underline;
     text-decoration-color: color-mix(in srgb, var(--primary) 35%, transparent);
     text-decoration-thickness: 0.08em;
     text-underline-offset: 0.16em;
-    transition: color 0.15s ease, text-decoration-color 0.15s ease;
   }
 
-  a:hover {
+  .prose a:hover,
+  .link-inline:hover {
     color: var(--primary);
     text-decoration-color: var(--primary);
   }

@@ -4,6 +4,7 @@ import { getAuthEmployee, AuthError } from '@/lib/auth-guard';
 import { generateOTP, verifyOTP, isOTPRequired, type OTPAction } from '@/lib/otp-service';
 import { checkApiRateLimit, getRateLimitHeaders } from '@/lib/api-rate-limit';
 import { sendOTPEmail } from '@/lib/email-service';
+import { buildActionOutcome, sideEffectFromEmail } from '@/lib/action-outcome';
 
 export const dynamic = 'force-dynamic';
 
@@ -49,26 +50,37 @@ export async function POST(request: NextRequest) {
 
     const otp = await generateOTP(employee.id, employee.org_id!, action as OTPAction);
 
-    // Send OTP via email
-    try {
-      const employeeName = `${employee.first_name} ${employee.last_name}`;
-      await sendOTPEmail(
-        employee.email,
-        employeeName,
-        otp,
-        action
-      );
-    } catch (emailError) {
+    const employeeName = `${employee.first_name} ${employee.last_name}`;
+    const emailResult = await sendOTPEmail(
+      employee.email,
+      employeeName,
+      otp,
+      action
+    ).catch((emailError) => {
       console.error('[OTP] Email send failed:', emailError);
-      // Continue even if email fails - OTP is still valid
-    }
+      return { success: false, error: emailError instanceof Error ? emailError.message : 'Email delivery failed' };
+    });
+
+    const actionOutcome = buildActionOutcome({
+      primarySucceeded: true,
+      title: emailResult.success ? 'OTP sent' : 'OTP generated - email not delivered',
+      message: emailResult.success
+        ? 'The verification code was sent to your email.'
+        : `The OTP was generated, but email delivery failed: ${emailResult.error ?? 'Email delivery failed'}.`,
+      sideEffects: [sideEffectFromEmail(`OTP email to ${employee.email}`, emailResult)],
+    });
 
     return NextResponse.json({
-      message: 'OTP generated and sent to your email',
+      message: emailResult.success
+        ? 'OTP generated and sent to your email'
+        : 'OTP generated but email delivery failed',
       action,
+      emailSent: emailResult.success,
+      emailError: emailResult.success ? null : emailResult.error ?? 'Email delivery failed',
+      actionOutcome,
       // Only expose OTP in development for testing
       ...(process.env.NODE_ENV === 'development' ? { otp } : {}),
-    });
+    }, { status: emailResult.success ? 200 : 502 });
   } catch (error) {
     if (error instanceof AuthError) {
       return NextResponse.json({ error: error.message }, { status: error.status });

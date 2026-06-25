@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Shield, Lock, Mail, AlertCircle, Loader2, Eye, EyeOff, AlertTriangle, Server, Database, Users } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 
 /**
  * Super Admin Login Page - Apex Dark UI
@@ -178,7 +180,7 @@ export default function SuperAdminLoginPage() {
                 <label className="input-label">Super Admin Email</label>
                 <div className="relative">
                   <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-muted" />
-                  <input
+                  <Input
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
@@ -195,7 +197,7 @@ export default function SuperAdminLoginPage() {
                 <label className="input-label">Password</label>
                 <div className="relative">
                   <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-muted" />
-                  <input
+                  <Input
                     type={showPassword ? 'text' : 'password'}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
@@ -205,20 +207,24 @@ export default function SuperAdminLoginPage() {
                     disabled={loading}
                     autoComplete="current-password"
                   />
-                  <button
+                  <Button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted hover:text-primary transition-colors"
+                    variant="ghost"
+                    size="sm"
+                    className="absolute right-3 top-1/2 min-h-0 -translate-y-1/2 rounded-md bg-transparent p-0 text-muted hover:bg-transparent hover:text-primary"
                     disabled={loading}
                   >
                     {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                  </button>
+                  </Button>
                 </div>
               </div>
 
-              <button
+              <Button
                 type="submit"
                 disabled={loading}
+                variant="primary"
+                size="lg"
                 className="btn btn-primary btn-block btn-lg bg-gradient-to-br from-amber-500 to-orange-600 border-transparent"
               >
                 {loading ? (
@@ -232,7 +238,7 @@ export default function SuperAdminLoginPage() {
                     Sign In to Platform
                   </>
                 )}
-              </button>
+              </Button>
             </form>
 
             {/* Security Notice */}

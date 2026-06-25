@@ -10,6 +10,7 @@ import {
   hashToken,
   isEmailVerified,
 } from '@/lib/product-readiness';
+import { buildActionOutcome, sideEffectFromEmail } from '@/lib/action-outcome';
 
 export const dynamic = 'force-dynamic';
 
@@ -49,7 +50,30 @@ export async function POST() {
   });
 
   const verificationUrl = buildAppUrl(`/sign-in?verify_token=${encodeURIComponent(token)}`);
-  void sendEmailVerificationLinkEmail(employee.email, employee.first_name || 'there', verificationUrl);
+  // Await delivery — this email is the entire point of the request. A
+  // fire-and-forget send is killed when the serverless function freezes.
+  const emailResult = await sendEmailVerificationLinkEmail(
+    employee.email,
+    employee.first_name || 'there',
+    verificationUrl,
+  ).catch((err) => {
+    console.error('[EmailVerification] Send failed:', err);
+    return { success: false, error: err instanceof Error ? err.message : 'Email delivery failed' };
+  });
+  const actionOutcome = buildActionOutcome({
+    primarySucceeded: true,
+    title: emailResult.success ? 'Verification email sent' : 'Verification token created - email not delivered',
+    message: emailResult.success
+      ? `Verification email sent to ${employee.email}.`
+      : `Verification token was created, but email delivery failed: ${emailResult.error ?? 'Email delivery failed'}.`,
+    sideEffects: [sideEffectFromEmail(`Verification email to ${employee.email}`, emailResult)],
+  });
 
-  return NextResponse.json({ success: true, expiresAt: expiresAt.toISOString() });
+  return NextResponse.json({
+    success: true,
+    emailSent: emailResult.success,
+    emailError: emailResult.success ? null : emailResult.error ?? 'Email delivery failed',
+    actionOutcome,
+    expiresAt: expiresAt.toISOString(),
+  });
 }

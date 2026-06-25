@@ -91,7 +91,7 @@ function ToggleSwitch({
   disabled?: boolean;
 }) {
   return (
-    <button
+    <Button
       type="button"
       role="switch"
       aria-checked={value}
@@ -107,7 +107,7 @@ function ToggleSwitch({
           value ? 'translate-x-6' : 'translate-x-0'
         }`}
       />
-    </button>
+    </Button>
   );
 }
 
@@ -169,22 +169,28 @@ function EditableRow({
             >
               Save
             </Button>
-            <button
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
               onClick={() => { setVal(displayValue); setEditing(false); }}
-              className="text-xs text-white/60 hover:text-white hover:underline"
+              className="min-h-0 bg-transparent px-0 py-0 text-xs text-white/60 hover:bg-transparent hover:text-white hover:underline"
             >
               Cancel
-            </button>
+            </Button>
           </>
         ) : (
           <>
             <span className="text-sm font-medium text-white">{displayValue}</span>
-            <button
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
               onClick={() => setEditing(true)}
-              className="text-xs text-primary hover:underline"
+              className="min-h-0 bg-transparent px-0 py-0 text-xs text-primary hover:bg-transparent hover:underline"
             >
               Edit
-            </button>
+            </Button>
           </>
         )}
       </div>
@@ -331,13 +337,15 @@ export default function HRSettingsPage() {
         <div className="p-4 rounded-lg bg-destructive/10 border border-destructive/30 text-destructive flex items-center gap-3">
           <AlertTriangle className="w-5 h-5 shrink-0" />
           <p className="text-sm flex-1">{error || 'Failed to load settings'}</p>
-          <button
+          <Button
             type="button"
             onClick={loadAll}
-            className="ml-2 text-sm underline hover:no-underline shrink-0"
+            variant="ghost"
+            size="sm"
+            className="ml-2 min-h-0 shrink-0 bg-transparent px-0 py-0 text-sm underline hover:bg-transparent hover:no-underline"
           >
             Retry
-          </button>
+          </Button>
         </div>
       </div>
     );

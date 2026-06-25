@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { validatePassword } from '@/lib/password-validation';
 import { checkApiRateLimit, getRateLimitHeaders } from '@/lib/api-rate-limit';
 import { sendSignupConfirmationEmail } from '@/lib/email-service';
+import { buildActionOutcome, sideEffectFromEmail } from '@/lib/action-outcome';
 
 export const dynamic = 'force-dynamic';
 
@@ -111,10 +112,19 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Send signup confirmation email (fire-and-forget — don't block response)
     const displayName = firstName || email.split('@')[0] || 'there';
-    sendSignupConfirmationEmail(email, displayName).catch((err) => {
+    const emailResult = await sendSignupConfirmationEmail(email, displayName).catch((err) => {
       console.error('[AUTH SIGNUP] Failed to send confirmation email:', err);
+      return { success: false, error: err instanceof Error ? err.message : 'Email delivery failed' };
+    });
+
+    const actionOutcome = buildActionOutcome({
+      primarySucceeded: true,
+      title: emailResult.success ? 'Account created' : 'Account created - email not delivered',
+      message: emailResult.success
+        ? 'Your account was created and the confirmation email was sent.'
+        : `Your account was created, but the confirmation email could not be sent: ${emailResult.error ?? 'Email delivery failed'}.`,
+      sideEffects: [sideEffectFromEmail(`Signup confirmation email to ${email}`, emailResult)],
     });
 
     return NextResponse.json({
@@ -122,6 +132,9 @@ export async function POST(request: NextRequest) {
       userId: user.id,
       email: user.email,
       emailConfirmationRequired: !data.session,
+      emailSent: emailResult.success,
+      emailError: emailResult.success ? null : emailResult.error ?? 'Email delivery failed',
+      actionOutcome,
     });
   } catch (err) {
     console.error('[AUTH SIGNUP] Unexpected error:', err);

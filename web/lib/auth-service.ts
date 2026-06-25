@@ -14,12 +14,10 @@ import {
   verifyAccessToken,
   verifyRefreshToken,
   extractAccessToken,
-  extractRefreshToken,
   getAccessCookieOptions,
   getRefreshCookieOptions,
   ACCESS_COOKIE_NAME,
   REFRESH_COOKIE_NAME,
-  type AccessTokenPayload,
   type TokenPair,
 } from '@/lib/jwt-service';
 import { verifyPassword, hashPassword } from '@/lib/password-service';
@@ -35,6 +33,8 @@ import {
 } from '@/lib/brand';
 import { isDemoAuthEnabled } from '@/lib/auth-routing';
 import type { Role, Employee } from '@prisma/client';
+
+export const SESSION_COOKIE_NAME = COOKIE_SESSION;
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -181,11 +181,53 @@ export async function signIn(email: string, password: string): Promise<AuthResul
  * Signs in a super admin.
  */
 export async function signInSuperAdmin(email: string, password: string): Promise<AuthResult> {
+  const emailLower = email.toLowerCase();
   const superAdmin = await prisma.superAdmin.findUnique({
-    where: { email: email.toLowerCase() },
+    where: { email: emailLower },
   });
 
   if (!superAdmin) {
+    if (!isDemoAuthEnabled()) {
+      return {
+        success: false,
+        error: 'Invalid email or password',
+        code: 'INVALID_CREDENTIALS',
+      };
+    }
+
+    if (emailLower === 'super@demo.continuum.io' && password === 'Demo@123') {
+      const tokenId = uuidv4();
+      const tokens = await generateTokenPair({
+        employeeId: 'demo-super-admin',
+        email: emailLower,
+        role: 'super_admin' as Role,
+        roles: ['super_admin' as Role],
+        orgId: null,
+        tokenId,
+      });
+
+      return {
+        success: true,
+        tokens,
+        accessToken: tokens.accessToken,
+        refreshToken: tokens.refreshToken,
+        requires_password_change: false,
+        tutorial_completed: true,
+        user: {
+          id: 'demo-super-admin',
+          email: emailLower,
+          role: 'super_admin' as Role,
+          roles: ['super_admin' as Role],
+          org_id: null,
+          firstName: 'Demo',
+          lastName: 'Super Admin',
+          status: 'active',
+          tutorialCompleted: true,
+          mustChangePassword: false,
+        },
+      };
+    }
+
     return {
       success: false,
       error: 'Invalid email or password',
@@ -555,7 +597,7 @@ export function setAuthCookies(response: NextResponse, accessToken: string, refr
 export function clearAuthCookies(response: NextResponse): void {
   response.cookies.set(ACCESS_COOKIE_NAME, '', { maxAge: 0, path: '/' });
   response.cookies.set(REFRESH_COOKIE_NAME, '', { maxAge: 0, path: '/api/auth' });
-  response.cookies.set(COOKIE_SESSION, '', { maxAge: 0, path: '/' });
+  response.cookies.set(SESSION_COOKIE_NAME, '', { maxAge: 0, path: '/' });
   response.cookies.set(COOKIE_ROLE, '', { maxAge: 0, path: '/' });
   response.cookies.set(COOKIE_ROLES, '', { maxAge: 0, path: '/' });
   response.cookies.set(COOKIE_ONBOARDING, '', { maxAge: 0, path: '/' });
@@ -598,7 +640,7 @@ export async function clearAuthCookiesAsync(): Promise<void> {
 
   cookieStore.set(ACCESS_COOKIE_NAME, '', { maxAge: 0 });
   cookieStore.set(REFRESH_COOKIE_NAME, '', { maxAge: 0, path: '/api/auth' });
-  cookieStore.set(COOKIE_SESSION, '', { maxAge: 0 });
+  cookieStore.set(SESSION_COOKIE_NAME, '', { maxAge: 0 });
   cookieStore.set(COOKIE_ROLE, '', { maxAge: 0 });
   cookieStore.set(COOKIE_ROLES, '', { maxAge: 0 });
   cookieStore.set(COOKIE_ONBOARDING, '', { maxAge: 0 });

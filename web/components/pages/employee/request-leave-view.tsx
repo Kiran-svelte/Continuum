@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { toast } from 'sonner';
+import { reportApiActionOutcome } from '@/lib/client/report-action-outcome';
 import { Button } from '@/components/ui/button';
 import { Input, Select, Textarea } from '@/components/ui/input';
 import { SkeletonForm } from '@/components/ui/skeleton';
@@ -238,9 +239,9 @@ export default function RequestLeaveView() {
         credentials: 'include',
         body: JSON.stringify({ leave_type: leaveType, start_date: startDate, end_date: endDate, is_half_day: halfDay, reason }),
       });
-      const json = await res.json() as { error?: string | { message?: string } };
+      const json = await res.json() as { error?: string | { message?: string }; actionOutcome?: unknown };
       if (res.ok) {
-        toast.success('Leave request submitted successfully!');
+        reportApiActionOutcome(json);
         router.push(getPortalLeaveHistoryPath(pathname ?? '/employee'));
       } else {
         const errMsg =

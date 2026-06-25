@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Modal, ModalFooter } from '@/components/ui/modal';
 import { ProgressBar, PageLoader } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
+import { reportApiActionOutcome } from '@/lib/client/report-action-outcome';
 import {
   Inbox,
   CheckCircle,
@@ -321,6 +322,7 @@ export default function ManagerApprovalsPage() {
       });
       const json = await res.json();
       if (res.ok) {
+        reportApiActionOutcome(json);
         setRequests((prev) => prev.filter((r) => r.id !== requestId));
         setSelectedIds((prev) => {
           const next = new Set(prev);

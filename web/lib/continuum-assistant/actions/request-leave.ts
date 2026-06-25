@@ -13,6 +13,7 @@ import {
   parseNaturalDateRange,
 } from '@/lib/continuum-assistant/actions/parse-leave-input';
 import { submitLeaveService } from '@/lib/services/leave-submit';
+import { formatSideEffectsSummary } from '@/lib/action-outcome';
 import { assistantContextToExecutionContext } from '@/lib/continuum-assistant/assistant-to-service-context';
 import { logAssistantAction } from '@/lib/continuum-assistant/actions/http-execute';
 
@@ -194,11 +195,15 @@ export async function executeRequestLeave(
   });
 
   const status = result.data.status;
+  const outcomeNote = result.data.actionOutcome
+    ? `\n\n${formatSideEffectsSummary(result.data.actionOutcome.sideEffects)}`
+    : '';
   return {
     reply:
       `**Leave request submitted** (recorded in audit log).\n\n` +
       `• Status: **${status}**\n` +
       (requestId ? `• Reference: \`${requestId.slice(0, 8)}…\`\n` : '') +
+      outcomeNote +
       `\nYou will be notified when it is approved.`,
     links: [
       ...(ctx.portalSlug === 'employee'

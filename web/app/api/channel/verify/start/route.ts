@@ -17,8 +17,9 @@ import { getAuthEmployee, AuthError } from '@/lib/auth-guard';
 import { checkApiRateLimit } from '@/lib/api-rate-limit';
 import { normalizePhone } from '@/lib/phone/normalize';
 import prisma from '@/lib/prisma';
-import { sendOTPEmail } from '@/lib/email-service';
+import { sendOTPEmail, type EmailResult } from '@/lib/email-service';
 import { logger } from '@/lib/logger';
+import { buildActionOutcome, sideEffectFromEmail } from '@/lib/action-outcome';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -122,21 +123,33 @@ export async function POST(request: Request): Promise<NextResponse> {
       expiresAt
     );
 
-    await sendOtpEmail(employee.email, code, employee.first_name);
+    const emailResult = await sendOtpEmail(employee.email, code, employee.first_name);
+    const actionOutcome = buildActionOutcome({
+      primarySucceeded: true,
+      title: emailResult.success ? 'Verification code sent' : 'Verification code created - email not delivered',
+      message: emailResult.success
+        ? 'The channel verification code was sent to your email.'
+        : `The verification code was created, but email delivery failed: ${emailResult.error ?? 'Email delivery failed'}.`,
+      sideEffects: [sideEffectFromEmail(`Channel verification OTP email to ${employee.email}`, emailResult)],
+    });
 
     logger.info('channel_otp_sent', {
       employeeId: employee.id,
       companyId: employee.org_id ?? undefined,
       channel,
+      emailSent: emailResult.success,
       // Log only last 4 digits — never the full number.
       phoneLastFour: normalized.e164.slice(-4),
     });
 
     return NextResponse.json({
       success: true,
+      emailSent: emailResult.success,
+      emailError: emailResult.success ? null : emailResult.error ?? 'Email delivery failed',
+      actionOutcome,
       expiresInSeconds: OTP_EXPIRY_MINUTES * 60,
       channel,
-    });
+    }, { status: emailResult.success ? 200 : 502 });
   } catch (error) {
     return handleRouteError(error, 'channel_verify_start_error');
   }
@@ -191,9 +204,10 @@ async function sendOtpEmail(
   email: string,
   code: string,
   firstName: string
-): Promise<void> {
-  await sendOTPEmail(email, firstName, code, 'whatsapp_link').catch(() => {
+): Promise<EmailResult> {
+  return sendOTPEmail(email, firstName, code, 'whatsapp_link').catch((error) => {
     logger.info('otp_email_fallback', { emailDomain: email.split('@')[1] ?? 'unknown' });
+    return { success: false, error: error instanceof Error ? error.message : 'Email delivery failed' };
   });
 }
 

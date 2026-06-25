@@ -4,6 +4,7 @@ import { getAuthEmployee, requireCompanyContext, AuthError, requirePermissionGua
 import { checkApiRateLimit, getRateLimitHeaders } from '@/lib/api-rate-limit';
 import { createAuditLog, AUDIT_ACTIONS } from '@/lib/audit';
 import { sendWelcomeEmail } from '@/lib/email-service';
+import { deliverAfterResponse } from '@/lib/email/deliver';
 import { completeOnboardingState } from '@/lib/onboarding/server';
 import { resolveCompanyEmailNotificationSettings, shouldSendCompanyEmail } from '@/lib/company-email-notifications';
 import { hydrateAuthResponseCookies } from '@/lib/auth-state-cookies';
@@ -99,9 +100,16 @@ export async function POST() {
       );
 
       if (shouldSendCompanyEmail(emailNotificationSettings, 'general')) {
-        sendWelcomeEmail(employee.email, empName, companyName).catch((err) => {
-          console.error('[ONBOARDING FINALIZE] Failed to send welcome email:', err);
-        });
+        deliverAfterResponse(
+          'onboarding-welcome',
+          () => sendWelcomeEmail(employee.email, empName, companyName),
+          {
+            actorEmployeeId: employee.id,
+            companyId,
+            actionTitle: 'Onboarding completed',
+            sideEffectLabel: `Welcome email to ${employee.email}`,
+          },
+        );
       }
     }
 

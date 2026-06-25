@@ -74,7 +74,7 @@ function AnimatedToggleSwitch({
   disabled?: boolean;
 }) {
   return (
-    <button
+    <Button
       type="button"
       role="switch"
       aria-checked={value}
@@ -93,7 +93,7 @@ function AnimatedToggleSwitch({
           translateX: value ? '1.5rem' : '0rem',
         }}
       />
-    </button>
+    </Button>
   );
 }
 

@@ -5,6 +5,14 @@ import { createAuditLog, AUDIT_ACTIONS } from '@/lib/audit';
 import { sendLeaveRejectionEmail } from '@/lib/email-service';
 import { sendNotification, sendPusherEvent } from '@/lib/notification-service';
 import { requireModuleForOrg } from '@/lib/core-functions/guard-handler';
+import {
+  buildActionOutcome,
+  sideEffectFailed,
+  sideEffectFromEmail,
+  sideEffectSent,
+  sideEffectSkipped,
+  type ActionSideEffect,
+} from '@/lib/action-outcome';
 
 export const dynamic = 'force-dynamic';
 
@@ -101,45 +109,76 @@ export async function POST(
       },
     });
 
-    // Send rejection email to employee (non-blocking)
-    try {
-      if (leaveRequest.employee.email) {
-        const startDate = leaveRequest.start_date.toISOString().split('T')[0];
-        const endDate = leaveRequest.end_date.toISOString().split('T')[0];
-        const employeeName = `${leaveRequest.employee.first_name} ${leaveRequest.employee.last_name}`;
-        const rejectorName = `${employee.first_name} ${employee.last_name}`;
-        await sendLeaveRejectionEmail(
-          leaveRequest.employee.email,
-          employeeName,
-          leaveRequest.leave_type,
-          startDate,
-          endDate,
-          rejectorName,
-          comments || 'No reason provided'
-        );
-      }
-    } catch (emailError) {
-      console.error('[LeaveReject] Email notification failed:', emailError);
+    const sideEffects: ActionSideEffect[] = [];
+    const startDate = leaveRequest.start_date.toISOString().split('T')[0];
+    const endDate = leaveRequest.end_date.toISOString().split('T')[0];
+    const employeeName = `${leaveRequest.employee.first_name} ${leaveRequest.employee.last_name}`;
+    const rejectorName = `${employee.first_name} ${employee.last_name}`;
+
+    if (leaveRequest.employee.email) {
+      const emailResult = await sendLeaveRejectionEmail(
+        leaveRequest.employee.email,
+        employeeName,
+        leaveRequest.leave_type,
+        startDate,
+        endDate,
+        rejectorName,
+        comments || 'No reason provided'
+      ).catch((emailError) => {
+        console.error('[LeaveReject] Email notification failed:', emailError);
+        return { success: false, error: emailError instanceof Error ? emailError.message : 'Email delivery failed' };
+      });
+      sideEffects.push(sideEffectFromEmail(`Rejection email to ${leaveRequest.employee.email}`, emailResult));
+    } else {
+      sideEffects.push(sideEffectSkipped('email', 'Rejection email to employee', 'Employee has no email address'));
     }
 
     // Real-time: notify the employee their leave was rejected
-    sendPusherEvent(`user-${leaveRequest.emp_id}`, 'leave-request-rejected', {
-      id: leaveRequest.id,
-      leave_type: leaveRequest.leave_type,
-      status: 'rejected',
-    }).catch(() => {});
+    try {
+      await sendPusherEvent(`user-${leaveRequest.emp_id}`, 'leave-request-rejected', {
+        id: leaveRequest.id,
+        leave_type: leaveRequest.leave_type,
+        status: 'rejected',
+      });
+      sideEffects.push(sideEffectSent('push', 'Realtime rejection update to employee'));
+    } catch (pushError) {
+      sideEffects.push(
+        sideEffectFailed(
+          'push',
+          'Realtime rejection update to employee',
+          pushError instanceof Error ? pushError.message : 'Push delivery failed',
+        )
+      );
+    }
 
     // DB notification for the employee
-    sendNotification(
-      leaveRequest.emp_id,
-      employee.org_id!,
-      'leave_rejected',
-      'Leave Request Rejected',
-      `Your ${leaveRequest.leave_type} leave from ${leaveRequest.start_date.toISOString().split('T')[0]} to ${leaveRequest.end_date.toISOString().split('T')[0]} has been rejected`,
-      'in_app',
-    ).catch(() => {});
+    try {
+      await sendNotification(
+        leaveRequest.emp_id,
+        employee.org_id!,
+        'leave_rejected',
+        'Leave Request Rejected',
+        `Your ${leaveRequest.leave_type} leave from ${startDate} to ${endDate} has been rejected`,
+        'in_app',
+      );
+      sideEffects.push(sideEffectSent('in_app', 'In-app rejection notification to employee'));
+    } catch (notifyError) {
+      sideEffects.push(
+        sideEffectFailed(
+          'in_app',
+          'In-app rejection notification to employee',
+          notifyError instanceof Error ? notifyError.message : 'Notification delivery failed',
+        )
+      );
+    }
 
-    return NextResponse.json(updatedRequest);
+    const actionOutcome = buildActionOutcome({
+      primarySucceeded: true,
+      title: 'Leave request rejected',
+      sideEffects,
+    });
+
+    return NextResponse.json({ ...updatedRequest, actionOutcome });
   } catch (error) {
     if (error instanceof AuthError) {
       return NextResponse.json({ error: error.message }, { status: error.status });

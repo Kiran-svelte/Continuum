@@ -191,7 +191,7 @@ export default async function DashboardView() {
           <p className="text-body text-sm mt-1">Manage users, security policies, and organization settings.</p>
           {fallbackWarnings.length > 0 && (
             <p className="mt-2 inline-flex items-center rounded-md border border-[var(--warning)]/30 bg-[var(--warning-bg)] px-2.5 py-1 text-xs text-[var(--warning)]">
-              Fallback mode active: {fallbackWarnings.map((item) => item.capabilityLabel).join(', ')} reassigned due missing owner roles.
+              Fallback mode active: {fallbackWarnings.map((item) => item.capabilityLabel).join(', ')} reassigned due to missing owner roles.
             </p>
           )}
         </div>
@@ -238,8 +238,16 @@ export default async function DashboardView() {
           <div key={i} className="card p-5 group hover:border-[var(--primary)] transition-colors">
             <div className="flex justify-between items-start mb-2">
               <span className="text-sm font-medium text-[var(--muted-foreground)]">{metric.label}</span>
-              <div className={`p-2 rounded-md bg-[var(--${metric.color || 'muted'})] bg-opacity-10`}>
-                <metric.icon className={`w-4 h-4 text-[var(--${metric.color || 'primary'})]`} />
+              <div
+                className="p-2 rounded-md"
+                style={{
+                  backgroundColor: `color-mix(in srgb, var(--${metric.color || 'muted'}) 12%, transparent)`,
+                }}
+              >
+                <metric.icon
+                  className="w-4 h-4"
+                  style={{ color: `var(--${metric.color || 'primary'})` }}
+                />
               </div>
             </div>
             <div className="text-num text-2xl font-semibold mb-1">{metric.value}</div>

@@ -3,6 +3,7 @@ import { getCurrentUser } from '@/lib/auth-service';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { UserPlus, Users, Clock, CheckCircle } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 /**
  * Super Admin - Users List
@@ -122,12 +123,12 @@ export default async function SuperAdminUsersPage() {
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex gap-3">
-                        <button className="text-sm text-primary hover:underline">
+                        <Button type="button" variant="ghost" size="sm" className="min-h-0 bg-transparent px-0 py-0 text-sm text-primary hover:bg-transparent hover:underline">
                           Resend
-                        </button>
-                        <button className="text-sm text-error hover:underline">
+                        </Button>
+                        <Button type="button" variant="ghost" size="sm" className="min-h-0 bg-transparent px-0 py-0 text-sm text-error hover:bg-transparent hover:underline">
                           Cancel
-                        </button>
+                        </Button>
                       </div>
                     </td>
                   </tr>

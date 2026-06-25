@@ -6,6 +6,8 @@ import { getAuthEmployee, requireRole } from '@/lib/auth-guard';
 import { checkApiRateLimit, getRateLimitHeaders } from '@/lib/api-rate-limit';
 import { createAuditLog, AUDIT_ACTIONS } from '@/lib/audit';
 import { sendInviteEmail } from '@/lib/email-service';
+import { buildAppUrl } from '@/lib/url-origin';
+import { buildActionOutcome, sideEffectFromEmail } from '@/lib/action-outcome';
 import { normalizePhone } from '@/lib/phone/normalize';
 
 export const dynamic = 'force-dynamic';
@@ -118,23 +120,44 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // Send invite email (non-blocking)
-    void sendInviteEmail(
+    // The invite email IS the purpose of this request, so we AWAIT delivery
+    // (a fire-and-forget promise is killed when the serverless function freezes
+    // after the response) and report the outcome so HR can fall back to the
+    // copy-link flow if delivery failed.
+    const acceptUrl = buildAppUrl(`/sign-up?invite=${token}`);
+    const emailResult = await sendInviteEmail(
       email,
       company?.name || 'Your Company',
       `${employee.first_name} ${employee.last_name}`,
       token,
       role,
-      department || undefined
-    ).catch((err) => console.error('[Invite] Email failed:', err));
+      department || undefined,
+      acceptUrl,
+    ).catch((err) => {
+      console.error('[Invite] Email failed:', err);
+      return { success: false, error: err instanceof Error ? err.message : 'Email delivery failed' };
+    });
+
+    const actionOutcome = buildActionOutcome({
+      primarySucceeded: true,
+      title: emailResult.success ? 'Invitation sent' : 'Invitation created — email not delivered',
+      message: emailResult.success
+        ? `Invitation email sent to ${email}.`
+        : `Invite saved. ${emailResult.error ?? 'Email could not be sent'}.`,
+      sideEffects: [sideEffectFromEmail(`Invitation email to ${email}`, emailResult)],
+    });
 
     return NextResponse.json({
       success: true,
+      emailSent: emailResult.success,
+      emailError: emailResult.success ? null : emailResult.error ?? 'Email delivery failed',
+      actionOutcome,
       invite: {
         id: invite.id,
         email: invite.email,
         role: invite.role,
         department: invite.department,
+        token: invite.token,
         expires_at: invite.expires_at,
       },
     });
