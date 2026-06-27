@@ -57,6 +57,12 @@ export default async function StatusView() {
       latency: `${health.checks.email?.latency ?? 0}ms`,
       uptime: `${uptime.uptimePercentage.toFixed(2)}%`,
     },
+    {
+      name: 'Upload Storage',
+      status: toPublicStatus(health.checks.storage?.status ?? 'degraded'),
+      latency: `${health.checks.storage?.latency ?? 0}ms`,
+      uptime: `${uptime.uptimePercentage.toFixed(2)}%`,
+    },
   ];
 
   const incidents = Object.entries(health.checks)

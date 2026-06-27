@@ -84,3 +84,48 @@ test('storage upload and download endpoints enforce tenant-scoped R2 keys', () =
   assert.match(r2Client, /\/api\/storage\/download\?\$\{params\.toString\(\)\}/);
   assert.doesNotMatch(r2Client, /placeholder:\/\/upload-pending/);
 });
+
+test('health and readiness surfaces report missing R2 storage without exposing secrets', () => {
+  const health = source('lib/enterprise/health.ts');
+  const adminHealth = source('app/api/admin/health/route.ts');
+  const envCheck = source('app/api/security/env-check/route.ts');
+  const opsReadiness = source('lib/operations-readiness/evaluate.ts');
+  const publicStatus = source('components/pages/public/status-view.tsx');
+  const storageReadiness = source('lib/storage/readiness.ts');
+  const fileUpload = source('lib/file-upload.ts');
+  const signedUrl = source('lib/storage/signed-url.ts');
+
+  assert.match(storageReadiness, /REQUIRED_UPLOAD_STORAGE_ENV = \[/);
+  assert.match(storageReadiness, /'UPLOAD_BUCKET'/);
+  assert.match(storageReadiness, /'UPLOAD_ACCESS_KEY'/);
+  assert.match(storageReadiness, /'UPLOAD_SECRET_KEY'/);
+  assert.match(storageReadiness, /'UPLOAD_ENDPOINT'/);
+  assert.match(storageReadiness, /missingRequired/);
+  assert.match(storageReadiness, /endpoint.*r2\.cloudflarestorage\.com/);
+  assert.match(storageReadiness, /envSet\('UPLOAD_ENDPOINT'\) \? 'auto' : 'ap-south-1'/);
+
+  assert.match(fileUpload, /resolveUploadStorageRegion\(\)/);
+  assert.match(signedUrl, /resolveUploadStorageRegion\(\)/);
+
+  assert.match(health, /getUploadStorageReadiness/);
+  assert.match(health, /storage:\s*checkStorageService\(\)/);
+  assert.match(health, /Upload storage not configured: missing/);
+
+  assert.match(adminHealth, /RESEND_API_KEY/);
+  assert.match(adminHealth, /EMAIL_PROVIDER/);
+  assert.match(adminHealth, /Resend configured/);
+  assert.match(adminHealth, /getUploadStorageReadiness/);
+  assert.match(adminHealth, /checks\.storage/);
+
+  assert.match(envCheck, /'UPLOAD_BUCKET'/);
+  assert.match(envCheck, /'UPLOAD_ACCESS_KEY'/);
+  assert.match(envCheck, /'UPLOAD_SECRET_KEY'/);
+  assert.match(envCheck, /'UPLOAD_ENDPOINT'/);
+  assert.match(envCheck, /'RESEND_API_KEY'/);
+  assert.doesNotMatch(envCheck, /SUPABASE_SERVICE_ROLE_KEY/);
+  assert.doesNotMatch(envCheck, /NEXT_PUBLIC_SUPABASE_ANON_KEY/);
+
+  assert.match(opsReadiness, /getUploadStorageReadiness/);
+  assert.match(opsReadiness, /Set \$\{name\} in Vercel production/);
+  assert.match(publicStatus, /Upload Storage/);
+});

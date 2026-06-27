@@ -13,6 +13,7 @@
  * profile photos, and any tenant-uploaded files.
  */
 import { createHmac } from 'crypto';
+import { resolveUploadStorageRegion } from '@/lib/storage/readiness';
 
 /** How long a signed URL is valid (seconds). Default: 1 hour. */
 const DEFAULT_TTL_SECONDS = 3600;
@@ -50,7 +51,7 @@ export async function generateSignedDownloadUrl(
   const accessKey = process.env.UPLOAD_ACCESS_KEY;
   const secretKey = process.env.UPLOAD_SECRET_KEY;
   const endpoint = process.env.UPLOAD_ENDPOINT;
-  const region = process.env.UPLOAD_REGION || 'auto';
+  const region = resolveUploadStorageRegion();
 
   if (!bucket || !accessKey || !secretKey) {
     return { ok: false, error: 'Storage not configured' };

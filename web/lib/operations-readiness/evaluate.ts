@@ -6,6 +6,7 @@ import { join } from 'node:path';
 import { isBetterStackConfigured } from '@/lib/betterstack/logging';
 import { isSentryEnabled } from '@/lib/sentry-config';
 import { validateEnv } from '@/lib/env-check';
+import { getUploadStorageReadiness } from '@/lib/storage/readiness';
 import { OPERATIONS_CATEGORIES, type OpsCategoryDefinition, type OpsStatus } from './catalog';
 
 export interface OpsCategoryResult {
@@ -58,6 +59,7 @@ export async function evaluateOperationsReadiness(): Promise<{
   overall: OpsStatus;
 }> {
   const envValidation = validateEnv();
+  const storageReadiness = getUploadStorageReadiness();
   const categories: OpsCategoryResult[] = [];
 
   const push = (
@@ -165,8 +167,18 @@ export async function evaluateOperationsReadiness(): Promise<{
       }
       case 10: {
         const vercelEnv = process.env.VERCEL_ENV || process.env.NODE_ENV || 'development';
-        if (process.env.VERCEL === '1') {
-          push(def, 'complete', [`VERCEL_ENV=${vercelEnv}`, 'Separate env vars per environment in Vercel dashboard']);
+        const missingEnv = [
+          ...envValidation.critical.missing,
+          ...storageReadiness.missingRequired.filter((name) => !envValidation.critical.missing.includes(name)),
+        ];
+        if (process.env.VERCEL === '1' && missingEnv.length === 0) {
+          push(def, 'complete', [
+            `VERCEL_ENV=${vercelEnv}`,
+            'Separate env vars per environment in Vercel dashboard',
+            `${storageReadiness.provider} upload storage configured`,
+          ]);
+        } else if (process.env.VERCEL === '1') {
+          push(def, 'partial', [`VERCEL_ENV=${vercelEnv}`], missingEnv.map((name) => `Set ${name} in Vercel production`));
         } else {
           push(def, 'partial', ['NODE_ENV separation locally'], ['Use Vercel Preview vs Production env scopes']);
         }

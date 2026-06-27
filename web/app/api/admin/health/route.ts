@@ -3,6 +3,7 @@ import prisma from '@/lib/prisma';
 import { getAuthEmployee, requireRole } from '@/lib/auth-guard';
 import { verifyAuditChain } from '@/lib/audit';
 import { getRedisClient } from '@/lib/redis';
+import { getUploadStorageReadiness } from '@/lib/storage/readiness';
 
 export const dynamic = 'force-dynamic';
 
@@ -72,9 +73,15 @@ export async function GET() {
     }
 
     // 4. Email configuration
+    const provider = process.env.EMAIL_PROVIDER?.trim().toLowerCase();
+    const resendKey = process.env.RESEND_API_KEY?.trim();
     const sendgridKey = process.env.SENDGRID_API_KEY?.trim();
     const smtpHost = process.env.SMTP_HOST?.trim();
-    if (sendgridKey) {
+    if (provider === 'resend' && resendKey) {
+      checks.email = { status: 'ok', message: 'Resend configured' };
+    } else if (resendKey) {
+      checks.email = { status: 'warn', message: 'Resend key present but EMAIL_PROVIDER is not resend' };
+    } else if (sendgridKey) {
       checks.email = { status: 'ok', message: 'SendGrid Web API configured' };
     } else if (smtpHost) {
       checks.email = { status: 'ok', message: `SMTP configured (${smtpHost})` };
@@ -82,7 +89,19 @@ export async function GET() {
       checks.email = { status: 'error', message: 'No email provider configured' };
     }
 
-    // 5. Migration status
+    // 5. Private upload storage configuration
+    const storage = getUploadStorageReadiness();
+    checks.storage = storage.configured
+      ? {
+          status: 'ok',
+          message: `${storage.provider} configured (${storage.region})`,
+        }
+      : {
+          status: 'error',
+          message: `Upload storage missing required env: ${storage.missingRequired.join(', ')}`,
+        };
+
+    // 6. Migration status
     try {
       const migrations = await prisma.$queryRaw<Array<{ migration_name: string }>>`
         SELECT migration_name FROM _prisma_migrations WHERE finished_at IS NOT NULL ORDER BY finished_at DESC LIMIT 1
@@ -98,7 +117,7 @@ export async function GET() {
       };
     }
 
-    // 6. Company stats
+    // 7. Company stats
     try {
       const [empCount, activeCount] = await Promise.all([
         prisma.employee.count({ where: { org_id: companyId, deleted_at: null } }),

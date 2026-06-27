@@ -28,22 +28,29 @@ interface EnvValidationResult {
 const CRITICAL_VARS = [
   'DATABASE_URL',
   'DIRECT_URL',
-  'SESSION_SECRET',
-  'CSRF_SECRET',
-  'CONSTRAINT_ENGINE_URL',
+  'JWT_SECRET',
+  'JWT_REFRESH_SECRET',
   'NEXT_PUBLIC_APP_URL',
+  'EMAIL_PROVIDER',
+  'RESEND_API_KEY',
+  'UPLOAD_BUCKET',
+  'UPLOAD_ACCESS_KEY',
+  'UPLOAD_SECRET_KEY',
+  'UPLOAD_ENDPOINT',
 ];
 
 /**
  * Optional but recommended variables
  */
 const RECOMMENDED_VARS = [
+  'CONSTRAINT_ENGINE_URL',
+  'UPLOAD_REGION',
   'UPSTASH_REDIS_REST_URL',
   'UPSTASH_REDIS_REST_TOKEN',
-  'SENDGRID_API_KEY',
-  'SMTP_HOST',
-  'SMTP_USER',
-  'SMTP_PASS',
+  'CASHFREE_APP_ID',
+  'CASHFREE_SECRET_KEY',
+  'CASHFREE_WEBHOOK_SECRET',
+  'SENTRY_DSN',
 ];
 
 /**
@@ -104,9 +111,9 @@ export function validateEnv(): EnvValidationResult {
     );
   }
 
-  if (warnings.missingOptional.includes('SENDGRID_API_KEY')) {
+  if (warnings.missingOptional.includes('CASHFREE_APP_ID')) {
     warnings.suggestions.push(
-      'SENDGRID: Not configured. Using SMTP fallback. Create account at https://sendgrid.com'
+      'CASHFREE: Not configured. Plan upgrades cannot complete real checkout until Cashfree env vars are set.'
     );
   }
 

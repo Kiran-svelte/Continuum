@@ -17,6 +17,7 @@
  */
 
 import { randomUUID } from 'crypto';
+import { resolveUploadStorageRegion } from '@/lib/storage/readiness';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -94,7 +95,7 @@ function getUploadConfig(): {
 
   return {
     bucket,
-    region: process.env.UPLOAD_REGION || 'ap-south-1',
+    region: resolveUploadStorageRegion(),
     accessKey,
     secretKey,
     endpoint: process.env.UPLOAD_ENDPOINT || undefined,

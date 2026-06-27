@@ -8,6 +8,7 @@
 import { logger } from './logger';
 import { statfsSync } from 'node:fs';
 import { neonAuth } from '../neon-auth';
+import { getUploadStorageReadiness } from '@/lib/storage/readiness';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -196,6 +197,35 @@ async function checkEmailService(): Promise<ComponentCheck> {
   };
 }
 
+function checkStorageService(): ComponentCheck {
+  const readiness = getUploadStorageReadiness();
+
+  if (readiness.configured) {
+    return {
+      status: 'healthy',
+      message: `${readiness.provider} upload storage configured`,
+      latency: 0,
+      details: {
+        provider: readiness.provider,
+        region: readiness.region,
+        endpointConfigured: readiness.endpointConfigured,
+        publicUrlConfigured: readiness.publicUrlConfigured,
+      },
+    };
+  }
+
+  return {
+    status: 'degraded',
+    message: `Upload storage not configured: missing ${readiness.missingRequired.join(', ')}`,
+    latency: 0,
+    details: {
+      provider: readiness.provider,
+      missingRequired: readiness.missingRequired,
+      endpointConfigured: readiness.endpointConfigured,
+    },
+  };
+}
+
 function checkMemoryUsage(): ComponentCheck {
   const usage = process.memoryUsage();
   const heapUsedMB = Math.round(usage.heapUsed / 1024 / 1024);
@@ -283,6 +313,7 @@ export async function checkHealth(): Promise<HealthCheckResult> {
     vault,
     redis,
     email,
+    storage: checkStorageService(),
     neonAuth,
     memory: checkMemoryUsage(),
     disk: checkDiskUsage(),
