@@ -1,9 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import Link from 'next/link';
 import { FadeIn, TiltCard, AmbientBackground } from '@/components/motion';
 import { GlassPanel } from '@/components/glass-panel';
+import { ResendButton } from '@/components/ui/resend-button';
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
@@ -36,6 +37,19 @@ export default function ForgotPasswordPage() {
       setLoading(false);
     }
   }
+
+  // Called by ResendButton — re-sends the reset email
+  const handleResend = useCallback(async () => {
+    const response = await fetch('/api/auth/forgot-password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email }),
+    });
+    if (!response.ok) {
+      const data = await response.json();
+      throw new Error(data.error || 'Failed to resend');
+    }
+  }, [email]);
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden">
@@ -73,15 +87,25 @@ export default function ForgotPasswordPage() {
                   The link expires in 1 hour.
                 </p>
                 <p className="text-xs text-white/60 dark:text-white/60 mt-3">
-                  Didn&apos;t receive it? Check your spam folder, or{' '}
+                  Didn&apos;t receive it? Check your spam folder, or
+                </p>
+                <div className="mt-2 flex flex-col items-center gap-2">
+                  <ResendButton
+                    onResend={handleResend}
+                    label="Resend reset email"
+                    sentLabel="Sent!"
+                    cooldownSeconds={60}
+                    initialCooldown
+                    variant="outline"
+                    size="sm"
+                  />
                   <button
                     onClick={() => setSent(false)}
-                    className="text-primary hover:text-primary/80 font-medium transition-colors"
+                    className="text-xs text-white/40 hover:text-white/60 transition-colors"
                   >
-                    try again
+                    Use a different email address
                   </button>
-                  .
-                </p>
+                </div>
               </div>
             ) : (
               <>

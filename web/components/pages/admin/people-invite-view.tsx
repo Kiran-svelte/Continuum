@@ -1,12 +1,13 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useCallback } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, Loader2, Send, UserPlus } from 'lucide-react';
+import { ArrowLeft, Loader2, Send, UserPlus, Trash2, RefreshCcw } from 'lucide-react';
 import { toast } from 'sonner';
 import { fetchWithTimeout, mapFetchErrorMessage } from '@/lib/fetch-with-timeout';
 import { Input, Select } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { ResendButton } from '@/components/ui/resend-button';
 
 interface ManagerOption {
   id: string;
@@ -388,7 +389,7 @@ export default function PeopleInviteView() {
       </section>
 
       <section className="card p-0 overflow-hidden">
-        <div className="border-b border-[var(--border)] px-4 py-3">
+        <div className="border-b border-[var(--border)] px-4 py-3 flex items-center justify-between">
           <h2 className="text-sm font-semibold uppercase tracking-wide text-[var(--muted-foreground)]">
             Pending Invitations ({activePending.length})
           </h2>
@@ -399,25 +400,75 @@ export default function PeopleInviteView() {
               <tr className="border-b border-[var(--border)]">
                 <th className="px-4 py-2 text-xs font-semibold uppercase tracking-wide text-[var(--muted-foreground)]">Email</th>
                 <th className="px-4 py-2 text-xs font-semibold uppercase tracking-wide text-[var(--muted-foreground)]">Role</th>
-                <th className="px-4 py-2 text-xs font-semibold uppercase tracking-wide text-[var(--muted-foreground)]">Department</th>
+                <th className="hidden md:table-cell px-4 py-2 text-xs font-semibold uppercase tracking-wide text-[var(--muted-foreground)]">Department</th>
                 <th className="px-4 py-2 text-xs font-semibold uppercase tracking-wide text-[var(--muted-foreground)]">Expires</th>
+                <th className="px-4 py-2 text-xs font-semibold uppercase tracking-wide text-[var(--muted-foreground)]">Actions</th>
               </tr>
             </thead>
             <tbody>
               {activePending.map((invite) => (
                 <tr key={invite.id} className="border-b border-[var(--border)] last:border-0">
-                  <td className="px-4 py-2">{invite.email}</td>
+                  <td className="px-4 py-2 max-w-[180px] truncate">{invite.email}</td>
                   <td className="px-4 py-2 capitalize">{invite.role}</td>
-                  <td className="px-4 py-2">{invite.department || 'Unassigned'}</td>
+                  <td className="hidden md:table-cell px-4 py-2">{invite.department || 'Unassigned'}</td>
                   <td className="px-4 py-2 text-xs text-[var(--muted-foreground)]">
                     {new Date(invite.expires_at).toLocaleString('en-IN')}
+                  </td>
+                  <td className="px-4 py-2">
+                    <div className="flex items-center gap-1">
+                      <ResendButton
+                        onResend={async () => {
+                          const res = await fetch('/api/email/resend', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ type: 'invite', targetId: invite.id }),
+                            credentials: 'include',
+                          });
+                          if (!res.ok) {
+                            const d = await res.json().catch(() => ({}));
+                            throw new Error(d.error || 'Failed to resend');
+                          }
+                          toast.success(`Invite resent to ${invite.email}`);
+                        }}
+                        label="Resend"
+                        cooldownSeconds={60}
+                        size="sm"
+                        variant="ghost"
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="text-[var(--danger)] hover:bg-[var(--danger)]/10"
+                        aria-label={`Revoke invite for ${invite.email}`}
+                        onClick={async () => {
+                          if (!window.confirm(`Revoke invite for ${invite.email}? They will no longer be able to use this invite link.`)) return;
+                          try {
+                            const res = await fetch(`/api/hr/invites/${invite.id}/revoke`, {
+                              method: 'POST',
+                              credentials: 'include',
+                            });
+                            if (res.ok) {
+                              toast.success('Invite revoked');
+                              void loadPendingInvites();
+                            } else {
+                              toast.error('Failed to revoke invite');
+                            }
+                          } catch {
+                            toast.error('Failed to revoke invite');
+                          }
+                        }}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" aria-hidden />
+                      </Button>
+                    </div>
                   </td>
                 </tr>
               ))}
               {activePending.length === 0 && (
                 <tr>
-                  <td className="px-4 py-6 text-center text-sm text-[var(--muted-foreground)]" colSpan={4}>
-                    No active pending invites.
+                  <td className="px-4 py-8 text-center text-sm text-[var(--muted-foreground)]" colSpan={5}>
+                    No pending invitations. Invited employees will appear here.
                   </td>
                 </tr>
               )}
@@ -428,4 +479,3 @@ export default function PeopleInviteView() {
     </div>
   );
 }
-

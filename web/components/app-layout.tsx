@@ -50,12 +50,25 @@ export function AppLayout({
 }: AppLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
   const pathname = usePathname();
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
 
+  // Derive notification path based on portal
+  const notifPath = `/${portal}/notifications`;
+  // Settings path
+  const settingsPath = `/${portal}/settings`;
+
   useEffect(() => {
     setMounted(true);
+    // Fetch unread notification count
+    fetch('/api/notifications?limit=1&unread=true', { credentials: 'include' })
+      .then((r) => r.ok ? r.json() : null)
+      .then((data: { unread_count?: number } | null) => {
+        if (data?.unread_count != null) setUnreadCount(data.unread_count);
+      })
+      .catch(() => {});
   }, []);
 
   // Close sidebar on route change (mobile)
@@ -233,13 +246,22 @@ export function AppLayout({
             )}
 
             {/* Notifications */}
-            <button className="p-2 rounded-md hover:bg-muted transition-colors relative">
+            <Link
+              href={notifPath}
+              className="p-2 rounded-md hover:bg-muted transition-colors relative"
+              title={unreadCount > 0 ? `${unreadCount} unread notifications` : 'Notifications'}
+              aria-label={unreadCount > 0 ? `${unreadCount} unread notifications` : 'Notifications'}
+            >
               <Bell className="w-5 h-5 text-muted-foreground" />
-              <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-destructive" />
-            </button>
+              {unreadCount > 0 && (
+                <span className="absolute top-0.5 right-0.5 min-w-[16px] h-4 rounded-full bg-destructive text-[10px] text-white font-bold flex items-center justify-center px-0.5">
+                  {unreadCount > 99 ? '99+' : unreadCount}
+                </span>
+              )}
+            </Link>
 
             {/* Settings */}
-            <Link href="/settings" className="p-2 rounded-md hover:bg-muted transition-colors">
+            <Link href={settingsPath} className="p-2 rounded-md hover:bg-muted transition-colors" title="Settings">
               <Settings className="w-5 h-5 text-muted-foreground" />
             </Link>
 

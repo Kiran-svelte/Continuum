@@ -17,6 +17,7 @@ import { createHmac } from 'crypto';
 import prisma from '@/lib/prisma';
 import { randomUUID } from 'crypto';
 import type { PaymentStatus, SubscriptionPlan } from '@prisma/client';
+import { clampModulesForPlan } from '@/lib/core-functions/plan-modules';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -339,6 +340,27 @@ export async function markCashfreeOrderStatus(params: {
     data.paid_at = new Date();
   }
 
+  const matchingPayments = await prisma.payment.findMany({
+    where: {
+      OR: [
+        { cashfree_order_id: params.orderId },
+        { razorpay_order_id: params.orderId },
+        { id: params.orderId },
+      ],
+    },
+    select: {
+      id: true,
+      company_id: true,
+      subscription_id: true,
+      subscription: {
+        select: {
+          id: true,
+          plan: true,
+        },
+      },
+    },
+  });
+
   const result = await prisma.payment.updateMany({
     where: {
       OR: [
@@ -353,6 +375,36 @@ export async function markCashfreeOrderStatus(params: {
   if (result.count === 0) {
     console.warn(`[PaymentService] Cashfree order not matched: ${params.orderId}`);
   }
+
+  if (params.status !== 'completed') {
+    return;
+  }
+
+  const targetPlan = getCashfreePlanFromOrderId(params.orderId);
+  const startDate = new Date();
+  const endDate = new Date(startDate);
+  endDate.setMonth(endDate.getMonth() + 1);
+
+  for (const payment of matchingPayments) {
+    const plan = targetPlan ?? payment.subscription.plan;
+    await prisma.subscription.update({
+      where: { id: payment.subscription_id },
+      data: {
+        plan,
+        status: 'active',
+        current_period_start: startDate,
+        current_period_end: endDate,
+        updated_at: new Date(),
+      },
+    });
+    await clampModulesForPlan(payment.company_id, plan);
+  }
+}
+
+function getCashfreePlanFromOrderId(orderId: string): SubscriptionPlan | null {
+  const match = /^cf-(growth|enterprise)-/.exec(orderId);
+  if (!match) return null;
+  return match[1] as SubscriptionPlan;
 }
 
 // ─── Subscription Activation ─────────────────────────────────────────────────

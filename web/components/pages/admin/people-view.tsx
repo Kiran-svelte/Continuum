@@ -37,7 +37,9 @@ export default async function PeopleView() {
       deleted_at: null,
     },
     orderBy: { created_at: 'desc' },
-    take: 100,
+    // NOTE: Increased from 100 to 500. For orgs with 500+ employees,
+    // the PeopleTable should switch to server-side paginated API (/api/employees).
+    take: 500,
     select: {
       id: true,
       first_name: true,
