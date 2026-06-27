@@ -9,10 +9,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { AuthError, getAuthEmployee } from '@/lib/auth-guard';
 import {
+  buildStorageDownloadPath,
+  isAppwriteStorageKey,
   isPrivateStorageKey,
   isStorageKeyForCompany,
+  parseAppwriteStorageKey,
 } from '@/lib/storage/r2-client';
 import { generateSignedDownloadUrl } from '@/lib/storage/signed-url';
+import { downloadAppwriteFile } from '@/lib/appwrite/storage';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -37,6 +41,38 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         { error: { code: 'FORBIDDEN', message: 'You do not have access to this file.', requestId } },
         { status: 403 }
       );
+    }
+
+    if (isAppwriteStorageKey(key)) {
+      const parsed = parseAppwriteStorageKey(key);
+      if (!parsed) {
+        return NextResponse.json(
+          { error: { code: 'INVALID_KEY', message: 'A valid Appwrite storage key is required.', requestId } },
+          { status: 400 }
+        );
+      }
+
+      if (request.nextUrl.searchParams.get('inline') !== 'true') {
+        return NextResponse.json({
+          url: buildStorageDownloadPath(key, true),
+          expiresAt: new Date(Date.now() + 3600 * 1000).toISOString(),
+        });
+      }
+
+      const file = await downloadAppwriteFile(parsed.fileId);
+      const dispositionName = file.name.replace(/["\r\n]/g, '_');
+      const body = file.buffer.buffer.slice(
+        file.buffer.byteOffset,
+        file.buffer.byteOffset + file.buffer.byteLength
+      ) as ArrayBuffer;
+      return new NextResponse(body, {
+        headers: {
+          'Content-Type': file.mimeType,
+          'Content-Length': String(file.sizeOriginal || file.buffer.byteLength),
+          'Content-Disposition': `inline; filename="${dispositionName}"`,
+          'Cache-Control': 'private, max-age=60',
+        },
+      });
     }
 
     const result = await generateSignedDownloadUrl({ key, ttlSeconds: 3600 });

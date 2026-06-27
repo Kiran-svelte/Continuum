@@ -85,7 +85,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       {
         key: uploaded.key,
         downloadUrl: uploaded.downloadUrl,
-        storage: 'r2',
+        storage: uploaded.storage,
       },
       { status: 201 }
     );

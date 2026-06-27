@@ -33,11 +33,21 @@ const CRITICAL_VARS = [
   'NEXT_PUBLIC_APP_URL',
   'EMAIL_PROVIDER',
   'RESEND_API_KEY',
+];
+
+const R2_STORAGE_VARS = [
   'UPLOAD_BUCKET',
   'UPLOAD_ACCESS_KEY',
   'UPLOAD_SECRET_KEY',
   'UPLOAD_ENDPOINT',
-];
+] as const;
+
+const APPWRITE_STORAGE_VARS = [
+  'APPWRITE_ENDPOINT',
+  'APPWRITE_PROJECT_ID',
+  'APPWRITE_STORAGE_BUCKET_ID',
+  'APPWRITE_API_KEY',
+] as const;
 
 /**
  * Optional but recommended variables
@@ -45,6 +55,7 @@ const CRITICAL_VARS = [
 const RECOMMENDED_VARS = [
   'CONSTRAINT_ENGINE_URL',
   'UPLOAD_REGION',
+  'UPLOAD_PUBLIC_URL',
   'UPSTASH_REDIS_REST_URL',
   'UPSTASH_REDIS_REST_TOKEN',
   'CASHFREE_APP_ID',
@@ -88,6 +99,14 @@ export function validateEnv(): EnvValidationResult {
       critical.missing.push(varName);
       critical.status = 'error';
     }
+  }
+
+  const hasR2Storage = R2_STORAGE_VARS.every((varName) => Boolean(process.env[varName]?.trim()));
+  const hasAppwriteStorage = APPWRITE_STORAGE_VARS.every((varName) => Boolean(process.env[varName]?.trim()));
+  if (!hasR2Storage && !hasAppwriteStorage) {
+    critical.missing.push('UPLOAD_* or APPWRITE_* storage backend');
+    critical.errors.push('Configure Cloudflare R2 upload envs or Appwrite storage fallback envs.');
+    critical.status = 'error';
   }
 
   // Check recommended variables

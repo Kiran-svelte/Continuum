@@ -28,6 +28,7 @@ export function isAppwriteConfigured(): boolean {
   return Boolean(
     appwriteConfig.endpoint &&
       appwriteConfig.projectId &&
+      appwriteConfig.storageBucketId &&
       appwriteConfig.apiKey
   );
 }

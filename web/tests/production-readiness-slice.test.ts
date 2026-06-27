@@ -61,7 +61,7 @@ test('Cashfree upgrade flow stores pending payments and activates subscriptions 
   assert.match(paymentService, /clampModulesForPlan\(payment\.company_id,\s*plan\)/);
 });
 
-test('document file upload is R2-only and fails visibly when storage fails', () => {
+test('document file upload uses private storage only and fails visibly when storage fails', () => {
   const route = source('app/api/documents/upload/route.ts');
 
   assert.match(route, /requireCompanyContext\(employee\)/);
@@ -69,7 +69,7 @@ test('document file upload is R2-only and fails visibly when storage fails', () 
   assert.match(route, /uploadTenantFile\(uploadedFile,\s*\{\s*folder:\s*'documents'/);
   assert.match(route, /url:\s*uploaded\.key/);
   assert.match(route, /url:\s*uploaded\.downloadUrl/);
-  assert.match(route, /storageMethod:\s*'r2'/);
+  assert.match(route, /storageMethod:\s*uploaded\.storage/);
   assert.match(route, /status:\s*422/);
 
   assert.doesNotMatch(route, /supabase\.storage/);
@@ -91,23 +91,24 @@ test('documents API serializes private storage keys through signed download endp
   assert.match(route, /url:\s*serializeDocumentUrl\(updated\.url\)/);
 });
 
-test('storage upload and download endpoints enforce tenant-scoped R2 keys', () => {
+test('storage upload and download endpoints enforce tenant-scoped private keys', () => {
   const uploadRoute = source('app/api/storage/upload/route.ts');
   const genericUploadRoute = source('app/api/upload/route.ts');
   const categoryUploadRoute = source('app/api/upload/[category]/route.ts');
   const downloadRoute = source('app/api/storage/download/route.ts');
   const r2Client = source('lib/storage/r2-client.ts');
   const fileUpload = source('lib/file-upload.ts');
+  const appwriteStorage = source('lib/appwrite/storage.ts');
 
   assert.match(uploadRoute, /requireCompanyContext\(employee\)/);
   assert.match(uploadRoute, /isStorageFolder\(folder\)/);
   assert.match(uploadRoute, /uploadTenantFile\(file,\s*\{/);
-  assert.match(uploadRoute, /storage:\s*'r2'/);
+  assert.match(uploadRoute, /storage:\s*uploaded\.storage/);
 
   assert.match(genericUploadRoute, /uploadTenantFile\(file,\s*\{/);
   assert.match(genericUploadRoute, /url:\s*uploaded\.downloadUrl/);
   assert.match(genericUploadRoute, /storageKey:\s*uploaded\.key/);
-  assert.match(genericUploadRoute, /storage:\s*'r2'/);
+  assert.match(genericUploadRoute, /storage:\s*uploaded\.storage/);
   assert.doesNotMatch(genericUploadRoute, /url:\s*result\.url/);
 
   assert.match(categoryUploadRoute, /STORAGE_FOLDER_BY_CATEGORY/);
@@ -115,7 +116,7 @@ test('storage upload and download endpoints enforce tenant-scoped R2 keys', () =
   assert.match(categoryUploadRoute, /'expense-receipt':\s*'receipts'/);
   assert.match(categoryUploadRoute, /uploadTenantFile\(file,\s*\{/);
   assert.match(categoryUploadRoute, /url:\s*uploaded\.downloadUrl/);
-  assert.match(categoryUploadRoute, /storage:\s*'r2'/);
+  assert.match(categoryUploadRoute, /storage:\s*uploaded\.storage/);
   assert.doesNotMatch(categoryUploadRoute, /fs\/promises/);
   assert.doesNotMatch(categoryUploadRoute, /writeFile/);
   assert.doesNotMatch(categoryUploadRoute, /mkdir/);
@@ -125,20 +126,30 @@ test('storage upload and download endpoints enforce tenant-scoped R2 keys', () =
 
   assert.match(downloadRoute, /isPrivateStorageKey\(key\)/);
   assert.match(downloadRoute, /isStorageKeyForCompany\(key,\s*actor\.org_id\)/);
+  assert.match(downloadRoute, /isAppwriteStorageKey\(key\)/);
+  assert.match(downloadRoute, /downloadAppwriteFile\(parsed\.fileId\)/);
   assert.match(downloadRoute, /generateSignedDownloadUrl\(\{\s*key,\s*ttlSeconds:\s*3600\s*\}\)/);
   assert.match(downloadRoute, /NextResponse\.redirect\(result\.url\)/);
 
   assert.match(r2Client, /parts\.length >= 4 && isStorageFolder\(parts\[0\]\) && parts\[1\] === companyId/);
+  assert.match(r2Client, /parts\[0\] === APPWRITE_STORAGE_PREFIX/);
   assert.match(r2Client, /\/api\/storage\/download\?\$\{params\.toString\(\)\}/);
   assert.doesNotMatch(r2Client, /placeholder:\/\/upload-pending/);
 
+  assert.match(fileUpload, /uploadDocumentToAppwrite/);
+  assert.match(fileUpload, /Falling back to Appwrite storage after S3 upload failure/);
+  assert.match(fileUpload, /appwrite\/\$\{options\.folder\}\/\$\{options\.companyId\}\/\$\{created\.fileId\}/);
   assert.match(fileUpload, /'video\/mp4':\s*'\.mp4'/);
   assert.match(fileUpload, /'application\/vnd\.openxmlformats-officedocument\.presentationml\.presentation':\s*'\.pptx'/);
   assert.match(fileUpload, /normalizedEndpoint \? `\/\$\{config\.bucket\}\/\$\{key\}` : `\/\$\{key\}`/);
   assert.match(fileUpload, /fetch\(`\$\{endpoint\}\$\{canonicalUri\}`/);
+
+  assert.match(appwriteStorage, /storage\.createFile\(\{/);
+  assert.match(appwriteStorage, /downloadAppwriteFile/);
+  assert.match(appwriteStorage, /storage\.getFileView\(\{/);
 });
 
-test('health and readiness surfaces report missing R2 storage without exposing secrets', () => {
+test('health and readiness surfaces report storage fallback without exposing secrets', () => {
   const health = source('lib/enterprise/health.ts');
   const readiness = source('app/api/health/ready/route.ts');
   const adminHealth = source('app/api/admin/health/route.ts');
@@ -156,6 +167,13 @@ test('health and readiness surfaces report missing R2 storage without exposing s
   assert.match(storageReadiness, /'UPLOAD_ACCESS_KEY'/);
   assert.match(storageReadiness, /'UPLOAD_SECRET_KEY'/);
   assert.match(storageReadiness, /'UPLOAD_ENDPOINT'/);
+  assert.match(storageReadiness, /APPWRITE_UPLOAD_STORAGE_ENV = \[/);
+  assert.match(storageReadiness, /'APPWRITE_ENDPOINT'/);
+  assert.match(storageReadiness, /'APPWRITE_PROJECT_ID'/);
+  assert.match(storageReadiness, /'APPWRITE_STORAGE_BUCKET_ID'/);
+  assert.match(storageReadiness, /'APPWRITE_API_KEY'/);
+  assert.match(storageReadiness, /fallbackConfigured/);
+  assert.match(storageReadiness, /provider: UploadStorageProvider = primaryConfigured \? primaryProvider : 'appwrite'/);
   assert.match(storageReadiness, /missingRequired/);
   assert.match(storageReadiness, /endpoint.*r2\.cloudflarestorage\.com/);
   assert.match(storageReadiness, /envSet\('UPLOAD_ENDPOINT'\) \? 'auto' : 'ap-south-1'/);
@@ -166,6 +184,8 @@ test('health and readiness surfaces report missing R2 storage without exposing s
   assert.match(health, /getUploadStorageReadiness/);
   assert.match(health, /storage:\s*checkStorageService\(\)/);
   assert.match(health, /Upload storage not configured: missing/);
+  assert.match(health, /fallbackConfigured: readiness\.fallbackConfigured/);
+  assert.match(health, /primaryMissingRequired: readiness\.primaryMissingRequired/);
   assert.match(health, /Custom JWT auth active; Neon Auth optional check skipped/);
   assert.match(health, /provider:\s*'custom-jwt'/);
   assert.doesNotMatch(health, /message:\s*'Neon Auth not configured'/);
@@ -200,6 +220,11 @@ test('health and readiness surfaces report missing R2 storage without exposing s
   assert.match(envCheck, /'UPLOAD_ACCESS_KEY'/);
   assert.match(envCheck, /'UPLOAD_SECRET_KEY'/);
   assert.match(envCheck, /'UPLOAD_ENDPOINT'/);
+  assert.match(envCheck, /'APPWRITE_ENDPOINT'/);
+  assert.match(envCheck, /'APPWRITE_PROJECT_ID'/);
+  assert.match(envCheck, /'APPWRITE_STORAGE_BUCKET_ID'/);
+  assert.match(envCheck, /'APPWRITE_API_KEY'/);
+  assert.match(envCheck, /storage\.configured/);
   assert.match(envCheck, /'RESEND_API_KEY'/);
   assert.doesNotMatch(envCheck, /SUPABASE_SERVICE_ROLE_KEY/);
   assert.doesNotMatch(envCheck, /NEXT_PUBLIC_SUPABASE_ANON_KEY/);

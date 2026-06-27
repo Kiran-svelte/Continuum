@@ -210,6 +210,8 @@ function checkStorageService(): ComponentCheck {
         region: readiness.region,
         endpointConfigured: readiness.endpointConfigured,
         publicUrlConfigured: readiness.publicUrlConfigured,
+        fallbackConfigured: readiness.fallbackConfigured,
+        primaryMissingRequired: readiness.primaryMissingRequired,
       },
     };
   }
@@ -221,6 +223,8 @@ function checkStorageService(): ComponentCheck {
     details: {
       provider: readiness.provider,
       missingRequired: readiness.missingRequired,
+      primaryMissingRequired: readiness.primaryMissingRequired,
+      fallbackMissingRequired: readiness.fallbackMissingRequired,
       endpointConfigured: readiness.endpointConfigured,
     },
   };

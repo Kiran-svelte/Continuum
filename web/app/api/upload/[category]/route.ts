@@ -139,7 +139,7 @@ export async function POST(
         key: uploaded.key,
         storageKey: uploaded.key,
         category,
-        storage: 'r2',
+        storage: uploaded.storage,
       },
       { status: 201 }
     );

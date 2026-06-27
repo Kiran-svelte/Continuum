@@ -23,6 +23,13 @@ export interface AppwriteUploadInput {
   pathPrefix?: string;
 }
 
+export interface AppwriteDownloadResult {
+  buffer: Buffer;
+  name: string;
+  mimeType: string;
+  sizeOriginal: number;
+}
+
 /**
  * Uploads a file to the configured Appwrite storage bucket.
  * @throws when Appwrite is not configured or upload fails
@@ -42,11 +49,11 @@ export async function uploadDocumentToAppwrite(
 
   const file = InputFile.fromBuffer(input.buffer, objectName);
 
-  const created = await storage.createFile(
-    appwriteConfig.storageBucketId,
-    ID.unique(),
-    file
-  );
+  const created = await storage.createFile({
+    bucketId: appwriteConfig.storageBucketId,
+    fileId: ID.unique(),
+    file,
+  });
 
   return {
     fileId: created.$id,
@@ -55,6 +62,44 @@ export async function uploadDocumentToAppwrite(
     mimeType: created.mimeType,
     sizeOriginal: created.sizeOriginal,
   };
+}
+
+export async function downloadAppwriteFile(fileId: string): Promise<AppwriteDownloadResult> {
+  if (!isAppwriteConfigured()) {
+    throw new Error('Appwrite storage is not configured (APPWRITE_API_KEY missing)');
+  }
+
+  const storage = getAppwriteStorage();
+  const metadata = await storage.getFile({
+    bucketId: appwriteConfig.storageBucketId,
+    fileId,
+  });
+  const bytes = await storage.getFileView({
+    bucketId: appwriteConfig.storageBucketId,
+    fileId,
+  });
+
+  return {
+    buffer: Buffer.from(bytes),
+    name: metadata.name,
+    mimeType: metadata.mimeType || 'application/octet-stream',
+    sizeOriginal: metadata.sizeOriginal,
+  };
+}
+
+export async function deleteAppwriteFile(fileId: string): Promise<boolean> {
+  if (!isAppwriteConfigured()) return false;
+
+  try {
+    await getAppwriteStorage().deleteFile({
+      bucketId: appwriteConfig.storageBucketId,
+      fileId,
+    });
+    return true;
+  } catch (error) {
+    console.error('[AppwriteStorage] Delete failed:', error instanceof Error ? error.message : error);
+    return false;
+  }
 }
 
 /** Builds a view/download URL for a stored file (server-side or signed flows). */

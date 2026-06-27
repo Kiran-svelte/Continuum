@@ -1,5 +1,7 @@
 import { deleteFile, uploadFile } from '@/lib/file-upload';
 
+const APPWRITE_STORAGE_PREFIX = 'appwrite';
+
 export const STORAGE_FOLDERS = [
   'documents',
   'receipts',
@@ -16,6 +18,9 @@ export function isStorageFolder(value: string): value is StorageFolder {
 
 export function isStorageKeyForCompany(key: string, companyId: string): boolean {
   const parts = key.split('/');
+  if (parts[0] === APPWRITE_STORAGE_PREFIX) {
+    return parts.length >= 4 && isStorageFolder(parts[1]) && parts[2] === companyId;
+  }
   return parts.length >= 4 && isStorageFolder(parts[0]) && parts[1] === companyId;
 }
 
@@ -23,7 +28,26 @@ export function isPrivateStorageKey(value: string): boolean {
   if (!value || value.includes('..') || value.startsWith('/')) return false;
   if (/^(https?:|data:|blob:|placeholder:)/i.test(value)) return false;
   const parts = value.split('/');
+  if (parts[0] === APPWRITE_STORAGE_PREFIX) {
+    return parts.length >= 4 && isStorageFolder(parts[1]) && Boolean(parts[2]) && Boolean(parts[3]);
+  }
   return parts.length >= 4 && isStorageFolder(parts[0]);
+}
+
+export function isAppwriteStorageKey(value: string): boolean {
+  return isPrivateStorageKey(value) && value.split('/')[0] === APPWRITE_STORAGE_PREFIX;
+}
+
+export function parseAppwriteStorageKey(value: string): { folder: StorageFolder; companyId: string; fileId: string } | null {
+  const parts = value.split('/');
+  if (parts[0] !== APPWRITE_STORAGE_PREFIX || !isStorageFolder(parts[1]) || !parts[2] || !parts[3]) {
+    return null;
+  }
+  return {
+    folder: parts[1],
+    companyId: parts[2],
+    fileId: parts[3],
+  };
 }
 
 export function buildStorageDownloadPath(key: string, inline = false): string {
@@ -44,6 +68,7 @@ export async function uploadTenantFile(
       ok: true;
       key: string;
       downloadUrl: string;
+      storage: 'r2' | 'appwrite';
     }
   | {
       ok: false;
@@ -64,6 +89,7 @@ export async function uploadTenantFile(
     ok: true,
     key: result.key,
     downloadUrl: buildStorageDownloadPath(result.key, true),
+    storage: result.key.startsWith(`${APPWRITE_STORAGE_PREFIX}/`) ? 'appwrite' : 'r2',
   };
 }
 

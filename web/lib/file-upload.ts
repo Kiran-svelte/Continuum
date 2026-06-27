@@ -18,6 +18,11 @@
 
 import { randomUUID } from 'crypto';
 import { resolveUploadStorageRegion } from '@/lib/storage/readiness';
+import { isAppwriteConfigured } from '@/lib/appwrite/config';
+import {
+  deleteAppwriteFile,
+  uploadDocumentToAppwrite,
+} from '@/lib/appwrite/storage';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -109,6 +114,12 @@ function getUploadConfig(): {
   };
 }
 
+function parseAppwriteStorageKey(key: string): string | null {
+  const parts = key.split('/');
+  if (parts[0] !== 'appwrite' || parts.length < 4 || !parts[3]) return null;
+  return parts[3];
+}
+
 // ─── Validation ──────────────────────────────────────────────────────────────
 
 /**
@@ -197,8 +208,8 @@ function generateStorageKey(
 export async function uploadFile(file: File, options: UploadOptions): Promise<UploadResult> {
   const config = getUploadConfig();
 
-  if (!config) {
-    console.error('[FileUpload] Storage not configured — set UPLOAD_BUCKET, UPLOAD_ACCESS_KEY, UPLOAD_SECRET_KEY');
+  if (!config && !isAppwriteConfigured()) {
+    console.error('[FileUpload] Storage not configured — set R2 UPLOAD_* vars or Appwrite APPWRITE_* vars');
     return { isSuccess: false, error: 'File storage is not configured. Contact your administrator.' };
   }
 
@@ -226,14 +237,34 @@ export async function uploadFile(file: File, options: UploadOptions): Promise<Up
   const sanitizedName = sanitizeFilename(file.name);
   const key = generateStorageKey(options.folder, options.companyId, sanitizedName, extension);
 
+  if (config) {
+    try {
+      // Use AWS SDK v3-style presigned URL or direct PUT.
+      // For now, use the fetch-based S3 PUT approach (works with any S3-compatible API).
+      const url = await putObjectToS3(config, key, Buffer.from(buffer), validatedMime);
+      return { isSuccess: true, url, key };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Upload failed';
+      console.error(`[FileUpload] S3 upload failed: key="${key}" error="${message}"`);
+      if (!isAppwriteConfigured()) {
+        return { isSuccess: false, error: 'Failed to upload file. Please try again.' };
+      }
+      console.warn('[FileUpload] Falling back to Appwrite storage after S3 upload failure.');
+    }
+  }
+
   try {
-    // Use AWS SDK v3-style presigned URL or direct PUT
-    // For now, use the fetch-based S3 PUT approach (works with any S3-compatible API)
-    const url = await putObjectToS3(config, key, Buffer.from(buffer), validatedMime);
-    return { isSuccess: true, url, key };
+    const created = await uploadDocumentToAppwrite({
+      buffer: Buffer.from(buffer),
+      filename: sanitizedName.endsWith(extension) ? sanitizedName : `${sanitizedName}${extension}`,
+      mimeType: validatedMime,
+      pathPrefix: `${options.folder}/${options.companyId}`,
+    });
+    const appwriteKey = `appwrite/${options.folder}/${options.companyId}/${created.fileId}`;
+    return { isSuccess: true, url: appwriteKey, key: appwriteKey };
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Upload failed';
-    console.error(`[FileUpload] S3 upload failed: key="${key}" error="${message}"`);
+    console.error(`[FileUpload] Appwrite upload failed: folder="${options.folder}" company="${options.companyId}" error="${message}"`);
     return { isSuccess: false, error: 'Failed to upload file. Please try again.' };
   }
 }
@@ -345,6 +376,11 @@ function getSignatureKey(
  * @returns true if deleted successfully, false otherwise
  */
 export async function deleteFile(key: string): Promise<boolean> {
+  const appwriteFileId = parseAppwriteStorageKey(key);
+  if (appwriteFileId) {
+    return deleteAppwriteFile(appwriteFileId);
+  }
+
   const config = getUploadConfig();
   if (!config) return false;
 

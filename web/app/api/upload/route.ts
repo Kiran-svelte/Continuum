@@ -107,7 +107,7 @@ export async function POST(request: NextRequest) {
         originalName: file.name,
         size: file.size,
         key: uploaded.key,
-        storage: 'r2',
+        storage: uploaded.storage,
       },
     }).catch((err) => console.error('[FileUpload Audit]', err instanceof Error ? err.message : err));
 
@@ -115,7 +115,7 @@ export async function POST(request: NextRequest) {
       url: uploaded.downloadUrl,
       key: uploaded.key,
       storageKey: uploaded.key,
-      storage: 'r2',
+      storage: uploaded.storage,
     }, { status: 201 });
   } catch (error) {
     if (error instanceof AuthError) {

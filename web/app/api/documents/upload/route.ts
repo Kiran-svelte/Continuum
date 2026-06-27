@@ -50,7 +50,7 @@ function getFileExtension(filename: string): string {
  *   name     - document name (required)
  *   category - one of: personal_id, certificate, offer_letter, payslip, tax_form, other (required)
  *
- * Storage is R2/S3-only through uploadTenantFile. If storage is unavailable,
+ * Storage uses R2/S3 through uploadTenantFile, with Appwrite fallback. If storage is unavailable,
  * the request fails visibly instead of storing base64, public URLs, or placeholders.
  */
 export async function POST(request: NextRequest) {
@@ -170,7 +170,7 @@ export async function POST(request: NextRequest) {
         name: docName,
         type: docCategory,
         status: 'pending',
-        storageMethod: 'r2',
+        storageMethod: uploaded.storage,
         storageKey: uploaded.key,
         fileName: uploadedFile.name,
         fileSize: uploadedFile.size,
@@ -188,7 +188,7 @@ export async function POST(request: NextRequest) {
           url: uploaded.downloadUrl,
           storageKey: uploaded.key,
           status: document.status,
-          storageMethod: 'r2',
+          storageMethod: uploaded.storage,
           fileName: uploadedFile.name,
           fileSize: uploadedFile.size,
           created_at: document.created_at,
