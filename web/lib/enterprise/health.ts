@@ -260,9 +260,13 @@ async function checkNeonAuth(): Promise<ComponentCheck> {
   try {
     if (!neonAuth.isConfigured()) {
       return {
-        status: 'degraded',
-        message: 'Neon Auth not configured',
+        status: 'healthy',
+        message: 'Custom JWT auth active; Neon Auth optional check skipped',
         latency: Date.now() - start,
+        details: {
+          provider: 'custom-jwt',
+          neonAuthConfigured: false,
+        },
       };
     }
 

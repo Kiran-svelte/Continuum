@@ -140,6 +140,9 @@ test('health and readiness surfaces report missing R2 storage without exposing s
   assert.match(health, /getUploadStorageReadiness/);
   assert.match(health, /storage:\s*checkStorageService\(\)/);
   assert.match(health, /Upload storage not configured: missing/);
+  assert.match(health, /Custom JWT auth active; Neon Auth optional check skipped/);
+  assert.match(health, /provider:\s*'custom-jwt'/);
+  assert.doesNotMatch(health, /message:\s*'Neon Auth not configured'/);
   assert.match(health, /isServerless/);
   assert.match(health, /rssMB > 900/);
   assert.match(health, /heapUsedMB > 512/);
