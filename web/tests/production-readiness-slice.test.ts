@@ -34,3 +34,53 @@ test('Cashfree upgrade flow stores pending payments and activates subscriptions 
   assert.match(paymentService, /current_period_end/);
   assert.match(paymentService, /clampModulesForPlan\(payment\.company_id,\s*plan\)/);
 });
+
+test('document file upload is R2-only and fails visibly when storage fails', () => {
+  const route = source('app/api/documents/upload/route.ts');
+
+  assert.match(route, /requireCompanyContext\(employee\)/);
+  assert.match(route, /assertModule\(employee\.org_id,\s*'documents'\)/);
+  assert.match(route, /uploadTenantFile\(uploadedFile,\s*\{\s*folder:\s*'documents'/);
+  assert.match(route, /url:\s*uploaded\.key/);
+  assert.match(route, /url:\s*uploaded\.downloadUrl/);
+  assert.match(route, /storageMethod:\s*'r2'/);
+  assert.match(route, /status:\s*422/);
+
+  assert.doesNotMatch(route, /supabase\.storage/);
+  assert.doesNotMatch(route, /trySupabaseUpload/);
+  assert.doesNotMatch(route, /toBase64DataUrl/);
+  assert.doesNotMatch(route, /placeholder:\/\/upload-pending/);
+  assert.doesNotMatch(route, /storageMethod:\s*'supabase'/);
+  assert.doesNotMatch(route, /storageMethod:\s*'base64'/);
+  assert.doesNotMatch(route, /storageMethod:\s*'placeholder'/);
+});
+
+test('documents API serializes private storage keys through signed download endpoint', () => {
+  const route = source('app/api/documents/route.ts');
+
+  assert.match(route, /isPrivateStorageKey\(url\)/);
+  assert.match(route, /buildStorageDownloadPath\(url,\s*true\)/);
+  assert.match(route, /documents:\s*documents\.map\(\(document\) => \(\{/);
+  assert.match(route, /url:\s*serializeDocumentUrl\(document\.url\)/);
+  assert.match(route, /url:\s*serializeDocumentUrl\(updated\.url\)/);
+});
+
+test('storage upload and download endpoints enforce tenant-scoped R2 keys', () => {
+  const uploadRoute = source('app/api/storage/upload/route.ts');
+  const downloadRoute = source('app/api/storage/download/route.ts');
+  const r2Client = source('lib/storage/r2-client.ts');
+
+  assert.match(uploadRoute, /requireCompanyContext\(employee\)/);
+  assert.match(uploadRoute, /isStorageFolder\(folder\)/);
+  assert.match(uploadRoute, /uploadTenantFile\(file,\s*\{/);
+  assert.match(uploadRoute, /storage:\s*'r2'/);
+
+  assert.match(downloadRoute, /isPrivateStorageKey\(key\)/);
+  assert.match(downloadRoute, /isStorageKeyForCompany\(key,\s*actor\.org_id\)/);
+  assert.match(downloadRoute, /generateSignedDownloadUrl\(\{\s*key,\s*ttlSeconds:\s*3600\s*\}\)/);
+  assert.match(downloadRoute, /NextResponse\.redirect\(result\.url\)/);
+
+  assert.match(r2Client, /parts\.length >= 4 && isStorageFolder\(parts\[0\]\) && parts\[1\] === companyId/);
+  assert.match(r2Client, /\/api\/storage\/download\?\$\{params\.toString\(\)\}/);
+  assert.doesNotMatch(r2Client, /placeholder:\/\/upload-pending/);
+});

@@ -84,8 +84,8 @@ describe('module API route guards (source)', () => {
   it('documents routes assert documents module', () => {
     const list = readApi('app/api/documents/route.ts');
     const upload = readApi('app/api/documents/upload/route.ts');
-    assert.match(list, /assertModule\(employee\.org_id!,\s*'documents'\)/);
-    assert.match(upload, /assertModule\(employee\.org_id!,\s*'documents'\)/);
+    assert.match(list, /assertModule\(employee\.org_id!?,\s*'documents'\)/);
+    assert.match(upload, /assertModule\(employee\.org_id!?,\s*'documents'\)/);
   });
 
   it('review-cycles assert performance module', () => {

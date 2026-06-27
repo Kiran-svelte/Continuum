@@ -5,6 +5,10 @@ import { checkApiRateLimit, getRateLimitHeaders } from '@/lib/api-rate-limit';
 import { createAuditLog } from '@/lib/audit';
 import { sendNotification } from '@/lib/notification-service';
 import { assertModule } from '@/lib/core-functions/assert-module';
+import {
+  buildStorageDownloadPath,
+  isPrivateStorageKey,
+} from '@/lib/storage/r2-client';
 
 export const dynamic = 'force-dynamic';
 
@@ -22,6 +26,10 @@ type DocumentCategory = (typeof VALID_CATEGORIES)[number];
 
 // Valid document statuses for filtering
 const VALID_STATUSES = ['pending', 'verified', 'rejected', 'expired'] as const;
+
+function serializeDocumentUrl(url: string): string {
+  return isPrivateStorageKey(url) ? buildStorageDownloadPath(url, true) : url;
+}
 
 /**
  * GET /api/documents
@@ -111,7 +119,10 @@ export async function GET(request: NextRequest) {
     ]);
 
     return NextResponse.json({
-      documents,
+      documents: documents.map((document) => ({
+        ...document,
+        url: serializeDocumentUrl(document.url),
+      })),
       pagination: {
         page,
         limit,
@@ -249,7 +260,7 @@ export async function POST(request: NextRequest) {
           id: document.id,
           name: docName,
           type: document.type,
-          url: document.url,
+          url: serializeDocumentUrl(document.url),
           status: document.status,
           description: metadata.description ?? null,
           expiryDate: metadata.expiryDate ?? null,
@@ -391,7 +402,10 @@ export async function PUT(request: NextRequest) {
 
     return NextResponse.json({
       message: `Document ${newStatus} successfully.`,
-      document: updated,
+      document: {
+        ...updated,
+        url: serializeDocumentUrl(updated.url),
+      },
     });
   } catch (error) {
     if (error instanceof AuthError) {
@@ -541,7 +555,7 @@ export async function PATCH(request: NextRequest) {
         id: updated.id,
         name: newDisplayName,
         type: updated.type,
-        url: updated.url,
+        url: serializeDocumentUrl(updated.url),
         status: updated.status,
         expiryDate: currentMeta.expiryDate ?? null,
         created_at: updated.created_at,

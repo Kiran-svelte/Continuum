@@ -1,71 +1,72 @@
 /**
  * Secure signed download URL API endpoint.
  *
- * GET /api/storage/download?key=<storage-key>
+ * GET /api/storage/download?key=<storage-key>&inline=true
  *
- * - Requires authentication (any role)
- * - Validates the key belongs to the authenticated employee's company
- *   (tenant isolation: key must start with the company_id prefix)
- * - Generates a 1-hour presigned URL and redirects to it
- *
- * This way the actual R2/S3 bucket can stay fully private.
- * All document access goes through this endpoint.
+ * R2/S3 objects stay private. Authenticated users receive a short-lived
+ * signed URL only when the object key belongs to their company.
  */
 import { NextRequest, NextResponse } from 'next/server';
-import { getAuthEmployee } from '@/lib/auth-guard';
+import { AuthError, getAuthEmployee } from '@/lib/auth-guard';
+import {
+  isPrivateStorageKey,
+  isStorageKeyForCompany,
+} from '@/lib/storage/r2-client';
 import { generateSignedDownloadUrl } from '@/lib/storage/signed-url';
 
 export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
-  // ── Auth ─────────────────────────────────────────────────────────────────
-  const actor = await getAuthEmployee(request);
-  if (!actor) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const requestId = request.headers.get('x-request-id') ?? 'unknown';
 
-  // ── Validate key ─────────────────────────────────────────────────────────
-  const key = request.nextUrl.searchParams.get('key');
-  if (!key || key.length < 3) {
-    return NextResponse.json({ error: 'Missing key parameter' }, { status: 400 });
-  }
+  try {
+    const actor = await getAuthEmployee(request);
+    const key = request.nextUrl.searchParams.get('key') ?? '';
 
-  // Prevent path traversal
-  if (key.includes('..') || key.startsWith('/')) {
-    return NextResponse.json({ error: 'Invalid key' }, { status: 400 });
-  }
-
-  // Tenant isolation: key must be prefixed with the actor's company_id
-  // Storage keys are structured as: {folder}/{companyId}/{date}/{uuid}-{filename}
-  const keyParts = key.split('/');
-  const keyCompanyId = keyParts[1]; // second segment is always company_id
-
-  if (!keyCompanyId || keyCompanyId !== actor.org_id) {
-    // Super-admin can access any key
-    const isSuperAdmin = actor.primary_role === 'super_admin';
-    if (!isSuperAdmin) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    if (!isPrivateStorageKey(key)) {
+      return NextResponse.json(
+        { error: { code: 'INVALID_KEY', message: 'A valid private storage key is required.', requestId } },
+        { status: 400 }
+      );
     }
+
+    const isSuperAdmin = actor.primary_role === 'super_admin';
+    if (!isSuperAdmin && (!actor.org_id || !isStorageKeyForCompany(key, actor.org_id))) {
+      return NextResponse.json(
+        { error: { code: 'FORBIDDEN', message: 'You do not have access to this file.', requestId } },
+        { status: 403 }
+      );
+    }
+
+    const result = await generateSignedDownloadUrl({ key, ttlSeconds: 3600 });
+    if (!result.ok) {
+      return NextResponse.json(
+        { error: { code: 'SIGNING_FAILED', message: result.error, requestId } },
+        { status: 502 }
+      );
+    }
+
+    if (request.nextUrl.searchParams.get('inline') === 'true') {
+      return NextResponse.redirect(result.url);
+    }
+
+    return NextResponse.json({
+      url: result.url,
+      expiresAt: result.expiresAt.toISOString(),
+    });
+  } catch (error) {
+    if (error instanceof AuthError) {
+      return NextResponse.json(
+        { error: { code: 'AUTH_ERROR', message: error.message, requestId } },
+        { status: error.status }
+      );
+    }
+
+    console.error('[Storage Download]', error);
+    return NextResponse.json(
+      { error: { code: 'INTERNAL_ERROR', message: 'Internal server error', requestId } },
+      { status: 500 }
+    );
   }
-
-  // ── Generate signed URL ───────────────────────────────────────────────────
-  const result = await generateSignedDownloadUrl({ key, ttlSeconds: 3600 });
-
-  if (!result.ok) {
-    return NextResponse.json({ error: result.error }, { status: 500 });
-  }
-
-  // ── Inline vs attachment download ─────────────────────────────────────────
-  const inline = request.nextUrl.searchParams.get('inline') === 'true';
-
-  if (inline) {
-    // Redirect browser to the signed URL (for inline PDF view, image preview)
-    return NextResponse.redirect(result.url);
-  }
-
-  // Return URL for client-side use (download link in UI)
-  return NextResponse.json({
-    url: result.url,
-    expiresAt: result.expiresAt.toISOString(),
-  });
 }
