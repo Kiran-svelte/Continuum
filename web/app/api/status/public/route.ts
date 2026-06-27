@@ -1,31 +1,40 @@
 import { NextResponse } from 'next/server';
+import { checkHealth, type HealthStatus } from '@/lib/enterprise/health';
 
 export const dynamic = 'force-dynamic';
 
 type PublicStatus = 'operational' | 'degraded' | 'outage';
 
-const ALLOWED: PublicStatus[] = ['operational', 'degraded', 'outage'];
+function toPublicStatus(status: HealthStatus): PublicStatus {
+  if (status === 'healthy') return 'operational';
+  if (status === 'degraded') return 'degraded';
+  return 'outage';
+}
 
 export async function GET() {
-  const raw = (process.env.PUBLIC_SYSTEM_STATUS || 'operational').toLowerCase();
-  const status: PublicStatus = ALLOWED.includes(raw as PublicStatus)
-    ? (raw as PublicStatus)
-    : 'operational';
+  const health = await checkHealth();
+  const status = toPublicStatus(health.status);
+  const affected = Object.entries(health.checks)
+    .filter(([, check]) => check.status !== 'healthy')
+    .map(([name, check]) => ({
+      name,
+      status: check.status,
+      message: check.message,
+    }));
 
   const defaultMessage =
     status === 'operational'
       ? 'All systems are operating normally.'
       : status === 'degraded'
-        ? 'Some services are degraded. Teams are investigating.'
+        ? 'Some services are degraded. Review the status page for current details.'
         : 'Major outage in progress. Teams are actively restoring service.';
-
-  const message = process.env.PUBLIC_SYSTEM_STATUS_MESSAGE?.trim() || defaultMessage;
 
   return NextResponse.json({
     status,
-    message,
+    message: defaultMessage,
+    affected,
     statusPage: '/status',
     supportPage: '/support',
-    updatedAt: new Date().toISOString(),
+    updatedAt: health.timestamp,
   });
 }

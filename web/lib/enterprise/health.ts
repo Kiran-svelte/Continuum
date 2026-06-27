@@ -232,20 +232,25 @@ function checkMemoryUsage(): ComponentCheck {
   const heapTotalMB = Math.round(usage.heapTotal / 1024 / 1024);
   const rssMB = Math.round(usage.rss / 1024 / 1024);
   const usagePercent = (usage.heapUsed / usage.heapTotal) * 100;
+  const isServerless = Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
 
   let status: HealthStatus = 'healthy';
-  if (usagePercent > 90) status = 'unhealthy';
-  else if (usagePercent > 85) status = 'degraded';
+  if (isServerless) {
+    if (rssMB > 900 || heapUsedMB > 512) status = 'unhealthy';
+    else if (usagePercent > 95) status = 'degraded';
+  } else if (usagePercent > 95) status = 'unhealthy';
+  else if (usagePercent > 90) status = 'degraded';
 
   return {
     status,
-    message: `Heap: ${heapUsedMB}/${heapTotalMB} MB (${usagePercent.toFixed(1)}%), RSS: ${rssMB} MB`,
+    message: `Heap: ${heapUsedMB}/${heapTotalMB} MB (${usagePercent.toFixed(1)}%), RSS: ${rssMB} MB${isServerless ? ' (serverless)' : ''}`,
     details: {
       heapUsedMB,
       heapTotalMB,
       rssMB,
       externalMB: Math.round(usage.external / 1024 / 1024),
       usagePercent: Math.round(usagePercent),
+      isServerless,
     },
   };
 }

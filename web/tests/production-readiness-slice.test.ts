@@ -117,6 +117,8 @@ test('health and readiness surfaces report missing R2 storage without exposing s
   const readiness = source('app/api/health/ready/route.ts');
   const adminHealth = source('app/api/admin/health/route.ts');
   const envCheck = source('app/api/security/env-check/route.ts');
+  const publicStatusApi = source('app/api/status/public/route.ts');
+  const statusPage = source('app/status/page.tsx');
   const opsReadiness = source('lib/operations-readiness/evaluate.ts');
   const publicStatus = source('components/pages/public/status-view.tsx');
   const storageReadiness = source('lib/storage/readiness.ts');
@@ -138,11 +140,26 @@ test('health and readiness surfaces report missing R2 storage without exposing s
   assert.match(health, /getUploadStorageReadiness/);
   assert.match(health, /storage:\s*checkStorageService\(\)/);
   assert.match(health, /Upload storage not configured: missing/);
+  assert.match(health, /isServerless/);
+  assert.match(health, /rssMB > 900/);
+  assert.match(health, /heapUsedMB > 512/);
+  assert.match(health, /usagePercent > 95/);
 
   assert.match(readiness, /getUploadStorageReadiness/);
   assert.match(readiness, /name:\s*'upload_storage'/);
   assert.match(readiness, /Upload storage is not configured/);
   assert.match(readiness, /status = isReady \? 200 : 503/);
+
+  assert.match(publicStatusApi, /checkHealth/);
+  assert.match(publicStatusApi, /affected/);
+  assert.match(publicStatusApi, /updatedAt:\s*health\.timestamp/);
+  assert.doesNotMatch(publicStatusApi, /PUBLIC_SYSTEM_STATUS/);
+  assert.doesNotMatch(publicStatusApi, /PUBLIC_SYSTEM_STATUS_MESSAGE/);
+
+  assert.match(statusPage, /dynamic = 'force-dynamic'/);
+  assert.match(statusPage, /components\/pages\/public\/status-view/);
+  assert.doesNotMatch(statusPage, /Email delivery delays/);
+  assert.doesNotMatch(statusPage, /Jan 10, 2025/);
 
   assert.match(adminHealth, /RESEND_API_KEY/);
   assert.match(adminHealth, /EMAIL_PROVIDER/);
