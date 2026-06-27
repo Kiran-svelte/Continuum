@@ -57,6 +57,12 @@ const ALLOWED_MIME_TYPES: Record<string, string> = {
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document': '.docx',
   'application/vnd.ms-excel': '.xls',
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': '.xlsx',
+  'application/vnd.ms-powerpoint': '.ppt',
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation': '.pptx',
+  'application/zip': '.zip',
+  'video/mp4': '.mp4',
+  'video/webm': '.webm',
+  'text/html': '.html',
   'text/csv': '.csv',
   'text/plain': '.txt',
 };
@@ -256,13 +262,14 @@ async function putObjectToS3(
   const now = new Date();
   const dateStamp = now.toISOString().replace(/[-:]/g, '').slice(0, 8);
   const amzDate = now.toISOString().replace(/[-:]/g, '').slice(0, 15) + 'Z';
-  const host = config.endpoint
-    ? new URL(config.endpoint).host
+  const normalizedEndpoint = config.endpoint?.replace(/\/+$/, '');
+  const host = normalizedEndpoint
+    ? new URL(normalizedEndpoint).host
     : `${config.bucket}.s3.${config.region}.amazonaws.com`;
-  const endpoint = config.endpoint || `https://${host}`;
+  const endpoint = normalizedEndpoint || `https://${host}`;
+  const canonicalUri = normalizedEndpoint ? `/${config.bucket}/${key}` : `/${key}`;
 
   const payloadHash = createHash('sha256').update(body).digest('hex');
-  const canonicalUri = `/${key}`;
   const canonicalQuerystring = '';
   const canonicalHeaders = [
     `content-type:${contentType}`,
@@ -289,7 +296,7 @@ async function putObjectToS3(
 
   const authHeader = `AWS4-HMAC-SHA256 Credential=${config.accessKey}/${credentialScope}, SignedHeaders=${signedHeaders}, Signature=${signature}`;
 
-  const response = await fetch(`${endpoint}/${key}`, {
+  const response = await fetch(`${endpoint}${canonicalUri}`, {
     method: 'PUT',
     headers: {
       'Content-Type': contentType,
@@ -310,7 +317,7 @@ async function putObjectToS3(
   if (config.publicUrl) {
     return `${config.publicUrl}/${key}`;
   }
-  return `${endpoint}/${key}`;
+  return `${endpoint}${canonicalUri}`;
 }
 
 /**
@@ -342,12 +349,14 @@ export async function deleteFile(key: string): Promise<boolean> {
   if (!config) return false;
 
   try {
-    const host = config.endpoint
-      ? new URL(config.endpoint).host
+    const normalizedEndpoint = config.endpoint?.replace(/\/+$/, '');
+    const host = normalizedEndpoint
+      ? new URL(normalizedEndpoint).host
       : `${config.bucket}.s3.${config.region}.amazonaws.com`;
-    const endpoint = config.endpoint || `https://${host}`;
+    const endpoint = normalizedEndpoint || `https://${host}`;
+    const objectPath = normalizedEndpoint ? `/${config.bucket}/${key}` : `/${key}`;
 
-    const response = await fetch(`${endpoint}/${key}`, { method: 'DELETE' });
+    const response = await fetch(`${endpoint}${objectPath}`, { method: 'DELETE' });
     return response.ok || response.status === 204;
   } catch (error) {
     console.error(`[FileUpload] Delete failed: key="${key}"`, error instanceof Error ? error.message : error);

@@ -18,8 +18,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthEmployee, requireCompanyContext, AuthError } from '@/lib/auth-guard';
 import { checkApiRateLimit, getRateLimitHeaders } from '@/lib/api-rate-limit';
-import { uploadFile } from '@/lib/file-upload';
 import { createAuditLog } from '@/lib/audit';
+import { uploadTenantFile, type StorageFolder } from '@/lib/storage/r2-client';
 
 export const dynamic = 'force-dynamic';
 
@@ -79,17 +79,18 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const maxSize = FOLDER_SIZE_LIMITS[folder];
+    const storageFolder = folder as StorageFolder;
+    const maxSize = FOLDER_SIZE_LIMITS[storageFolder];
 
-    const result = await uploadFile(file, {
-      folder,
+    const uploaded = await uploadTenantFile(file, {
+      folder: storageFolder,
       companyId: employee.org_id,
       maxSizeBytes: maxSize,
     });
 
-    if (!result.isSuccess) {
+    if (!uploaded.ok) {
       return NextResponse.json(
-        { error: { code: 'UPLOAD_FAILED', message: result.error, requestId } },
+        { error: { code: 'UPLOAD_FAILED', message: uploaded.error, requestId } },
         { status: 422 },
       );
     }
@@ -100,18 +101,21 @@ export async function POST(request: NextRequest) {
       actorId: employee.id,
       action: 'FILE_UPLOAD',
       entityType: 'File',
-      entityId: result.key ?? 'unknown',
+      entityId: uploaded.key,
       newState: {
         folder,
         originalName: file.name,
         size: file.size,
-        key: result.key,
+        key: uploaded.key,
+        storage: 'r2',
       },
     }).catch((err) => console.error('[FileUpload Audit]', err instanceof Error ? err.message : err));
 
     return NextResponse.json({
-      url: result.url,
-      key: result.key,
+      url: uploaded.downloadUrl,
+      key: uploaded.key,
+      storageKey: uploaded.key,
+      storage: 'r2',
     }, { status: 201 });
   } catch (error) {
     if (error instanceof AuthError) {

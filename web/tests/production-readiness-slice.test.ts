@@ -67,13 +67,35 @@ test('documents API serializes private storage keys through signed download endp
 
 test('storage upload and download endpoints enforce tenant-scoped R2 keys', () => {
   const uploadRoute = source('app/api/storage/upload/route.ts');
+  const genericUploadRoute = source('app/api/upload/route.ts');
+  const categoryUploadRoute = source('app/api/upload/[category]/route.ts');
   const downloadRoute = source('app/api/storage/download/route.ts');
   const r2Client = source('lib/storage/r2-client.ts');
+  const fileUpload = source('lib/file-upload.ts');
 
   assert.match(uploadRoute, /requireCompanyContext\(employee\)/);
   assert.match(uploadRoute, /isStorageFolder\(folder\)/);
   assert.match(uploadRoute, /uploadTenantFile\(file,\s*\{/);
   assert.match(uploadRoute, /storage:\s*'r2'/);
+
+  assert.match(genericUploadRoute, /uploadTenantFile\(file,\s*\{/);
+  assert.match(genericUploadRoute, /url:\s*uploaded\.downloadUrl/);
+  assert.match(genericUploadRoute, /storageKey:\s*uploaded\.key/);
+  assert.match(genericUploadRoute, /storage:\s*'r2'/);
+  assert.doesNotMatch(genericUploadRoute, /url:\s*result\.url/);
+
+  assert.match(categoryUploadRoute, /STORAGE_FOLDER_BY_CATEGORY/);
+  assert.match(categoryUploadRoute, /'course-content':\s*'attachments'/);
+  assert.match(categoryUploadRoute, /'expense-receipt':\s*'receipts'/);
+  assert.match(categoryUploadRoute, /uploadTenantFile\(file,\s*\{/);
+  assert.match(categoryUploadRoute, /url:\s*uploaded\.downloadUrl/);
+  assert.match(categoryUploadRoute, /storage:\s*'r2'/);
+  assert.doesNotMatch(categoryUploadRoute, /fs\/promises/);
+  assert.doesNotMatch(categoryUploadRoute, /writeFile/);
+  assert.doesNotMatch(categoryUploadRoute, /mkdir/);
+  assert.doesNotMatch(categoryUploadRoute, /existsSync/);
+  assert.doesNotMatch(categoryUploadRoute, /public['"],\s*['"]uploads/);
+  assert.doesNotMatch(categoryUploadRoute, /\/uploads\//);
 
   assert.match(downloadRoute, /isPrivateStorageKey\(key\)/);
   assert.match(downloadRoute, /isStorageKeyForCompany\(key,\s*actor\.org_id\)/);
@@ -83,10 +105,16 @@ test('storage upload and download endpoints enforce tenant-scoped R2 keys', () =
   assert.match(r2Client, /parts\.length >= 4 && isStorageFolder\(parts\[0\]\) && parts\[1\] === companyId/);
   assert.match(r2Client, /\/api\/storage\/download\?\$\{params\.toString\(\)\}/);
   assert.doesNotMatch(r2Client, /placeholder:\/\/upload-pending/);
+
+  assert.match(fileUpload, /'video\/mp4':\s*'\.mp4'/);
+  assert.match(fileUpload, /'application\/vnd\.openxmlformats-officedocument\.presentationml\.presentation':\s*'\.pptx'/);
+  assert.match(fileUpload, /normalizedEndpoint \? `\/\$\{config\.bucket\}\/\$\{key\}` : `\/\$\{key\}`/);
+  assert.match(fileUpload, /fetch\(`\$\{endpoint\}\$\{canonicalUri\}`/);
 });
 
 test('health and readiness surfaces report missing R2 storage without exposing secrets', () => {
   const health = source('lib/enterprise/health.ts');
+  const readiness = source('app/api/health/ready/route.ts');
   const adminHealth = source('app/api/admin/health/route.ts');
   const envCheck = source('app/api/security/env-check/route.ts');
   const opsReadiness = source('lib/operations-readiness/evaluate.ts');
@@ -110,6 +138,11 @@ test('health and readiness surfaces report missing R2 storage without exposing s
   assert.match(health, /getUploadStorageReadiness/);
   assert.match(health, /storage:\s*checkStorageService\(\)/);
   assert.match(health, /Upload storage not configured: missing/);
+
+  assert.match(readiness, /getUploadStorageReadiness/);
+  assert.match(readiness, /name:\s*'upload_storage'/);
+  assert.match(readiness, /Upload storage is not configured/);
+  assert.match(readiness, /status = isReady \? 200 : 503/);
 
   assert.match(adminHealth, /RESEND_API_KEY/);
   assert.match(adminHealth, /EMAIL_PROVIDER/);

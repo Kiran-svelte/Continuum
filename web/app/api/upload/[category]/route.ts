@@ -4,8 +4,8 @@
  * POST /api/upload/course-content — Upload course content files (PDF, video, etc.)
  * POST /api/upload/expense-receipt — Upload expense receipt images
  *
- * Files saved to: public/uploads/<category>/<companyId>/<uuid>.<ext>
- * URL returned for storage in DB.
+ * Files are stored in private tenant-scoped R2/S3-compatible storage.
+ * A signed app download URL is returned for browser access.
  *
  * Limits:
  * - Course content: 100MB max
@@ -17,10 +17,8 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthEmployee, requireCompanyContext, requirePermissionGuard, AuthError } from '@/lib/auth-guard';
-import { writeFile, mkdir } from 'fs/promises';
 import path from 'path';
-import { randomUUID } from 'crypto';
-import { existsSync } from 'fs';
+import { uploadTenantFile, type StorageFolder } from '@/lib/storage/r2-client';
 
 export const dynamic = 'force-dynamic';
 
@@ -67,6 +65,11 @@ const EXT_TO_MIME: Record<string, string> = {
 };
 
 type UploadCategory = keyof typeof MAX_SIZES;
+
+const STORAGE_FOLDER_BY_CATEGORY: Record<UploadCategory, StorageFolder> = {
+  'course-content': 'attachments',
+  'expense-receipt': 'receipts',
+};
 
 // ─── POST /api/upload/[category] ──────────────────────────────────────────────
 
@@ -117,8 +120,29 @@ export async function POST(
       return NextResponse.json({ error: { code: 'VALIDATION_ERROR', message: mimeError } }, { status: 400 });
     }
 
-    const url = await saveFile(file, category, employee.org_id, ext);
-    return NextResponse.json({ url }, { status: 201 });
+    const uploaded = await uploadTenantFile(file, {
+      folder: STORAGE_FOLDER_BY_CATEGORY[category],
+      companyId: employee.org_id,
+      maxSizeBytes: MAX_SIZES[category],
+    });
+
+    if (!uploaded.ok) {
+      return NextResponse.json(
+        { error: { code: 'UPLOAD_FAILED', message: uploaded.error } },
+        { status: 422 }
+      );
+    }
+
+    return NextResponse.json(
+      {
+        url: uploaded.downloadUrl,
+        key: uploaded.key,
+        storageKey: uploaded.key,
+        category,
+        storage: 'r2',
+      },
+      { status: 201 }
+    );
   } catch (error) {
     return handleApiError(error);
   }
@@ -153,30 +177,6 @@ function validateFileMime(mimeType: string, ext: string, category: UploadCategor
   }
 
   return null;
-}
-
-/**
- * Persists the file to disk under public/uploads/ and returns a URL path.
- * Server-side rename ensures no path traversal from original filename.
- */
-async function saveFile(
-  file: File,
-  category: UploadCategory,
-  companyId: string,
-  ext: string
-): Promise<string> {
-  const safeFilename = `${randomUUID()}${ext}`;
-  const uploadDir = path.join(process.cwd(), 'public', 'uploads', category, companyId);
-
-  if (!existsSync(uploadDir)) {
-    await mkdir(uploadDir, { recursive: true });
-  }
-
-  const filePath = path.join(uploadDir, safeFilename);
-  const buffer = Buffer.from(await file.arrayBuffer());
-  await writeFile(filePath, buffer);
-
-  return `/uploads/${category}/${companyId}/${safeFilename}`;
 }
 
 function handleApiError(error: unknown): NextResponse {

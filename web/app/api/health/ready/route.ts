@@ -10,6 +10,7 @@
  */
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { getUploadStorageReadiness } from '@/lib/storage/readiness';
 
 export const dynamic = 'force-dynamic';
 
@@ -33,6 +34,12 @@ export async function GET() {
   const dbCheck = await checkDatabase();
   checks.push(dbCheck);
   if (dbCheck.status === 'unhealthy') {
+    isReady = false;
+  }
+
+  const storageCheck = checkUploadStorage();
+  checks.push(storageCheck);
+  if (storageCheck.status === 'unhealthy') {
     isReady = false;
   }
 
@@ -68,4 +75,23 @@ async function checkDatabase(): Promise<HealthCheck> {
       error: error instanceof Error ? error.message : 'Unknown database error',
     };
   }
+}
+
+function checkUploadStorage(): HealthCheck {
+  const storage = getUploadStorageReadiness();
+
+  if (storage.configured) {
+    return {
+      name: 'upload_storage',
+      status: 'healthy',
+      latencyMs: 0,
+    };
+  }
+
+  return {
+    name: 'upload_storage',
+    status: 'unhealthy',
+    latencyMs: 0,
+    error: `Upload storage is not configured. Missing required env: ${storage.missingRequired.join(', ')}`,
+  };
 }
