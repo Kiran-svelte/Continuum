@@ -16,6 +16,32 @@ test('email resend endpoint reports delivery outcomes instead of silent success'
   assert.match(route, /status:\s*email\.success \? 200 : 502/);
 });
 
+test('pending invite actions resend and revoke through real APIs with visible outcomes', () => {
+  const actions = source('components/invite/pending-invite-actions.tsx');
+  const adminInviteView = source('components/pages/admin/people-invite-view.tsx');
+  const hrInviteView = source('components/pages/hr/employees-invite-view.tsx');
+
+  assert.match(actions, /reportApiActionOutcome\(payload\)/);
+  assert.match(actions, /<ResendButton/);
+  assert.match(actions, /cooldownSeconds=\{60\}/);
+  assert.match(actions, /\/api\/email\/resend/);
+  assert.match(actions, /JSON\.stringify\(\{\s*type:\s*'invite',\s*targetId:\s*inviteId\s*\}\)/);
+  assert.match(actions, /\/api\/hr\/invites\/\$\{inviteId\}\/revoke/);
+  assert.match(actions, /\/api\/company\/invite-user\/\$\{inviteId\}/);
+  assert.match(actions, /method:\s*'DELETE'/);
+  assert.match(actions, /mapFetchErrorMessage/);
+  assert.match(actions, /Check mail configuration, then try again/);
+
+  assert.match(adminInviteView, /PendingInviteActions/);
+  assert.match(adminInviteView, /backend="employee-invite"/);
+  assert.match(adminInviteView, /onChanged=\{loadPendingInvites\}/);
+  assert.doesNotMatch(adminInviteView, /toast\.success\(`Invite resent to/);
+
+  assert.match(hrInviteView, /PendingInviteActions/);
+  assert.match(hrInviteView, /backend="company-user-invite"/);
+  assert.match(hrInviteView, /onChanged=\{fetchPendingInvites\}/);
+});
+
 test('Cashfree upgrade flow stores pending payments and activates subscriptions after payment', () => {
   const upgradeRoute = source('app/api/payments/upgrade/route.ts');
   const statusRoute = source('app/api/payments/status/route.ts');

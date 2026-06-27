@@ -1,13 +1,13 @@
 'use client';
 
-import { useEffect, useMemo, useState, useCallback } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, Loader2, Send, UserPlus, Trash2, RefreshCcw } from 'lucide-react';
+import { ArrowLeft, Loader2, Send, UserPlus } from 'lucide-react';
 import { toast } from 'sonner';
 import { fetchWithTimeout, mapFetchErrorMessage } from '@/lib/fetch-with-timeout';
 import { Input, Select } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { ResendButton } from '@/components/ui/resend-button';
+import { PendingInviteActions } from '@/components/invite/pending-invite-actions';
 
 interface ManagerOption {
   id: string;
@@ -415,53 +415,12 @@ export default function PeopleInviteView() {
                     {new Date(invite.expires_at).toLocaleString('en-IN')}
                   </td>
                   <td className="px-4 py-2">
-                    <div className="flex items-center gap-1">
-                      <ResendButton
-                        onResend={async () => {
-                          const res = await fetch('/api/email/resend', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ type: 'invite', targetId: invite.id }),
-                            credentials: 'include',
-                          });
-                          if (!res.ok) {
-                            const d = await res.json().catch(() => ({}));
-                            throw new Error(d.error || 'Failed to resend');
-                          }
-                          toast.success(`Invite resent to ${invite.email}`);
-                        }}
-                        label="Resend"
-                        cooldownSeconds={60}
-                        size="sm"
-                        variant="ghost"
-                      />
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        className="text-[var(--danger)] hover:bg-[var(--danger)]/10"
-                        aria-label={`Revoke invite for ${invite.email}`}
-                        onClick={async () => {
-                          if (!window.confirm(`Revoke invite for ${invite.email}? They will no longer be able to use this invite link.`)) return;
-                          try {
-                            const res = await fetch(`/api/hr/invites/${invite.id}/revoke`, {
-                              method: 'POST',
-                              credentials: 'include',
-                            });
-                            if (res.ok) {
-                              toast.success('Invite revoked');
-                              void loadPendingInvites();
-                            } else {
-                              toast.error('Failed to revoke invite');
-                            }
-                          } catch {
-                            toast.error('Failed to revoke invite');
-                          }
-                        }}
-                      >
-                        <Trash2 className="h-3.5 w-3.5" aria-hidden />
-                      </Button>
-                    </div>
+                    <PendingInviteActions
+                      inviteId={invite.id}
+                      email={invite.email}
+                      backend="employee-invite"
+                      onChanged={loadPendingInvites}
+                    />
                   </td>
                 </tr>
               ))}

@@ -24,6 +24,7 @@ import { fetchWithTimeout, mapFetchErrorMessage } from '@/lib/fetch-with-timeout
 import { reportApiActionOutcome } from '@/lib/client/report-action-outcome';
 import { Button } from '@/components/ui/button';
 import { Input, Select, Textarea } from '@/components/ui/input';
+import { PendingInviteActions } from '@/components/invite/pending-invite-actions';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -833,19 +834,30 @@ export default function EmployeesInviteView() {
         ) : (
           <div className="space-y-2">
             {pendingInvites.map((invite) => (
-              <div key={invite.id} className="flex items-center justify-between rounded-lg border border-border p-3">
+              <div
+                key={invite.id}
+                className="flex flex-col gap-3 rounded-lg border border-border p-3 sm:flex-row sm:items-center sm:justify-between"
+              >
                 <div className="min-w-0">
                   <p className="text-sm font-medium text-foreground truncate">{invite.email}</p>
                   <p className="text-xs text-muted">
                     {invite.first_name} {invite.last_name} · {invite.role} · expires {new Date(invite.expires_at).toLocaleDateString()}
                   </p>
                 </div>
-                <Link
-                  href={`/hr/employees/invite/${invite.id}`}
-                  className="btn-secondary text-xs"
-                >
-                  Edit
-                </Link>
+                <div className="flex shrink-0 flex-wrap items-center gap-2">
+                  <Link
+                    href={`/hr/employees/invite/${invite.id}`}
+                    className="btn-secondary text-xs"
+                  >
+                    Edit
+                  </Link>
+                  <PendingInviteActions
+                    inviteId={invite.id}
+                    email={invite.email}
+                    backend="company-user-invite"
+                    onChanged={fetchPendingInvites}
+                  />
+                </div>
               </div>
             ))}
           </div>
