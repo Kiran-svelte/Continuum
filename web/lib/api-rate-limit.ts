@@ -5,6 +5,7 @@ import { redisRateLimit } from '@/lib/redis';
 export interface RateLimitOptions {
   maxRequests: number;
   windowMs: number;
+  requireRedis?: boolean;
 }
 
 export interface RateLimitResult {
@@ -12,6 +13,8 @@ export interface RateLimitResult {
   remaining: number;
   resetAt: Date;
   limit: number;
+  source?: 'memory' | 'redis' | 'unavailable' | 'error';
+  unavailable?: boolean;
 }
 
 interface RateLimitEntry {
@@ -79,6 +82,7 @@ function checkInMemory(
     remaining,
     resetAt: new Date(entry.resetAt),
     limit: limits.maxRequests,
+    source: 'memory',
   };
 }
 
@@ -133,11 +137,23 @@ export async function checkApiRateLimitAsync(
     windowSec
   );
 
+  if (limits.requireRedis && redisResult.source !== 'redis') {
+    return {
+      allowed: false,
+      remaining: 0,
+      resetAt: new Date(redisResult.resetAt),
+      limit: limits.maxRequests,
+      source: redisResult.source,
+      unavailable: true,
+    };
+  }
+
   return {
     allowed: redisResult.allowed,
     remaining: redisResult.remaining,
     resetAt: new Date(redisResult.resetAt),
     limit: limits.maxRequests,
+    source: redisResult.source,
   };
 }
 

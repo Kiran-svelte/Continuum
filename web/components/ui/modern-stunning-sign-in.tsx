@@ -160,14 +160,7 @@ export const SignIn1 = () => {
         return
       }
 
-      const email = identifier.trim()
-      // resolvePostSignInPath routes admins in setup to /onboarding, employees to /employee/dashboard, etc.
-      let destination = resolvePostSignInPath(me, { redirectTarget })
-      if (demoAuthEnabled && email.toLowerCase() === "super@demo.continuum.io") {
-        destination = '/super-admin/dashboard'
-      }
-
-      router.push(destination)
+      router.push(resolvePostSignInPath(me, { redirectTarget }))
     } catch {
       setError("Sign in failed. Please check your connection.")
     } finally {
@@ -264,8 +257,8 @@ export const SignIn1 = () => {
                 variant="outline"
                 onClick={() => {
                   setIdentifier(acc.mail)
-                  setPassword(acc.mail === "super@demo.continuum.io" ? "Demo@123" : "Test@1234")
-                  setError("")
+                  setPassword('Demo@1234')
+                  setError('')
                 }}
               >
                 {acc.label}

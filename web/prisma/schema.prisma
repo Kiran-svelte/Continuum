@@ -1547,6 +1547,7 @@ model SuperAdmin {
   last_login_at DateTime?
 
   created_invites UserInvite[] @relation("SuperAdminInvites")
+  refresh_tokens  RefreshToken[]
 }
 
 // User Invitation - Sent by super_admin, admin, or hr to create new users
@@ -1619,8 +1620,10 @@ model RoleTemplate {
 model RefreshToken {
   id          String   @id @default(uuid())
   token_hash  String   @unique
-  employee_id String
-  employee    Employee @relation(fields: [employee_id], references: [id], onDelete: Cascade)
+  employee_id String?
+  employee    Employee? @relation(fields: [employee_id], references: [id], onDelete: Cascade)
+  super_admin_id String?
+  super_admin    SuperAdmin? @relation(fields: [super_admin_id], references: [id], onDelete: Cascade)
 
   device_info String? // Browser/device identifier
   ip_address  String?
@@ -1630,6 +1633,7 @@ model RefreshToken {
   created_at DateTime  @default(now())
 
   @@index([employee_id])
+  @@index([super_admin_id])
   @@index([expires_at])
 }
 

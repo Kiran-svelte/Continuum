@@ -9,6 +9,10 @@ import { Redis } from '@upstash/redis';
 let client: Redis | null = null;
 let initAttempted = false;
 
+export function isRedisConfigured(): boolean {
+  return Boolean(process.env.UPSTASH_REDIS_REST_URL?.trim() && process.env.UPSTASH_REDIS_REST_TOKEN?.trim());
+}
+
 export function getRedisClient(): Redis | null {
   if (initAttempted) return client;
   initAttempted = true;
@@ -43,11 +47,21 @@ export async function redisRateLimit(
   key: string,
   maxRequests: number,
   windowSeconds: number = 60
-): Promise<{ allowed: boolean; remaining: number; resetAt: number }> {
+): Promise<{
+  allowed: boolean;
+  remaining: number;
+  resetAt: number;
+  source: 'redis' | 'unavailable' | 'error';
+}> {
   const redis = getRedisClient();
   if (!redis) {
     // No Redis — allow (in-memory limiter is the fallback)
-    return { allowed: true, remaining: maxRequests, resetAt: Date.now() + windowSeconds * 1000 };
+    return {
+      allowed: true,
+      remaining: maxRequests,
+      resetAt: Date.now() + windowSeconds * 1000,
+      source: 'unavailable' as const,
+    };
   }
 
   try {
@@ -59,7 +73,7 @@ export async function redisRateLimit(
     // Pipeline: remove old entries, add current, count, set expiry
     const pipeline = redis.pipeline();
     pipeline.zremrangebyscore(key, 0, windowStart);
-    pipeline.zadd(key, { score: now, member: `${now}:${Math.random().toString(36).slice(2, 8)}` });
+    pipeline.zadd(key, { score: now, member: `${now}:${crypto.randomUUID()}` });
     pipeline.zcard(key);
     pipeline.expire(key, windowSeconds + 1);
 
@@ -70,11 +84,16 @@ export async function redisRateLimit(
     const remaining = Math.max(0, maxRequests - count);
     const resetAt = now + windowMs;
 
-    return { allowed, remaining, resetAt };
+    return { allowed, remaining, resetAt, source: 'redis' as const };
   } catch (error) {
     console.error('[Redis] Rate limit check failed:', error);
     // On Redis error, allow the request (fail open)
-    return { allowed: true, remaining: maxRequests, resetAt: Date.now() + windowSeconds * 1000 };
+    return {
+      allowed: true,
+      remaining: maxRequests,
+      resetAt: Date.now() + windowSeconds * 1000,
+      source: 'error' as const,
+    };
   }
 }
 

@@ -10,6 +10,7 @@ import {
 } from '@/lib/auth-routing';
 import { AuthSecretError, getAuthSecretKey } from '@/lib/auth-secret';
 import { requiresCompanyOnboarding, requiresEmployeeOnboarding } from '@/lib/employee-onboarding';
+import { checkApiRateLimitAsync, getRateLimitHeaders } from '@/lib/api-rate-limit';
 
 import {
   COOKIE_ACCESS,
@@ -192,84 +193,76 @@ const SENSITIVE_ROUTES = [
   '/hr/security',
 ];
 
-// Rate limit config per route pattern (requests per minute)
-const RATE_LIMITS: Record<string, number> = {
-  '/api/leaves/submit': 5,
-  '/api/security/otp': 5,
-  '/api/auth': 10,
-  '/api/': 30,  // default for all API
-};
 
 const MAX_JSON_BODY_BYTES = 1 * 1024 * 1024; // 1 MB
 const MAX_MULTIPART_BODY_BYTES = 12 * 1024 * 1024; // 12 MB
 const MAX_OTHER_BODY_BYTES = 2 * 1024 * 1024; // 2 MB
 
-// ─── In-Memory Rate Limiter ─────────────────────────────────────────────────
+// ─── Rate Limiting ──────────────────────────────────────────────────────────
+//
+// Note: In-memory rate limiting is non-functional in serverless/Edge environments
+// because each cold start gets a fresh Map. Rate limiting per route is handled
+// at the API route level using lib/api-rate-limit.ts (backed by Upstash Redis).
+// The middleware enforces body size limits and request ID tracing.
 
-const rateLimitStore = new Map<string, { count: number; resetAt: number }>();
-
-function checkRateLimit(identifier: string, route: string): { allowed: boolean; remaining: number } {
-  // Find matching rate limit
-  let limit = 30; // default
-  for (const [pattern, max] of Object.entries(RATE_LIMITS)) {
-    if (route.startsWith(pattern)) {
-      limit = max;
-      break;
-    }
-  }
-  
-  const key = `${identifier}:${route}`;
-  const now = Date.now();
-  const windowMs = 60_000; // 1 minute
-  
-  const entry = rateLimitStore.get(key);
-  
-  if (!entry || now > entry.resetAt) {
-    rateLimitStore.set(key, { count: 1, resetAt: now + windowMs });
-    return { allowed: true, remaining: limit - 1 };
-  }
-  
-  entry.count++;
-  if (entry.count > limit) {
-    return { allowed: false, remaining: 0 };
-  }
-  
-  return { allowed: true, remaining: limit - entry.count };
+function getRateLimitEndpoint(pathname: string): string {
+  // Placeholder — real rate limiting is done in each API route handler.
+  // This returns allowed=true so the middleware never blocks based on an
+  // in-memory counter that gets reset on every cold start.
+  if (pathname.startsWith('/api/auth/')) return 'auth';
+  if (pathname.startsWith('/api/security/')) return 'security/otp';
+  if (pathname.startsWith('/api/payroll/')) return 'payroll';
+  if (pathname.startsWith('/api/leaves/submit')) return 'leaves/submit';
+  if (pathname.startsWith('/api/leaves/approve')) return 'leaves/approve';
+  if (pathname.startsWith('/api/leaves/reject')) return 'leaves/reject';
+  if (pathname.startsWith('/api/hr/')) return 'hr';
+  return 'general';
 }
 
-// Periodically clean up expired rate limit entries
-if (typeof setInterval !== 'undefined') {
-  setInterval(() => {
-    const now = Date.now();
-    for (const [key, value] of rateLimitStore.entries()) {
-      if (now > value.resetAt) {
-        rateLimitStore.delete(key);
-      }
-    }
-  }, 60_000);
+function requiresDistributedRateLimit(pathname: string): boolean {
+  return IS_PRODUCTION && (
+    pathname.startsWith('/api/auth/') ||
+    pathname.startsWith('/api/security/') ||
+    pathname.startsWith('/api/super-admin/')
+  );
 }
+
 
 // ─── Security Headers ───────────────────────────────────────────────────────
 
-function addSecurityHeaders(response: NextResponse): void {
+function createNonce(): string {
+  const bytes = new Uint8Array(16);
+  crypto.getRandomValues(bytes);
+  return btoa(String.fromCharCode(...bytes));
+}
+
+function addSecurityHeaders(response: NextResponse, nonce?: string): void {
   response.headers.set('X-Frame-Options', 'DENY');
   response.headers.set('X-Content-Type-Options', 'nosniff');
   response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
-  response.headers.set('X-XSS-Protection', '1; mode=block');
   response.headers.set(
     'Strict-Transport-Security',
     'max-age=63072000; includeSubDomains; preload'
   );
+
+  const scriptSrc = nonce
+    ? `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' https: http:`
+    : "script-src 'self'";
+
   response.headers.set(
     'Content-Security-Policy',
     [
       "default-src 'self'",
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+      scriptSrc,
       "style-src 'self' 'unsafe-inline'",
       "img-src 'self' data: https:",
       "font-src 'self' data:",
       "connect-src 'self' https://accounts.google.com",
       "frame-src 'self' https://accounts.google.com",
+      "object-src 'none'",
+      "base-uri 'self'",
+      "form-action 'self'",
+      "frame-ancestors 'none'",
     ].join('; ')
   );
   response.headers.set('X-DNS-Prefetch-Control', 'on');
@@ -278,13 +271,8 @@ function addSecurityHeaders(response: NextResponse): void {
 
 // ─── Request ID Generator ───────────────────────────────────────────────────
 
-let requestCounter = 0;
-
 function generateRequestId(): string {
-  requestCounter = (requestCounter + 1) % 1_000_000;
-  const ts = Date.now().toString(36);
-  const seq = requestCounter.toString(36).padStart(4, '0');
-  return `req_${ts}_${seq}`;
+  return crypto.randomUUID();
 }
 
 // ─── CORS Handler ───────────────────────────────────────────────────────────
@@ -414,6 +402,7 @@ function getClientIP(request: NextRequest): string {
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const requestId = generateRequestId();
+  const nonce = createNonce();
 
   try {
   warnUnsafeConstraintEngineUrlOnce();
@@ -438,7 +427,7 @@ export async function middleware(request: NextRequest) {
   ) {
     const canonicalUrl = new URL(`${pathname}${request.nextUrl.search}`, CANONICAL_ORIGIN);
     const redirectResponse = NextResponse.redirect(canonicalUrl, 307);
-    addSecurityHeaders(redirectResponse);
+    addSecurityHeaders(redirectResponse, nonce);
     redirectResponse.headers.set('X-Request-Id', requestId);
     return redirectResponse;
   }
@@ -460,10 +449,12 @@ export async function middleware(request: NextRequest) {
   }
 
   // 3. Security headers on all responses
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set('x-nonce', nonce);
   const response = NextResponse.next({
-    request: { headers: request.headers },
+    request: { headers: requestHeaders },
   });
-  addSecurityHeaders(response);
+  addSecurityHeaders(response, nonce);
 
   // 4. Request tracing header
   response.headers.set('X-Request-Id', requestId);
@@ -494,11 +485,42 @@ export async function middleware(request: NextRequest) {
   // 6. Rate limiting for API routes
   if (isApiRoute(pathname)) {
     const clientIP = getClientIP(request);
-    const { allowed, remaining } = checkRateLimit(clientIP, pathname);
+    const rateLimit = await checkApiRateLimitAsync(clientIP, getRateLimitEndpoint(pathname), {
+      requireRedis: requiresDistributedRateLimit(pathname),
+    });
 
-    response.headers.set('X-RateLimit-Remaining', String(remaining));
+    for (const [key, value] of Object.entries(getRateLimitHeaders(rateLimit))) {
+      response.headers.set(key, value);
+    }
 
-    if (!allowed) {
+    if (rateLimit.unavailable) {
+      console.error(
+        JSON.stringify({
+          level: 'ERROR',
+          event: 'rate_limiter_unavailable',
+          requestId,
+          method: request.method,
+          pathname,
+          ip: clientIP,
+          source: rateLimit.source,
+          ts: new Date().toISOString(),
+        })
+      );
+      return NextResponse.json(
+        { error: 'Rate limiter unavailable', requestId },
+        {
+          status: 503,
+          headers: {
+            ...getRateLimitHeaders(rateLimit),
+            'Cache-Control': 'no-store',
+            'X-Content-Type-Options': 'nosniff',
+            'X-Request-Id': requestId,
+          },
+        }
+      );
+    }
+
+    if (!rateLimit.allowed) {
       console.warn(
         JSON.stringify({
           level: 'WARN',
@@ -515,6 +537,7 @@ export async function middleware(request: NextRequest) {
         {
           status: 429,
           headers: {
+            ...getRateLimitHeaders(rateLimit),
             'X-Frame-Options': 'DENY',
             'X-Content-Type-Options': 'nosniff',
             'Retry-After': '60',
@@ -534,7 +557,7 @@ export async function middleware(request: NextRequest) {
     if (isForceLogin) {
       // Clear the stale access token cookie so the user gets a fresh login form
       const clearResponse = NextResponse.next();
-      addSecurityHeaders(clearResponse);
+      addSecurityHeaders(clearResponse, nonce);
       clearResponse.headers.set('X-Request-Id', requestId);
       clearResponse.cookies.delete(ACCESS_TOKEN_COOKIE);
       clearResponse.cookies.delete(COOKIE_SESSION);
@@ -838,22 +861,37 @@ export async function middleware(request: NextRequest) {
             }
           );
 
-      addSecurityHeaders(response);
+      addSecurityHeaders(response, nonce);
       return response;
     }
 
-    // Fail open if middleware internals throw so routes can still handle auth/validation.
-    // Without this guard, a middleware regression can surface as a blanket 500 outage.
-    console.error('[MIDDLEWARE] Unhandled middleware error', {
+    // Fail closed: middleware errors must never silently grant access.
+    // Page requests → redirect to sign-in with an error indicator.
+    // API requests → return 500 so the client knows something went wrong.
+    console.error('[MIDDLEWARE] Unhandled middleware error — failing closed', {
       requestId,
       pathname,
       error: error instanceof Error ? error.message : String(error),
     });
 
-    const fallback = NextResponse.next();
-    addSecurityHeaders(fallback);
-    fallback.headers.set('X-Request-Id', requestId);
-    return fallback;
+    if (isApiRoute(pathname)) {
+      return NextResponse.json(
+        { error: 'Internal server error', requestId },
+        {
+          status: 500,
+          headers: {
+            'Cache-Control': 'no-store',
+            'X-Content-Type-Options': 'nosniff',
+            'X-Request-Id': requestId,
+          },
+        }
+      );
+    }
+
+    const errorSignIn = new URL('/sign-in', request.url);
+    errorSignIn.searchParams.set('error', 'middleware_error');
+    errorSignIn.searchParams.set('rid', requestId);
+    return NextResponse.redirect(errorSignIn);
   }
 }
 

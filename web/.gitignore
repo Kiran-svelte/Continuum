@@ -1,2 +1,97 @@
+# Vercel
 .vercel
+
+# Environment variables
 .env*.local
+.env.production
+.env.staging
+.env.vercel
+
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Build outputs
+.next/
+out/
+dist/
+build/
+
+# Log files — never commit these
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+build-output.log
+test-output.log
+lint-output.log
+focused-test-output.log
+health-report.txt
+
+# Test / dev artifacts — never commit these
+*.test.json
+test*.json
+reg_*.json
+sess_*.json
+fb_*.json
+afterdeploy.json
+prodtest.json
+testbody.json
+finalbody.json
+regbody.json
+register.json
+signup.json
+body.json
+direct_reg.json
+token_response.json
+finalfix.json
+firebase_signup.json
+
+# Temp / scratch files
+temp_val.txt
+test_xyz.txt
+_b64_part1.txt
+_encode_payroll.js
+parse-diags.js
+check-imports.mjs
+test.js
+test2.js
+update_profile.js
+cloudflared-out.txt
+cloudflared-err.txt
+health-check.js
+flows.md
+
+# Binary executables — never commit these
+*.exe
+*.dll
+*.so
+*.dylib
+cloudflared
+cloudflared.exe
+
+# Dev databases
+*.db
+*.sqlite
+*.sqlite3
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/settings.json
+.idea/
+*.swp
+*.swo
+
+# TypeScript
+*.tsbuildinfo
+
+# Prisma
+prisma/generated/
+
+# Coverage
+coverage/
+.nyc_output/

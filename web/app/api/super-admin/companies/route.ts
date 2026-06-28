@@ -14,6 +14,39 @@ import { clampEnabledToCap, validateDependencies } from '@/lib/core-functions/va
 
 export const dynamic = 'force-dynamic';
 
+function jsonNoStore(body: unknown, init?: { status?: number }) {
+  return NextResponse.json(body, {
+    status: init?.status,
+    headers: { 'Cache-Control': 'no-store' },
+  });
+}
+
+function statusCondition(status: string): Prisma.CompanyWhereInput | null {
+  if (status === 'pending') {
+    return { onboarding_completed: false, onboarding_step: 0 };
+  }
+  if (status === 'in_progress') {
+    return {
+      onboarding_completed: false,
+      onboarding_step: { gt: 0, lt: TOTAL_ONBOARDING_STEPS },
+    };
+  }
+  if (status === 'completed') {
+    return {
+      OR: [
+        { onboarding_completed: true },
+        { onboarding_step: { gte: TOTAL_ONBOARDING_STEPS } },
+      ],
+    };
+  }
+  return null;
+}
+
+function withStatus(base: Prisma.CompanyWhereInput, status: string): Prisma.CompanyWhereInput {
+  const condition = statusCondition(status);
+  return condition ? { AND: [base, condition] } : base;
+}
+
 /**
  * POST /api/super-admin/companies
  * 
@@ -25,7 +58,7 @@ export async function POST(request: NextRequest) {
     // Verify super admin
     const currentUser = await getCurrentUser();
     if (!currentUser || currentUser.role !== 'super_admin') {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return jsonNoStore({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const body = await request.json();
@@ -61,7 +94,7 @@ export async function POST(request: NextRequest) {
     try {
       normalizedTimezone = assertValidCompanyTimezone(timezone);
     } catch (timezoneError) {
-      return NextResponse.json(
+      return jsonNoStore(
         {
           error:
             timezoneError instanceof Error
@@ -74,7 +107,7 @@ export async function POST(request: NextRequest) {
 
     // Validate required fields
     if (!companyName || !ownerEmail || !ownerFirstName || !ownerLastName || !ownerPassword) {
-      return NextResponse.json(
+      return jsonNoStore(
         { error: 'Company name, owner email, first name, last name, and password are required' },
         { status: 400 }
       );
@@ -82,7 +115,7 @@ export async function POST(request: NextRequest) {
 
     const passwordValidation = validatePassword(ownerPassword);
     if (!passwordValidation.valid) {
-      return NextResponse.json(
+      return jsonNoStore(
         { error: passwordValidation.errors[0] || 'Owner password does not meet security requirements' },
         { status: 400 }
       );
@@ -94,7 +127,7 @@ export async function POST(request: NextRequest) {
     });
 
     if (existingUser) {
-      return NextResponse.json(
+      return jsonNoStore(
         { error: 'A user with this email already exists' },
         { status: 409 }
       );
@@ -180,7 +213,7 @@ export async function POST(request: NextRequest) {
     // Return onboarding details without exposing plaintext credentials
     const loginUrl = buildAppUrl('/sign-in', { request });
 
-    return NextResponse.json({
+    return jsonNoStore({
       success: true,
       message: 'Company and owner created successfully',
       company: {
@@ -201,7 +234,6 @@ export async function POST(request: NextRequest) {
         loginUrl,
         mustChangePassword: false,
         setupRequired: true,
-        setup_required: true,
         supportMessage: 'Owner password was set during profile creation. Share credentials via approved secure channel.',
       },
       instructions: 'Do not share credentials over API responses. Provide onboarding access via approved secure channel. Owner can sign in immediately and complete onboarding wizard.',
@@ -209,7 +241,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('[SUPER ADMIN CREATE COMPANY] Error:', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    return NextResponse.json(
+    return jsonNoStore(
       { error: 'Failed to create company', details: errorMessage },
       { status: 500 }
     );
@@ -226,29 +258,35 @@ export async function GET(request: NextRequest) {
     // Verify super admin
     const currentUser = await getCurrentUser();
     if (!currentUser || currentUser.role !== 'super_admin') {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return jsonNoStore({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const { searchParams } = new URL(request.url);
-    const page = parseInt(searchParams.get('page') || '1');
-    const limit = parseInt(searchParams.get('limit') || '20');
+    const page = Math.max(1, Number.parseInt(searchParams.get('page') || '1', 10) || 1);
+    const limit = Math.min(100, Math.max(1, Number.parseInt(searchParams.get('limit') || '20', 10) || 20));
     const search = searchParams.get('search') || '';
+    const status = searchParams.get('status') || 'all';
 
     const skip = (page - 1) * limit;
 
     // Build where clause
-    const where: Prisma.CompanyWhereInput = {
+    const baseWhere: Prisma.CompanyWhereInput = {
       deleted_at: null,
     };
 
     if (search) {
-      where.OR = [
+      baseWhere.OR = [
         { name: { contains: search, mode: 'insensitive' } },
       ];
     }
 
+    const where = withStatus(baseWhere, status);
+    const pendingWhere = withStatus(baseWhere, 'pending');
+    const inProgressWhere = withStatus(baseWhere, 'in_progress');
+    const completedWhere = withStatus(baseWhere, 'completed');
+
     // Fetch companies with employee count
-    const [companies, total] = await Promise.all([
+    const [companies, total, pending, inProgress, completed] = await Promise.all([
       prisma.company.findMany({
         where,
         skip,
@@ -280,6 +318,9 @@ export async function GET(request: NextRequest) {
         },
       }),
       prisma.company.count({ where }),
+      prisma.company.count({ where: pendingWhere }),
+      prisma.company.count({ where: inProgressWhere }),
+      prisma.company.count({ where: completedWhere }),
     ]);
 
     const companiesWithStats = companies.map(company => {
@@ -299,7 +340,6 @@ export async function GET(request: NextRequest) {
         size: company.size,
         countryCode: company.country_code,
         timezone: company.timezone,
-        joinCode: company.join_code,
         onboardingCompleted: company.onboarding_completed,
         onboardingStatus, // 'pending' | 'in_progress' | 'completed'
         onboardingStep: company.onboarding_step || 0,
@@ -314,7 +354,7 @@ export async function GET(request: NextRequest) {
       };
     });
 
-    return NextResponse.json({
+    return jsonNoStore({
       companies: companiesWithStats,
       pagination: {
         page,
@@ -322,10 +362,16 @@ export async function GET(request: NextRequest) {
         total,
         totalPages: Math.ceil(total / limit),
       },
+      stats: {
+        total,
+        pending,
+        inProgress,
+        completed,
+      },
     });
   } catch (error) {
     console.error('[SUPER ADMIN LIST COMPANIES] Error:', error);
-    return NextResponse.json(
+    return jsonNoStore(
       { error: 'Failed to fetch companies' },
       { status: 500 }
     );
@@ -337,9 +383,7 @@ export async function GET(request: NextRequest) {
  */
 function generateJoinCode(): string {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-  let code = '';
-  for (let i = 0; i < 8; i++) {
-    code += chars[Math.floor(Math.random() * chars.length)];
-  }
-  return code;
+  const values = new Uint8Array(8);
+  crypto.getRandomValues(values);
+  return Array.from(values, (value) => chars[value % chars.length]).join('');
 }

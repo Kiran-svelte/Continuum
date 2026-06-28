@@ -98,7 +98,13 @@ export async function findValidRefreshTokenWithEmployee(
     }
   }
 
-  return storedToken;
+  // employee_id is nullable in the schema (super admins don't have one).
+  // RefreshTokenWithEmployee requires a non-null employee, so guard here.
+  if (!storedToken.employee) {
+    return null;
+  }
+
+  return storedToken as RefreshTokenWithEmployee;
 }
 
 /**

@@ -18,6 +18,42 @@ const generateSchema = z.object({
   year: z.number().int().min(2020).max(2100),
 });
 
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+function getPayrollPeriod(month: number, year: number) {
+  return {
+    start: new Date(Date.UTC(year, month - 1, 1)),
+    endExclusive: new Date(Date.UTC(year, month, 1)),
+  };
+}
+
+function countWeekdays(start: Date, endExclusive: Date): number {
+  let count = 0;
+  for (let time = start.getTime(); time < endExclusive.getTime(); time += DAY_MS) {
+    const day = new Date(time).getUTCDay();
+    if (day !== 0 && day !== 6) count++;
+  }
+  return count;
+}
+
+function startOfUtcDay(date: Date): Date {
+  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+}
+
+function countOverlappingLeaveDays(
+  startDate: Date,
+  endDate: Date,
+  periodStart: Date,
+  periodEndExclusive: Date,
+  isHalfDay: boolean
+): number {
+  const overlapStart = Math.max(startOfUtcDay(startDate).getTime(), periodStart.getTime());
+  const overlapEnd = Math.min(startOfUtcDay(endDate).getTime() + DAY_MS, periodEndExclusive.getTime());
+  if (overlapEnd <= overlapStart) return 0;
+  const days = (overlapEnd - overlapStart) / DAY_MS;
+  return isHalfDay ? Math.min(days, 0.5) : days;
+}
+
 export async function POST(request: NextRequest) {
   try {
     const employee = await getAuthEmployee();

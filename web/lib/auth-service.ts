@@ -3,10 +3,9 @@
 // Main authentication service for Continuum.
 // Handles sign-in, sign-out, token refresh, and session management.
 //
-// This replaces Supabase Auth with our own JWT-based system.
-//
 
 import { cookies } from 'next/headers';
+import { createHash } from 'crypto';
 import { v4 as uuidv4 } from 'uuid';
 import prisma from '@/lib/prisma';
 import {
@@ -31,8 +30,34 @@ import {
   COOKIE_ENABLED_MODULES,
   COOKIE_COMPANY_SETUP,
 } from '@/lib/brand';
-import { isDemoAuthEnabled } from '@/lib/auth-routing';
 import type { Role, Employee } from '@prisma/client';
+
+/** SHA-256 hash a refresh token before storing in DB. Raw tokens are never persisted. */
+function hashRefreshToken(token: string): string {
+  return createHash('sha256').update(token).digest('hex');
+}
+
+async function storeRefreshToken(input: {
+  tokenId: string;
+  refreshToken: string;
+  expiresAt: Date;
+  employeeId?: string;
+  superAdminId?: string;
+}): Promise<void> {
+  if ((input.employeeId ? 1 : 0) + (input.superAdminId ? 1 : 0) !== 1) {
+    throw new Error('Refresh token must have exactly one owner');
+  }
+
+  await prisma.refreshToken.create({
+    data: {
+      id: input.tokenId,
+      token_hash: hashRefreshToken(input.refreshToken),
+      employee_id: input.employeeId,
+      super_admin_id: input.superAdminId,
+      expires_at: input.expiresAt,
+    },
+  });
+}
 
 export const SESSION_COOKIE_NAME = COOKIE_SESSION;
 
@@ -44,7 +69,6 @@ export interface AuthResult {
   tokens?: TokenPair;
   error?: string;
   code?: 'INVALID_CREDENTIALS' | 'ACCOUNT_INACTIVE' | 'PASSWORD_REQUIRED' | 'NOT_FOUND';
-  // Additional fields for API responses
   user?: {
     id: string;
     email: string;
@@ -79,24 +103,18 @@ export interface AuthUser {
 // ─── Sign In ────────────────────────────────────────────────────────────────
 
 /**
- * Authenticates a user with email and password.
+ * Authenticates an employee with email and password.
  * Returns tokens if successful.
  */
 export async function signIn(email: string, password: string): Promise<AuthResult> {
-  // Find employee by email
   const employee = await prisma.employee.findUnique({
     where: { email: email.toLowerCase() },
   });
 
   if (!employee) {
-    return {
-      success: false,
-      error: 'Invalid email or password',
-      code: 'INVALID_CREDENTIALS',
-    };
+    return { success: false, error: 'Invalid email or password', code: 'INVALID_CREDENTIALS' };
   }
 
-  // Check if password is set
   if (!employee.password_hash) {
     return {
       success: false,
@@ -105,26 +123,15 @@ export async function signIn(email: string, password: string): Promise<AuthResul
     };
   }
 
-  // Verify password
   const isValid = await verifyPassword(password, employee.password_hash);
   if (!isValid) {
-    return {
-      success: false,
-      error: 'Invalid email or password',
-      code: 'INVALID_CREDENTIALS',
-    };
+    return { success: false, error: 'Invalid email or password', code: 'INVALID_CREDENTIALS' };
   }
 
-  // Check account status
   if (['terminated', 'exited', 'suspended'].includes(employee.status)) {
-    return {
-      success: false,
-      error: 'Your account is no longer active',
-      code: 'ACCOUNT_INACTIVE',
-    };
+    return { success: false, error: 'Your account is no longer active', code: 'ACCOUNT_INACTIVE' };
   }
 
-  // Generate tokens
   const tokenId = uuidv4();
   const secondaryRoles = (employee.secondary_roles as Role[]) || [];
   const allRoles = [employee.primary_role, ...secondaryRoles];
@@ -134,21 +141,18 @@ export async function signIn(email: string, password: string): Promise<AuthResul
     email: employee.email,
     role: employee.primary_role,
     roles: allRoles,
-    orgId: employee.org_id!,
+    orgId: employee.org_id,
     tokenId,
   });
 
-  // Store refresh token in database
-  await prisma.refreshToken.create({
-    data: {
-      id: tokenId,
-      token_hash: tokens.refreshToken, // In production, hash this
-      employee_id: employee.id,
-      expires_at: tokens.refreshTokenExpiresAt,
-    },
+  // Store hashed refresh token — raw tokens are never persisted
+  await storeRefreshToken({
+    tokenId,
+    refreshToken: tokens.refreshToken,
+    expiresAt: tokens.refreshTokenExpiresAt,
+    employeeId: employee.id,
   });
 
-  // Update last login
   await prisma.employee.update({
     where: { id: employee.id },
     data: { last_login_at: new Date() },
@@ -167,7 +171,7 @@ export async function signIn(email: string, password: string): Promise<AuthResul
       email: employee.email,
       role: employee.primary_role,
       roles: allRoles,
-      org_id: employee.org_id!,
+      org_id: employee.org_id,
       firstName: employee.first_name,
       lastName: employee.last_name,
       status: employee.status,
@@ -179,6 +183,8 @@ export async function signIn(email: string, password: string): Promise<AuthResul
 
 /**
  * Signs in a super admin.
+ * NOTE: Demo backdoor credentials (super@demo.continuum.io / Demo@123) have been
+ * intentionally removed. Use real accounts created via scripts/seed-super-admin.mjs.
  */
 export async function signInSuperAdmin(email: string, password: string): Promise<AuthResult> {
   const emailLower = email.toLowerCase();
@@ -187,73 +193,18 @@ export async function signInSuperAdmin(email: string, password: string): Promise
   });
 
   if (!superAdmin) {
-    if (!isDemoAuthEnabled()) {
-      return {
-        success: false,
-        error: 'Invalid email or password',
-        code: 'INVALID_CREDENTIALS',
-      };
-    }
-
-    if (emailLower === 'super@demo.continuum.io' && password === 'Demo@123') {
-      const tokenId = uuidv4();
-      const tokens = await generateTokenPair({
-        employeeId: 'demo-super-admin',
-        email: emailLower,
-        role: 'super_admin' as Role,
-        roles: ['super_admin' as Role],
-        orgId: null,
-        tokenId,
-      });
-
-      return {
-        success: true,
-        tokens,
-        accessToken: tokens.accessToken,
-        refreshToken: tokens.refreshToken,
-        requires_password_change: false,
-        tutorial_completed: true,
-        user: {
-          id: 'demo-super-admin',
-          email: emailLower,
-          role: 'super_admin' as Role,
-          roles: ['super_admin' as Role],
-          org_id: null,
-          firstName: 'Demo',
-          lastName: 'Super Admin',
-          status: 'active',
-          tutorialCompleted: true,
-          mustChangePassword: false,
-        },
-      };
-    }
-
-    return {
-      success: false,
-      error: 'Invalid email or password',
-      code: 'INVALID_CREDENTIALS',
-    };
+    return { success: false, error: 'Invalid email or password', code: 'INVALID_CREDENTIALS' };
   }
 
   if (!superAdmin.is_active) {
-    return {
-      success: false,
-      error: 'Your account is no longer active',
-      code: 'ACCOUNT_INACTIVE',
-    };
+    return { success: false, error: 'Your account is no longer active', code: 'ACCOUNT_INACTIVE' };
   }
 
   const isValid = await verifyPassword(password, superAdmin.password_hash);
   if (!isValid) {
-    return {
-      success: false,
-      error: 'Invalid email or password',
-      code: 'INVALID_CREDENTIALS',
-    };
+    return { success: false, error: 'Invalid email or password', code: 'INVALID_CREDENTIALS' };
   }
 
-  // For super admin, we create an employee-like object
-  // Super admin uses special role and null org_id
   const tokenId = uuidv4();
   const tokens = await generateTokenPair({
     employeeId: superAdmin.id,
@@ -264,7 +215,13 @@ export async function signInSuperAdmin(email: string, password: string): Promise
     tokenId,
   });
 
-  // Update last login
+  await storeRefreshToken({
+    tokenId,
+    refreshToken: tokens.refreshToken,
+    expiresAt: tokens.refreshTokenExpiresAt,
+    superAdminId: superAdmin.id,
+  });
+
   await prisma.superAdmin.update({
     where: { id: superAdmin.id },
     data: { last_login_at: new Date() },
@@ -296,55 +253,103 @@ export async function signInSuperAdmin(email: string, password: string): Promise
 
 /**
  * Refreshes tokens using a valid refresh token.
+ * Verifies by comparing SHA-256 hash — raw token is never stored in DB.
  */
 export async function refreshTokens(refreshToken: string): Promise<AuthResult> {
   try {
-    // Verify the refresh token
     const payload = await verifyRefreshToken(refreshToken);
 
-    // Check if token exists in database and isn't revoked
+    // Verify token by hash — prevents token theft from a DB leak
     const storedToken = await prisma.refreshToken.findFirst({
       where: {
         id: payload.jti,
+        token_hash: hashRefreshToken(refreshToken),
         revoked_at: null,
         expires_at: { gt: new Date() },
       },
-      include: {
-        employee: true,
-      },
+      include: { employee: true, super_admin: true },
     });
 
     if (!storedToken) {
-      return {
-        success: false,
-        error: 'Invalid or expired refresh token',
-      };
+      return { success: false, error: 'Invalid or expired refresh token' };
     }
 
-    const employee = storedToken.employee;
+    if (storedToken.super_admin) {
+      const superAdmin = storedToken.super_admin;
 
-    // Check account status
-    if (['terminated', 'exited', 'suspended'].includes(employee.status)) {
-      // Revoke the token
+      if (!superAdmin.is_active) {
+        await prisma.refreshToken.update({
+          where: { id: storedToken.id },
+          data: { revoked_at: new Date() },
+        });
+        return { success: false, error: 'Your account is no longer active', code: 'ACCOUNT_INACTIVE' };
+      }
+
       await prisma.refreshToken.update({
         where: { id: storedToken.id },
         data: { revoked_at: new Date() },
       });
 
+      const newTokenId = uuidv4();
+      const tokens = await generateTokenPair({
+        employeeId: superAdmin.id,
+        email: superAdmin.email,
+        role: 'super_admin' as Role,
+        roles: ['super_admin' as Role],
+        orgId: null,
+        tokenId: newTokenId,
+      });
+
+      await storeRefreshToken({
+        tokenId: newTokenId,
+        refreshToken: tokens.refreshToken,
+        expiresAt: tokens.refreshTokenExpiresAt,
+        superAdminId: superAdmin.id,
+      });
+
       return {
-        success: false,
-        error: 'Your account is no longer active',
-        code: 'ACCOUNT_INACTIVE',
+        success: true,
+        tokens,
+        accessToken: tokens.accessToken,
+        refreshToken: tokens.refreshToken,
+        user: {
+          id: superAdmin.id,
+          email: superAdmin.email,
+          role: 'super_admin' as Role,
+          roles: ['super_admin' as Role],
+          org_id: null,
+          firstName: superAdmin.name.split(' ')[0] || superAdmin.name,
+          lastName: superAdmin.name.split(' ').slice(1).join(' ') || '',
+          status: 'active',
+          tutorialCompleted: true,
+          mustChangePassword: false,
+        },
       };
     }
 
-    // Rotate refresh token (revoke old, create new)
+    const employee = storedToken.employee;
+    if (!employee) {
+      await prisma.refreshToken.update({
+        where: { id: storedToken.id },
+        data: { revoked_at: new Date() },
+      });
+      return { success: false, error: 'Invalid or expired refresh token' };
+    }
+
+    if (['terminated', 'exited', 'suspended'].includes(employee.status)) {
+      await prisma.refreshToken.update({
+        where: { id: storedToken.id },
+        data: { revoked_at: new Date() },
+      });
+      return { success: false, error: 'Your account is no longer active', code: 'ACCOUNT_INACTIVE' };
+    }
+
+    // Rotate: revoke old, issue new
     await prisma.refreshToken.update({
       where: { id: storedToken.id },
       data: { revoked_at: new Date() },
     });
 
-    // Generate new tokens
     const newTokenId = uuidv4();
     const secondaryRoles = (employee.secondary_roles as Role[]) || [];
     const allRoles = [employee.primary_role, ...secondaryRoles];
@@ -354,18 +359,15 @@ export async function refreshTokens(refreshToken: string): Promise<AuthResult> {
       email: employee.email,
       role: employee.primary_role,
       roles: allRoles,
-      orgId: employee.org_id!,
+      orgId: employee.org_id,
       tokenId: newTokenId,
     });
 
-    // Store new refresh token
-    await prisma.refreshToken.create({
-      data: {
-        id: newTokenId,
-        token_hash: tokens.refreshToken,
-        employee_id: employee.id,
-        expires_at: tokens.refreshTokenExpiresAt,
-      },
+    await storeRefreshToken({
+      tokenId: newTokenId,
+      refreshToken: tokens.refreshToken,
+      expiresAt: tokens.refreshTokenExpiresAt,
+      employeeId: employee.id,
     });
 
     return {
@@ -379,7 +381,7 @@ export async function refreshTokens(refreshToken: string): Promise<AuthResult> {
         email: employee.email,
         role: employee.primary_role,
         roles: allRoles,
-        org_id: employee.org_id!,
+        org_id: employee.org_id,
         firstName: employee.first_name,
         lastName: employee.last_name,
         status: employee.status,
@@ -388,10 +390,7 @@ export async function refreshTokens(refreshToken: string): Promise<AuthResult> {
       },
     };
   } catch {
-    return {
-      success: false,
-      error: 'Invalid refresh token',
-    };
+    return { success: false, error: 'Invalid refresh token' };
   }
 }
 
@@ -403,7 +402,6 @@ export async function refreshTokens(refreshToken: string): Promise<AuthResult> {
 export async function signOut(refreshToken: string): Promise<void> {
   try {
     const payload = await verifyRefreshToken(refreshToken);
-    
     await prisma.refreshToken.updateMany({
       where: { id: payload.jti },
       data: { revoked_at: new Date() },
@@ -418,7 +416,10 @@ export async function signOut(refreshToken: string): Promise<void> {
  */
 export async function signOutAll(employeeId: string): Promise<void> {
   await prisma.refreshToken.updateMany({
-    where: { employee_id: employeeId, revoked_at: null },
+    where: {
+      revoked_at: null,
+      OR: [{ employee_id: employeeId }, { super_admin_id: employeeId }],
+    },
     data: { revoked_at: new Date() },
   });
 }
@@ -433,22 +434,17 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
   const cookieStore = await cookies();
   const accessToken = cookieStore.get(ACCESS_COOKIE_NAME)?.value;
 
-  if (!accessToken) {
-    return null;
-  }
+  if (!accessToken) return null;
 
   try {
     const payload = await verifyAccessToken(accessToken);
 
-    // For super admin
     if (payload.role === 'super_admin') {
       const superAdmin = await prisma.superAdmin.findUnique({
         where: { id: payload.sub },
       });
 
-      if (!superAdmin || !superAdmin.is_active) {
-        return null;
-      }
+      if (!superAdmin || !superAdmin.is_active) return null;
 
       return {
         id: superAdmin.id,
@@ -464,18 +460,12 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
       };
     }
 
-    // For regular employees
     const employee = await prisma.employee.findUnique({
       where: { id: payload.sub },
     });
 
-    if (!employee) {
-      return null;
-    }
-
-    if (['terminated', 'exited', 'suspended'].includes(employee.status)) {
-      return null;
-    }
+    if (!employee) return null;
+    if (['terminated', 'exited', 'suspended'].includes(employee.status)) return null;
 
     const secondaryRoles = (employee.secondary_roles as Role[]) || [];
 
@@ -484,7 +474,7 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
       email: employee.email,
       role: employee.primary_role,
       roles: [employee.primary_role, ...secondaryRoles],
-      orgId: employee.org_id!,
+      orgId: employee.org_id,
       firstName: employee.first_name,
       lastName: employee.last_name,
       status: employee.status,
@@ -502,22 +492,17 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
 export async function getCurrentUserFromRequest(request: Request): Promise<AuthUser | null> {
   const accessToken = extractAccessToken(request);
 
-  if (!accessToken) {
-    return null;
-  }
+  if (!accessToken) return null;
 
   try {
     const payload = await verifyAccessToken(accessToken);
 
-    // Handle super admin
     if (payload.role === 'super_admin') {
       const superAdmin = await prisma.superAdmin.findUnique({
         where: { id: payload.sub },
       });
 
-      if (!superAdmin || !superAdmin.is_active) {
-        return null;
-      }
+      if (!superAdmin || !superAdmin.is_active) return null;
 
       return {
         id: superAdmin.id,
@@ -533,14 +518,11 @@ export async function getCurrentUserFromRequest(request: Request): Promise<AuthU
       };
     }
 
-    // Handle regular employees
     const employee = await prisma.employee.findUnique({
       where: { id: payload.sub },
     });
 
-    if (!employee || ['terminated', 'exited', 'suspended'].includes(employee.status)) {
-      return null;
-    }
+    if (!employee || ['terminated', 'exited', 'suspended'].includes(employee.status)) return null;
 
     const secondaryRoles = (employee.secondary_roles as Role[]) || [];
 
@@ -549,7 +531,7 @@ export async function getCurrentUserFromRequest(request: Request): Promise<AuthU
       email: employee.email,
       role: employee.primary_role,
       roles: [employee.primary_role, ...secondaryRoles],
-      orgId: employee.org_id!,
+      orgId: employee.org_id,
       firstName: employee.first_name,
       lastName: employee.last_name,
       status: employee.status,
@@ -586,9 +568,6 @@ export function setAuthCookies(response: NextResponse, accessToken: string, refr
     path: refreshOptions.path,
     maxAge: refreshOptions.maxAge,
   });
-
-  // Also set role cookies for middleware
-  // These are set based on what's in the token
 }
 
 /**
@@ -609,12 +588,10 @@ export function clearAuthCookies(response: NextResponse): void {
 
 /**
  * Sets auth cookies after successful sign-in (async version for Server Components).
- * Call this from API route handlers.
  */
 export async function setAuthCookiesAsync(tokens: TokenPair): Promise<void> {
   const cookieStore = await cookies();
 
-  // Set access token cookie
   const accessOptions = getAccessCookieOptions();
   cookieStore.set(accessOptions.name, tokens.accessToken, {
     httpOnly: accessOptions.httpOnly,
@@ -624,7 +601,6 @@ export async function setAuthCookiesAsync(tokens: TokenPair): Promise<void> {
     maxAge: accessOptions.maxAge,
   });
 
-  // Set refresh token cookie
   const refreshOptions = getRefreshCookieOptions();
   cookieStore.set(refreshOptions.name, tokens.refreshToken, {
     httpOnly: refreshOptions.httpOnly,
@@ -654,6 +630,7 @@ export async function clearAuthCookiesAsync(): Promise<void> {
 
 /**
  * Changes an employee's password.
+ * Revokes all active sessions (forces re-login on all devices).
  */
 export async function changePassword(
   employeeId: string,
@@ -684,7 +661,7 @@ export async function changePassword(
     },
   });
 
-  // Revoke all refresh tokens (force re-login)
+  // Revoke all refresh tokens (force re-login on all devices)
   await signOutAll(employeeId);
 
   return { success: true };
@@ -723,4 +700,3 @@ export async function setInitialPassword(
 
   return { success: true };
 }
-

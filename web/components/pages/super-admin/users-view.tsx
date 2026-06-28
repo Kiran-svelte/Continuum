@@ -170,7 +170,7 @@ export default async function UsersView() {
       },
     }),
     prisma.employee.findMany({
-      where: { invited_by_type: 'super_admin' },
+      where: { invited_by_type: 'super_admin', deleted_at: null },
       orderBy: { created_at: 'desc' },
       include: {
         company: { select: { name: true } },
@@ -179,6 +179,7 @@ export default async function UsersView() {
   ]);
 
   const pendingInvites = invites.filter(i => i.status === 'pending');
+  const activeUsers = employees.filter((employee) => employee.status === 'active');
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -225,7 +226,7 @@ export default async function UsersView() {
                   <p className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
                     Active Users
                   </p>
-                  <p className="text-3xl font-bold text-foreground">{employees.length}</p>
+                  <p className="text-3xl font-bold text-foreground">{activeUsers.length}</p>
                 </div>
                 <div className="p-3 bg-status-success/15 rounded-lg">
                   <CheckCircle className="w-6 h-6 text-status-success" />

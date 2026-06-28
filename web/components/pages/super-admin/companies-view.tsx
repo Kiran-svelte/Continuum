@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Building2, Plus, Search, Users, CheckCircle, Clock, AlertCircle, Pencil, Trash2 } from 'lucide-react';
 import { Input, Select } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { ConfirmDialog } from '@/components/ui/modal';
 
 interface Company {
   id: string;
@@ -14,7 +15,6 @@ interface Company {
   size: string | null;
   onboardingStatus: string;
   onboardingStep: number;
-  joinCode: string | null;
   createdAt: string;
   stats: {
     totalEmployees: number;
@@ -38,6 +38,13 @@ interface Pagination {
   totalPages: number;
 }
 
+interface CompanyStats {
+  total: number;
+  pending: number;
+  inProgress: number;
+  completed: number;
+}
+
 export default function CompaniesView() {
   const router = useRouter();
   const [companies, setCompanies] = useState<Company[]>([]);
@@ -51,8 +58,17 @@ export default function CompaniesView() {
     total: 0,
     totalPages: 0,
   });
+  const [stats, setStats] = useState<CompanyStats>({
+    total: 0,
+    pending: 0,
+    inProgress: 0,
+    completed: 0,
+  });
   const [selectedCompanyIds, setSelectedCompanyIds] = useState<Set<string>>(new Set());
   const [bulkDeleting, setBulkDeleting] = useState(false);
+  const [companyToDelete, setCompanyToDelete] = useState<Company | null>(null);
+  const [confirmBulkDelete, setConfirmBulkDelete] = useState(false);
+  const [singleDeleting, setSingleDeleting] = useState(false);
 
   const fetchCompanies = useCallback(async () => {
     setLoading(true);
@@ -75,6 +91,12 @@ export default function CompaniesView() {
 
       setCompanies(data.companies);
       setPagination(data.pagination);
+      setStats(data.stats ?? {
+        total: data.pagination?.total ?? 0,
+        pending: 0,
+        inProgress: 0,
+        completed: 0,
+      });
       setSelectedCompanyIds(new Set());
     } catch (error: unknown) {
       setError(error instanceof Error ? error.message : 'Failed to fetch companies');
@@ -120,13 +142,14 @@ export default function CompaniesView() {
   };
 
   const deleteCompany = async (company: Company) => {
-    const confirmed = window.confirm(`Delete company "${company.name}"? This will soft-delete it.`);
-    if (!confirmed) {
-      return;
-    }
+    setCompanyToDelete(company);
+  };
 
+  const confirmDeleteCompany = async () => {
+    if (!companyToDelete) return;
+    setSingleDeleting(true);
     try {
-      const response = await fetch(`/api/super-admin/companies/${company.id}`, {
+      const response = await fetch(`/api/super-admin/companies/${companyToDelete.id}`, {
         method: 'DELETE',
         credentials: 'include',
       });
@@ -139,6 +162,9 @@ export default function CompaniesView() {
       await fetchCompanies();
     } catch (deleteError: unknown) {
       setError(deleteError instanceof Error ? deleteError.message : 'Failed to delete company');
+    } finally {
+      setSingleDeleting(false);
+      setCompanyToDelete(null);
     }
   };
 
@@ -147,13 +173,10 @@ export default function CompaniesView() {
       return;
     }
 
-    const confirmed = window.confirm(
-      `Delete ${selectedCompanyIds.size} selected compan${selectedCompanyIds.size > 1 ? 'ies' : 'y'}? This will soft-delete them.`
-    );
-    if (!confirmed) {
-      return;
-    }
+    setConfirmBulkDelete(true);
+  };
 
+  const confirmBulkDeleteCompanies = async () => {
     setBulkDeleting(true);
     setError(null);
 
@@ -180,6 +203,7 @@ export default function CompaniesView() {
       setError(bulkDeleteError instanceof Error ? bulkDeleteError.message : 'Bulk delete failed');
     } finally {
       setBulkDeleting(false);
+      setConfirmBulkDelete(false);
     }
   };
 
@@ -205,7 +229,7 @@ export default function CompaniesView() {
   };
 
   return (
-    <div className="min-h-screen bg-background p-6">
+    <div className="space-y-6">
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -233,7 +257,7 @@ export default function CompaniesView() {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Total Companies</p>
-                <p className="text-2xl font-semibold text-foreground">{pagination.total}</p>
+                <p className="text-2xl font-semibold text-foreground">{stats.total}</p>
               </div>
             </div>
           </div>
@@ -245,7 +269,7 @@ export default function CompaniesView() {
               <div>
                 <p className="text-sm text-muted-foreground">Pending</p>
                 <p className="text-2xl font-semibold text-foreground">
-                  {companies.filter(c => c.onboardingStatus === 'pending').length}
+                  {stats.pending}
                 </p>
               </div>
             </div>
@@ -258,7 +282,7 @@ export default function CompaniesView() {
               <div>
                 <p className="text-sm text-muted-foreground">In Progress</p>
                 <p className="text-2xl font-semibold text-foreground">
-                  {companies.filter(c => c.onboardingStatus === 'in_progress').length}
+                  {stats.inProgress}
                 </p>
               </div>
             </div>
@@ -271,7 +295,7 @@ export default function CompaniesView() {
               <div>
                 <p className="text-sm text-muted-foreground">Completed</p>
                 <p className="text-2xl font-semibold text-foreground">
-                  {companies.filter(c => c.onboardingStatus === 'completed').length}
+                  {stats.completed}
                 </p>
               </div>
             </div>
@@ -310,7 +334,7 @@ export default function CompaniesView() {
           </form>
           <div className="mt-4 flex flex-wrap items-center gap-3">
             <span className="text-sm text-muted-foreground">
-              {selectedCompanyIds.size} selected
+              {selectedCompanyIds.size} selected on this page
             </span>
             <Button
               type="button"
@@ -335,8 +359,8 @@ export default function CompaniesView() {
 
         {/* Companies List */}
         {loading ? (
-          <div className="flex justify-center items-center py-12">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+          <div className="flex justify-center items-center py-12" aria-live="polite">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" aria-label="Loading companies" role="status"></div>
           </div>
         ) : companies.length === 0 ? (
           <div className="bg-card border border-border rounded-lg p-12 text-center">
@@ -395,11 +419,6 @@ export default function CompaniesView() {
                           <p className="font-medium text-foreground">{company.name}</p>
                           {company.legalName && (
                             <p className="text-sm text-muted-foreground">{company.legalName}</p>
-                          )}
-                          {company.joinCode && (
-                            <p className="text-xs text-muted-foreground font-mono mt-1">
-                              Code: {company.joinCode}
-                            </p>
                           )}
                         </div>
                       </td>
@@ -507,6 +526,30 @@ export default function CompaniesView() {
           </div>
         )}
       </div>
+      <ConfirmDialog
+        isOpen={Boolean(companyToDelete)}
+        onClose={() => setCompanyToDelete(null)}
+        onConfirm={confirmDeleteCompany}
+        title="Delete Company"
+        description={
+          companyToDelete
+            ? `Soft-delete "${companyToDelete.name}"? Existing users will lose access according to the company delete policy.`
+            : undefined
+        }
+        confirmLabel="Delete"
+        variant="danger"
+        loading={singleDeleting}
+      />
+      <ConfirmDialog
+        isOpen={confirmBulkDelete}
+        onClose={() => setConfirmBulkDelete(false)}
+        onConfirm={confirmBulkDeleteCompanies}
+        title="Delete Selected Companies"
+        description={`Soft-delete ${selectedCompanyIds.size} selected compan${selectedCompanyIds.size === 1 ? 'y' : 'ies'} on this page?`}
+        confirmLabel="Delete Selected"
+        variant="danger"
+        loading={bulkDeleting}
+      />
     </div>
   );
 }
