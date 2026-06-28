@@ -135,13 +135,15 @@ Current proof results:
 - Tests: pass, 410 tests.
 - File-level lint for `app/manager/(main)/approvals/page.tsx`: pass.
 - Production build: pass.
+- Vercel production deploy: pass. Deployment `dpl_FyriSSqoRdd1avrtbAjREf9DmtdS` is `Ready` and aliased to `https://continuum.support` and `https://www.continuum.support`.
+- Production health: pass after warm-up. First request returned `degraded` because the Render constraint engine cold-started and hit the 15s timeout; retry returned `healthy` with database, constraint engine, email, storage, custom JWT auth, memory, and disk checks healthy.
 - Global lint: fail. Remaining failures are global pre-existing backlog outside this update, including `no-explicit-any`, unused imports/vars, unescaped entities, `prefer-const`, hook dependency warnings, and old `<a>`/`<img>` warnings across app, component, and library files.
 - Dependency audit: fail. `npm audit --omit=dev --audit-level=moderate` still reports 21 production vulnerabilities: 9 moderate, 11 high, and 1 critical.
 
 Enterprise readiness outcome:
 
 - The specific functional gaps from the master checklist that were confirmed in code have been implemented and covered by repeatable tests.
-- The product is not yet claimable as fully enterprise clean until the global lint backlog and dependency audit vulnerabilities are remediated, and live production is redeployed from this new commit.
+- The product is not yet claimable as fully enterprise clean until the global lint backlog and dependency audit vulnerabilities are remediated.
 
 ## Files to edit
 
