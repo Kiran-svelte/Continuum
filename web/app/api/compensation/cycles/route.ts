@@ -12,6 +12,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { getAuthEmployee, requireCompanyContext, requirePermissionGuard, AuthError } from '@/lib/auth-guard';
+import { requireModuleForOrg } from '@/lib/core-functions/guard-handler';
 import { randomUUID } from 'crypto';
 
 
@@ -21,6 +22,8 @@ export async function GET(request: NextRequest) {
   try {
     const employee = await getAuthEmployee(request);
     requireCompanyContext(employee);
+    const moduleGuard = await requireModuleForOrg(employee.org_id, 'payroll');
+    if (moduleGuard) return moduleGuard;
     requirePermissionGuard(employee, 'compensation.view_cycles');
 
     const cycles = await prisma.compensationCycle.findMany({
@@ -42,6 +45,8 @@ export async function POST(request: NextRequest) {
   try {
     const employee = await getAuthEmployee(request);
     requireCompanyContext(employee);
+    const moduleGuard = await requireModuleForOrg(employee.org_id, 'payroll');
+    if (moduleGuard) return moduleGuard;
     requirePermissionGuard(employee, 'compensation.manage_cycles');
 
     const body = await request.json() as {

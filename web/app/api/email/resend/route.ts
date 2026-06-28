@@ -9,6 +9,7 @@ import {
   AuthError,
   getAuthEmployee,
   requireCompanyContext,
+  requirePermissionGuard,
 } from '@/lib/auth-guard';
 import {
   buildActionOutcome,
@@ -16,6 +17,7 @@ import {
 } from '@/lib/action-outcome';
 import { sendEmail } from '@/lib/email-service';
 import { buildAppUrl } from '@/lib/url-origin';
+import { assertModule } from '@/lib/core-functions/assert-module';
 import prisma from '@/lib/prisma';
 
 export const dynamic = 'force-dynamic';
@@ -38,18 +40,17 @@ function checkRateLimit(key: string): boolean {
   return true;
 }
 
-function isAllowedOperator(role: string): boolean {
-  return ['admin', 'hr', 'super_admin'].includes(role);
+function isAllowedOperator(actor: { primary_role: string; secondary_roles: string[] | null }): boolean {
+  return (
+    ['admin', 'hr', 'super_admin'].includes(actor.primary_role) ||
+    actor.secondary_roles?.some((role) => role === 'admin' || role === 'hr') === true
+  );
 }
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
     const actor = await getAuthEmployee(request);
     requireCompanyContext(actor);
-
-    if (!isAllowedOperator(actor.primary_role)) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
 
     const body = await request.json() as { type?: string; targetId?: string };
     const type = body.type as ResendType | undefined;
@@ -72,12 +73,30 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     }
 
     if (type === 'invite') {
+      if (!isAllowedOperator(actor)) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      }
+      requirePermissionGuard(actor, 'employee.onboard');
       return resendInvite(actor.org_id, targetId);
     }
     if (type === 'welcome') {
+      if (!isAllowedOperator(actor)) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      }
+      requirePermissionGuard(actor, 'employee.onboard');
       return resendWelcome(actor.org_id, targetId);
     }
-    return resendPayslip(actor.org_id, targetId);
+
+    const moduleGuard = await assertModule(actor.org_id, 'payroll');
+    if (moduleGuard) return moduleGuard;
+
+    if (isAllowedOperator(actor)) {
+      requirePermissionGuard(actor, 'payroll.view_all');
+      return resendPayslip(actor.org_id, targetId);
+    }
+
+    requirePermissionGuard(actor, 'payroll.view_own');
+    return resendPayslip(actor.org_id, targetId, actor.id);
   } catch (error) {
     if (error instanceof SyntaxError) {
       return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
@@ -186,9 +205,17 @@ async function resendWelcome(companyId: string, employeeId: string): Promise<Nex
   );
 }
 
-async function resendPayslip(companyId: string, payslipId: string): Promise<NextResponse> {
+async function resendPayslip(
+  companyId: string,
+  payslipId: string,
+  actorEmployeeId?: string
+): Promise<NextResponse> {
   const payslip = await prisma.payrollSlip.findFirst({
-    where: { id: payslipId, company_id: companyId },
+    where: {
+      id: payslipId,
+      company_id: companyId,
+      ...(actorEmployeeId ? { emp_id: actorEmployeeId } : {}),
+    },
     select: {
       month: true,
       year: true,

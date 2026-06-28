@@ -80,6 +80,23 @@ test('C04-T08: widget keeps position in localStorage but no longer stores action
   assert.ok(!widget.includes('sessionStorage'));
 });
 
+test('C04-T41: web assistant persists drafts server-side instead of executing client-supplied drafts', () => {
+  const route = read('app/api/ai/assistant/route.ts');
+  const store = read('lib/whatsapp/conversation-store.ts');
+
+  assert.ok(route.includes('loadConversationDraft'));
+  assert.ok(route.includes("loadConversationDraft(employee.org_id, employee.id, 'web')"));
+  assert.ok(route.includes('saveConversationDraft'));
+  assert.ok(route.includes("saveConversationDraft(employee.org_id, employee.id, 'web'"));
+  assert.ok(route.includes('appendConversationMessages'));
+  assert.ok(route.includes('actionDraft: storedConversation.actionDraft'));
+  assert.ok(!route.includes('parsed.data.actionDraft as AssistantActionDraft'));
+
+  assert.ok(store.includes("export type AssistantConversationChannel = 'web' | 'whatsapp'"));
+  assert.ok(store.includes('appendConversationMessages'));
+  assert.ok(store.includes('assistantMessageRecord.createMany'));
+});
+
 test('C04-T40: ZERO_UI_V1_ACTIONS documents A1 through A10', () => {
   const doc = read('docs/ZERO_UI_V1_ACTIONS.md');
   for (let i = 1; i <= 10; i += 1) {

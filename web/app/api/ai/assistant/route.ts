@@ -21,8 +21,12 @@ import {
 } from '@/lib/continuum-assistant/knowledge';
 import { respondAssistantMessage } from '@/lib/continuum-assistant/respond';
 import type { AssistantMessage } from '@/lib/continuum-assistant/types';
-import type { AssistantActionDraft } from '@/lib/continuum-assistant/action-types';
 import type { PermissionCode } from '@/lib/rbac';
+import {
+  appendConversationMessages,
+  loadConversationDraft,
+  saveConversationDraft,
+} from '@/lib/whatsapp/conversation-store';
 
 export const dynamic = 'force-dynamic';
 
@@ -93,7 +97,11 @@ export async function POST(request: NextRequest) {
       permissions
     );
 
-    const history: AssistantMessage[] = parsed.data.history ?? [];
+    const storedConversation = await loadConversationDraft(employee.org_id, employee.id, 'web');
+    const history: AssistantMessage[] =
+      storedConversation.history.length > 0
+        ? storedConversation.history
+        : parsed.data.history ?? [];
     const context = {
       employeeId: employee.id,
       companyId: employee.org_id,
@@ -109,9 +117,24 @@ export async function POST(request: NextRequest) {
 
     const result = await respondAssistantMessage(parsed.data.message, history, context, {
       request,
-      actionDraft: (parsed.data.actionDraft as AssistantActionDraft | null | undefined) ?? null,
+      actionDraft: storedConversation.actionDraft,
       actionCommand: parsed.data.actionCommand ?? null,
     });
+
+    const updatedHistory: AssistantMessage[] = [
+      ...history,
+      { role: 'user', content: parsed.data.message },
+      { role: 'assistant', content: result.reply },
+    ];
+
+    await saveConversationDraft(employee.org_id, employee.id, 'web', {
+      history: updatedHistory,
+      actionDraft: result.actionDraft ?? null,
+    });
+    await appendConversationMessages(employee.org_id, employee.id, 'web', [
+      { role: 'user', content: parsed.data.message },
+      { role: 'assistant', content: result.reply },
+    ]);
 
     return NextResponse.json(
       {

@@ -1,5 +1,5 @@
 /**
- * AssistantConversation draft persistence for WhatsApp channel.
+ * AssistantConversation draft persistence for assistant channels.
  *
  * Stores multi-turn conversation state (history + action draft) in the
  * AssistantConversation table, keyed by (company_id, employee_id, channel).
@@ -22,6 +22,8 @@ export interface ConversationDraft {
   actionDraft: AssistantActionDraft | null;
 }
 
+export type AssistantConversationChannel = 'web' | 'whatsapp';
+
 const EMPTY_DRAFT: ConversationDraft = { history: [], actionDraft: null };
 
 /**
@@ -35,7 +37,7 @@ const EMPTY_DRAFT: ConversationDraft = { history: [], actionDraft: null };
 export async function loadConversationDraft(
   companyId: string,
   employeeId: string,
-  channel: 'whatsapp'
+  channel: AssistantConversationChannel
 ): Promise<ConversationDraft> {
   const convo = await prisma.assistantConversation.findUnique({
     where: {
@@ -77,7 +79,7 @@ export async function loadConversationDraft(
 export async function saveConversationDraft(
   companyId: string,
   employeeId: string,
-  channel: 'whatsapp',
+  channel: AssistantConversationChannel,
   draft: ConversationDraft
 ): Promise<void> {
   const expiresAt = new Date(Date.now() + DRAFT_TTL_MINUTES * 60 * 1000);
@@ -109,6 +111,43 @@ export async function saveConversationDraft(
   });
 }
 
+export async function appendConversationMessages(
+  companyId: string,
+  employeeId: string,
+  channel: AssistantConversationChannel,
+  messages: AssistantMessage[]
+): Promise<void> {
+  if (messages.length === 0) return;
+
+  const conversation = await prisma.assistantConversation.upsert({
+    where: {
+      company_id_employee_id_channel: {
+        company_id: companyId,
+        employee_id: employeeId,
+        channel,
+      },
+    },
+    create: {
+      company_id: companyId,
+      employee_id: employeeId,
+      channel,
+      draft_json: { history: [], actionDraft: null },
+      draft_expires_at: new Date(Date.now() + DRAFT_TTL_MINUTES * 60 * 1000),
+    },
+    update: { updated_at: new Date() },
+    select: { id: true },
+  });
+
+  await prisma.assistantMessageRecord.createMany({
+    data: messages.map((message) => ({
+      conversation_id: conversation.id,
+      company_id: companyId,
+      role: message.role,
+      content: message.content,
+    })),
+  });
+}
+
 /**
  * Clears the action draft while preserving message history.
  * Called after an action completes (confirm/cancel resolved).
@@ -120,7 +159,7 @@ export async function saveConversationDraft(
 export async function clearActionDraft(
   companyId: string,
   employeeId: string,
-  channel: 'whatsapp'
+  channel: AssistantConversationChannel
 ): Promise<void> {
   const current = await loadConversationDraft(companyId, employeeId, channel);
   await saveConversationDraft(companyId, employeeId, channel, {

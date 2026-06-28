@@ -37,6 +37,10 @@ type TopicRule = {
   suggestions?: string[];
 };
 
+function hasEnabledModule(ctx: AssistantContext, slug: ModuleSlug): boolean {
+  return ctx.enabledModules.includes(slug);
+}
+
 function findNavMatch(message: string, ctx: AssistantContext): AssistantLink | null {
   const query = message.toLowerCase();
   const tokens = query.split(/\s+/).filter((t) => t.length > 2);
@@ -264,6 +268,15 @@ export function answerWithKnowledge(message: string, ctx: AssistantContext): Ass
 
   for (const rule of TOPIC_RULES) {
     if (rule.patterns.some((pattern) => pattern.test(trimmed))) {
+      if ((rule.id === 'payslip' || rule.id === 'payroll-calc') && !hasEnabledModule(ctx, 'payroll')) {
+        return {
+          reply:
+            'MODULE_DISABLED: Payroll is not enabled for your company. I cannot show payslip pages or payroll actions until an admin enables the payroll module.',
+          links: [],
+          suggestions: [],
+          source: 'rules',
+        };
+      }
       return {
         reply: rule.reply(ctx),
         links: rule.links?.(ctx) ?? [],

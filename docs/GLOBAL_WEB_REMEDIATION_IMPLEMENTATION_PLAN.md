@@ -1,6 +1,7 @@
 # Global Web Remediation Implementation Plan
 
 Date: 2026-06-25
+Latest proof update: 2026-06-28
 Branch: `codex/global-web-remediation`
 Workspace: `D:\projects\Continuum-main-deploy`
 App root: `D:\projects\Continuum-main-deploy\web`
@@ -43,7 +44,6 @@ Remaining blockers after this pass:
 - Dependency audit remediation still needs a dedicated pass.
 - `auth-service.ts` still has legacy inline refresh-token persistence for employee auth instead of fully using `web/lib/refresh-token.ts`.
 - Super-admin refresh-token symmetry remains unresolved because the existing `RefreshToken` model is employee-linked.
-- Document upload/storage hardening remains pending.
 - Onboarding data-map and end-to-end onboarding contract cleanup remains pending.
 - CI still needs a single reliable gate for secret scan, lint, typecheck, tests, build, and audit.
 - `.vercel/` is present as an untracked local directory and must remain uncommitted.
@@ -67,6 +67,42 @@ Current proof results:
 - Secret scan for previously exposed exact values: pass, no matches.
 - Diff whitespace check: pass.
 - Lint: fail, existing global lint backlog remains.
+
+## 2026-06-28 enterprise proof update
+
+Implemented in this update:
+
+- `filterPermissionsByModules` is implemented in `web/lib/rbac.ts` and used by `getUserPermissions`, so disabled module permissions are stripped from sessions and assistant context.
+- Wildcard permission handling is explicit in `hasPermission`.
+- Payroll, salary, compensation, and payslip APIs now assert the payroll module before serving or mutating payroll data.
+- `/api/email/resend` now supports employee payslip self-resend only for the actor's own payslip; HR/admin resend remains tenant-scoped and permission guarded.
+- Employee and HR payroll UI resend actions now have a backend path that returns visible `actionOutcome`/email failure state instead of silent failure.
+- Web assistant drafts/history now persist through `AssistantConversation`/`AssistantMessageRecord` instead of relying on client-only action draft state.
+- Assistant payroll/payslip knowledge and insight handlers now return `MODULE_DISABLED` when payroll is disabled.
+- Enterprise scenario matrix tests were added for S1-S6, R1-R2, and C1-C3.
+
+Verified proof on 2026-06-28:
+
+```powershell
+cd web
+npm test -- --test-reporter=spec tests/enterprise-scenario-matrix.test.ts tests/continuum-assistant-v1-headless.test.ts tests/module-api-gating.test.ts tests/rbac.test.ts tests/production-readiness-slice.test.ts
+npx tsc --noEmit --pretty false --incremental false
+npm run build
+npm run lint -- --max-warnings=0
+npm audit --omit=dev --audit-level=moderate
+```
+
+Current proof results:
+
+- Tests: pass, 404 tests.
+- TypeScript: pass.
+- Production build: pass.
+- Lint: fail; `next lint --max-warnings=0` still reports pre-existing global lint debt in unrelated files.
+- Dependency audit: fail; 21 production dependency advisories remain, including 1 critical.
+- Resend provider proof: direct Resend send succeeded to the GitHub-linked mailbox using verified `continuum.support` sender domain; message id `f32d29cb-c8db-4147-b968-f9b5c05dd886`.
+- Vercel production proof: deployment `dpl_FgcYzwa8Jjk6VnGeY4kgKnBZLmq3` is `READY` and aliased to `continuum.support`.
+- Render proof: `continuum-constraint-engine` deploy `dep-d90d4e5aeets73dvn7cg` reached `live`; `/health` returns healthy with `db_connected: true`.
+- Production health proof: `https://continuum.support/api/health` returns `healthy`, including healthy database, constraint engine, email, storage, custom JWT auth, memory, and disk checks.
 
 ## Files to edit
 
@@ -222,13 +258,15 @@ Expected outcome:
 
 ## Phase 3: RBAC, module gates, and tenant boundaries
 
-Status: not completed in this pass beyond existing green regression coverage.
+Status: partially completed; module permission filtering and payroll family gates are complete and tested. Broader manager/team data-boundary hardening still needs a dedicated pass.
 
 Tasks:
 
 - Implement `requireEmployeeListAccess`.
 - Restrict manager employee listing to direct/allowed reports unless explicitly permitted.
 - Add `directory`, `documents`, and `performance` module gates to APIs.
+- Add payroll, salary, compensation, and payslip module gates to APIs.
+- Filter permissions by enabled modules before exposing them to sessions and assistant context.
 - Require company context before any `employee.org_id!` usage.
 - Normalize super-admin checks through shared helpers.
 
@@ -237,6 +275,7 @@ Proof:
 ```powershell
 cd web
 npx tsx --test tests/module-api-gating.test.ts tests/rbac.test.ts
+npx tsx --test tests/enterprise-scenario-matrix.test.ts
 ```
 
 Expected outcome:
@@ -245,7 +284,7 @@ Expected outcome:
 
 ## Phase 4: Document storage and upload hardening
 
-Status: not completed in this pass.
+Status: completed in the production remediation pass; storage is private-key based with signed download routing and Appwrite fallback when R2 is not configured.
 
 Tasks:
 
@@ -321,7 +360,7 @@ Expected outcome:
 
 ## Phase 7: CI and regression gates
 
-Status: not completed in this pass.
+Status: partially completed locally through regression tests; CI still needs to run the same gates automatically.
 
 Tasks:
 

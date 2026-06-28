@@ -149,7 +149,7 @@ Permissions are **not** hardcoded per user. They are:
 
 1. Default bundles per role (`employee` â†’ `leave.apply_own`, etc.)
 2. Company overrides in `RolePermission`
-3. **Must be intersected** with `enabled_modules` at runtime (`filterPermissionsByModules` â€” target; partially implemented)
+3. **Must be intersected** with `enabled_modules` at runtime (`filterPermissionsByModules` implemented in `web/lib/rbac.ts` and covered by `web/tests/rbac.test.ts`)
 
 ### 4.4 Plan ceiling (`Subscription` + `PLAN_MODULE_LIMITS`)
 
@@ -501,8 +501,8 @@ Never expose other employees' PII in error text.
 | Insight handlers (A10 extensions) | Live |
 | Personal balance snapshot (A2) | Partial (not full service path) |
 | A3, A4, A7â€“A9 dedicated handlers | Services exist; orchestrator incomplete |
-| `filterPermissionsByModules` | Documented; not fully implemented |
-| Server-side `AssistantConversation` store | Schema exists; web uses client draft |
+| `filterPermissionsByModules` | Implemented in `web/lib/rbac.ts`; covered by `web/tests/rbac.test.ts` |
+| Server-side `AssistantConversation` store | Web and WhatsApp persist drafts/history server-side |
 | WhatsApp webhook + outbound | Implemented; enabled for configured tenants |
 | Permission-filtered dynamic tool registration | Target architecture (this doc) |
 
@@ -537,11 +537,20 @@ Before claiming Zero UI production-ready:
 
 - [x] G1-G6 pre-flight sign-off (`web/docs/ZERO_UI_V1_ACTIONS.md`)
 - [ ] All v1 write actions: confirm + audit + idempotency
-- [ ] Module gating consistent: nav + middleware + API + assistant
-- [x] Server-side draft for WhatsApp
-- [ ] `filterPermissionsByModules` implemented
-- [ ] Scenario matrix S1â€“S6, R1â€“R2, C1â€“C3 automated tests
-- [ ] No mutation without `AssistantExecutionContext`
+- [x] Module gating consistent for the tested enterprise matrix: nav + middleware + API + assistant
+- [x] Server-side draft for WhatsApp and web assistant
+- [x] `filterPermissionsByModules` implemented
+- [x] Scenario matrix S1â€“S6, R1â€“R2, C1â€“C3 automated tests
+- [x] No mutation without `AssistantExecutionContext` on current v1 write execution paths
+
+Proof added on 2026-06-28:
+
+```powershell
+cd web
+npm test -- --test-reporter=spec tests/enterprise-scenario-matrix.test.ts tests/continuum-assistant-v1-headless.test.ts tests/module-api-gating.test.ts tests/rbac.test.ts
+npx tsc --noEmit --pretty false --incremental false
+npm run build
+```
 
 ---
 

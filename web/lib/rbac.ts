@@ -1,5 +1,8 @@
 import prisma from '@/lib/prisma';
 import type { PrismaClient, Role } from '@prisma/client';
+import { MANDATORY_SLUGS, type ModuleSlug } from '@/lib/core-functions/catalog';
+import { getCompanyModuleState } from '@/lib/core-functions/resolve';
+import { getPermissionModuleSlug } from '@/lib/core-functions/permission-module-map';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -186,6 +189,9 @@ export const PERMISSION_CATALOG: PermissionDefinition[] = [
 ];
 
 export const ALL_PERMISSION_CODES: PermissionCode[] = PERMISSION_CATALOG.map((p) => p.code);
+const PERMISSION_BY_CODE = new Map<PermissionCode, PermissionDefinition>(
+  PERMISSION_CATALOG.map((permission) => [permission.code, permission])
+);
 
 // ─── Default Role Permissions ────────────────────────────────────────────────
 
@@ -312,7 +318,7 @@ export async function getUserPermissions(
       const overridePerms: PermissionCode[] = companyOverrides.map(
         (rp: { permission: { code: string } }) => rp.permission.code as PermissionCode
       );
-      return [...new Set(overridePerms)] as PermissionCode[];
+      return filterPermissionsByModules([...new Set(overridePerms)] as PermissionCode[], await getEnabledModules(companyId));
     }
 
     // Fall back to default permissions for all effective roles
@@ -322,11 +328,44 @@ export async function getUserPermissions(
       rolePerms.forEach((p) => permissions.add(p));
     }
 
-    return [...permissions];
+    return filterPermissionsByModules([...permissions], await getEnabledModules(companyId));
   } catch {
-    // On DB error, return defaults for the primary role only
-    return DEFAULT_ROLE_PERMISSIONS.employee;
+    // On DB/module-state error, fail closed for optional modules.
+    return filterPermissionsByModules(DEFAULT_ROLE_PERMISSIONS.employee, []);
   }
+}
+
+async function getEnabledModules(companyId: string): Promise<ModuleSlug[]> {
+  const state = await getCompanyModuleState(companyId);
+  return state.enabledSlugs;
+}
+
+export function filterPermissionsByModules(
+  permissions: readonly PermissionCode[],
+  enabledModules: readonly ModuleSlug[]
+): PermissionCode[] {
+  const enabled = new Set<ModuleSlug>([...MANDATORY_SLUGS, ...enabledModules]);
+  const filtered = new Set<PermissionCode>();
+
+  for (const permission of permissions) {
+    if (permission === '*') {
+      filtered.add(permission);
+      continue;
+    }
+
+    const definition = PERMISSION_BY_CODE.get(permission);
+    if (!definition) {
+      filtered.add(permission);
+      continue;
+    }
+
+    const moduleSlug = getPermissionModuleSlug(definition.module);
+    if (moduleSlug === null || moduleSlug === undefined || enabled.has(moduleSlug)) {
+      filtered.add(permission);
+    }
+  }
+
+  return [...filtered];
 }
 
 /** Check if a permission set includes a specific code */
@@ -334,6 +373,7 @@ export function hasPermission(
   permissions: PermissionCode[],
   code: PermissionCode
 ): boolean {
+  if (permissions.includes('*' as PermissionCode)) return true;
   return permissions.includes(code);
 }
 

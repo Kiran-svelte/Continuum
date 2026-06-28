@@ -27,6 +27,8 @@ import {
   Download,
   Eye,
   Loader2,
+  Mail,
+  CheckCircle2,
 } from 'lucide-react';
 
 /* ------------------------------------------------------------------ */
@@ -162,6 +164,37 @@ function PayslipModal({
   open: boolean;
   onClose: () => void;
 }) {
+  const [emailSending, setEmailSending] = useState(false);
+  const [emailSent, setEmailSent] = useState(false);
+
+  // Reset sent state when a new slip is opened
+  useEffect(() => { setEmailSent(false); }, [slip?.id]);
+
+  async function handleSendEmail() {
+    if (!slip || emailSending) return;
+    setEmailSending(true);
+    try {
+      const res = await fetch('/api/email/resend', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ type: 'payslip', targetId: slip.id }),
+      });
+      const data = await res.json() as { ok?: boolean; error?: string };
+      if (res.ok && data.ok) {
+        setEmailSent(true);
+        toast.success(`Payslip sent to ${slip.employee_email || slip.employee_name}`);
+        setTimeout(() => setEmailSent(false), 30_000);
+      } else {
+        toast.error(data.error || 'Could not send payslip email.');
+      }
+    } catch {
+      toast.error('Network error — try again.');
+    } finally {
+      setEmailSending(false);
+    }
+  }
+
   if (!slip) return null;
 
   const rows = [
@@ -252,6 +285,24 @@ function PayslipModal({
             </div>
           ))}
         </div>
+
+        {/* Action: Send payslip email to employee */}
+        <Button
+          variant="outline"
+          className="w-full gap-2"
+          disabled={emailSending || emailSent}
+          onClick={handleSendEmail}
+          aria-label={`Send payslip email to ${slip.employee_name}`}
+        >
+          {emailSending ? (
+            <Loader2 className="w-4 h-4 animate-spin" />
+          ) : emailSent ? (
+            <CheckCircle2 className="w-4 h-4 text-green-400" />
+          ) : (
+            <Mail className="w-4 h-4" />
+          )}
+          {emailSent ? 'Payslip sent to employee' : `Send payslip to ${slip.employee_name}`}
+        </Button>
       </div>
     </Modal>
   );

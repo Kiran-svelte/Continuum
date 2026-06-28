@@ -5,6 +5,7 @@ import { Shield, BellRing, Clock, Save, Globe2, AlertTriangle, Building2, Loader
 import { fetchLiveCompanyState, updateSystemConfig } from '@/app/admin/(main)/company-settings/actions';
 import { Input, Select } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { toast } from 'sonner';
 import {
   OrgStructureStep,
   ApprovalMappingStep,
@@ -26,6 +27,12 @@ export default function CompanySettingsView() {
     creationTargetsByRole?: Record<string, string[]>;
   } | null>(null);
   const [formData, setFormData] = useState({
+    name: '',
+    region: 'IN',
+    workStart: '09:00',
+    workEnd: '18:00'
+  });
+  const [savedFormData, setSavedFormData] = useState({
     name: '',
     region: 'IN',
     workStart: '09:00',
@@ -55,12 +62,14 @@ export default function CompanySettingsView() {
           fetch('/api/company/roles', { credentials: 'include' }),
         ]);
         if (res.success && res.data) {
-          setFormData({
+          const loaded = {
             name: res.data.name || '',
             region: res.data.country_code || 'IN',
             workStart: res.data.work_start || '09:00',
             workEnd: res.data.work_end || '18:00'
-          });
+          };
+          setFormData(loaded);
+          setSavedFormData(loaded);
         }
         if (policyRes.ok) {
           const policyData = await policyRes.json().catch(() => ({}));
@@ -157,13 +166,13 @@ export default function CompanySettingsView() {
       });
       const data = await res.json();
       if (res.ok && data.success) {
-        alert('Role model updated: ' + data.message);
+        toast.success('Role model updated: ' + data.message);
         fetchRoleModel();
       } else {
-        alert('Error: ' + (data.error || 'Failed to update'));
+        toast.error('Error: ' + (data.error || 'Failed to update'));
       }
     } catch (err) {
-      alert('Network error');
+      toast.error('Network error updating role model.');
       console.error('[Settings] Role model update error:', err);
     } finally {
       setIsRoleModelSaving(false);
@@ -178,7 +187,12 @@ export default function CompanySettingsView() {
     e.preventDefault();
     startTransition(async () => {
       const result = await updateSystemConfig(formData);
-      alert(result.success ? "Success: " + result.message : "Error: " + result.error);
+      if (result.success) {
+        toast.success(result.message || 'Settings saved successfully.');
+        setSavedFormData(formData);
+      } else {
+        toast.error(result.error || 'Failed to save settings.');
+      }
     });
   };
 
@@ -540,7 +554,7 @@ export default function CompanySettingsView() {
             {/* Form Footer — only shown for tabs that use the shared form submit */}
             {!['org-structure', 'approval-chains', 'modules'].includes(activeTab) && (
             <div className="mt-10 pt-6 border-t border-[var(--border)] flex justify-end gap-3 sticky bottom-0 bg-[var(--card)] z-10">
-              <Button type="button" className="btn btn-secondary">Discard Changes</Button>
+              <Button type="button" className="btn btn-secondary" onClick={() => setFormData(savedFormData)}>Discard Changes</Button>
               <Button type="submit" disabled={isPending} className="btn btn-primary min-w-[140px] shadow-lg shadow-[var(--primary)]/20 relative overflow-hidden">
                 <span className={`flex items-center gap-2 ${isPending ? 'opacity-0' : 'opacity-100'}`}><Save className="w-4 h-4" /> Commit Configs</span>
                 {isPending && <div className="absolute inset-0 flex items-center justify-center bg-[var(--primary)]"><Loader2 className="w-5 h-5 animate-spin text-white" /></div>}

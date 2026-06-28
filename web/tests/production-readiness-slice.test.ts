@@ -13,7 +13,26 @@ test('email resend endpoint reports delivery outcomes instead of silent success'
   assert.match(route, /sideEffectFromEmail/);
   assert.match(route, /emailSent/);
   assert.match(route, /emailError/);
+  assert.match(route, /requirePermissionGuard\(actor,\s*'employee\.onboard'\)/);
+  assert.match(route, /assertModule\(actor\.org_id,\s*'payroll'\)/);
+  assert.match(route, /requirePermissionGuard\(actor,\s*'payroll\.view_all'\)/);
+  assert.match(route, /requirePermissionGuard\(actor,\s*'payroll\.view_own'\)/);
+  assert.match(route, /resendPayslip\(actor\.org_id,\s*targetId,\s*actor\.id\)/);
+  assert.match(route, /actor\.secondary_roles\?\.some/);
   assert.match(route, /status:\s*email\.success \? 200 : 502/);
+});
+
+test('payslip views expose resend email actions through transparent resend endpoint', () => {
+  const employeePayslips = source('components/pages/employee/payslips-view.tsx');
+  const hrPayroll = source('components/pages/hr/payroll-view.tsx');
+
+  for (const src of [employeePayslips, hrPayroll]) {
+    assert.match(src, /\/api\/email\/resend/);
+    assert.match(src, /type:\s*'payslip'/);
+    assert.match(src, /targetId:\s*slip\.id|targetId:\s*slipId/);
+    assert.match(src, /toast\.success/);
+    assert.match(src, /toast\.error/);
+  }
 });
 
 test('pending invite actions resend and revoke through real APIs with visible outcomes', () => {

@@ -97,6 +97,23 @@ export async function handlePayslipExplain(
 ): Promise<AssistantReply | null> {
   const keyword = parsePayslipLineKeyword(message);
   if (!keyword) return null;
+  if (!ctx.enabledModules.includes('payroll')) {
+    return {
+      reply:
+        'MODULE_DISABLED: Payroll is not enabled for your company. I cannot inspect payslip lines until payroll is enabled.',
+      links: [],
+      suggestions: [],
+      source: 'rules',
+    };
+  }
+  if (!hasPermission(ctx.permissions, 'payroll.view_own')) {
+    return {
+      reply: 'You do not have permission to view payslip details.',
+      links: [],
+      suggestions: [],
+      source: 'rules',
+    };
+  }
 
   const reply = await explainPayslipLineForEmployee(ctx.employeeId, ctx.companyId, keyword);
   return {
@@ -344,6 +361,15 @@ export async function handlePayrollPreflight(
   ctx: AssistantContext
 ): Promise<AssistantReply | null> {
   if (!detectPayrollPreflightIntent(message)) return null;
+  if (!ctx.enabledModules.includes('payroll')) {
+    return {
+      reply:
+        'MODULE_DISABLED: Payroll is not enabled for your company. I cannot run payroll pre-flight until payroll is enabled.',
+      links: [],
+      suggestions: [],
+      source: 'rules',
+    };
+  }
 
   const report = await loadPayrollPreflight(ctx);
   if (!report) {

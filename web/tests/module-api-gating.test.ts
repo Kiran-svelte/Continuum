@@ -93,6 +93,35 @@ describe('module API route guards (source)', () => {
     assert.match(src, /assertModule\(employee\.org_id!,\s*'performance'\)/);
   });
 
+  const payrollRoutes = [
+    'app/api/payroll/slips/route.ts',
+    'app/api/payroll/history/route.ts',
+    'app/api/payroll/status/route.ts',
+    'app/api/payroll/approve/route.ts',
+    'app/api/payroll/generate/route.ts',
+    'app/api/salary-components/route.ts',
+    'app/api/salary-structures/route.ts',
+    'app/api/salary-revisions/route.ts',
+    'app/api/compensation/cycles/route.ts',
+    'app/api/compensation/recommendations/route.ts',
+  ];
+
+  for (const routePath of payrollRoutes) {
+    it(`${routePath} asserts payroll module`, () => {
+      const src = readApi(routePath);
+      assert.match(
+        src,
+        /requireModuleForOrg\(employee\.org_id,\s*'payroll'\)/,
+        `${routePath} must call requireModuleForOrg for payroll`
+      );
+    });
+  }
+
+  it('latest payslip service asserts payroll module', () => {
+    const src = readApi('lib/services/payslip-latest.ts');
+    assert.match(src, /guardModule\(ctx\.orgId,\s*'payroll'\)/);
+  });
+
   const leaveRoutes = [
     'app/api/leaves/list/route.ts',
     'app/api/leaves/balances/route.ts',

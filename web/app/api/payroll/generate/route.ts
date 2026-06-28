@@ -9,6 +9,7 @@ import {
 } from '@/lib/auth-guard';
 import { createAuditLog, AUDIT_ACTIONS } from '@/lib/audit';
 import { calculateNetPay } from '@/lib/india-tax';
+import { requireModuleForOrg } from '@/lib/core-functions/guard-handler';
 
 export const dynamic = 'force-dynamic';
 
@@ -21,6 +22,8 @@ export async function POST(request: NextRequest) {
   try {
     const employee = await getAuthEmployee();
     requireRole(employee, 'hr', 'admin');
+    const moduleGuard = await requireModuleForOrg(employee.org_id, 'payroll');
+    if (moduleGuard) return moduleGuard;
     requirePermissionGuard(employee, 'payroll.generate');
 
     const body = await request.json();

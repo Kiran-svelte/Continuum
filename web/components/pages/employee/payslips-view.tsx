@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import { GlassPanel } from '@/components/glass-panel';
 import { PageHeader } from '@/components/page-header';
@@ -11,6 +11,7 @@ import { Modal } from '@/components/ui/modal';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ensureMe } from '@/lib/client-auth';
 import { StaggerContainer, FadeIn, TiltCard } from '@/components/motion';
+import { toast } from 'sonner';
 import {
   FileText,
   Download,
@@ -20,6 +21,9 @@ import {
   TrendingUp,
   TrendingDown,
   Calendar,
+  Mail,
+  CheckCircle2,
+  Loader2,
 } from 'lucide-react';
 
 /* ------------------------------------------------------------------ */
@@ -78,6 +82,36 @@ export default function PayslipsView() {
   const [slips, setSlips] = useState<PayrollSlip[]>([]);
   const [selectedSlip, setSelectedSlip] = useState<PayrollSlip | null>(null);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const [emailSending, setEmailSending] = useState(false);
+  const [emailSent, setEmailSent] = useState<string | null>(null); // slip id that was last emailed
+
+  const handleResendEmail = useCallback(async (slipId: string) => {
+    if (emailSending) return;
+    setEmailSending(true);
+    try {
+      const res = await fetch('/api/email/resend', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ type: 'payslip', targetId: slipId }),
+      });
+      const data = await res.json() as { ok?: boolean; error?: string };
+      if (res.ok && data.ok) {
+        setEmailSent(slipId);
+        toast.success('Payslip sent to your email', {
+          description: 'Check your inbox in a few minutes.',
+        });
+        // Reset the "sent" state after 30 seconds so they can resend if needed
+        setTimeout(() => setEmailSent(null), 30_000);
+      } else {
+        toast.error(data.error || 'Could not send payslip email. Try again later.');
+      }
+    } catch {
+      toast.error('Network error — check your connection and retry.');
+    } finally {
+      setEmailSending(false);
+    }
+  }, [emailSending]);
 
   useEffect(() => {
     async function fetchSlips() {
@@ -350,7 +384,28 @@ export default function PayslipsView() {
               <span className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-primary/60 drop-shadow-[0_0_15px_rgba(var(--primary-rgb),0.6)]">{formatCurrency(selectedSlip.net_pay)}</span>
             </div>
 
-            <Button variant="outline" className="w-full gap-2 font-bold text-primary hover:bg-primary/20 bg-primary/10 border border-primary/30 shadow-[0_0_15px_rgba(var(--primary-rgb),0.3)] hover:shadow-[0_0_25px_rgba(var(--primary-rgb),0.5)] transition-all duration-300 py-6 rounded-xl" onClick={() => {
+            {/* Action buttons */}
+            <div className="flex flex-col sm:flex-row gap-3">
+              {/* Email resend */}
+              <Button
+                variant="outline"
+                className="flex-1 gap-2 font-bold"
+                disabled={emailSending || emailSent === selectedSlip.id}
+                onClick={() => handleResendEmail(selectedSlip.id)}
+                aria-label="Email this payslip to yourself"
+              >
+                {emailSending ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : emailSent === selectedSlip.id ? (
+                  <CheckCircle2 className="w-4 h-4 text-green-400" />
+                ) : (
+                  <Mail className="w-4 h-4" />
+                )}
+                {emailSent === selectedSlip.id ? 'Sent to your email' : 'Email me this payslip'}
+              </Button>
+
+              {/* Print/Download */}
+              <Button variant="outline" className="flex-1 gap-2 font-bold text-primary hover:bg-primary/20 bg-primary/10 border border-primary/30 shadow-[0_0_15px_rgba(var(--primary-rgb),0.3)] hover:shadow-[0_0_25px_rgba(var(--primary-rgb),0.5)] transition-all duration-300 rounded-xl" onClick={() => {
               const slip = selectedSlip;
               const monthName = MONTHS[slip.month - 1];
               const html = `<!DOCTYPE html>
@@ -399,8 +454,9 @@ th{background:#f5f5f5;font-weight:600}
                 printWindow.document.close();
               }
             }}>
-              <Download className="w-5 h-5" /> Download Payslip
-            </Button>
+                <Download className="w-5 h-5" /> Download / Print
+              </Button>
+            </div>
           </div>
         </Modal>
       )}

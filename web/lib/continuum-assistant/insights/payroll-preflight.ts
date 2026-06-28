@@ -12,6 +12,10 @@ export type PayrollPreflightReport = {
 export async function loadPayrollPreflight(
   ctx: AssistantContext
 ): Promise<PayrollPreflightReport | null> {
+  if (!ctx.enabledModules.includes('payroll')) {
+    return null;
+  }
+
   if (
     !hasPermission(ctx.permissions, 'payroll.generate') &&
     !hasPermission(ctx.permissions, 'payroll.view_all') &&
