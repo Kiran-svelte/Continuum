@@ -85,17 +85,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Create draft payroll run
-    const payrollRun = await prisma.payrollRun.create({
-      data: {
-        company_id: employee.org_id!,
-        month,
-        year,
-        status: 'draft',
-        generated_by: employee.id,
-      },
-    });
-
     // Fetch all active employees with salary structures
     const employees = await prisma.employee.findMany({
       where: {
@@ -104,6 +93,86 @@ export async function POST(request: NextRequest) {
       },
       include: {
         salary_structure: true,
+      },
+    });
+
+    const salariedEmployees = employees.filter((emp) => emp.salary_structure);
+    if (salariedEmployees.length === 0) {
+      return NextResponse.json(
+        { error: 'No active employees with salary structures found for payroll generation' },
+        { status: 422 }
+      );
+    }
+
+    const { start, endExclusive } = getPayrollPeriod(month, year);
+    const workingDays = countWeekdays(start, endExclusive);
+    const employeeIds = salariedEmployees.map((emp) => emp.id);
+
+    const [attendanceRecords, approvedLeaves] = await Promise.all([
+      prisma.attendance.findMany({
+        where: {
+          company_id: employee.org_id!,
+          emp_id: { in: employeeIds },
+          date: { gte: start, lt: endExclusive },
+        },
+        select: { emp_id: true, status: true },
+      }),
+      prisma.leaveRequest.findMany({
+        where: {
+          company_id: employee.org_id!,
+          emp_id: { in: employeeIds },
+          status: 'approved',
+          start_date: { lt: endExclusive },
+          end_date: { gte: start },
+        },
+        select: {
+          emp_id: true,
+          start_date: true,
+          end_date: true,
+          is_half_day: true,
+        },
+      }),
+    ]);
+
+    if (attendanceRecords.length === 0) {
+      return NextResponse.json(
+        {
+          error: 'Cannot generate payroll without attendance data for the selected period',
+          details: { month, year },
+        },
+        { status: 422 }
+      );
+    }
+
+    const attendanceByEmployee = new Map<string, { present: number; absent: number; leave: number }>();
+    for (const record of attendanceRecords) {
+      const stats = attendanceByEmployee.get(record.emp_id) ?? { present: 0, absent: 0, leave: 0 };
+      if (record.status === 'present' || record.status === 'late') stats.present += 1;
+      if (record.status === 'half_day') {
+        stats.present += 0.5;
+        stats.absent += 0.5;
+      }
+      if (record.status === 'absent') stats.absent += 1;
+      if (record.status === 'on_leave') stats.leave += 1;
+      attendanceByEmployee.set(record.emp_id, stats);
+    }
+
+    const approvedLeaveDaysByEmployee = new Map<string, number>();
+    for (const leave of approvedLeaves) {
+      const current = approvedLeaveDaysByEmployee.get(leave.emp_id) ?? 0;
+      approvedLeaveDaysByEmployee.set(
+        leave.emp_id,
+        current + countOverlappingLeaveDays(leave.start_date, leave.end_date, start, endExclusive, leave.is_half_day)
+      );
+    }
+
+    const payrollRun = await prisma.payrollRun.create({
+      data: {
+        company_id: employee.org_id!,
+        month,
+        year,
+        status: 'draft',
+        generated_by: employee.id,
       },
     });
 
@@ -139,21 +208,25 @@ export async function POST(request: NextRequest) {
       absent_days: number;
     }> = [];
 
-    for (const emp of employees) {
+    for (const emp of salariedEmployees) {
       const salary = emp.salary_structure;
       if (!salary) continue;
 
       const gross = salary.basic + salary.hra + salary.da + salary.special_allowance;
+      const attendanceStats = attendanceByEmployee.get(emp.id) ?? { present: 0, absent: 0, leave: 0 };
+      const approvedLeaveDays = approvedLeaveDaysByEmployee.get(emp.id) ?? 0;
+      const leaveDays = Math.max(attendanceStats.leave, approvedLeaveDays);
+      const absentDays = attendanceStats.absent;
 
       const netPayResult = calculateNetPay({
         basic: salary.basic,
         hra: salary.hra,
         da: salary.da,
         specialAllowance: salary.special_allowance,
-        workingDays: 30,
-        presentDays: 30,
-        leaveDays: 0,
-        absentDays: 0,
+        workingDays,
+        presentDays: attendanceStats.present,
+        leaveDays,
+        absentDays,
         annualIncome: salary.ctc,
       });
 
@@ -181,13 +254,13 @@ export async function POST(request: NextRequest) {
         esi_employer: netPayResult.esi.employerContribution,
         professional_tax: netPayResult.professionalTax.monthlyTax,
         tds: netPayResult.tds.monthlyTax,
-        lop_deduction: 0,
+        lop_deduction: netPayResult.lopDeduction,
         total_deductions: netPayResult.totalDeductions,
         net_pay: netPayResult.netPay,
-        working_days: 30,
-        present_days: 30,
-        leave_days: 0,
-        absent_days: 0,
+        working_days: workingDays,
+        present_days: attendanceStats.present,
+        leave_days: leaveDays,
+        absent_days: absentDays,
       });
     }
 
