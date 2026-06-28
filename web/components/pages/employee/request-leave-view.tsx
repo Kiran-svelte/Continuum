@@ -140,6 +140,7 @@ export default function RequestLeaveView() {
   const [pageLoading, setPageLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [dateError, setDateError] = useState('');
+  const [submitError, setSubmitError] = useState('');
 
   // Load leave types + balances on mount
   useEffect(() => {
@@ -232,6 +233,7 @@ export default function RequestLeaveView() {
   async function handleSubmit() {
     if (!leaveType || !startDate || !endDate || !reason) return;
     setIsSubmitting(true);
+    setSubmitError('');
     try {
       const res = await fetch('/api/leaves/submit', {
         method: 'POST',
@@ -248,10 +250,13 @@ export default function RequestLeaveView() {
           typeof json.error === 'string'
             ? json.error
             : json.error?.message ?? 'Submission failed. Please try again.';
+        setSubmitError(errMsg);
         toast.error(errMsg);
       }
     } catch {
-      toast.error('Network error. Please check your connection and try again.');
+      const errMsg = 'Network error. Please check your connection and try again.';
+      setSubmitError(errMsg);
+      toast.error(errMsg);
     } finally {
       setIsSubmitting(false);
     }
@@ -574,6 +579,25 @@ export default function RequestLeaveView() {
                 ? <><AlertTriangle className="w-3.5 h-3.5" /> {constraintResult.warnings.length} warning(s) on record</>
                 : <><CheckCircle className="w-3.5 h-3.5" /> All policies satisfied</>
               }
+            </div>
+          )}
+
+          {submitError && (
+            <div className="rounded-xl border border-red-500/30 bg-red-500/5 p-4 flex flex-col sm:flex-row sm:items-center gap-3">
+              <div className="flex items-start gap-2 text-sm text-red-300 flex-1">
+                <XCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                <span>{submitError}</span>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleSubmit}
+                disabled={isSubmitting || !isStep3Complete}
+                className="gap-2"
+              >
+                <Loader2 className={`w-4 h-4 ${isSubmitting ? 'animate-spin' : 'hidden'}`} />
+                Retry Submit
+              </Button>
             </div>
           )}
         </div>

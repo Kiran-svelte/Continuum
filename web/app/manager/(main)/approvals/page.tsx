@@ -19,7 +19,6 @@ import {
   AlertCircle,
   AlertTriangle,
   Bot,
-  Loader2,
   History,
   Clock,
   ChevronLeft,
@@ -31,6 +30,7 @@ import {
   Filter,
   Check,
   X,
+  Mail,
 } from 'lucide-react';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -190,7 +190,7 @@ export default function ManagerApprovalsPage() {
   const [bulkProgress, setBulkProgress] = useState(0);
   const [bulkTotal, setBulkTotal] = useState(0);
   const [bulkErrors, setBulkErrors] = useState<string[]>([]);
-  const [bulkSuccessCount, setBulkSuccessCount] = useState(0);
+  const [resendLoading, setResendLoading] = useState<string | null>(null);
 
   // History tab state
   const [historyRequests, setHistoryRequests] = useState<LeaveRequest[]>([]);
@@ -340,6 +340,31 @@ export default function ManagerApprovalsPage() {
     }
   }
 
+  async function handleResendLeaveDecision(requestId: string, employeeName: string) {
+    setResendLoading(requestId);
+    setHistoryError('');
+    try {
+      const res = await fetch('/api/email/resend', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ type: 'leave_decision', targetId: requestId }),
+      });
+      const json = await res.json().catch(() => ({}));
+      reportApiActionOutcome(json);
+      if (res.ok) {
+        setActionSuccess(`Leave decision email resent to ${employeeName}.`);
+        setTimeout(() => setActionSuccess(null), 4000);
+      } else {
+        setHistoryError(json.emailError ?? json.error ?? 'Failed to resend leave decision email');
+      }
+    } catch {
+      setHistoryError('Network error while resending leave decision email');
+    } finally {
+      setResendLoading(null);
+    }
+  }
+
   // ─── Bulk Selection ─────────────────────────────────────────────────────────
 
   const visibleIds = useMemo(() => filteredRequests.map((r) => r.id), [filteredRequests]);
@@ -383,7 +408,6 @@ export default function ManagerApprovalsPage() {
     setBulkErrors([]);
     setBulkProgress(0);
     setBulkTotal(selectedIds.size);
-    setBulkSuccessCount(0);
     setBulkProcessing(false);
   }
 
@@ -394,7 +418,6 @@ export default function ManagerApprovalsPage() {
     setBulkErrors([]);
     setBulkProgress(0);
     setBulkTotal(0);
-    setBulkSuccessCount(0);
   }
 
   async function executeBulkAction() {
@@ -403,7 +426,6 @@ export default function ManagerApprovalsPage() {
     setBulkProcessing(true);
     setBulkProgress(0);
     setBulkErrors([]);
-    setBulkSuccessCount(0);
 
     const ids = Array.from(selectedIds);
     setBulkTotal(ids.length);
@@ -434,7 +456,6 @@ export default function ManagerApprovalsPage() {
         });
 
         setBulkProgress(ids.length);
-        setBulkSuccessCount(succeeded.length);
 
         // Remove succeeded from lists
         setRequests((prev) => prev.filter((r) => !succeeded.includes(r.id)));
@@ -469,46 +490,6 @@ export default function ManagerApprovalsPage() {
   }
 
   // ─── Helpers ───────────────────────────────────────────────────────────────
-
-  function formatDate(dateStr: string) {
-    return new Date(dateStr).toLocaleDateString('en-IN', {
-      day: '2-digit',
-      month: 'short',
-    });
-  }
-
-  function formatFullDate(dateStr: string) {
-    return new Date(dateStr).toLocaleDateString('en-IN', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric',
-    });
-  }
-
-  function timeAgo(dateStr: string) {
-    const diff = Date.now() - new Date(dateStr).getTime();
-    const hours = Math.floor(diff / 3_600_000);
-    if (hours < 1) return 'Just now';
-    if (hours < 24) return `${hours}h ago`;
-    return `${Math.floor(hours / 24)}d ago`;
-  }
-
-  function statusBadgeVariant(
-    status: string
-  ): 'success' | 'danger' | 'default' | 'warning' | 'info' {
-    switch (status) {
-      case 'approved':
-        return 'success';
-      case 'rejected':
-        return 'danger';
-      case 'cancelled':
-        return 'default';
-      case 'escalated':
-        return 'info';
-      default:
-        return 'warning';
-    }
-  }
 
   const pendingCount = requests.length;
 
@@ -725,7 +706,11 @@ export default function ManagerApprovalsPage() {
                 <div className="space-y-4">
                   {historyRequests.map((req, i) => (
                     <FadeIn key={req.id} delay={i * 0.05}>
-                      <HistoryCard req={req} />
+                      <HistoryCard
+                        req={req}
+                        resendLoading={resendLoading === req.id}
+                        onResendDecision={handleResendLeaveDecision}
+                      />
                     </FadeIn>
                   ))}
                   {/* Pagination */}
@@ -910,7 +895,15 @@ function RequestCard({ req, onToggleSelect, isSelected, onStartAction, actionLoa
 
 // ─── History Card ────────────────────────────────────────────────────────────
 
-function HistoryCard({ req }: { req: LeaveRequest }) {
+function HistoryCard({
+  req,
+  resendLoading,
+  onResendDecision,
+}: {
+  req: LeaveRequest;
+  resendLoading: boolean;
+  onResendDecision: (requestId: string, employeeName: string) => void;
+}) {
   const statusInfo = ({
     approved: { icon: CheckCircle, color: 'text-green-400', bg: 'bg-green-500/10' },
     rejected: { icon: XCircle, color: 'text-red-400', bg: 'bg-red-500/10' },
@@ -933,7 +926,28 @@ function HistoryCard({ req }: { req: LeaveRequest }) {
             <p className="text-xs text-white/60">{req.leave_type} · {req.total_days} day{req.total_days !== 1 ? 's' : ''}</p>
             <p className="text-sm text-white/80 mt-2">{formatFullDate(req.start_date)} - {formatFullDate(req.end_date)}</p>
             {req.approved_at && <p className="text-xs text-white/50 mt-1">Processed on {formatFullDate(req.approved_at)} by {req.approver?.first_name}</p>}
-            {req.approver_comments && <p className="text-xs italic text-white/70 mt-1">"{req.approver_comments}"</p>}
+            {req.approver_comments && (
+              <p className="text-xs italic text-white/70 mt-1">
+                &quot;{req.approver_comments}&quot;
+              </p>
+            )}
+            {(req.status === 'approved' || req.status === 'rejected') && (
+              <div className="mt-3">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  loading={resendLoading}
+                  disabled={resendLoading}
+                  onClick={() =>
+                    onResendDecision(req.id, `${req.employee.first_name} ${req.employee.last_name}`)
+                  }
+                  className="border-white/10 text-white/80 hover:bg-white/10"
+                >
+                  <Mail className="w-3.5 h-3.5" />
+                  Resend Email
+                </Button>
+              </div>
+            )}
           </div>
         </div>
       </GlassPanel>

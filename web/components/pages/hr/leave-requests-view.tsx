@@ -8,6 +8,7 @@ import { GlassPanel } from '@/components/glass-panel';
 import { TabButton } from '@/components/tab-button';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { reportApiActionOutcome } from '@/lib/client/report-action-outcome';
 import {
   Inbox,
   Check,
@@ -20,6 +21,7 @@ import {
   Search,
   Download,
   FileText,
+  Mail,
 } from 'lucide-react';
 import { downloadCSVLegacy, downloadPDF } from '@/lib/report-export';
 import { Input, Select } from '@/components/ui/input';
@@ -95,6 +97,7 @@ export default function LeaveRequestsView() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkLoading, setBulkLoading] = useState(false);
   const [bulkResult, setBulkResult] = useState<{ successCount: number; failCount: number; action: string } | null>(null);
+  const [resendLoading, setResendLoading] = useState<string | null>(null);
 
   // Filter state
   const [showFilters, setShowFilters] = useState(false);
@@ -240,6 +243,29 @@ export default function LeaveRequestsView() {
       showMessage('error', `Network error while trying to ${action} request`);
     } finally {
       setActionLoading(null);
+    }
+  }
+
+  async function handleResendLeaveDecision(requestId: string, employeeName: string) {
+    setResendLoading(requestId);
+    try {
+      const res = await fetch('/api/email/resend', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ type: 'leave_decision', targetId: requestId }),
+      });
+      const json = await res.json().catch(() => ({}));
+      reportApiActionOutcome(json);
+      if (res.ok) {
+        showMessage('success', `Leave decision email resent to ${employeeName}`);
+      } else {
+        showMessage('error', json.emailError ?? json.error ?? 'Failed to resend leave decision email');
+      }
+    } catch {
+      showMessage('error', 'Network error while resending leave decision email');
+    } finally {
+      setResendLoading(null);
     }
   }
 
@@ -716,6 +742,9 @@ export default function LeaveRequestsView() {
                           <td className="py-3 px-2 text-muted-foreground">{req.total_days}</td>
                           <td className="py-3 px-2">
                             <Badge variant={STATUS_BADGE[req.status] ?? 'default'}>{req.status}</Badge>
+                            {req.sla_breached && (
+                              <Badge variant="danger" className="ml-2">SLA Breached</Badge>
+                            )}
                           </td>
                           <td className="py-3 pl-2">
                             {isSelectable ? (
@@ -741,6 +770,23 @@ export default function LeaveRequestsView() {
                                   Reject
                                 </Button>
                               </div>
+                            ) : req.status === 'approved' || req.status === 'rejected' ? (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                loading={resendLoading === req.id}
+                                disabled={resendLoading === req.id}
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  handleResendLeaveDecision(
+                                    req.id,
+                                    `${req.employee.first_name} ${req.employee.last_name}`
+                                  );
+                                }}
+                              >
+                                <Mail className="w-3.5 h-3.5" />
+                                Resend Email
+                              </Button>
                             ) : (
                               <span className="text-xs text-muted-foreground">{'\u2014'}</span>
                             )}

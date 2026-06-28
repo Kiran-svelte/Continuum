@@ -1,1 +1,1 @@
-export { default } from '@/app/hr/(main)/leave-requests/page';
+export { default } from '@/components/pages/hr/leave-requests-view';

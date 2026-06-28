@@ -104,6 +104,45 @@ Current proof results:
 - Render proof: `continuum-constraint-engine` deploy `dep-d90d4e5aeets73dvn7cg` reached `live`; `/health` returns healthy with `db_connected: true`.
 - Production health proof: `https://continuum.support/api/health` returns `healthy`, including healthy database, constraint engine, email, storage, custom JWT auth, memory, and disk checks.
 
+## 2026-06-28 master gap checklist completion update
+
+Implemented in this update:
+
+- `/api/email/resend` now supports `leave_decision` for already approved/rejected leave requests. The path is leave-module gated, tenant scoped, approval-permission checked, manager/HR/admin action checked through `canActOnLeaveRequest`, and returns `actionOutcome`, `emailSent`, and `emailError` instead of silently reporting success.
+- HR leave requests now show SLA breach state and a `Resend Email` action for approved/rejected decisions.
+- Admin leave requests now reuse the canonical HR leave requests component directly instead of re-exporting through an app route.
+- Manager approvals history now has a `Resend Email` action for approved/rejected decisions and reports resend failures visibly.
+- Employee request-leave submission now keeps a persistent failure panel with `Retry Submit` instead of relying only on a transient toast.
+- Employee attendance now includes a real monthly calendar grid backed by loaded attendance records, while preserving clock-in/out and regularization flows.
+- `tests/master-gap-checklist.test.ts` now covers the employee leave, leave history, attendance, HR/admin/manager leave decision resend, email resend API, super-admin company lifecycle, billing, WhatsApp, profile, and notifications surfaces.
+- The touched manager approvals file is clean under file-level lint.
+
+Verified proof after this update:
+
+```powershell
+cd web
+npx tsc --noEmit --pretty false --incremental false
+npm test -- --test-reporter=spec tests/master-gap-checklist.test.ts
+npx next lint --file "app/manager/(main)/approvals/page.tsx" --max-warnings=0
+npm run build
+npm run lint -- --max-warnings=0
+npm audit --omit=dev --audit-level=moderate
+```
+
+Current proof results:
+
+- TypeScript: pass.
+- Tests: pass, 410 tests.
+- File-level lint for `app/manager/(main)/approvals/page.tsx`: pass.
+- Production build: pass.
+- Global lint: fail. Remaining failures are global pre-existing backlog outside this update, including `no-explicit-any`, unused imports/vars, unescaped entities, `prefer-const`, hook dependency warnings, and old `<a>`/`<img>` warnings across app, component, and library files.
+- Dependency audit: fail. `npm audit --omit=dev --audit-level=moderate` still reports 21 production vulnerabilities: 9 moderate, 11 high, and 1 critical.
+
+Enterprise readiness outcome:
+
+- The specific functional gaps from the master checklist that were confirmed in code have been implemented and covered by repeatable tests.
+- The product is not yet claimable as fully enterprise clean until the global lint backlog and dependency audit vulnerabilities are remediated, and live production is redeployed from this new commit.
+
 ## Files to edit
 
 ### Release blockers

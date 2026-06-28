@@ -2,7 +2,7 @@
  * Resend selected transactional emails with explicit delivery outcome.
  *
  * POST /api/email/resend
- * Body: { type: 'invite' | 'welcome' | 'payslip', targetId: string }
+ * Body: { type: 'invite' | 'welcome' | 'payslip' | 'leave_decision', targetId: string }
  */
 import { NextRequest, NextResponse } from 'next/server';
 import {
@@ -14,10 +14,16 @@ import {
 import {
   buildActionOutcome,
   sideEffectFromEmail,
+  sideEffectSkipped,
 } from '@/lib/action-outcome';
-import { sendEmail } from '@/lib/email-service';
+import {
+  sendEmail,
+  sendLeaveApprovalEmail,
+  sendLeaveRejectionEmail,
+} from '@/lib/email-service';
 import { buildAppUrl } from '@/lib/url-origin';
 import { assertModule } from '@/lib/core-functions/assert-module';
+import { canActOnLeaveRequest } from '@/lib/leave-approval-routing';
 import prisma from '@/lib/prisma';
 
 export const dynamic = 'force-dynamic';
@@ -26,7 +32,7 @@ const resendRateLimit = new Map<string, { count: number; windowStart: number }>(
 const MAX_RESENDS_PER_HOUR = 3;
 const HOUR_MS = 60 * 60 * 1000;
 
-type ResendType = 'invite' | 'welcome' | 'payslip';
+type ResendType = 'invite' | 'welcome' | 'payslip' | 'leave_decision';
 
 function checkRateLimit(key: string): boolean {
   const now = Date.now();
@@ -56,7 +62,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const type = body.type as ResendType | undefined;
     const targetId = body.targetId?.trim();
 
-    if (!type || !['invite', 'welcome', 'payslip'].includes(type)) {
+    if (!type || !['invite', 'welcome', 'payslip', 'leave_decision'].includes(type)) {
       return NextResponse.json({ error: 'Unknown or missing email type' }, { status: 400 });
     }
 
@@ -86,6 +92,18 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       requirePermissionGuard(actor, 'employee.onboard');
       return resendWelcome(actor.org_id, targetId);
     }
+    if (type === 'leave_decision') {
+      const moduleGuard = await assertModule(actor.org_id, 'leave');
+      if (moduleGuard) return moduleGuard;
+
+      const canApproveAny = actor.permissions.includes('*') || actor.permissions.includes('leave.approve_any');
+      const canApproveTeam = actor.permissions.includes('*') || actor.permissions.includes('leave.approve_team');
+      if (!canApproveAny && !canApproveTeam) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      }
+
+      return resendLeaveDecision(actor, targetId);
+    }
 
     const moduleGuard = await assertModule(actor.org_id, 'payroll');
     if (moduleGuard) return moduleGuard;
@@ -107,6 +125,122 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     console.error('[Email Resend]', error);
     return NextResponse.json({ error: 'Failed to resend email' }, { status: 500 });
   }
+}
+
+async function resendLeaveDecision(
+  actor: Awaited<ReturnType<typeof getAuthEmployee>> & { org_id: string },
+  leaveRequestId: string
+): Promise<NextResponse> {
+  const leaveRequest = await prisma.leaveRequest.findFirst({
+    where: {
+      id: leaveRequestId,
+      company_id: actor.org_id,
+      status: { in: ['approved', 'rejected'] },
+    },
+    select: {
+      id: true,
+      emp_id: true,
+      leave_type: true,
+      start_date: true,
+      end_date: true,
+      status: true,
+      approver_comments: true,
+      employee: {
+        select: {
+          email: true,
+          first_name: true,
+          last_name: true,
+        },
+      },
+      approver: {
+        select: {
+          first_name: true,
+          last_name: true,
+        },
+      },
+    },
+  });
+
+  if (!leaveRequest) {
+    return NextResponse.json({ error: 'Approved or rejected leave request not found' }, { status: 404 });
+  }
+
+  const canAct = await canActOnLeaveRequest({
+    requesterId: leaveRequest.emp_id,
+    approverId: actor.id,
+    companyId: actor.org_id,
+    approverRole: actor.primary_role,
+  });
+
+  if (!canAct) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
+
+  const recipientEmail = leaveRequest.employee.email;
+  if (!recipientEmail) {
+    const actionOutcome = buildActionOutcome({
+      primarySucceeded: false,
+      title: 'Leave decision email failed',
+      sideEffects: [
+        sideEffectSkipped('email', 'Leave decision email to employee', 'Employee has no email address'),
+      ],
+    });
+
+    return NextResponse.json(
+      {
+        ok: false,
+        emailSent: false,
+        emailError: 'Employee has no email address',
+        actionOutcome,
+      },
+      { status: 422 }
+    );
+  }
+
+  const employeeName = `${leaveRequest.employee.first_name} ${leaveRequest.employee.last_name}`.trim();
+  const actorName = `${actor.first_name} ${actor.last_name}`.trim();
+  const approverName =
+    leaveRequest.approver
+      ? `${leaveRequest.approver.first_name} ${leaveRequest.approver.last_name}`.trim()
+      : actorName || 'Approver';
+  const startDate = leaveRequest.start_date.toISOString().split('T')[0]!;
+  const endDate = leaveRequest.end_date.toISOString().split('T')[0]!;
+
+  const email =
+    leaveRequest.status === 'approved'
+      ? await sendLeaveApprovalEmail(
+          recipientEmail,
+          employeeName,
+          leaveRequest.leave_type,
+          startDate,
+          endDate,
+          approverName
+        )
+      : await sendLeaveRejectionEmail(
+          recipientEmail,
+          employeeName,
+          leaveRequest.leave_type,
+          startDate,
+          endDate,
+          approverName,
+          leaveRequest.approver_comments || 'No reason provided'
+        );
+
+  const actionOutcome = buildActionOutcome({
+    primarySucceeded: email.success,
+    title: email.success ? 'Leave decision email resent' : 'Leave decision email failed',
+    sideEffects: [sideEffectFromEmail(`Leave decision email to ${recipientEmail}`, email)],
+  });
+
+  return NextResponse.json(
+    {
+      ok: email.success,
+      emailSent: email.success,
+      emailError: email.success ? null : email.error ?? 'Email delivery failed',
+      actionOutcome,
+    },
+    { status: email.success ? 200 : 502 }
+  );
 }
 
 async function resendInvite(companyId: string, targetId: string): Promise<NextResponse> {

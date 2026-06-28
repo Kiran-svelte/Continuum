@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -292,6 +292,26 @@ export default function AttendanceView() {
 
   const canCheckIn = !todayRecord?.check_in;
   const canCheckOut = !!todayRecord?.check_in && !todayRecord?.check_out;
+  const recordsByDay = useMemo(() => {
+    const map = new Map<number, AttendanceRecord>();
+    records.forEach((record) => {
+      const date = new Date(record.date);
+      if (date.getMonth() + 1 === currentMonth && date.getFullYear() === currentYear) {
+        map.set(date.getDate(), record);
+      }
+    });
+    return map;
+  }, [records, currentMonth, currentYear]);
+
+  const calendarCells = useMemo(() => {
+    const firstDay = new Date(currentYear, currentMonth - 1, 1);
+    const daysInMonth = new Date(currentYear, currentMonth, 0).getDate();
+    const leadingBlanks = firstDay.getDay();
+    return [
+      ...Array.from({ length: leadingBlanks }, () => null),
+      ...Array.from({ length: daysInMonth }, (_, index) => index + 1),
+    ];
+  }, [currentMonth, currentYear]);
 
   // Max date for regularization (today in YYYY-MM-DD)
   const todayStr = new Date().toISOString().split('T')[0];
@@ -450,6 +470,54 @@ export default function AttendanceView() {
                 </div>
               </div>
               <div className="backdrop-blur-md bg-[var(--accent)]">
+              <div className="border-b border-[var(--border)] p-4">
+                <div className="grid grid-cols-7 gap-1.5 text-center">
+                  {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
+                    <div key={day} className="text-[10px] font-bold uppercase text-muted-foreground py-1">
+                      {day}
+                    </div>
+                  ))}
+                  {calendarCells.map((day, index) => {
+                    const record = day ? recordsByDay.get(day) : null;
+                    const status = record?.status ?? null;
+                    const badgeClass =
+                      status === 'present'
+                        ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300'
+                        : status === 'late'
+                        ? 'border-amber-500/30 bg-amber-500/10 text-amber-300'
+                        : status === 'half_day'
+                        ? 'border-blue-500/30 bg-blue-500/10 text-blue-300'
+                        : status === 'absent'
+                        ? 'border-red-500/30 bg-red-500/10 text-red-300'
+                        : status === 'on_leave'
+                        ? 'border-purple-500/30 bg-purple-500/10 text-purple-300'
+                        : 'border-[var(--border)] bg-[var(--bg-surface-hover)] text-muted-foreground';
+
+                    return (
+                      <div
+                        key={`${index}-${day ?? 'blank'}`}
+                        className={`min-h-14 rounded-lg border p-1.5 text-left ${day ? badgeClass : 'border-transparent bg-transparent'}`}
+                        title={
+                          day && status
+                            ? `${day} ${monthNames[currentMonth - 1]}: ${STATUS_LABEL[status] ?? status}`
+                            : undefined
+                        }
+                      >
+                        {day && (
+                          <>
+                            <div className="text-xs font-bold">{day}</div>
+                            {status && (
+                              <div className="mt-1 truncate text-[10px] font-medium">
+                                {STATUS_LABEL[status] ?? status}
+                              </div>
+                            )}
+                          </>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
               {loading ? (
                 <div className="divide-y divide-[var(--border)]">
                   {[1, 2, 3, 4, 5, 6, 7].map((i) => (
