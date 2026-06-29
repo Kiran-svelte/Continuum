@@ -3,6 +3,7 @@ import { v4 as uuidv4 } from 'uuid';
 import prisma from '@/lib/prisma';
 import { getCurrentUser } from '@/lib/auth-service';
 import { hashPassword, generateTemporaryPassword } from '@/lib/password-service';
+import { sendSuperAdminUserInviteEmail } from '@/lib/email-service';
 import type { Role } from '@prisma/client';
 
 export const dynamic = 'force-dynamic';
@@ -93,9 +94,18 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // TODO: Send invitation email
-    // For now, we'll return the invite token for testing
+    // Generate invite URL
     const inviteUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/invite/accept/${inviteToken}`;
+
+    // Send invitation email
+    await sendSuperAdminUserInviteEmail(
+      email.toLowerCase(),
+      firstName,
+      currentUser.name || 'Continuum Super Admin',
+      role,
+      inviteUrl,
+      expiresAt
+    ).catch(err => console.error('[SUPER ADMIN CREATE USER] Failed to send email:', err));
 
     // In development, also generate a temp password for easier testing
     let tempPassword: string | undefined;
