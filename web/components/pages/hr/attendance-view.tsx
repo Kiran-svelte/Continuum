@@ -114,7 +114,7 @@ export default function AttendanceView() {
     setLoading(true);
     try {
       const params = new URLSearchParams({ date, search, status });
-      const res = await fetch(`/api/hr/attendance?${params}`);
+      const res = await fetch(`/api/hr/attendance?${params}`, { credentials: 'include' });
       if (!res.ok) throw new Error('Failed to fetch attendance');
       const data = await res.json();
       setRecords(data.records ?? []);
@@ -148,10 +148,34 @@ export default function AttendanceView() {
   
   const fetchRegSummary = useCallback(async () => {
     try {
-      const res = await fetch('/api/attendance/regularize/summary');
+      const res = await fetch('/api/attendance/regularize/summary', { credentials: 'include' });
       if(res.ok) setRegSummary(await res.json());
     } catch {}
   }, []);
+
+  /** Exports the currently visible attendance records as a CSV download. */
+  const handleExportCSV = () => {
+    const headers = ['Employee', 'Department', 'Check In', 'Check Out', 'Total Hours', 'Status', 'Location'];
+    const rows = records.map((r) => [
+      r.employee_name,
+      r.department,
+      r.check_in ? new Date(r.check_in).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }) : '',
+      r.check_out ? new Date(r.check_out).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }) : '',
+      r.total_hours !== null ? `${Math.floor(r.total_hours)}h ${Math.round((r.total_hours - Math.floor(r.total_hours)) * 60)}m` : '',
+      r.status,
+      r.is_wfh ? 'Remote' : 'Office',
+    ]);
+    const csvContent = [headers, ...rows]
+      .map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+      .join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `attendance-${selectedDate}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
 
   useEffect(() => {
     if (activeTab === 'daily') {
@@ -256,7 +280,7 @@ export default function AttendanceView() {
                       <option value="half_day">Half Day</option>
                     </Select>
                   </div>
-                  <Button variant="outline" size="sm" disabled={records.length === 0}>
+                  <Button variant="outline" size="sm" disabled={records.length === 0} onClick={handleExportCSV}>
                     <Download className="w-4 h-4 mr-2" /> Export CSV
                   </Button>
                 </GlassPanel>

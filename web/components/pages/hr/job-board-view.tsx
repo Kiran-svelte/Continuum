@@ -5,12 +5,13 @@ import { toast } from 'sonner';
 import { AnimatePresence, motion } from 'framer-motion';
 import { PageHeader } from '@/components/page-header';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Input } from '@/components/ui/input';
 import { ensureMe } from '@/lib/client-auth';
 import {
   Megaphone, Briefcase, MapPin, Clock,
-  Search, DollarSign, ExternalLink,
+  Search, DollarSign, Send, CheckCircle,
 } from 'lucide-react';
 
 /* ─── Types ─────────────────────────────────────────────────────────────── */
@@ -66,6 +67,8 @@ export default function JobBoardView() {
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [departmentFilter, setDepartmentFilter] = useState('');
+  // Track per-job applying state: jobId → 'idle' | 'loading' | 'applied'
+  const [applyState, setApplyState] = useState<Record<string, 'idle' | 'loading' | 'applied'>>({});
 
   const fetchJobs = useCallback(async () => {
     setIsLoading(true);
@@ -83,6 +86,34 @@ export default function JobBoardView() {
   }, []);
 
   useEffect(() => { fetchJobs(); }, [fetchJobs]);
+
+  /** Submits a job application for the given posting. */
+  const handleApply = async (jobId: string, jobTitle: string) => {
+    setApplyState((prev) => ({ ...prev, [jobId]: 'loading' }));
+    try {
+      const res = await fetch('/api/job-applications', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ job_posting_id: jobId }),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        // Handle duplicate application gracefully
+        if (res.status === 409) {
+          setApplyState((prev) => ({ ...prev, [jobId]: 'applied' }));
+          toast.info(`You have already applied for "${jobTitle}".`);
+          return;
+        }
+        throw new Error(data.error?.message || 'Failed to submit application');
+      }
+      setApplyState((prev) => ({ ...prev, [jobId]: 'applied' }));
+      toast.success(`Application submitted for "${jobTitle}"! HR will be in touch.`);
+    } catch (err) {
+      setApplyState((prev) => ({ ...prev, [jobId]: 'idle' }));
+      toast.error(err instanceof Error ? err.message : 'Failed to submit application');
+    }
+  };
 
   // Extract unique departments for filter
   const departments = [...new Set(jobs.map((j) => j.department).filter(Boolean))].sort() as string[];
@@ -198,10 +229,27 @@ export default function JobBoardView() {
                     <DollarSign className="w-3 h-3" />
                     {formatSalaryRange(job.salary_min, job.salary_max, job.currency)}
                   </div>
-                  <span className="text-[10px] text-[var(--muted-foreground)]">
-                    Posted {daysAgo(job.created_at)}
-                    {job.closes_at && ` • Closes ${new Date(job.closes_at).toLocaleDateString('en-IN')}`}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] text-[var(--muted-foreground)]">
+                      Posted {daysAgo(job.created_at)}
+                      {job.closes_at && ` • Closes ${new Date(job.closes_at).toLocaleDateString('en-IN')}`}
+                    </span>
+                    {applyState[job.id] === 'applied' ? (
+                      <span className="flex items-center gap-1 text-xs text-green-600 font-medium">
+                        <CheckCircle className="w-3.5 h-3.5" /> Applied
+                      </span>
+                    ) : (
+                      <Button
+                        size="sm"
+                        onClick={() => handleApply(job.id, job.title)}
+                        disabled={applyState[job.id] === 'loading'}
+                        id={`btn-apply-${job.id}`}
+                      >
+                        <Send className="w-3 h-3 mr-1" />
+                        {applyState[job.id] === 'loading' ? 'Applying...' : 'Apply Now'}
+                      </Button>
+                    )}
+                  </div>
                 </div>
               </motion.div>
             ))}
