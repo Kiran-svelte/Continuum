@@ -156,9 +156,10 @@ export const EMPLOYEE_NAV_ITEMS: ModuleNavItem[] = [
 
 export const SUPER_ADMIN_NAV_ITEMS: ModuleNavItem[] = [
   item({ label: 'Dashboard', href: '/super-admin/dashboard', icon: 'LayoutDashboard', group: 'Platform' }),
-  item({ label: 'Companies', href: '/super-admin/companies', icon: 'Building2', group: 'Platform' }),
-  item({ label: 'Users', href: '/super-admin/users', icon: 'Users', group: 'Platform' }),
-  item({ label: 'Invitations', href: '/super-admin/users/new', icon: 'FilePlus', group: 'Platform' }),
+  item({ label: 'Companies', href: '/super-admin/companies', icon: 'Building2', group: 'Companies' }),
+  item({ label: 'New Company', href: '/super-admin/companies/new', icon: 'PlusCircle', group: 'Companies' }),
+  item({ label: 'Platform Users', href: '/super-admin/users', icon: 'Users', group: 'Users' }),
+  item({ label: 'Send Invite', href: '/super-admin/users/new', icon: 'UserPlus', group: 'Users' }),
   item({ label: 'Operations', href: '/super-admin/operations', icon: 'Activity', group: 'Platform' }),
 ];
 

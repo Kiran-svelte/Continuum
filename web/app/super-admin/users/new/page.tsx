@@ -153,15 +153,36 @@ export default function CreateUserPage() {
     <div className="max-w-2xl mx-auto space-y-6">
       {/* Header */}
       <div>
-        <Link 
-          href="/super-admin/users" 
+        <Link
+          href="/super-admin/users"
           className="inline-flex items-center gap-1 text-sm text-muted hover:text-foreground mb-3"
         >
           <ArrowLeft className="w-4 h-4" />
           Back to Users
         </Link>
-        <h1 className="text-2xl font-semibold text-foreground">Create New User</h1>
-        <p className="text-muted mt-1">Create a company owner or admin user</p>
+        <h1 className="text-2xl font-semibold text-foreground">Send Platform Invite</h1>
+        <p className="text-muted mt-1">Invite someone to create and manage their own company on Continuum</p>
+      </div>
+
+      {/* Flow Explainer */}
+      <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+        <div className="flex gap-3">
+          <Info className="w-5 h-5 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
+          <div className="text-sm">
+            <p className="font-medium text-blue-900 dark:text-blue-200 mb-2">Two ways to onboard a new company:</p>
+            <div className="grid sm:grid-cols-2 gap-3 text-blue-800 dark:text-blue-300">
+              <div className="bg-blue-100 dark:bg-blue-900/40 rounded p-3">
+                <p className="font-semibold mb-1">✦ Create Company (Recommended)</p>
+                <p className="text-xs">You set up the company, modules, and owner credentials all at once. Owner signs in immediately.</p>
+                <Link href="/super-admin/companies/new" className="text-xs text-blue-600 dark:text-blue-400 underline mt-1 inline-block">→ Go to Create Company</Link>
+              </div>
+              <div className="bg-white dark:bg-blue-900/20 rounded p-3 border border-blue-200 dark:border-blue-700">
+                <p className="font-semibold mb-1">◇ Send Invite (This page)</p>
+                <p className="text-xs">User receives an email link, sets their own password, and creates their company during onboarding.</p>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Form */}

@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Building2, User } from 'lucide-react';
+import { Building2, User, Copy, Check } from 'lucide-react';
 import { validatePassword } from '@/lib/password-validation';
 import { CORE_FUNCTION_CATALOG, type ModuleSlug } from '@/lib/core-functions/catalog';
 import { fetchWithTimeout, mapFetchErrorMessage } from '@/lib/fetch-with-timeout';
@@ -41,6 +41,16 @@ export default function CompaniesNewView() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<CreateCompanySuccess | null>(null);
+  const [copied, setCopied] = useState<string | null>(null);
+  const [emailSending, setEmailSending] = useState(false);
+  const [emailSent, setEmailSent] = useState(false);
+
+  const copyToClipboard = (text: string, key: string) => {
+    navigator.clipboard.writeText(text).then(() => {
+      setCopied(key);
+      setTimeout(() => setCopied(null), 2000);
+    });
+  };
 
   const [formData, setFormData] = useState({
     // Company info
@@ -117,158 +127,118 @@ export default function CompaniesNewView() {
   };
 
   if (success) {
-    const credentials = success?.credentials ?? {};
-    const ownerEmail = credentials?.email ?? success?.owner?.email ?? formData.ownerEmail;
-    const loginUrl = credentials?.loginUrl ?? null;
-    const setupRequired = credentials?.setupRequired ?? success?.setupRequired;
-    const supportMessage = credentials?.supportMessage ?? success?.supportMessage ?? success?.instructions;
+    const ownerEmail = success?.owner?.email ?? formData.ownerEmail;
+    const loginUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://continuum.support'}/sign-in`;
+    const joinCode = success.company.joinCode;
 
     return (
       <div className="min-h-screen bg-background p-6">
-        <div className="max-w-3xl mx-auto">
-          <div className="bg-card border border-border rounded-lg p-8">
-            <div className="text-center mb-6">
-              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <svg className="w-8 h-8 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
-              </div>
-              <h2 className="text-2xl font-semibold text-foreground mb-2">Company Created Successfully!</h2>
-              <p className="text-muted-foreground">
-                {success.message}
-              </p>
+        <div className="max-w-3xl mx-auto space-y-6">
+          {/* Success Header */}
+          <div className="bg-card border border-border rounded-lg p-8 text-center">
+            <div className="w-16 h-16 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
+              <svg className="w-8 h-8 text-green-600 dark:text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
             </div>
+            <h2 className="text-2xl font-semibold text-foreground mb-2">Company Created!</h2>
+            <p className="text-muted-foreground">{success.message}</p>
+          </div>
 
-            <div className="space-y-6">
-              {/* Company Info */}
-              <div className="bg-muted/50 p-4 rounded-lg">
-                <h3 className="font-medium text-foreground mb-3">Company Details</h3>
-                <dl className="grid grid-cols-2 gap-3 text-sm">
-                  <div>
-                    <dt className="text-muted-foreground">Name</dt>
-                    <dd className="text-foreground font-medium">{success.company.name}</dd>
-                  </div>
-                  <div>
-                    <dt className="text-muted-foreground">Join Code</dt>
-                    <dd className="text-foreground font-mono">{success.company.joinCode}</dd>
-                  </div>
-                  <div>
-                    <dt className="text-muted-foreground">Status</dt>
-                    <dd className="text-foreground">
-                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
-                        {success.company.onboardingStatus}
-                      </span>
-                    </dd>
-                  </div>
-                </dl>
+          {/* Credentials Card — most important */}
+          <div className="bg-card border-2 border-primary/30 rounded-lg p-6">
+            <h3 className="font-semibold text-foreground mb-4 flex items-center gap-2">
+              <svg className="w-5 h-5 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+              </svg>
+              Owner Login Credentials
+            </h3>
+            <p className="text-sm text-muted-foreground mb-4">Share these with the company owner via a secure channel (email, password manager, or in-person).</p>
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground w-24 flex-shrink-0">Login URL</span>
+                <code className="flex-1 bg-muted/50 px-3 py-2 rounded text-sm font-mono truncate">{loginUrl}</code>
+                <button onClick={() => copyToClipboard(loginUrl, 'url')} className="p-2 hover:bg-muted rounded transition-colors">
+                  {copied === 'url' ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4 text-muted-foreground" />}
+                </button>
               </div>
-
-              {/* Owner Info */}
-              <div className="bg-muted/50 p-4 rounded-lg">
-                <h3 className="font-medium text-foreground mb-3">Company Owner</h3>
-                <dl className="grid grid-cols-2 gap-3 text-sm">
-                  <div>
-                    <dt className="text-muted-foreground">Name</dt>
-                    <dd className="text-foreground font-medium">
-                      {success.owner.firstName} {success.owner.lastName}
-                    </dd>
-                  </div>
-                  <div>
-                    <dt className="text-muted-foreground">Email</dt>
-                    <dd className="text-foreground">{success.owner.email}</dd>
-                  </div>
-                  <div>
-                    <dt className="text-muted-foreground">Role</dt>
-                    <dd className="text-foreground capitalize">{success.owner.role}</dd>
-                  </div>
-                  <div>
-                    <dt className="text-muted-foreground">Status</dt>
-                    <dd className="text-foreground capitalize">{success.owner.status}</dd>
-                  </div>
-                </dl>
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground w-24 flex-shrink-0">Email</span>
+                <code className="flex-1 bg-muted/50 px-3 py-2 rounded text-sm font-mono">{ownerEmail}</code>
+                <button onClick={() => copyToClipboard(ownerEmail, 'email')} className="p-2 hover:bg-muted rounded transition-colors">
+                  {copied === 'email' ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4 text-muted-foreground" />}
+                </button>
               </div>
-
-              {/* Secure Access Setup */}
-              <div className="bg-blue-50 border border-blue-200 p-4 rounded-lg">
-                <h3 className="font-medium text-blue-900 mb-3 flex items-center gap-2">
-                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                  </svg>
-                  Secure Account Setup
-                </h3>
-                <div className="space-y-2 text-sm">
-                  <div>
-                    <span className="text-blue-700">Owner Email:</span>
-                    <code className="ml-2 px-2 py-1 bg-[var(--card)] rounded text-blue-900 font-mono">
-                      {ownerEmail || 'Not available'}
-                    </code>
-                  </div>
-                  {loginUrl ? (
-                    <div>
-                      <span className="text-blue-700">Login URL:</span>
-                      <a
-                        href={loginUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="ml-2 text-blue-600 hover:underline break-all"
-                      >
-                        {loginUrl}
-                      </a>
-                    </div>
-                  ) : (
-                    <div>
-                      <span className="text-blue-700">Login URL:</span>
-                      <span className="ml-2 text-blue-900">Use your standard sign-in portal.</span>
-                    </div>
-                  )}
-                </div>
-                <div className="mt-3 text-xs text-blue-700 space-y-1">
-                  <p>
-                    Passwords are no longer displayed. Ask the owner to complete secure first-time setup via email-based reset.
-                  </p>
-                  {setupRequired !== undefined && (
-                    <p>Setup Required: {setupRequired ? 'Yes' : 'No'}</p>
-                  )}
-                  <p>
-                    Owner password was configured during company creation and is never shown back in UI.
-                  </p>
-                  {supportMessage && <p>{supportMessage}</p>}
-                </div>
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground w-24 flex-shrink-0">Password</span>
+                <code className="flex-1 bg-muted/50 px-3 py-2 rounded text-sm font-mono">{formData.ownerPassword}</code>
+                <button onClick={() => copyToClipboard(formData.ownerPassword, 'pw')} className="p-2 hover:bg-muted rounded transition-colors">
+                  {copied === 'pw' ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4 text-muted-foreground" />}
+                </button>
               </div>
-
-              {/* Actions */}
-              <div className="flex gap-3">
-                <Button
-                  onClick={() => router.push('/super-admin/companies')}
-                  className="flex-1 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors font-medium"
-                >
-                  View All Companies
-                </Button>
-                <Button
-                  onClick={() => {
-                    setSuccess(null);
-                    setFormData({
-                      companyName: '',
-                      legalName: '',
-                      industry: '',
-                      size: '',
-                      countryCode: 'IN',
-                      timezone: 'Asia/Kolkata',
-                      ownerEmail: '',
-                      ownerFirstName: '',
-                      ownerLastName: '',
-                      ownerPhone: '',
-                      ownerPassword: '',
-                      confirmOwnerPassword: '',
-                      ownerRole: 'admin',
-                    });
-                  }}
-                  className="px-4 py-2 border border-border rounded-lg hover:bg-muted transition-colors font-medium"
-                >
-                  Create Another
-                </Button>
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground w-24 flex-shrink-0">Join Code</span>
+                <code className="flex-1 bg-muted/50 px-3 py-2 rounded text-sm font-mono tracking-widest">{joinCode}</code>
+                <button onClick={() => copyToClipboard(joinCode, 'code')} className="p-2 hover:bg-muted rounded transition-colors">
+                  {copied === 'code' ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4 text-muted-foreground" />}
+                </button>
               </div>
             </div>
+            <div className="mt-4 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded text-xs text-amber-800 dark:text-amber-300">
+              ⚠ The join code lets employees self-register to this company. Share it only with authorised employees.
+            </div>
+          </div>
+
+          {/* Company + Owner summary */}
+          <div className="grid sm:grid-cols-2 gap-4">
+            <div className="bg-card border border-border rounded-lg p-4">
+              <h4 className="font-medium text-foreground mb-3 text-sm">Company</h4>
+              <dl className="space-y-2 text-sm">
+                <div className="flex justify-between"><dt className="text-muted-foreground">Name</dt><dd className="font-medium">{success.company.name}</dd></div>
+                <div className="flex justify-between"><dt className="text-muted-foreground">Status</dt><dd><span className="px-2 py-0.5 rounded-full text-xs bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300">{success.company.onboardingStatus}</span></dd></div>
+              </dl>
+            </div>
+            <div className="bg-card border border-border rounded-lg p-4">
+              <h4 className="font-medium text-foreground mb-3 text-sm">Owner</h4>
+              <dl className="space-y-2 text-sm">
+                <div className="flex justify-between"><dt className="text-muted-foreground">Name</dt><dd className="font-medium">{success.owner.firstName} {success.owner.lastName}</dd></div>
+                <div className="flex justify-between"><dt className="text-muted-foreground">Role</dt><dd className="capitalize">{success.owner.role}</dd></div>
+              </dl>
+            </div>
+          </div>
+
+          {/* Actions */}
+          <div className="flex gap-3">
+            <Button
+              onClick={() => router.push('/super-admin/companies')}
+              className="flex-1 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors font-medium"
+            >
+              View All Companies
+            </Button>
+            <Button
+              onClick={() => {
+                setSuccess(null);
+                setEmailSent(false);
+                setFormData({
+                  companyName: '',
+                  legalName: '',
+                  industry: '',
+                  size: '',
+                  countryCode: 'IN',
+                  timezone: 'Asia/Kolkata',
+                  ownerEmail: '',
+                  ownerFirstName: '',
+                  ownerLastName: '',
+                  ownerPhone: '',
+                  ownerPassword: '',
+                  confirmOwnerPassword: '',
+                  ownerRole: 'admin',
+                });
+              }}
+              className="px-4 py-2 border border-border rounded-lg hover:bg-muted transition-colors font-medium"
+            >
+              Create Another
+            </Button>
           </div>
         </div>
       </div>
@@ -334,13 +304,23 @@ export default function CompaniesNewView() {
                   className="w-full px-3 py-2 border border-input bg-background rounded-lg focus:outline-none focus:ring-2 focus:ring-ring"
                 >
                   <option value="">Select Industry</option>
-                  <option value="Technology">Technology</option>
-                  <option value="Finance">Finance</option>
-                  <option value="Healthcare">Healthcare</option>
-                  <option value="Education">Education</option>
-                  <option value="Retail">Retail</option>
-                  <option value="Manufacturing">Manufacturing</option>
-                  <option value="Services">Services</option>
+                  <option value="Technology">Technology / IT / Software</option>
+                  <option value="Finance">Banking / Finance / Insurance</option>
+                  <option value="Healthcare">Healthcare / Pharma / Biotech</option>
+                  <option value="Education">Education / EdTech</option>
+                  <option value="Retail">Retail / E-commerce</option>
+                  <option value="Manufacturing">Manufacturing / Industrial</option>
+                  <option value="Consulting">Consulting / Professional Services</option>
+                  <option value="Legal">Legal / Law</option>
+                  <option value="Media">Media / Entertainment / Advertising</option>
+                  <option value="Real Estate">Real Estate / Construction</option>
+                  <option value="Logistics">Logistics / Supply Chain</option>
+                  <option value="Hospitality">Hospitality / Travel / Tourism</option>
+                  <option value="Telecom">Telecommunications</option>
+                  <option value="Energy">Energy / Utilities / Oil & Gas</option>
+                  <option value="Government">Government / Public Sector / NGO</option>
+                  <option value="Agriculture">Agriculture / Food & Beverage</option>
+                  <option value="Automotive">Automotive</option>
                   <option value="Other">Other</option>
                 </Select>
               </div>
@@ -380,6 +360,17 @@ export default function CompaniesNewView() {
                   <option value="GB">United Kingdom</option>
                   <option value="CA">Canada</option>
                   <option value="AU">Australia</option>
+                  <option value="SG">Singapore</option>
+                  <option value="AE">UAE</option>
+                  <option value="DE">Germany</option>
+                  <option value="FR">France</option>
+                  <option value="NL">Netherlands</option>
+                  <option value="PH">Philippines</option>
+                  <option value="MY">Malaysia</option>
+                  <option value="NZ">New Zealand</option>
+                  <option value="ZA">South Africa</option>
+                  <option value="NG">Nigeria</option>
+                  <option value="KE">Kenya</option>
                 </Select>
               </div>
               <div>
@@ -393,11 +384,24 @@ export default function CompaniesNewView() {
                   aria-label="Timezone"
                   className="w-full px-3 py-2 border border-input bg-background rounded-lg focus:outline-none focus:ring-2 focus:ring-ring"
                 >
-                  <option value="Asia/Kolkata">Asia/Kolkata (IST)</option>
-                  <option value="America/New_York">America/New_York (EST)</option>
-                  <option value="Europe/London">Europe/London (GMT)</option>
-                  <option value="America/Los_Angeles">America/Los_Angeles (PST)</option>
-                  <option value="Australia/Sydney">Australia/Sydney (AEST)</option>
+                  <option value="Asia/Kolkata">Asia/Kolkata (IST, UTC+5:30)</option>
+                  <option value="America/New_York">America/New_York (EST, UTC-5)</option>
+                  <option value="America/Chicago">America/Chicago (CST, UTC-6)</option>
+                  <option value="America/Denver">America/Denver (MST, UTC-7)</option>
+                  <option value="America/Los_Angeles">America/Los_Angeles (PST, UTC-8)</option>
+                  <option value="Europe/London">Europe/London (GMT, UTC+0)</option>
+                  <option value="Europe/Berlin">Europe/Berlin (CET, UTC+1)</option>
+                  <option value="Europe/Paris">Europe/Paris (CET, UTC+1)</option>
+                  <option value="Asia/Dubai">Asia/Dubai (GST, UTC+4)</option>
+                  <option value="Asia/Singapore">Asia/Singapore (SGT, UTC+8)</option>
+                  <option value="Asia/Tokyo">Asia/Tokyo (JST, UTC+9)</option>
+                  <option value="Asia/Kuala_Lumpur">Asia/Kuala_Lumpur (MYT, UTC+8)</option>
+                  <option value="Asia/Manila">Asia/Manila (PHT, UTC+8)</option>
+                  <option value="Australia/Sydney">Australia/Sydney (AEST, UTC+10)</option>
+                  <option value="Pacific/Auckland">Pacific/Auckland (NZST, UTC+12)</option>
+                  <option value="Africa/Nairobi">Africa/Nairobi (EAT, UTC+3)</option>
+                  <option value="Africa/Lagos">Africa/Lagos (WAT, UTC+1)</option>
+                  <option value="Africa/Johannesburg">Africa/Johannesburg (SAST, UTC+2)</option>
                 </Select>
               </div>
             </div>

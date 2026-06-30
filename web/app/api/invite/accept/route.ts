@@ -130,7 +130,7 @@ export async function POST(request: NextRequest) {
       email: employee.email,
       role: employee.primary_role,
       roles: allRoles,
-      orgId: employee.org_id!,
+      orgId: employee.org_id ?? null,
       tokenId,
     });
 
@@ -153,9 +153,9 @@ export async function POST(request: NextRequest) {
         firstName: employee.first_name,
         lastName: employee.last_name,
         role: employee.primary_role,
-        orgId: employee.org_id!,
+        orgId: employee.org_id ?? null,
       },
-      needsCompanySetup: !employee.org_id!,
+      needsCompanySetup: !employee.org_id,
     });
 
     // Set auth cookies

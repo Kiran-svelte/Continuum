@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { v4 as uuidv4 } from 'uuid';
 import prisma from '@/lib/prisma';
 import { getCurrentUser } from '@/lib/auth-service';
-import { hashPassword, generateTemporaryPassword } from '@/lib/password-service';
 import { sendSuperAdminUserInviteEmail } from '@/lib/email-service';
 import type { Role } from '@prisma/client';
 
@@ -107,30 +106,6 @@ export async function POST(request: NextRequest) {
       expiresAt
     ).catch(err => console.error('[SUPER ADMIN CREATE USER] Failed to send email:', err));
 
-    // In development, also generate a temp password for easier testing
-    let tempPassword: string | undefined;
-    if (process.env.NODE_ENV === 'development') {
-      tempPassword = generateTemporaryPassword();
-      
-      // Create the employee record directly with temp password
-      const passwordHash = await hashPassword(tempPassword);
-      
-      await prisma.employee.create({
-        data: {
-          email: email.toLowerCase(),
-          first_name: firstName,
-          last_name: lastName,
-          primary_role: role as Role,
-          password_hash: passwordHash,
-          invited_by_id: currentUser.id,
-          invited_by_type: 'super_admin',
-          must_change_password: true,
-          status: 'onboarding',
-          // No org_id yet - they will create a company on first login
-        },
-      });
-    }
-
     return NextResponse.json({
       success: true,
       invite: {
@@ -140,8 +115,6 @@ export async function POST(request: NextRequest) {
         expires_at: invite.expires_at,
       },
       inviteUrl,
-      // Only include in development
-      ...(process.env.NODE_ENV === 'development' && { tempPassword }),
     });
   } catch (error) {
     console.error('[SUPER ADMIN CREATE USER] Error:', error);
