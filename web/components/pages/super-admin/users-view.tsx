@@ -51,6 +51,7 @@ async function resendInviteAction(formData: FormData) {
   const inviteUrl = buildAppUrl(`/invite/accept/${token}`);
   const inviterName = `${currentUser.firstName} ${currentUser.lastName}`.trim() || currentUser.email;
 
+  // Attempt email — non-fatal if not configured (token is already refreshed in DB)
   const emailResult = await sendSuperAdminUserInviteEmail(
     invite.email,
     invite.first_name,
@@ -58,10 +59,11 @@ async function resendInviteAction(formData: FormData) {
     invite.role,
     inviteUrl,
     expiresAt
-  );
+  ).catch(() => ({ success: false, error: 'Email transport unavailable' }));
 
   if (!emailResult.success) {
-    throw new Error(emailResult.error || 'Failed to send invite email.');
+    console.warn('[resendInvite] Email not sent:', emailResult.error, '— invite URL:', inviteUrl);
+    // Don't throw: the invite token is already refreshed. SA can copy the link manually.
   }
 
   revalidatePath('/super-admin/users');
