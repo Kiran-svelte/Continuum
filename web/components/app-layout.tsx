@@ -53,6 +53,18 @@ export function AppLayout({
   const pathname = usePathname();
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
+  const settingsHref =
+    portal === 'employee' ? '/employee/settings'
+    : portal === 'hr' ? '/hr/settings'
+    : portal === 'manager' ? '/manager/settings'
+    : portal === 'admin' ? '/admin/company-settings'
+    : '/super-admin/operations';
+  const notificationsHref =
+    portal === 'employee' ? '/employee/notifications'
+    : portal === 'hr' ? '/hr/notifications'
+    : portal === 'manager' ? '/manager/notifications'
+    : portal === 'admin' ? '/admin/notifications'
+    : '/super-admin/dashboard';
 
   useEffect(() => {
     setMounted(true);
@@ -233,13 +245,13 @@ export function AppLayout({
             )}
 
             {/* Notifications */}
-            <button className="p-2 rounded-md hover:bg-muted transition-colors relative">
+            <Link href={notificationsHref} className="p-2 rounded-md hover:bg-muted transition-colors relative">
               <Bell className="w-5 h-5 text-muted-foreground" />
               <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-destructive" />
-            </button>
+            </Link>
 
             {/* Settings */}
-            <Link href="/settings" className="p-2 rounded-md hover:bg-muted transition-colors">
+            <Link href={settingsHref} className="p-2 rounded-md hover:bg-muted transition-colors">
               <Settings className="w-5 h-5 text-muted-foreground" />
             </Link>
 

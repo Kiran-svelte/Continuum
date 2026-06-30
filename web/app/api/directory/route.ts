@@ -4,6 +4,7 @@ import { getAuthEmployee, requireCompanyContext, AuthError } from '@/lib/auth-gu
 import { checkApiRateLimit, getRateLimitHeaders } from '@/lib/api-rate-limit';
 import { parseBoundedInt } from '@/lib/api-guards';
 import { assertDirectoryModuleAccess } from '@/lib/directory-access';
+import { assertModule } from '@/lib/core-functions/assert-module';
 
 export const dynamic = 'force-dynamic';
 
@@ -18,6 +19,7 @@ export async function GET(request: NextRequest) {
     const employee = await getAuthEmployee(request);
     requireCompanyContext(employee);
 
+    await assertModule(employee.org_id!, 'directory');
     const moduleGuard = await assertDirectoryModuleAccess(employee);
     if (moduleGuard) return moduleGuard;
 

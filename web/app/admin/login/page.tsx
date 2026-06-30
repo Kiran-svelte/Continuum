@@ -219,11 +219,7 @@ export default function SuperAdminLoginPage() {
               <button
                 type="submit"
                 disabled={loading}
-                className="btn btn-primary btn-block btn-lg"
-                style={{ 
-                  background: 'linear-gradient(135deg, #f59e0b, #ea580c)',
-                  borderColor: 'transparent'
-                }}
+                className="btn btn-primary btn-block btn-lg bg-gradient-to-br from-amber-500 to-orange-600 border-transparent"
               >
                 {loading ? (
                   <>

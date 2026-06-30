@@ -16,6 +16,7 @@ import {
   AuthError,
 } from '@/lib/auth-guard';
 import { randomUUID } from 'crypto';
+import { assertModule } from '@/lib/core-functions/assert-module';
 
 export const dynamic = 'force-dynamic';
 
@@ -27,7 +28,7 @@ export async function GET(request: NextRequest) {
   try {
     const employee = await getAuthEmployee(request);
     requireCompanyContext(employee);
-
+    await assertModule(employee.org_id!, 'performance');
     const url = new URL(request.url);
     const status = url.searchParams.get('status');
 

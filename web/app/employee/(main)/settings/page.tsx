@@ -496,7 +496,38 @@ export default function SettingsPage() {
                 </div>
               </div>
             </div>
-            <div className="px-6 pb-6">
+            <div className="px-6 pb-6 space-y-3">
+              {/* RALPH-20260630-030: GDPR Data Export */}
+              <Button
+                variant="outline"
+                className="justify-start gap-4 h-auto p-4 w-full bg-white/5 border-white/10 text-white/80 hover:bg-white/10 hover:text-white rounded-xl"
+                onClick={async () => {
+                  try {
+                    const r = await fetch('/api/employee/export', { credentials: 'include' });
+                    if (!r.ok) { showFeedback('error', 'Failed to export data.'); return; }
+                    const blob = await r.blob();
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = 'my-data-export.json';
+                    a.click();
+                    URL.revokeObjectURL(url);
+                    showFeedback('success', 'Your data has been downloaded.');
+                  } catch {
+                    showFeedback('error', 'Export failed. Please try again.');
+                  }
+                }}
+              >
+                <div className="p-2 bg-blue-500/20 rounded-md">
+                  <Shield className="w-5 h-5 text-blue-400" />
+                </div>
+                <div>
+                  <p className="font-semibold text-left">Download My Data (GDPR)</p>
+                  <p className="text-xs text-white/60 text-left">
+                    Export a copy of all data we hold about you (Article 20 — Data Portability).
+                  </p>
+                </div>
+              </Button>
               <Button
                 variant="outline"
                 className="justify-start gap-4 h-auto p-4 w-full bg-white/5 border-white/10 text-white/80 hover:bg-white/10 hover:text-white rounded-xl"

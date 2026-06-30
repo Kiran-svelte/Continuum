@@ -518,6 +518,18 @@ model Company {
   travel_requests         TravelRequest[]
   expenses                Expense[]
   payroll_advances        PayrollAdvance[]
+  surveys                 Survey[]
+  announcements           Announcement[]
+  skills                  Skill[]
+  loans                   Loan[]
+  benefit_plans           BenefitPlan[]
+  succession_plans        SuccessionPlan[]
+  tax_declarations        TaxDeclaration[]
+  policies                Policy[]
+  custom_fields           CustomField[]
+  bulk_jobs               BulkJob[]
+  schedule_templates      ScheduleTemplate[]
+  overtime_requests       OvertimeRequest[]
 
   @@index([deleted_at])
 }
@@ -650,6 +662,13 @@ model Employee {
   current_payroll_advance_approvals PayrollAdvance[] @relation("PayrollAdvanceCurrentApprover")
   workflow_instances     WorkflowInstance[] @relation("WorkflowInitiator")
   workflow_actions       WorkflowAction[] @relation("WorkflowActor")
+  employee_skills        EmployeeSkill[]
+  career_paths           CareerPath[]
+  loans                  Loan[]
+  benefit_enrollments    BenefitEnrollment[]
+  tax_declarations       TaxDeclaration[]
+  policy_acks            PolicyAck[]
+  overtime_requests      OvertimeRequest[]
 
   @@index([org_id])
   @@index([manager_id])
@@ -2406,4 +2425,408 @@ model ChannelBlocklist {
 
   @@unique([company_id, channel, external_id])
   @@index([company_id])
+}
+
+// ─── RALPH-20260630-007: Surveys Module ───────────────────────────────────────
+
+model Survey {
+  id          String   @id @default(uuid())
+  company_id  String
+  title       String
+  description String?
+  status      SurveyStatus @default(draft)
+  anonymous   Boolean  @default(false)
+  start_date  DateTime?
+  end_date    DateTime?
+  target_dept String?
+  created_by  String
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+  deleted_at  DateTime?
+
+  Company     Company  @relation(fields: [company_id], references: [id])
+  questions   SurveyQuestion[]
+  responses   SurveyResponse[]
+
+  @@index([company_id, status])
+}
+
+model SurveyQuestion {
+  id          String   @id @default(uuid())
+  survey_id   String
+  question    String
+  type        String   // text | rating | multiple_choice | yes_no
+  options     Json?
+  required    Boolean  @default(true)
+  order       Int      @default(0)
+
+  Survey      Survey   @relation(fields: [survey_id], references: [id], onDelete: Cascade)
+  answers     SurveyResponse[]
+
+  @@index([survey_id])
+}
+
+model SurveyResponse {
+  id          String   @id @default(uuid())
+  survey_id   String
+  question_id String
+  emp_id      String?
+  answer      String?
+  rating      Int?
+  created_at  DateTime @default(now())
+
+  Survey      Survey         @relation(fields: [survey_id], references: [id], onDelete: Cascade)
+  Question    SurveyQuestion @relation(fields: [question_id], references: [id], onDelete: Cascade)
+
+  @@unique([survey_id, question_id, emp_id])
+  @@index([survey_id])
+}
+
+enum SurveyStatus {
+  draft
+  active
+  closed
+}
+
+// ─── RALPH-20260630-008: Announcements Module ─────────────────────────────────
+
+model Announcement {
+  id          String   @id @default(uuid())
+  company_id  String
+  title       String
+  content     String
+  type        String   @default("info") // info | warning | celebration | policy
+  pinned      Boolean  @default(false)
+  target_dept String?
+  target_role String?
+  published_at DateTime?
+  expires_at  DateTime?
+  created_by  String
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+  deleted_at  DateTime?
+
+  Company     Company  @relation(fields: [company_id], references: [id])
+
+  @@index([company_id, published_at])
+  @@index([company_id, pinned])
+}
+
+// ─── RALPH-20260630-009: Skills & Competency Matrix ──────────────────────────
+
+model Skill {
+  id          String   @id @default(uuid())
+  company_id  String
+  name        String
+  category    String?
+  description String?
+  created_at  DateTime @default(now())
+
+  Company        Company         @relation(fields: [company_id], references: [id])
+  employeeSkills EmployeeSkill[]
+
+  @@unique([company_id, name])
+  @@index([company_id])
+}
+
+model EmployeeSkill {
+  id              String   @id @default(uuid())
+  company_id      String
+  emp_id          String
+  skill_id        String
+  proficiency     Int      @default(1) // 1-5
+  endorsed_by     String?
+  years_exp       Float?
+  last_assessed   DateTime?
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
+
+  Employee   Employee @relation(fields: [emp_id], references: [id], onDelete: Cascade)
+  Skill      Skill    @relation(fields: [skill_id], references: [id], onDelete: Cascade)
+
+  @@unique([emp_id, skill_id])
+  @@index([company_id, emp_id])
+}
+
+// ─── RALPH-20260630-019: Overtime Requests ────────────────────────────────────
+
+model OvertimeRequest {
+  id          String   @id @default(uuid())
+  company_id  String
+  emp_id      String
+  date        DateTime
+  hours       Float
+  reason      String?
+  status      String   @default("pending") // pending | approved | rejected
+  approved_by String?
+  approved_at DateTime?
+  payout_type String   @default("compensatory") // compensatory | monetary
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+
+  Employee Employee @relation(fields: [emp_id], references: [id], onDelete: Cascade)
+  Company  Company  @relation(fields: [company_id], references: [id], onDelete: Cascade)
+
+  @@unique([emp_id, date])
+  @@index([company_id])
+  @@index([emp_id])
+}
+
+// ─── RALPH-20260630-020: Automated Scheduling ─────────────────────────────────
+
+model ScheduleTemplate {
+  id          String   @id @default(uuid())
+  company_id  String
+  name        String
+  description String?
+  type        String   @default("weekly") // weekly | biweekly | monthly
+  rules       Json     @default("[]") // [{day, shift_id, dept?, role?}]
+  is_active   Boolean  @default(true)
+  created_by  String
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+
+  Company Company @relation(fields: [company_id], references: [id], onDelete: Cascade)
+
+  @@index([company_id])
+}
+
+// ─── RALPH-20260630-017: Custom Fields ────────────────────────────────────────
+
+model CustomField {
+  id           String   @id @default(uuid())
+  company_id   String
+  entity_type  String   // employee | leave | expense | recruitment
+  field_name   String
+  field_label  String
+  field_type   String   // text | number | date | boolean | select | multi_select
+  options      Json?    // for select/multi_select
+  is_required  Boolean  @default(false)
+  is_active    Boolean  @default(true)
+  sort_order   Int      @default(0)
+  created_by   String
+  created_at   DateTime @default(now())
+  updated_at   DateTime @updatedAt
+
+  Company Company @relation(fields: [company_id], references: [id], onDelete: Cascade)
+  values  CustomFieldValue[]
+
+  @@unique([company_id, entity_type, field_name])
+  @@index([company_id])
+}
+
+model CustomFieldValue {
+  id          String      @id @default(uuid())
+  company_id  String
+  field_id    String
+  entity_id   String      // emp_id, leave_id, etc.
+  entity_type String
+  value       String?
+  value_json  Json?
+  updated_at  DateTime    @updatedAt
+
+  Field CustomField @relation(fields: [field_id], references: [id], onDelete: Cascade)
+
+  @@unique([field_id, entity_id])
+  @@index([company_id])
+  @@index([entity_id])
+}
+
+// ─── RALPH-20260630-018: Bulk Operations ──────────────────────────────────────
+
+model BulkJob {
+  id           String   @id @default(uuid())
+  company_id   String
+  type         String   // import_employees | update_salaries | assign_shift | send_email | bulk_leave
+  status       String   @default("queued") // queued | processing | done | failed
+  total        Int      @default(0)
+  processed    Int      @default(0)
+  errors       Json     @default("[]")
+  payload      Json     @default("{}")
+  result_url   String?
+  created_by   String
+  created_at   DateTime @default(now())
+  completed_at DateTime?
+
+  Company Company @relation(fields: [company_id], references: [id], onDelete: Cascade)
+
+  @@index([company_id])
+  @@index([created_by])
+}
+
+// ─── RALPH-20260630-015: Tax Declarations ─────────────────────────────────────
+
+model TaxDeclaration {
+  id          String   @id @default(uuid())
+  company_id  String
+  emp_id      String
+  fiscal_year String   // e.g. "2025-26"
+  regime      String   @default("new") // new | old
+  status      String   @default("draft") // draft | submitted | approved | rejected
+  sections    Json     @default("{}") // { 80C: [...], 80D: [...], HRA: {...}, ... }
+  total_declared Float  @default(0)
+  approved_by String?
+  notes       String?
+  submitted_at DateTime?
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+
+  Employee Employee @relation(fields: [emp_id], references: [id], onDelete: Cascade)
+  Company  Company  @relation(fields: [company_id], references: [id], onDelete: Cascade)
+
+  @@unique([emp_id, fiscal_year])
+  @@index([company_id])
+  @@index([emp_id])
+}
+
+// ─── RALPH-20260630-016: Policy Management ────────────────────────────────────
+
+model Policy {
+  id           String   @id @default(uuid())
+  company_id   String
+  title        String
+  category     String   // leave | conduct | attendance | expense | it | other
+  description  String?
+  content      String
+  version      String   @default("1.0")
+  is_active    Boolean  @default(true)
+  requires_ack Boolean  @default(false)
+  published_at DateTime?
+  expires_at   DateTime?
+  created_by   String
+  created_at   DateTime @default(now())
+  updated_at   DateTime @updatedAt
+
+  Company        Company         @relation(fields: [company_id], references: [id], onDelete: Cascade)
+  acknowledgements PolicyAck[]
+
+  @@index([company_id])
+}
+
+model PolicyAck {
+  id         String   @id @default(uuid())
+  company_id String
+  policy_id  String
+  emp_id     String
+  acked_at   DateTime @default(now())
+
+  Policy   Policy   @relation(fields: [policy_id], references: [id], onDelete: Cascade)
+  Employee Employee @relation(fields: [emp_id], references: [id], onDelete: Cascade)
+
+  @@unique([policy_id, emp_id])
+  @@index([company_id])
+  @@index([emp_id])
+}
+
+// ─── RALPH-20260630-011: Advance & Loans ──────────────────────────────────────
+
+model Loan {
+  id            String     @id @default(uuid())
+  company_id    String
+  emp_id        String
+  amount        Float
+  purpose       String
+  installments  Int        @default(1)
+  emi_amount    Float?
+  disbursed_at  DateTime?
+  status        LoanStatus @default(pending)
+  approved_by   String?
+  notes         String?
+  created_at    DateTime   @default(now())
+  updated_at    DateTime   @updatedAt
+
+  Employee Employee @relation(fields: [emp_id], references: [id], onDelete: Cascade)
+  Company  Company  @relation(fields: [company_id], references: [id], onDelete: Cascade)
+
+  @@index([company_id])
+  @@index([emp_id])
+}
+
+enum LoanStatus {
+  pending
+  approved
+  rejected
+  disbursed
+  closed
+}
+
+// ─── RALPH-20260630-012: Benefits Administration ───────────────────────────────
+
+model BenefitPlan {
+  id          String    @id @default(uuid())
+  company_id  String
+  name        String
+  description String?
+  type        String    // health | dental | vision | life | retirement | other
+  provider    String?
+  coverage    Json      @default("{}")
+  is_active   Boolean   @default(true)
+  created_at  DateTime  @default(now())
+  updated_at  DateTime  @updatedAt
+
+  Company          Company           @relation(fields: [company_id], references: [id], onDelete: Cascade)
+  enrollments      BenefitEnrollment[]
+
+  @@index([company_id])
+}
+
+model BenefitEnrollment {
+  id          String   @id @default(uuid())
+  company_id  String
+  emp_id      String
+  plan_id     String
+  start_date  DateTime
+  end_date    DateTime?
+  status      String   @default("active") // active | waived | terminated
+  notes       String?
+  enrolled_at DateTime @default(now())
+
+  Employee   Employee   @relation(fields: [emp_id], references: [id], onDelete: Cascade)
+  Plan       BenefitPlan @relation(fields: [plan_id], references: [id], onDelete: Cascade)
+
+  @@unique([emp_id, plan_id])
+  @@index([company_id])
+  @@index([emp_id])
+}
+
+// ─── RALPH-20260630-013: Succession Planning ──────────────────────────────────
+
+model SuccessionPlan {
+  id             String   @id @default(uuid())
+  company_id     String
+  role_title     String
+  current_emp_id String?
+  candidates     Json     @default("[]") // [{emp_id, readiness, notes}]
+  priority       Int      @default(2)    // 1=critical, 2=high, 3=medium
+  status         String   @default("active") // active | filled | on_hold
+  notes          String?
+  created_by     String
+  created_at     DateTime @default(now())
+  updated_at     DateTime @updatedAt
+
+  Company Company @relation(fields: [company_id], references: [id], onDelete: Cascade)
+
+  @@index([company_id])
+}
+
+// ─── RALPH-20260630-010: Career Paths ─────────────────────────────────────────
+
+model CareerPath {
+  id          String   @id @default(uuid())
+  company_id  String
+  emp_id      String
+  title       String
+  current_role String
+  target_role  String
+  target_date  DateTime?
+  status       String   @default("active") // active | achieved | paused
+  milestones   Json     @default("[]")
+  notes        String?
+  created_by   String
+  created_at   DateTime @default(now())
+  updated_at   DateTime @updatedAt
+
+  Employee   Employee @relation(fields: [emp_id], references: [id], onDelete: Cascade)
+
+  @@index([company_id, emp_id])
 }

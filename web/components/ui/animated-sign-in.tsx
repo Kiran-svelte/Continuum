@@ -52,6 +52,10 @@ const AnimatedSignIn = () => {
     document.documentElement.classList.toggle("dark-mode")
   }
 
+  const handleSocialSignIn = (provider: "github" | "twitter" | "linkedin") => {
+    window.location.href = `/api/auth/oauth/${provider}`
+  }
+
   useEffect(() => {
     const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches
     setIsDarkMode(prefersDark)
@@ -213,13 +217,13 @@ const AnimatedSignIn = () => {
           </div>
 
           <div className="social-login">
-            <button className="social-button github" type="button" aria-label="Continue with GitHub" title="Continue with GitHub">
+            <button className="social-button github" type="button" aria-label="Continue with GitHub" title="Continue with GitHub" onClick={() => handleSocialSignIn("github")}>
               <Github size={18} />
             </button>
-            <button className="social-button twitter" type="button" aria-label="Continue with Twitter" title="Continue with Twitter">
+            <button className="social-button twitter" type="button" aria-label="Continue with Twitter" title="Continue with Twitter" onClick={() => handleSocialSignIn("twitter")}>
               <Twitter size={18} />
             </button>
-            <button className="social-button linkedin" type="button" aria-label="Continue with LinkedIn" title="Continue with LinkedIn">
+            <button className="social-button linkedin" type="button" aria-label="Continue with LinkedIn" title="Continue with LinkedIn" onClick={() => handleSocialSignIn("linkedin")}>
               <Linkedin size={18} />
             </button>
           </div>

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { getAuthEmployee, requireRole, AuthError } from '@/lib/auth-guard';
+import { assertModule } from '@/lib/core-functions/assert-module';
 import { checkApiRateLimit, getRateLimitHeaders } from '@/lib/api-rate-limit';
 import { createAuditLog, AUDIT_ACTIONS } from '@/lib/audit';
 import { sanitizeInput } from '@/lib/security';
@@ -18,6 +19,7 @@ const VALID_ORG_UNIT_TYPES = ['department', 'division', 'team', 'branch'];
 export async function GET() {
   try {
     const employee = await getAuthEmployee();
+    await assertModule(employee.org_id!, 'directory');
     const rateLimit = checkApiRateLimit(employee.id, 'general');
     if (!rateLimit.allowed) {
       return NextResponse.json(

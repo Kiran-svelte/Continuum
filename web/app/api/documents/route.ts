@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { getAuthEmployee, requireRole, AuthError } from '@/lib/auth-guard';
+import { assertModule } from '@/lib/core-functions/assert-module';
 import { checkApiRateLimit, getRateLimitHeaders } from '@/lib/api-rate-limit';
 import { createAuditLog } from '@/lib/audit';
 import { sendNotification } from '@/lib/notification-service';
@@ -38,7 +39,7 @@ const VALID_STATUSES = ['pending', 'verified', 'rejected', 'expired'] as const;
 export async function GET(request: NextRequest) {
   try {
     const employee = await getAuthEmployee();
-
+    await assertModule(employee.org_id!, 'documents');
     const rateLimit = checkApiRateLimit(employee.id, 'general');
     if (!rateLimit.allowed) {
       return NextResponse.json(

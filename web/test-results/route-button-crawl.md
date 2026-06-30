@@ -1,0 +1,273 @@
+# Route Button Crawl Results
+
+Base URL: http://127.0.0.1:3000
+Generated: 2026-06-29T12:14:51.070Z
+
+## Route Summary
+
+- 404: 4
+- SUCCESS: 8
+- CRASH: 15
+- AUTH_REDIRECT: 133
+
+## Button Click Summary
+
+- 404: 1
+- SKIPPED_AUTH_REDIRECT: 62
+- CRASH: 33
+- SUCCESS: 4
+
+## Non-Success Routes
+
+- CRASH: /admin/audit-logs (no response)
+- CRASH: /admin/billing (no response)
+- CRASH: /admin/company-settings (no response)
+- CRASH: /admin/compliance (no response)
+- CRASH: /admin/dashboard (no response)
+- CRASH: /admin/directory (no response)
+- AUTH_REDIRECT: /admin/getting-started (200)
+- AUTH_REDIRECT: /admin/holidays (200)
+- AUTH_REDIRECT: /admin/integrations/whatsapp (200)
+- AUTH_REDIRECT: /admin/leave-requests (200)
+- CRASH: /admin/login (no response)
+- AUTH_REDIRECT: /admin/my-payroll-advances (200)
+- AUTH_REDIRECT: /admin/notifications (200)
+- AUTH_REDIRECT: /admin/org-chart (200)
+- AUTH_REDIRECT: /admin/payroll (200)
+- AUTH_REDIRECT: /admin/payslips (200)
+- AUTH_REDIRECT: /admin/people (200)
+- AUTH_REDIRECT: /admin/people/invite (no response)
+- AUTH_REDIRECT: /admin/pf-reports (no response)
+- AUTH_REDIRECT: /admin/policy-settings (no response)
+- AUTH_REDIRECT: /admin/profile (no response)
+- AUTH_REDIRECT: /admin/rbac (no response)
+- CRASH: /admin/salary-components (no response)
+- AUTH_REDIRECT: /admin/salary-structures (no response)
+- AUTH_REDIRECT: /admin/search (no response)
+- AUTH_REDIRECT: /admin/setup-wizard (no response)
+- AUTH_REDIRECT: /admin/shifts (no response)
+- AUTH_REDIRECT: /admin/startup-readiness (no response)
+- AUTH_REDIRECT: /admin/system-health (no response)
+- AUTH_REDIRECT: /employee/attendance (404)
+- AUTH_REDIRECT: /employee/dashboard (404)
+- AUTH_REDIRECT: /employee/directory (404)
+- AUTH_REDIRECT: /employee/documents (404)
+- AUTH_REDIRECT: /employee/exit-checklist (404)
+- AUTH_REDIRECT: /employee/learning (200)
+- AUTH_REDIRECT: /employee/leave-history (200)
+- AUTH_REDIRECT: /employee/notifications (200)
+- AUTH_REDIRECT: /employee/onboarding (200)
+- AUTH_REDIRECT: /employee/payroll-advances (200)
+- AUTH_REDIRECT: /employee/payslips (200)
+- AUTH_REDIRECT: /employee/performance (200)
+- AUTH_REDIRECT: /employee/profile (200)
+- AUTH_REDIRECT: /employee/profile/whatsapp (500)
+- AUTH_REDIRECT: /employee/reimbursements (500)
+- AUTH_REDIRECT: /employee/request-leave (200)
+- AUTH_REDIRECT: /employee/search (200)
+- AUTH_REDIRECT: /employee/settings (no response)
+- AUTH_REDIRECT: /employee/travel (no response)
+- AUTH_REDIRECT: /employee/welcome (200)
+- 404: /forgot-password (404)
+- AUTH_REDIRECT: /hr/approval-config (no response)
+- AUTH_REDIRECT: /hr/approvals (no response)
+- AUTH_REDIRECT: /hr/attendance (404)
+- AUTH_REDIRECT: /hr/audit-logs (404)
+- AUTH_REDIRECT: /hr/bulk-import (404)
+- AUTH_REDIRECT: /hr/compensation (no response)
+- AUTH_REDIRECT: /hr/compliance (no response)
+- AUTH_REDIRECT: /hr/dashboard (404)
+- AUTH_REDIRECT: /hr/directory (404)
+- AUTH_REDIRECT: /hr/documents (404)
+- AUTH_REDIRECT: /hr/employee-movements (404)
+- AUTH_REDIRECT: /hr/employees (no response)
+- AUTH_REDIRECT: /hr/employees/invite (no response)
+- AUTH_REDIRECT: /hr/employees/invite/sample-id (404)
+- AUTH_REDIRECT: /hr/employees/sample-id (no response)
+- AUTH_REDIRECT: /hr/escalation (404)
+- AUTH_REDIRECT: /hr/exit-checklist (404)
+- AUTH_REDIRECT: /hr/expenses/all (404)
+- AUTH_REDIRECT: /hr/goals (no response)
+- AUTH_REDIRECT: /hr/holidays (404)
+- AUTH_REDIRECT: /hr/job-board (no response)
+- AUTH_REDIRECT: /hr/learning (404)
+- AUTH_REDIRECT: /hr/learning/courses/new (404)
+- AUTH_REDIRECT: /hr/learning/courses/sample-id (no response)
+- AUTH_REDIRECT: /hr/learning/enrollments (404)
+- AUTH_REDIRECT: /hr/learning/paths (no response)
+- AUTH_REDIRECT: /hr/learning/reports (no response)
+- AUTH_REDIRECT: /hr/leave-balance (no response)
+- AUTH_REDIRECT: /hr/leave-calendar (404)
+- AUTH_REDIRECT: /hr/leave-encashment (no response)
+- AUTH_REDIRECT: /hr/leave-quotas (200)
+- AUTH_REDIRECT: /hr/leave-requests (no response)
+- AUTH_REDIRECT: /hr/my-attendance (no response)
+- AUTH_REDIRECT: /hr/my-payroll-advances (no response)
+- AUTH_REDIRECT: /hr/notifications (no response)
+- AUTH_REDIRECT: /hr/org-chart (404)
+- AUTH_REDIRECT: /hr/organization (no response)
+- AUTH_REDIRECT: /hr/payroll (404)
+- AUTH_REDIRECT: /hr/payroll-advances (no response)
+- AUTH_REDIRECT: /hr/payslips (404)
+- AUTH_REDIRECT: /hr/performance (404)
+- AUTH_REDIRECT: /hr/pf-reports (404)
+- AUTH_REDIRECT: /hr/policy-settings (no response)
+- AUTH_REDIRECT: /hr/profile (no response)
+- AUTH_REDIRECT: /hr/recruitment (no response)
+- AUTH_REDIRECT: /hr/recruitment/applications (no response)
+- AUTH_REDIRECT: /hr/recruitment/applications/sample-id (no response)
+- AUTH_REDIRECT: /hr/recruitment/postings (200)
+- AUTH_REDIRECT: /hr/recruitment/postings/new (200)
+- AUTH_REDIRECT: /hr/recruitment/postings/sample-id (200)
+- AUTH_REDIRECT: /hr/reimbursements (200)
+- AUTH_REDIRECT: /hr/report-builder (200)
+- AUTH_REDIRECT: /hr/reports (200)
+- AUTH_REDIRECT: /hr/request-leave (200)
+- AUTH_REDIRECT: /hr/reviews (200)
+- AUTH_REDIRECT: /hr/salary-components (200)
+- AUTH_REDIRECT: /hr/salary-structures (200)
+- AUTH_REDIRECT: /hr/search (404)
+- AUTH_REDIRECT: /hr/settings (404)
+- AUTH_REDIRECT: /hr/shifts (404)
+- AUTH_REDIRECT: /hr/travel (404)
+- AUTH_REDIRECT: /hr/travel/all (404)
+- AUTH_REDIRECT: /invite/accept/sample-token (no response)
+- AUTH_REDIRECT: /manager/approvals (404)
+- AUTH_REDIRECT: /manager/dashboard (404)
+- AUTH_REDIRECT: /manager/directory (404)
+- AUTH_REDIRECT: /manager/leave-requests (404)
+- AUTH_REDIRECT: /manager/my-attendance (404)
+- 404: /manager/people (no response)
+- AUTH_REDIRECT: /manager/people/invite (no response)
+- AUTH_REDIRECT: /manager/performance (404)
+- AUTH_REDIRECT: /manager/profile (200)
+- AUTH_REDIRECT: /manager/reimbursements (200)
+- AUTH_REDIRECT: /manager/reports (200)
+- AUTH_REDIRECT: /manager/request-leave (200)
+- 404: /manager/search (no response)
+- AUTH_REDIRECT: /manager/settings (200)
+- AUTH_REDIRECT: /manager/team (200)
+- AUTH_REDIRECT: /manager/team-attendance (200)
+- AUTH_REDIRECT: /manager/team-calendar (200)
+- AUTH_REDIRECT: /module-disabled (no response)
+- AUTH_REDIRECT: /onboarding (no response)
+- CRASH: /onboarding/company (no response)
+- 404: /onboarding/invite-team (no response)
+- CRASH: /privacy (200)
+- CRASH: /reset-password (no response)
+- CRASH: /sign-up (no response)
+- CRASH: /status (200)
+- AUTH_REDIRECT: /super-admin/companies (200)
+- AUTH_REDIRECT: /super-admin/companies/new (no response)
+- CRASH: /super-admin/companies/sample-id (no response)
+- AUTH_REDIRECT: /super-admin/companies/sample-id/core-functions (200)
+- AUTH_REDIRECT: /super-admin/companies/sample-id/settings (no response)
+- AUTH_REDIRECT: /super-admin/dashboard (200)
+- AUTH_REDIRECT: /super-admin/operations (200)
+- AUTH_REDIRECT: /super-admin/users (200)
+- AUTH_REDIRECT: /super-admin/users/invites/sample-id (200)
+- AUTH_REDIRECT: /super-admin/users/new (200)
+- AUTH_REDIRECT: /super-admin/users/sample-id (200)
+- AUTH_REDIRECT: /support (no response)
+- AUTH_REDIRECT: /terms (no response)
+- CRASH: /ui-demos (no response)
+
+## Non-Success Button Clicks
+
+- SKIPPED_AUTH_REDIRECT: /employee/attendance :: Open Next.js Dev Tools
+- SKIPPED_AUTH_REDIRECT: /employee/dashboard :: Open Next.js Dev Tools
+- SKIPPED_AUTH_REDIRECT: /employee/directory :: Open Next.js Dev Tools
+- SKIPPED_AUTH_REDIRECT: /employee/documents :: Open Next.js Dev Tools
+- SKIPPED_AUTH_REDIRECT: /employee/exit-checklist :: Open Next.js Dev Tools
+- SKIPPED_AUTH_REDIRECT: /employee/profile/whatsapp :: Open Next.js Dev Tools
+- SKIPPED_AUTH_REDIRECT: /employee/profile/whatsapp :: Open issues overlay
+- SKIPPED_AUTH_REDIRECT: /employee/profile/whatsapp :: Collapse issues badge
+- SKIPPED_AUTH_REDIRECT: /employee/reimbursements :: Open Next.js Dev Tools
+- SKIPPED_AUTH_REDIRECT: /employee/reimbursements :: Open issues overlay
+- SKIPPED_AUTH_REDIRECT: /employee/reimbursements :: Collapse issues badge
+- CRASH: /help :: View All
+- CRASH: /help :: Creating your account 3 min read
+- CRASH: /help :: Changing your password 2 min read
+- CRASH: /help :: Managing notification preferences 3 min read
+- 404: /help :: View all 4 articles
+- CRASH: /help :: Adding employees to your organization 4 min read
+- CRASH: /help :: Configuring leave policies 6 min read
+- CRASH: /help :: Setting up approval workflows 5 min read
+- CRASH: /help :: View all 6 articles
+- CRASH: /help :: Approving leave requests 3 min read
+- CRASH: /help :: Viewing team availability 2 min read
+- CRASH: /help :: Managing team attendance 3 min read
+- CRASH: /help :: Navigating the dashboard 5 min read
+- CRASH: /help :: View all 4 articles
+- CRASH: /help :: Understanding notification types 2 min read
+- CRASH: /help :: Email notifications setup 2 min read
+- CRASH: /help :: Managing notification preferences 2 min read
+- CRASH: /help :: Two-factor authentication 3 min read
+- CRASH: /help :: Password best practices 2 min read
+- CRASH: /help :: Understanding data privacy 4 min read
+- CRASH: /help :: Start Tutorial
+- CRASH: /help :: Start Tutorial
+- CRASH: /help :: Setting up your profile 2 min read
+- CRASH: /help :: Start Tutorial
+- CRASH: /help :: Contact Support
+- CRASH: /help :: Check System Status
+- CRASH: /help :: View all 4 articles
+- CRASH: /help :: Applying for leave 3 min read
+- CRASH: /help :: Types of leave explained 5 min read
+- CRASH: /help :: Checking your leave balance 2 min read
+- CRASH: /help :: Updating your personal information 2 min read
+- SKIPPED_AUTH_REDIRECT: /manager/performance :: RETRACE STEPS
+- SKIPPED_AUTH_REDIRECT: /manager/performance :: BASE COMMAND
+- SKIPPED_AUTH_REDIRECT: /manager/performance :: Open Next.js Dev Tools
+- SKIPPED_AUTH_REDIRECT: /manager/profile :: Continue
+- SKIPPED_AUTH_REDIRECT: /manager/profile :: Super Admin
+- SKIPPED_AUTH_REDIRECT: /manager/profile :: Company Admin
+- SKIPPED_AUTH_REDIRECT: /manager/profile :: HR Manager
+- SKIPPED_AUTH_REDIRECT: /manager/profile :: Employee
+- SKIPPED_AUTH_REDIRECT: /manager/profile :: Open Next.js Dev Tools
+- SKIPPED_AUTH_REDIRECT: /manager/profile :: Open issues overlay
+- SKIPPED_AUTH_REDIRECT: /manager/profile :: Collapse issues badge
+- CRASH: /sign-in :: Continue
+- CRASH: /sign-in :: Super Admin
+- CRASH: /sign-in :: Employee
+- SKIPPED_AUTH_REDIRECT: /super-admin/companies :: Continue
+- SKIPPED_AUTH_REDIRECT: /super-admin/companies :: Super Admin
+- SKIPPED_AUTH_REDIRECT: /super-admin/companies :: Company Admin
+- SKIPPED_AUTH_REDIRECT: /super-admin/companies :: HR Manager
+- SKIPPED_AUTH_REDIRECT: /super-admin/companies :: Employee
+- SKIPPED_AUTH_REDIRECT: /super-admin/companies/sample-id/core-functions :: Continue
+- SKIPPED_AUTH_REDIRECT: /super-admin/companies/sample-id/core-functions :: Super Admin
+- SKIPPED_AUTH_REDIRECT: /super-admin/companies/sample-id/core-functions :: Company Admin
+- SKIPPED_AUTH_REDIRECT: /super-admin/companies/sample-id/core-functions :: HR Manager
+- SKIPPED_AUTH_REDIRECT: /super-admin/companies/sample-id/core-functions :: Employee
+- SKIPPED_AUTH_REDIRECT: /super-admin/dashboard :: Continue
+- SKIPPED_AUTH_REDIRECT: /super-admin/dashboard :: Super Admin
+- SKIPPED_AUTH_REDIRECT: /super-admin/dashboard :: Company Admin
+- SKIPPED_AUTH_REDIRECT: /super-admin/dashboard :: HR Manager
+- SKIPPED_AUTH_REDIRECT: /super-admin/dashboard :: Employee
+- SKIPPED_AUTH_REDIRECT: /super-admin/operations :: Continue
+- SKIPPED_AUTH_REDIRECT: /super-admin/operations :: Super Admin
+- SKIPPED_AUTH_REDIRECT: /super-admin/operations :: Company Admin
+- SKIPPED_AUTH_REDIRECT: /super-admin/operations :: HR Manager
+- SKIPPED_AUTH_REDIRECT: /super-admin/operations :: Employee
+- SKIPPED_AUTH_REDIRECT: /super-admin/users :: Continue
+- SKIPPED_AUTH_REDIRECT: /super-admin/users :: Super Admin
+- SKIPPED_AUTH_REDIRECT: /super-admin/users :: Company Admin
+- SKIPPED_AUTH_REDIRECT: /super-admin/users :: HR Manager
+- SKIPPED_AUTH_REDIRECT: /super-admin/users :: Employee
+- SKIPPED_AUTH_REDIRECT: /super-admin/users/invites/sample-id :: Continue
+- SKIPPED_AUTH_REDIRECT: /super-admin/users/invites/sample-id :: Super Admin
+- SKIPPED_AUTH_REDIRECT: /super-admin/users/invites/sample-id :: Company Admin
+- SKIPPED_AUTH_REDIRECT: /super-admin/users/invites/sample-id :: HR Manager
+- SKIPPED_AUTH_REDIRECT: /super-admin/users/invites/sample-id :: Employee
+- SKIPPED_AUTH_REDIRECT: /super-admin/users/new :: Continue
+- SKIPPED_AUTH_REDIRECT: /super-admin/users/new :: Super Admin
+- SKIPPED_AUTH_REDIRECT: /super-admin/users/new :: Company Admin
+- SKIPPED_AUTH_REDIRECT: /super-admin/users/new :: HR Manager
+- SKIPPED_AUTH_REDIRECT: /super-admin/users/new :: Employee
+- SKIPPED_AUTH_REDIRECT: /super-admin/users/sample-id :: Continue
+- SKIPPED_AUTH_REDIRECT: /super-admin/users/sample-id :: Super Admin
+- SKIPPED_AUTH_REDIRECT: /super-admin/users/sample-id :: Company Admin
+- SKIPPED_AUTH_REDIRECT: /super-admin/users/sample-id :: HR Manager
+- SKIPPED_AUTH_REDIRECT: /super-admin/users/sample-id :: Employee
+

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { 
@@ -115,6 +115,7 @@ export default function EmployeesInviteView() {
   const [departments, setDepartments] = useState<{ id: string; name: string }[]>([]);
   const [pendingInvites, setPendingInvites] = useState<PendingInvite[]>([]);
   const [managers, setManagers] = useState<ManagerOption[]>([]);
+  const csvInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     ensureMe().then(() => {
@@ -351,6 +352,14 @@ export default function EmployeesInviteView() {
 
   function copyInviteLink(link: string) {
     navigator.clipboard.writeText(link);
+  }
+
+  async function handleCsvUpload(file: File | undefined) {
+    if (!file) return;
+    const text = await file.text();
+    setBulkData(text);
+    setMode('bulk');
+    setError('');
   }
 
   const availableRoles = companyRoles 
@@ -759,7 +768,18 @@ export default function EmployeesInviteView() {
           />
 
           <div className="mt-6 flex justify-between items-center">
-            <Button className="btn-secondary inline-flex items-center gap-2">
+            <input
+              ref={csvInputRef}
+              type="file"
+              accept=".csv,text/csv,text/plain"
+              className="hidden"
+              onChange={(event) => void handleCsvUpload(event.target.files?.[0])}
+            />
+            <Button
+              type="button"
+              className="btn-secondary inline-flex items-center gap-2"
+              onClick={() => csvInputRef.current?.click()}
+            >
               <Upload className="h-4 w-4" />
               Upload CSV
             </Button>

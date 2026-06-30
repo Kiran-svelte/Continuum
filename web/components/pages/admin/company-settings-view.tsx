@@ -46,6 +46,7 @@ export default function CompanySettingsView() {
   const [isOrgConfigSaving, setIsOrgConfigSaving] = useState(false);
   const [orgConfigError, setOrgConfigError] = useState('');
   const [orgConfigSuccess, setOrgConfigSuccess] = useState('');
+  const [isMfaSaving, setIsMfaSaving] = useState(false);
 
   // Pull actual data from backend
   useEffect(() => {
@@ -172,6 +173,28 @@ export default function CompanySettingsView() {
 
   const handleFieldChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleForceGlobalMfa = async () => {
+    setIsMfaSaving(true);
+    try {
+      const res = await fetch('/api/admin/security/mfa', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ forceGlobalMfa: true }),
+      });
+      const data = await res.json().catch(() => ({}));
+      alert(res.ok ? 'Global MFA requirement enabled.' : `Error: ${data.error || 'Failed to enable MFA'}`);
+    } catch {
+      alert('Network error while enabling MFA.');
+    } finally {
+      setIsMfaSaving(false);
+    }
+  };
+
+  const handleDiscardChanges = () => {
+    window.location.reload();
   };
 
   const handleSave = (e: React.FormEvent) => {
@@ -378,7 +401,10 @@ export default function CompanySettingsView() {
                     <h4 className="font-bold text-[var(--foreground)] text-sm">Force Global MFA (Multi-Factor)</h4>
                     <p className="text-xs text-[var(--muted-foreground)] mt-1">Require all roles (including employees) to register authenticator apps.</p>
                   </div>
-                  <Button type="button" className="btn btn-sm shrink-0 border border-[var(--border)] bg-[var(--background)]">Enable Globally</Button>
+                  <Button type="button" disabled={isMfaSaving} onClick={handleForceGlobalMfa} className="btn btn-sm shrink-0 border border-[var(--border)] bg-[var(--background)]">
+                    {isMfaSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+                    Enable Globally
+                  </Button>
                 </div>
               </div>
             )}
@@ -540,7 +566,7 @@ export default function CompanySettingsView() {
             {/* Form Footer — only shown for tabs that use the shared form submit */}
             {!['org-structure', 'approval-chains', 'modules'].includes(activeTab) && (
             <div className="mt-10 pt-6 border-t border-[var(--border)] flex justify-end gap-3 sticky bottom-0 bg-[var(--card)] z-10">
-              <Button type="button" className="btn btn-secondary">Discard Changes</Button>
+              <Button type="button" onClick={handleDiscardChanges} className="btn btn-secondary">Discard Changes</Button>
               <Button type="submit" disabled={isPending} className="btn btn-primary min-w-[140px] shadow-lg shadow-[var(--primary)]/20 relative overflow-hidden">
                 <span className={`flex items-center gap-2 ${isPending ? 'opacity-0' : 'opacity-100'}`}><Save className="w-4 h-4" /> Commit Configs</span>
                 {isPending && <div className="absolute inset-0 flex items-center justify-center bg-[var(--primary)]"><Loader2 className="w-5 h-5 animate-spin text-white" /></div>}

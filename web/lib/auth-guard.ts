@@ -289,6 +289,22 @@ export function requireCompanyContext(employee: AuthEmployee): asserts employee 
 
 export { VALID_ROLES };
 
+/**
+ * Requires the caller to have list-level access to employees.
+ * Passes for: employee.view_all, employee.view_team, hr/admin roles.
+ * Throws AuthError(403) for employee.view_own only.
+ */
+export function requireEmployeeListAccess(employee: AuthEmployee): void {
+  const perms = employee.permissions as string[];
+  if (
+    perms.includes('employee.view_all') ||
+    perms.includes('employee.view_team') ||
+    employee.primary_role === 'hr' ||
+    employee.primary_role === 'admin'
+  ) return;
+  throw new AuthError('Forbidden: insufficient permissions to list employees', 403);
+}
+
 // ─── Request-based helpers for API routes ────────────────────────────────────
 
 /**

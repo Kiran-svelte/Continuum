@@ -63,6 +63,10 @@ export default function SupportView() {
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedFaq, setExpandedFaq] = useState<number | null>(null);
 
+  const startChatRequest = () => {
+    window.location.href = 'mailto:support@continuum.app?subject=Live%20chat%20request';
+  };
+
   const filteredFaq = FAQ_ITEMS.filter(
     (item) =>
       item.question.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -254,7 +258,7 @@ export default function SupportView() {
                   <p className="text-sm text-muted-foreground mb-4">
                     Chat with our support team during business hours.
                   </p>
-                  <Button size="sm" className="gap-2">
+                  <Button type="button" size="sm" className="gap-2" onClick={startChatRequest}>
                     <MessageCircle className="w-4 h-4" />
                     Start Chat
                   </Button>

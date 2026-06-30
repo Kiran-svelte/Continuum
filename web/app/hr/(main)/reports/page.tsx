@@ -20,11 +20,11 @@ interface LeaveSummary {
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
-const STATUS_BADGE: Record<string, 'success' | 'warning' | 'danger' | 'default'> = {
+const STATUS_BADGE: Record<string, 'success' | 'warning' | 'danger' | 'outline'> = {
   approved: 'success',
   pending: 'warning',
   rejected: 'danger',
-  cancelled: 'default',
+  cancelled: 'outline',
   escalated: 'warning',
 };
 

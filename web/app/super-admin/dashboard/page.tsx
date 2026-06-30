@@ -134,7 +134,7 @@ export default async function SuperAdminDashboard() {
             icon={Building2}
           />
           <QuickActionButton
-            href="/super-admin/settings"
+            href="/super-admin/operations"
             label="Settings"
             icon={Settings}
           />

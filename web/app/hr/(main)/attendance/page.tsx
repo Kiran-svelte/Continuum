@@ -143,6 +143,29 @@ export default function AttendancePage() {
     }
   }, [activeTab, selectedDate, debouncedSearch, statusFilter, regPagination.page, regStatusFilter, fetchAttendance, fetchRegularizations, fetchRegSummary]);
 
+  function exportAttendanceCsv() {
+    const headers = ['Employee', 'Department', 'Clock In', 'Clock Out', 'Hours', 'Status', 'Location'];
+    const csvRows = records.map((record) => [
+      record.employee_name,
+      record.department,
+      record.check_in ?? '',
+      record.check_out ?? '',
+      record.total_hours?.toString() ?? '',
+      record.status,
+      record.is_wfh ? 'WFH' : 'Office',
+    ]);
+    const csv = [headers, ...csvRows]
+      .map((row) => row.map((value) => `"${String(value).replace(/"/g, '""')}"`).join(','))
+      .join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `attendance-${selectedDate}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  }
+
   const handleRegAction = async (id: string, action: 'approve' | 'reject') => {
     setRegActionLoading(id);
     setRegMessage(null);
@@ -224,7 +247,7 @@ export default function AttendancePage() {
                       <option value="half_day">Half Day</option>
                     </select>
                   </div>
-                  <Button variant="outline" size="sm" disabled={records.length === 0}>
+                  <Button variant="outline" size="sm" onClick={exportAttendanceCsv} disabled={records.length === 0}>
                     <Download className="w-4 h-4 mr-2" /> Export CSV
                   </Button>
                 </GlassPanel>

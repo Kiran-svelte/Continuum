@@ -101,7 +101,7 @@ export async function POST(request: NextRequest) {
     await sendSuperAdminUserInviteEmail(
       email.toLowerCase(),
       firstName,
-      currentUser.name || 'Continuum Super Admin',
+      currentUser.email || 'Continuum Super Admin',
       role,
       inviteUrl,
       expiresAt

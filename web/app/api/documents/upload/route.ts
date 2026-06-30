@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { randomUUID } from 'crypto';
 import prisma from '@/lib/prisma';
 import { getAuthEmployee, AuthError } from '@/lib/auth-guard';
+import { assertModule } from '@/lib/core-functions/assert-module';
 import { checkApiRateLimit, getRateLimitHeaders } from '@/lib/api-rate-limit';
 import { createAuditLog } from '@/lib/audit';
 
@@ -124,7 +125,7 @@ async function trySupabaseUpload(
 export async function POST(request: NextRequest) {
   try {
     const employee = await getAuthEmployee();
-
+    await assertModule(employee.org_id!, 'documents');
     // ── Rate limiting ───────────────────────────────────────────────────
     const rateLimit = checkApiRateLimit(employee.id, 'general');
     if (!rateLimit.allowed) {

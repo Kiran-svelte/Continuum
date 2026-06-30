@@ -135,6 +135,12 @@ const VIDEO_TUTORIALS = [
 export default function HelpCenterPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeSection, setActiveSection] = useState<string | null>(null);
+  const [showAllArticles, setShowAllArticles] = useState(false);
+  const [selectedArticle, setSelectedArticle] = useState<{
+    sectionTitle: string;
+    articleTitle: string;
+    duration: string;
+  } | null>(null);
 
   const filteredSections = HELP_SECTIONS.filter(
     (section) =>
@@ -195,7 +201,15 @@ export default function HelpCenterPage() {
             <h2 className="text-2xl font-bold text-white">Video Tutorials</h2>
             <p className="text-white/60 mt-1">Watch and learn at your own pace</p>
           </div>
-          <Button variant="outline" className="gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            className="gap-2"
+            onClick={() => {
+              setShowAllArticles(true);
+              document.getElementById('help-topics')?.scrollIntoView({ behavior: 'smooth' });
+            }}
+          >
             <PlayCircle className="w-4 h-4" />
             View All
           </Button>
@@ -227,8 +241,22 @@ export default function HelpCenterPage() {
       </ScrollReveal>
 
       {/* Help Articles */}
-      <section className="max-w-7xl mx-auto px-6 py-12">
+      <section id="help-topics" className="max-w-7xl mx-auto px-6 py-12">
         <h2 className="text-2xl font-bold text-white mb-8">Browse by Topic</h2>
+        {selectedArticle && (
+          <GlassPanel className="mb-8">
+            <div className="p-5">
+              <p className="text-xs uppercase tracking-wide text-primary mb-2">Selected article</p>
+              <h3 className="text-lg font-semibold text-white">{selectedArticle.articleTitle}</h3>
+              <p className="text-sm text-white/60 mt-1">
+                {selectedArticle.sectionTitle} · {selectedArticle.duration}
+              </p>
+              <p className="text-sm text-white/70 mt-4">
+                This article is available from the help center topic list. Use the related portal page or contact support if you need step-by-step help.
+              </p>
+            </div>
+          </GlassPanel>
+        )}
 
         <StaggerContainer className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredSections.map((section) => (
@@ -247,9 +275,17 @@ export default function HelpCenterPage() {
               </div>
               <div className="p-6">
                 <ul className="space-y-3">
-                  {section.articles.slice(0, activeSection === section.id ? undefined : 3).map((article) => (
+                  {section.articles.slice(0, showAllArticles || activeSection === section.id ? undefined : 3).map((article) => (
                     <li key={article.title}>
-                      <button className="w-full text-left group flex items-center justify-between p-2 -mx-2 rounded-lg hover:bg-white/5 transition-colors">
+                      <button
+                        type="button"
+                        onClick={() => setSelectedArticle({
+                          sectionTitle: section.title,
+                          articleTitle: article.title,
+                          duration: article.duration,
+                        })}
+                        className="w-full text-left group flex items-center justify-between p-2 -mx-2 rounded-lg hover:bg-white/5 transition-colors"
+                      >
                         <span className="text-sm text-white/80 group-hover:text-primary transition-colors">
                           {article.title}
                         </span>
@@ -266,7 +302,11 @@ export default function HelpCenterPage() {
                 </ul>
                 {section.articles.length > 3 && (
                   <button
-                    onClick={() => setActiveSection(activeSection === section.id ? null : section.id)}
+                    type="button"
+                    onClick={() => {
+                      setShowAllArticles(false);
+                      setActiveSection(activeSection === section.id ? null : section.id);
+                    }}
                     className="mt-4 text-sm text-primary hover:underline"
                   >
                     {activeSection === section.id ? 'Show less' : `View all ${section.articles.length} articles`}

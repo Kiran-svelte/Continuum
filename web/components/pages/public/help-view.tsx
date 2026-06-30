@@ -135,6 +135,7 @@ const VIDEO_TUTORIALS = [
 export default function HelpView() {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeSection, setActiveSection] = useState<string | null>(null);
+  const [selectedArticle, setSelectedArticle] = useState<{ title: string; duration: string; sectionTitle: string } | null>(null);
 
   const filteredSections = HELP_SECTIONS.filter(
     (section) =>
@@ -195,7 +196,12 @@ export default function HelpView() {
             <h2 className="text-2xl font-bold text-foreground">Video Tutorials</h2>
             <p className="text-muted-foreground mt-1">Watch and learn at your own pace</p>
           </div>
-          <Button variant="outline" className="gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            className="gap-2"
+            onClick={() => document.getElementById('help-topics')?.scrollIntoView({ behavior: 'smooth' })}
+          >
             <PlayCircle className="w-4 h-4" />
             View All
           </Button>
@@ -227,7 +233,7 @@ export default function HelpView() {
       </ScrollReveal>
 
       {/* Help Articles */}
-      <section className="max-w-7xl mx-auto px-6 py-12">
+      <section id="help-topics" className="max-w-7xl mx-auto px-6 py-12">
         <h2 className="text-2xl font-bold text-foreground mb-8">Browse by Topic</h2>
 
         <StaggerContainer className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -249,7 +255,12 @@ export default function HelpView() {
                 <ul className="space-y-3">
                   {section.articles.slice(0, activeSection === section.id ? undefined : 3).map((article) => (
                     <li key={article.title}>
-                      <Button className="w-full text-left group flex items-center justify-between p-2 -mx-2 rounded-lg hover:bg-muted transition-colors" variant="ghost" type="button">
+                      <Button
+                        className="w-full text-left group flex items-center justify-between p-2 -mx-2 rounded-lg hover:bg-muted transition-colors"
+                        variant="ghost"
+                        type="button"
+                        onClick={() => setSelectedArticle({ ...article, sectionTitle: section.title })}
+                      >
                         <span className="text-sm text-foreground group-hover:text-primary transition-colors">
                           {article.title}
                         </span>
@@ -281,6 +292,16 @@ export default function HelpView() {
             </FadeIn>
           ))}
         </StaggerContainer>
+
+        {selectedArticle && (
+          <GlassPanel className="mt-8 p-6">
+            <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">{selectedArticle.sectionTitle}</p>
+            <h3 className="mt-2 text-xl font-semibold text-foreground">{selectedArticle.title}</h3>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Estimated reading time: {selectedArticle.duration}. This help topic is ready to connect to the article CMS when the knowledge base is expanded.
+            </p>
+          </GlassPanel>
+        )}
 
         {filteredSections.length === 0 && (
           <div className="text-center py-12">
