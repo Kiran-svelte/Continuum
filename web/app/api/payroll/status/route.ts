@@ -42,6 +42,34 @@ const statusSchema = z.object({
   comments: z.string().max(500).optional(),
 });
 
+/**
+ * GET /api/payroll/status?month=M&year=Y
+ * Returns the current payroll run status for a given period.
+ */
+export async function GET(request: NextRequest) {
+  try {
+    const employee = await getAuthEmployee(request);
+    requireCompanyContext(employee);
+    requirePermissionGuard(employee, 'payroll.view_all');
+
+    const url = new URL(request.url);
+    const month = parseInt(url.searchParams.get('month') || '0', 10);
+    const year = parseInt(url.searchParams.get('year') || String(new Date().getFullYear()), 10);
+
+    const where: Record<string, unknown> = { company_id: employee.org_id };
+    if (month) where.month = month;
+    if (year) where.year = year;
+
+    const run = await prisma.payrollRun.findFirst({ where, orderBy: { created_at: 'desc' } });
+    return NextResponse.json({ run: run ?? null });
+  } catch (error) {
+    if (error instanceof AuthError) {
+      return NextResponse.json({ error: error.message }, { status: error.status });
+    }
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
+}
+
 export async function PATCH(request: NextRequest) {
   try {
     const employee = await getAuthEmployee();

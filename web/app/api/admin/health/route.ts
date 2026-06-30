@@ -124,6 +124,10 @@ export async function GET() {
       checks,
     });
   } catch (error) {
+    if (error instanceof Error && 'status' in error) {
+      const authErr = error as { status: number; message: string };
+      return NextResponse.json({ error: authErr.message }, { status: authErr.status });
+    }
     console.error('[Health] Error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
