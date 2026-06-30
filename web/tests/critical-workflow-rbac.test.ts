@@ -29,6 +29,22 @@ test('CWA-RBAC: attendance regularization enforces module and scoped permissions
   assert.match(src, /requirePermissionGuard\(employee,\s*'attendance\.view_all'\)/);
 });
 
+test('CWA-RBAC: attendance shift roster APIs enforce module and exact permissions', () => {
+  const shifts = read('app/api/shifts/route.ts');
+  const attendanceShifts = read('app/api/attendance/shifts/route.ts');
+  const assign = read('app/api/attendance/shifts/assign/route.ts');
+  const monthlyReport = read('app/api/attendance/reports/monthly/route.ts');
+  const attendanceSummary = read('app/api/reports/attendance-summary/route.ts');
+
+  assert.match(shifts, /requireModuleForOrg\(employee\.org_id,\s*'attendance'\)/);
+  assert.match(shifts, /requirePermissionGuard\(employee,\s*'attendance\.view_all'\)/);
+  assert.match(shifts, /requirePermissionGuard\(employee,\s*'attendance\.override'\)/);
+  assert.match(attendanceShifts, /export \{ GET, POST \} from '@\/app\/api\/shifts\/route'/);
+  assert.match(assign, /export \{ PATCH as POST \} from '@\/app\/api\/shifts\/route'/);
+  assert.match(monthlyReport, /export \{ GET \} from '@\/app\/api\/reports\/attendance-summary\/route'/);
+  assert.match(attendanceSummary, /requirePermissionGuard\(employee,\s*'attendance\.view_all'\)/);
+});
+
 test('CWA-RBAC: settings APIs use permission-code RBAC', () => {
   const account = read('app/api/settings/account-management/route.ts');
   const alerts = read('app/api/settings/alerts/route.ts');

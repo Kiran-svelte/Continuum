@@ -242,3 +242,22 @@ Prompt:
 ```text
 enable all services mentioned fullyfunctional and production ready . D:\projects\Continuum-main-deploy\COMPLETE_SOLUTION_MAPPING.md , D:\projects\Continuum-main-deploy\prompt.md , D:\projects\Continuum-main-deploy\agents.md , D:\projects\Continuum-main-deploy\SOLUTION_INDEX.md , work as D:\projects\Continuum-main-deploy\LOOP.md
 ```
+
+## 2026-06-30 12:10:38 +05:30
+
+Action:
+
+- Continued the LOOP to `SVC-003` Attendance & Time Tracking after pushing the Form 16 batch.
+- Read the SVC-003 solution mapping, current attendance/shifts APIs, Prisma attendance/shift schema, attendance policy schema, RBAC permission catalog, and attendance summary route.
+- Hardened `web/app/api/shifts/route.ts` with company context, attendance module gating, `attendance.view_all`, and `attendance.override`.
+- Added documented attendance namespace aliases:
+  - `web/app/api/attendance/shifts/route.ts`
+  - `web/app/api/attendance/shifts/assign/route.ts`
+  - `web/app/api/attendance/reports/monthly/route.ts`
+- Added regression checks in `web/tests/critical-workflow-rbac.test.ts`.
+- Ran `npx tsc --noEmit --pretty false --incremental false` successfully.
+- Ran `npx tsx --test tests/critical-workflow-stabilization.test.ts tests/critical-workflow-rbac.test.ts tests/critical-workflow-services.test.ts tests/security-channel.test.ts tests/continuum-assistant-v1-headless.test.ts` successfully; 35/35 tests passed.
+- Ran `npx eslint app/api/shifts/route.ts app/api/attendance/shifts/route.ts app/api/attendance/shifts/assign/route.ts app/api/attendance/reports/monthly/route.ts tests/critical-workflow-rbac.test.ts` successfully.
+- Ran `npm run build` successfully; the generated route table includes `/api/attendance/reports/monthly`, `/api/attendance/shifts`, and `/api/attendance/shifts/assign`.
+- Updated LOOP state, progress, remediation, and todo docs without marking SVC-003 complete because biometric/raw-punch ingestion and overtime workflows remain open.
+- Prepared a scoped git batch for the attendance shift-roster route hardening, route aliases, regression test, LOOP state, proof, progress report, and documentation updates only.

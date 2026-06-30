@@ -7,9 +7,10 @@ Date: 2026-06-30
 ## Proof Summary
 
 - `npx tsc --noEmit --pretty false --incremental false` passed.
-- `npx tsx --test tests/critical-workflow-stabilization.test.ts tests/critical-workflow-rbac.test.ts tests/critical-workflow-services.test.ts tests/security-channel.test.ts tests/continuum-assistant-v1-headless.test.ts` passed 34/34 after the `CWA-20260630-PAYROLL-FORM16` endpoint was added.
-- `npm run build` passed after the `CWA-20260630-PAYROLL-FORM16` endpoint was added, including production compilation, type validation, page-data collection, static generation for 168 pages, and route generation for `/api/payroll/form-16`.
+- `npx tsx --test tests/critical-workflow-stabilization.test.ts tests/critical-workflow-rbac.test.ts tests/critical-workflow-services.test.ts tests/security-channel.test.ts tests/continuum-assistant-v1-headless.test.ts` passed 35/35 after the `CWA-20260630-ATTENDANCE-SHIFT-ROSTER` endpoint aliases were added.
+- `npm run build` passed after the `CWA-20260630-ATTENDANCE-SHIFT-ROSTER` endpoint aliases were added, including production compilation, type validation, page-data collection, static generation for 168 pages, and route generation for `/api/attendance/reports/monthly`, `/api/attendance/shifts`, and `/api/attendance/shifts/assign`.
 - `npx eslint app/api/payroll/form-16/route.ts tests/critical-workflow-services.test.ts` passed.
+- `npx eslint app/api/shifts/route.ts app/api/attendance/shifts/route.ts app/api/attendance/shifts/assign/route.ts app/api/attendance/reports/monthly/route.ts tests/critical-workflow-rbac.test.ts` passed.
 - `npm run lint` still fails repo-wide on pre-existing lint debt, including tracked legacy scripts/tests and untracked audit helpers; this batch does not claim full-repo ESLint closure.
 
 ## What Changed
@@ -69,6 +70,13 @@ Date: 2026-06-30
 - Enforces payroll module access, `payroll.view_own` for self-service downloads, and `payroll.view_all` for HR/admin employee downloads.
 - Includes PAN, employee code, salary totals, deductions, professional tax, and TDS in the generated PDF and audits exports with `DATA_EXPORT`.
 
+### Attendance and shifts
+
+- `web/app/api/shifts/route.ts`: Added `CWA-20260630-ATTENDANCE-SHIFT-ROSTER` module and permission guards to shift roster CRUD and assignment.
+- `web/app/api/attendance/shifts/route.ts`: Added the documented attendance namespace alias for shift roster list/create.
+- `web/app/api/attendance/shifts/assign/route.ts`: Added the documented attendance namespace alias for shift assignment.
+- `web/app/api/attendance/reports/monthly/route.ts`: Added the documented attendance namespace alias for the existing secured monthly attendance summary report.
+
 ### Audit and compliance
 
 - `web/lib/audit.ts`: Added `AUDIT_VERIFY`.
@@ -108,7 +116,7 @@ This is the honest state after remediation. "Build-covered" means the route/page
 | 2 | Multi-tenant Architecture | Working foundation | Tenant-scoped routes build; existing company isolation retained |
 | 3 | RBAC & Authentication | Hardened in critical APIs | Payroll, attendance, settings RBAC tests pass |
 | 4 | Real-time Updates | Existing | Notification/Pusher code builds; not deeply retested in this batch |
-| 5 | Attendance Tracking | Improved | Approved leave now writes attendance sync; regularization RBAC hardened |
+| 5 | Attendance Tracking | Improved | Approved leave now writes attendance sync; regularization RBAC hardened; shift roster and monthly report routes now use attendance namespace and permission guards |
 | 6 | Employee Management | Existing | Employee routes/pages build; exit finalization now updates employee status |
 | 7 | Zero UI / WhatsApp | Hardened | HMAC webhook proof and assistant headless tests pass |
 | 8 | Payroll | Improved | Generate/approve/status/payslip existing; bank-file export and Form 16 PDF added and tested |
@@ -137,6 +145,7 @@ This is the honest state after remediation. "Build-covered" means the route/page
 - Reporting APIs build, but predictive analytics/DEI/attrition ML are not proven complete.
 - Mobile-native push and SMS channels are not proven.
 - Repo-wide ESLint still fails on existing lint debt outside the Form 16 slice.
+- Attendance still lacks biometric device registry/raw punch ingestion and overtime request/approval workflow.
 
 ## Bottom Line
 

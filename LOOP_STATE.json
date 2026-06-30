@@ -1,7 +1,7 @@
 {
   "version": "1.0.0",
-  "updated_at": "2026-06-30T06:18:11.000Z",
-  "iteration": 1,
+  "updated_at": "2026-06-30T06:40:38.000Z",
+  "iteration": 2,
   "completion_threshold": 90,
   "source_documents": [
     "LOOP.md",
@@ -13,6 +13,29 @@
     "CRITICAL_WORKFLOW_ISSUES_AUDIT.md"
   ],
   "services": [
+    {
+      "id": "SVC-003",
+      "name": "Attendance & Time Tracking",
+      "status": "in_progress",
+      "completionScore": 88,
+      "last_verified": "2026-06-30T06:40:38.000Z",
+      "proofFiles": [
+        "proofs/SVC-003-attendance-shift-roster-proof.md"
+      ],
+      "verifiedSlices": [
+        "clock-in and clock-out",
+        "attendance regularization",
+        "shift roster CRUD",
+        "shift assignment",
+        "monthly attendance summary report",
+        "documented SVC-003 route aliases"
+      ],
+      "remainingGaps": [
+        "biometric device registry and raw punch ingestion tables",
+        "device webhook signature protocol",
+        "overtime request and approval workflow"
+      ]
+    },
     {
       "id": "SVC-004",
       "name": "Payroll Processing",
@@ -54,12 +77,12 @@
     }
   ],
   "latestProof": {
-    "id": "CWA-20260630-PAYROLL-FORM16",
+    "id": "CWA-20260630-ATTENDANCE-SHIFT-ROSTER",
     "commands": [
       "npx tsc --noEmit --pretty false --incremental false",
       "npx tsx --test tests/critical-workflow-stabilization.test.ts tests/critical-workflow-rbac.test.ts tests/critical-workflow-services.test.ts tests/security-channel.test.ts tests/continuum-assistant-v1-headless.test.ts",
       "npm run build",
-      "npx eslint app/api/payroll/form-16/route.ts tests/critical-workflow-services.test.ts"
+      "npx eslint app/api/shifts/route.ts app/api/attendance/shifts/route.ts app/api/attendance/shifts/assign/route.ts app/api/attendance/reports/monthly/route.ts tests/critical-workflow-rbac.test.ts"
     ],
     "result": "passed",
     "knownGaps": [

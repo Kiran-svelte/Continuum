@@ -97,11 +97,17 @@ Goal: follow `LOOP.md` against `COMPLETE_SOLUTION_MAPPING.md`, `prompt.md`, `age
 - [x] `RALPH-20260630-SVC004-LINT` - Prove the new Form 16 files are lint-clean in isolation.
 - [ ] `RALPH-20260630-FULL-LINT` - Close repo-wide legacy lint debt so `npm run lint` passes.
 - [x] `RALPH-20260630-SVC004-GIT` - Commit and push only the Form 16/proof/documentation batch.
-- [ ] `RALPH-20260630-NEXT` - Continue to the next priority service gap after the scoped proof is pushed.
+- [x] `RALPH-20260630-NEXT` - Continue to the next priority service gap after the scoped proof is pushed.
+- [x] `RALPH-20260630-SVC003-SCAN` - Read SVC-003 requirements and current attendance, shifts, schema, and report routes.
+- [x] `RALPH-20260630-SVC003-ROUTES` - Add documented attendance namespace routes for shifts, shift assignment, and monthly reports.
+- [x] `RALPH-20260630-SVC003-RBAC` - Harden shift roster CRUD and assignment behind attendance module and permission guards.
+- [x] `RALPH-20260630-SVC003-PROOF` - Run typecheck, focused tests, scoped ESLint, and production build for the attendance slice.
+- [x] `RALPH-20260630-SVC003-GIT` - Commit and push only the attendance shift-roster/proof/documentation batch.
+- [ ] `RALPH-20260630-SVC003-NEXT` - Continue to the next SVC-003 gap or next priority service after the scoped proof is pushed.
 
 ### RALPH Review
 
-In progress. This loop is recording verified increments only; it is not marking all 64 services complete until each service reaches the stated proof gate.
+In progress. This loop is recording verified increments only; it is not marking all 64 services complete until each service reaches the stated proof gate. SVC-003 is closer, but biometric/raw-punch ingestion and overtime workflows remain open.
 
 ## Critical Workflow Functional Requirements Matrix Todo
 

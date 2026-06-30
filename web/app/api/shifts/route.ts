@@ -1,8 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { getAuthEmployee, requireRole, AuthError } from '@/lib/auth-guard';
+import {
+  getAuthEmployee,
+  requireCompanyContext,
+  requirePermissionGuard,
+  AuthError,
+} from '@/lib/auth-guard';
 import { checkApiRateLimit, getRateLimitHeaders } from '@/lib/api-rate-limit';
 import { createAuditLog, AUDIT_ACTIONS } from '@/lib/audit';
+import { requireModuleForOrg } from '@/lib/core-functions/guard-handler';
 
 export const dynamic = 'force-dynamic';
 
@@ -12,7 +18,11 @@ export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
   try {
-    const employee = await getAuthEmployee();
+    const employee = await getAuthEmployee(request);
+    requireCompanyContext(employee);
+    const moduleGuard = await requireModuleForOrg(employee.org_id, 'attendance');
+    if (moduleGuard) return moduleGuard;
+    requirePermissionGuard(employee, 'attendance.view_all');
 
     const rateLimit = checkApiRateLimit(employee.id, 'general');
     if (!rateLimit.allowed) {
@@ -110,8 +120,6 @@ export async function GET(request: NextRequest) {
     if (error instanceof AuthError) {
       return NextResponse.json({ error: error.message }, { status: error.status });
     }
-    const message =
-      process.env.NODE_ENV === 'production' ? 'Internal server error' : String(error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
@@ -122,8 +130,11 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const employee = await getAuthEmployee();
-    requireRole(employee, 'hr', 'admin');
+    const employee = await getAuthEmployee(request);
+    requireCompanyContext(employee);
+    const moduleGuard = await requireModuleForOrg(employee.org_id, 'attendance');
+    if (moduleGuard) return moduleGuard;
+    requirePermissionGuard(employee, 'attendance.override');
 
     const rateLimit = checkApiRateLimit(employee.id, 'general');
     if (!rateLimit.allowed) {
@@ -209,8 +220,6 @@ export async function POST(request: NextRequest) {
     if (error instanceof AuthError) {
       return NextResponse.json({ error: error.message }, { status: error.status });
     }
-    const message =
-      process.env.NODE_ENV === 'production' ? 'Internal server error' : String(error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
@@ -222,8 +231,11 @@ export async function POST(request: NextRequest) {
 
 export async function PATCH(request: NextRequest) {
   try {
-    const employee = await getAuthEmployee();
-    requireRole(employee, 'hr', 'admin');
+    const employee = await getAuthEmployee(request);
+    requireCompanyContext(employee);
+    const moduleGuard = await requireModuleForOrg(employee.org_id, 'attendance');
+    if (moduleGuard) return moduleGuard;
+    requirePermissionGuard(employee, 'attendance.override');
 
     const rateLimit = checkApiRateLimit(employee.id, 'general');
     if (!rateLimit.allowed) {
@@ -422,8 +434,6 @@ export async function PATCH(request: NextRequest) {
     if (error instanceof AuthError) {
       return NextResponse.json({ error: error.message }, { status: error.status });
     }
-    const message =
-      process.env.NODE_ENV === 'production' ? 'Internal server error' : String(error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
@@ -434,8 +444,11 @@ export async function PATCH(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
-    const employee = await getAuthEmployee();
-    requireRole(employee, 'hr', 'admin');
+    const employee = await getAuthEmployee(request);
+    requireCompanyContext(employee);
+    const moduleGuard = await requireModuleForOrg(employee.org_id, 'attendance');
+    if (moduleGuard) return moduleGuard;
+    requirePermissionGuard(employee, 'attendance.override');
 
     const rateLimit = checkApiRateLimit(employee.id, 'general');
     if (!rateLimit.allowed) {
@@ -501,8 +514,6 @@ export async function DELETE(request: NextRequest) {
     if (error instanceof AuthError) {
       return NextResponse.json({ error: error.message }, { status: error.status });
     }
-    const message =
-      process.env.NODE_ENV === 'production' ? 'Internal server error' : String(error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
