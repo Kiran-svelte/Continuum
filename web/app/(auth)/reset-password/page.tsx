@@ -6,6 +6,7 @@ import Link from 'next/link';
 
 import { FadeIn, TiltCard, AmbientBackground } from '@/components/motion';
 import { GlassPanel } from '@/components/glass-panel';
+import { toast } from 'sonner';
 
 function getPasswordStrength(pw: string): { score: number; label: string; color: string } {
   if (!pw) return { score: 0, label: '', color: '' };
@@ -81,6 +82,7 @@ function ResetPasswordContent() {
       }
 
       setSuccess(true);
+      toast.success('Password reset! Signing you in…');
       setTimeout(() => router.push('/sign-in'), 2500);
     } catch {
       setError('Failed to reset password. Please try again.');
