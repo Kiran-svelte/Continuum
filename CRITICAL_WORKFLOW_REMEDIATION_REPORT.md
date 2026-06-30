@@ -7,8 +7,10 @@ Date: 2026-06-30
 ## Proof Summary
 
 - `npx tsc --noEmit --pretty false --incremental false` passed.
-- `npx tsx --test tests/critical-workflow-stabilization.test.ts tests/critical-workflow-rbac.test.ts tests/critical-workflow-services.test.ts tests/security-channel.test.ts tests/continuum-assistant-v1-headless.test.ts` passed 33/33.
-- `npm run build` passed, including production compilation, type validation, page-data collection, and static generation for 168 pages.
+- `npx tsx --test tests/critical-workflow-stabilization.test.ts tests/critical-workflow-rbac.test.ts tests/critical-workflow-services.test.ts tests/security-channel.test.ts tests/continuum-assistant-v1-headless.test.ts` passed 34/34 after the `CWA-20260630-PAYROLL-FORM16` endpoint was added.
+- `npm run build` passed after the `CWA-20260630-PAYROLL-FORM16` endpoint was added, including production compilation, type validation, page-data collection, static generation for 168 pages, and route generation for `/api/payroll/form-16`.
+- `npx eslint app/api/payroll/form-16/route.ts tests/critical-workflow-services.test.ts` passed.
+- `npm run lint` still fails repo-wide on pre-existing lint debt, including tracked legacy scripts/tests and untracked audit helpers; this batch does not claim full-repo ESLint closure.
 
 ## What Changed
 
@@ -63,6 +65,9 @@ Date: 2026-06-30
 - Blocks export when employee bank account or IFSC details are missing.
 - Optional `mark_processed` moves an approved payroll run to processed with an optimistic status guard.
 - Audits bank-file generation using `PAYROLL_PROCESS`.
+- `web/app/api/payroll/form-16/route.ts`: Added `CWA-20260630-PAYROLL-FORM16` financial-year Form 16 PDF generation from monthly payroll slips.
+- Enforces payroll module access, `payroll.view_own` for self-service downloads, and `payroll.view_all` for HR/admin employee downloads.
+- Includes PAN, employee code, salary totals, deductions, professional tax, and TDS in the generated PDF and audits exports with `DATA_EXPORT`.
 
 ### Audit and compliance
 
@@ -106,7 +111,7 @@ This is the honest state after remediation. "Build-covered" means the route/page
 | 5 | Attendance Tracking | Improved | Approved leave now writes attendance sync; regularization RBAC hardened |
 | 6 | Employee Management | Existing | Employee routes/pages build; exit finalization now updates employee status |
 | 7 | Zero UI / WhatsApp | Hardened | HMAC webhook proof and assistant headless tests pass |
-| 8 | Payroll | Improved | Generate/approve/status/payslip existing; bank-file export added and tested |
+| 8 | Payroll | Improved | Generate/approve/status/payslip existing; bank-file export and Form 16 PDF added and tested |
 | 9 | Notifications | Existing | Notification routes/pages build; exit/audit alerts use notification service |
 | 10 | Document Storage | Existing | Document routes/pages and expiry cron build; backup includes documents |
 | 11 | Recruitment | Build-covered | Job posting/application/interview/offer routes and HR pages build |
@@ -124,13 +129,14 @@ This is the honest state after remediation. "Build-covered" means the route/page
 
 ## Still Not Safe To Call "100% Enterprise Complete"
 
-- Payroll still lacks a full statutory Form 16 generator and real bank-integration submission/acknowledgement flow.
+- Payroll still lacks a real bank-integration submission/acknowledgement flow, official TRACES/digital-signature Form 16 filing, and the CTC restructuring tool.
 - Document management still uses current schema constraints; rich versioning and explicit expiry-date fields are not fully modeled.
 - LMS does not include SCORM/xAPI runtime execution.
 - Travel does not include live flight/hotel booking provider integration.
 - Compensation planning has workflow surfaces, but market benchmarking and deep budget modeling are not proven here.
 - Reporting APIs build, but predictive analytics/DEI/attrition ML are not proven complete.
 - Mobile-native push and SMS channels are not proven.
+- Repo-wide ESLint still fails on existing lint debt outside the Form 16 slice.
 
 ## Bottom Line
 

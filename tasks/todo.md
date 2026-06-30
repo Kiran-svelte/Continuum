@@ -73,6 +73,36 @@ Batch 2 proof:
 - Added `CRITICAL_WORKFLOW_REMEDIATION_REPORT.md` with file-by-file remediation notes and honest Appendix A status.
 - Important: the report does not claim Workday/SAP-class "100% enterprise complete"; it claims verified critical remediation and build-covered service surfaces.
 
+Batch 3 proof:
+
+- `CWA-20260630-PAYROLL-FORM16` added `web/app/api/payroll/form-16/route.ts` for payroll/tax Form 16 PDF generation.
+- `npx tsc --noEmit --pretty false --incremental false` passed on 2026-06-30.
+- `npx tsx --test tests/critical-workflow-stabilization.test.ts tests/critical-workflow-rbac.test.ts tests/critical-workflow-services.test.ts tests/security-channel.test.ts tests/continuum-assistant-v1-headless.test.ts` passed 34/34 on 2026-06-30.
+- `npm run build` passed on 2026-06-30 with `/api/payroll/form-16` included in the generated route list.
+- `npx eslint app/api/payroll/form-16/route.ts tests/critical-workflow-services.test.ts` passed on 2026-06-30.
+- `npm run lint` failed repo-wide on existing lint debt outside this slice.
+- SVC-004/SVC-031 are improved but not marked complete because real bank acknowledgement, official TRACES/digital-signature filing, and CTC restructuring remain open.
+
+## RALPH Service Loop Todo
+
+Loop identifier: `RALPH-20260630`
+
+Goal: follow `LOOP.md` against `COMPLETE_SOLUTION_MAPPING.md`, `prompt.md`, `agents.md`, and `SOLUTION_INDEX.md` while recording honest proof for each service slice.
+
+- [x] `RALPH-20260630-DOCS` - Read the named LOOP/source documents and confirm the 64-service target plus priority order.
+- [x] `RALPH-20260630-STATE` - Confirm `LOOP_STATE.json` did not exist before this pass and create conservative service progress state.
+- [x] `RALPH-20260630-SVC004-FORM16` - Implement the payroll Form 16 endpoint with tenant, module, permission, export-audit, and no-cache PDF controls.
+- [x] `RALPH-20260630-SVC004-TEST` - Add and pass focused Form 16 regression coverage.
+- [x] `RALPH-20260630-SVC004-BUILD` - Run the production build after the Form 16 slice.
+- [x] `RALPH-20260630-SVC004-LINT` - Prove the new Form 16 files are lint-clean in isolation.
+- [ ] `RALPH-20260630-FULL-LINT` - Close repo-wide legacy lint debt so `npm run lint` passes.
+- [x] `RALPH-20260630-SVC004-GIT` - Commit and push only the Form 16/proof/documentation batch.
+- [ ] `RALPH-20260630-NEXT` - Continue to the next priority service gap after the scoped proof is pushed.
+
+### RALPH Review
+
+In progress. This loop is recording verified increments only; it is not marking all 64 services complete until each service reaches the stated proof gate.
+
 ## Critical Workflow Functional Requirements Matrix Todo
 
 Audit identifier: `CWFREQ-20260630`

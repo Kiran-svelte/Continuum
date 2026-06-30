@@ -31,6 +31,22 @@ test('CWA-SERVICE: payroll self-service payslip PDF is available to employees', 
   assert.match(src, /Cache-Control': 'no-store/);
 });
 
+test('CWA-SERVICE: payroll Form 16 PDF is generated from financial-year payroll slips', () => {
+  const src = read('app/api/payroll/form-16/route.ts');
+
+  assert.match(src, /requireModuleForOrg\(employee\.org_id,\s*'payroll'\)/);
+  assert.match(src, /requirePermissionGuard\(employee,\s*'payroll\.view_all'\)/);
+  assert.match(src, /requirePermissionGuard\(employee,\s*'payroll\.view_own'\)/);
+  assert.match(src, /fy_start_year/);
+  assert.match(src, /Form 16 - Salary and TDS Certificate/);
+  assert.match(src, /pan_number/);
+  assert.match(src, /professional_tax/);
+  assert.match(src, /tds/);
+  assert.match(src, /AUDIT_ACTIONS\.DATA_EXPORT/);
+  assert.match(src, /Content-Type': 'application\/pdf'/);
+  assert.match(src, /Cache-Control': 'no-store/);
+});
+
 test('CWA-SERVICE: audit hash chain has a protected scheduled verifier', () => {
   const route = read('app/api/cron/audit-verification/route.ts');
   const audit = read('lib/audit.ts');
