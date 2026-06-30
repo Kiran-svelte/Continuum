@@ -541,14 +541,14 @@ async function phaseDetailEndpoints() {
 async function phaseFormSubmissions() {
   console.log('\n═══ PHASE 9: FORM SUBMISSIONS (POST/CREATE) ═══');
 
-  // Create leave request
+  // Create leave request (goes to /api/leaves/submit)
   await apiTest({
-    category: 'Forms', name: 'POST Leave Request', path: '/leaves',
+    category: 'Forms', name: 'POST Leave Request', path: '/leaves/submit',
     method: 'POST', token: tokens.employee,
-    body: { leaveType: 'casual', startDate: '2026-07-15', endDate: '2026-07-15', reason: 'Personal work [RALPH-TEST-20260630]' },
-    expectedStatus: [201, 400, 422],
+    body: { leaveTypeId: null, startDate: '2026-07-15', endDate: '2026-07-15', reason: 'Personal work [RALPH-TEST-20260630]' },
+    expectedStatus: [200, 201, 400, 422],
     fix: 'Check leave quota and leave-type configuration',
-    onSuccess: (j) => { if (j.leave?.id) testIds.leaveId = j.leave.id; },
+    onSuccess: (j) => { if (j.leave?.id || j.request?.id) testIds.leaveId = j.leave?.id || j.request?.id; },
   });
 
   // Create reimbursement
@@ -806,9 +806,9 @@ async function phaseUpdateEndpoints() {
 
   if (testIds.leaveId) {
     await apiTest({
-      category: 'Updates', name: 'PATCH Leave (approve)', path: `/leaves/${testIds.leaveId}`,
-      method: 'PATCH', token: tokens.hr,
-      body: { status: 'approved' },
+      category: 'Updates', name: 'POST Leave (approve)', path: `/leaves/approve/${testIds.leaveId}`,
+      method: 'POST', token: tokens.hr,
+      body: { comments: 'Approved by test runner' },
       expectedStatus: [200, 400, 403],
     });
   }
