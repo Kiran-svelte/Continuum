@@ -18,6 +18,6 @@
     { "path": "/api/cron/leave-sla-breach",       "schedule": "0 9 * * *"    },
     { "path": "/api/cron/performance-overdue",    "schedule": "0 8 * * 1"    },
     { "path": "/api/cron/probation-check",        "schedule": "0 8 * * *"    },
-    { "path": "/api/cron/process-events",         "schedule": "0 */6 * * *"  }
+    { "path": "/api/cron/process-events",         "schedule": "0 3 * * *"    }
   ]
 }
