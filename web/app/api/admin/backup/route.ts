@@ -3,6 +3,7 @@ import prisma from '@/lib/prisma';
 import { getAuthEmployee, requireRole } from '@/lib/auth-guard';
 import { checkApiRateLimit, getRateLimitHeaders } from '@/lib/api-rate-limit';
 import { createAuditLog, AUDIT_ACTIONS } from '@/lib/audit';
+import { buildBackupIntegrityManifest } from '@/lib/backup-manifest';
 
 export const dynamic = 'force-dynamic';
 
@@ -175,6 +176,10 @@ export async function POST(request: NextRequest) {
       audit_logs: auditLogs,
       notifications,
     };
+    const backupWithIntegrity = {
+      ...backup,
+      _integrity: buildBackupIntegrityManifest(backup),
+    };
 
     // Audit the backup export
     void createAuditLog({
@@ -186,17 +191,15 @@ export async function POST(request: NextRequest) {
       ipAddress: ip,
       newState: {
         type: 'full_backup',
-        tables: Object.keys(backup).filter((k) => k !== '_metadata').length,
-        total_records:
-          employees.length + leaveBalances.length + leaveRequests.length +
-          attendances.length + reimbursements.length + documents.length +
-          payrollRuns.length + payrollSlips.length + auditLogs.length,
+        tables: backupWithIntegrity._integrity.table_count,
+        total_records: backupWithIntegrity._integrity.record_count,
+        checksum: backupWithIntegrity._integrity.checksum,
       },
     }).catch(() => {});
 
     const filename = `continuum-backup-${companyId.slice(0, 8)}-${new Date().toISOString().slice(0, 10)}.json`;
 
-    return new NextResponse(JSON.stringify(backup, null, 2), {
+    return new NextResponse(JSON.stringify(backupWithIntegrity, null, 2), {
       status: 200,
       headers: {
         'Content-Type': 'application/json',

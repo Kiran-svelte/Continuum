@@ -28,9 +28,7 @@ interface EnvValidationResult {
 const CRITICAL_VARS = [
   'DATABASE_URL',
   'DIRECT_URL',
-  'SESSION_SECRET',
-  'CSRF_SECRET',
-  'CONSTRAINT_ENGINE_URL',
+  'JWT_SECRET',
   'NEXT_PUBLIC_APP_URL',
 ];
 
@@ -38,12 +36,25 @@ const CRITICAL_VARS = [
  * Optional but recommended variables
  */
 const RECOMMENDED_VARS = [
+  'SESSION_SECRET',
+  'CSRF_SECRET',
+  'CRON_SECRET',
+  'CONSTRAINT_ENGINE_URL',
+  'CONSTRAINT_ENGINE_FALLBACK_MODE',
+  'SESSION_TIMEOUT_MINUTES',
+  'STORAGE_PRIMARY',
+  'STORAGE_FALLBACK',
+  'RATE_LIMIT_ANONYMOUS',
+  'RATE_LIMIT_AUTHENTICATED',
   'UPSTASH_REDIS_REST_URL',
   'UPSTASH_REDIS_REST_TOKEN',
   'SENDGRID_API_KEY',
   'SMTP_HOST',
   'SMTP_USER',
   'SMTP_PASS',
+  'SENTRY_DSN',
+  'NEXT_PUBLIC_SENTRY_DSN',
+  'GRAFANA_PUSH_URL',
 ];
 
 /**
@@ -91,6 +102,26 @@ export function validateEnv(): EnvValidationResult {
     }
   }
 
+  const fallbackMode = process.env.CONSTRAINT_ENGINE_FALLBACK_MODE || 'local';
+  if (!['local', 'manual_review'].includes(fallbackMode)) {
+    warnings.suggestions.push(
+      'CONSTRAINT_ENGINE_FALLBACK_MODE must be local or manual_review. Defaulting behavior should be local.'
+    );
+  }
+
+  const sessionTimeout = process.env.SESSION_TIMEOUT_MINUTES;
+  if (sessionTimeout) {
+    const parsed = Number(sessionTimeout);
+    if (!Number.isInteger(parsed) || parsed < 5 || parsed > 1440) {
+      warnings.suggestions.push('SESSION_TIMEOUT_MINUTES should be an integer between 5 and 1440.');
+    }
+  }
+
+  const constraintUrl = process.env.CONSTRAINT_ENGINE_URL?.trim();
+  if (process.env.NODE_ENV === 'production' && constraintUrl?.startsWith('http://')) {
+    warnings.suggestions.push('CONSTRAINT_ENGINE_URL must use HTTPS in production.');
+  }
+
   // Load feature flags with defaults
   for (const [flagName, config] of Object.entries(FEATURE_FLAGS)) {
     const value = process.env[config.env];
@@ -110,7 +141,15 @@ export function validateEnv(): EnvValidationResult {
     );
   }
 
-  if (warnings.missingOptional.length > 0) {
+  if (warnings.missingOptional.includes('CONSTRAINT_ENGINE_FALLBACK_MODE')) {
+    warnings.suggestions.push('CONSTRAINT_ENGINE_FALLBACK_MODE not set. Use local for strict TypeScript fallback validation.');
+  }
+
+  if (warnings.missingOptional.includes('SENTRY_DSN')) {
+    warnings.suggestions.push('SENTRY_DSN not configured. Production server/API errors will not be reported to Sentry.');
+  }
+
+  if (warnings.missingOptional.length > 0 || warnings.suggestions.length > 0) {
     warnings.status = 'warning';
   }
 

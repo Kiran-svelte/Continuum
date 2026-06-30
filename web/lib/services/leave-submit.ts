@@ -13,15 +13,13 @@ import { sanitizeInput } from '@/lib/security';
 import { sendLeaveSubmissionEmail, sendLeaveAutoApprovedEmail } from '@/lib/email-service';
 import { sendNotification, sendPusherEvent } from '@/lib/notification-service';
 import { resolveCompanyEmailNotificationSettings, shouldSendCompanyEmail } from '@/lib/company-email-notifications';
-import { constraintEngineBreaker } from '@/lib/circuit-breaker';
 import { resolveLeaveApprovers } from '@/lib/leave-approval-routing';
 import {
   calculateLeaveDays,
-  createConstraintEngineFallback,
   getLeaveBalanceYear,
-  resolveConstraintEngineUrl,
   validateLeaveDateRange,
 } from '@/lib/leave-workflow';
+import { evaluateLeaveConstraintsForRequest } from '@/lib/leave-constraint-evaluator';
 import { readRoleQuotaMap, sanitizeLeaveTypeCode, sanitizeRoleSlug } from '@/lib/onboarding-runtime-config';
 import { dispatchNotification } from '@/lib/notifications/dispatch';
 import { withIdempotency } from './idempotency';
@@ -269,70 +267,32 @@ async function executeSubmitLeave(
       );
     }
 
-    const constraintEngineUrl = resolveConstraintEngineUrl();
-    // Call Python constraint engine with timeout and circuit breaker fallback
-    let constraintResult: Record<string, unknown> = {
-      passed: true,
-      violations: [],
-      warnings: [],
-      recommendation: 'PENDING',
-      confidence_score: 0,
-    };
-    let constraintStatus: 'pass' | 'warnings' | 'fail' = 'pass';
-
-    if (constraintEngineUrl) {
-      constraintResult = await constraintEngineBreaker.execute(
-        async () => {
-          const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 5_000);
-          try {
-            const constraintResp = await fetch(`${constraintEngineUrl}/api/evaluate`, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'X-API-Key': process.env.CRON_SECRET || '',
-              },
-              body: JSON.stringify({
-                employee_id: employee.id,
-                company_id: employee.org_id,
-                leave_type: leaveType,
-                start_date: data.start_date,
-                end_date: data.end_date,
-                total_days: totalDays,
-                // Pass balance data so constraint engine doesn't need to query DB
-                balance: {
-                  annual_entitlement: balanceSnapshot!.annual_entitlement,
-                  carried_forward: balanceSnapshot!.carried_forward,
-                  used_days: balanceSnapshot!.used_days,
-                  pending_days: balanceSnapshot!.pending_days,
-                  encashed_days: balanceSnapshot!.encashed_days,
-                  remaining: remaining,
-                },
-              }),
-              signal: controller.signal,
-            });
-
-            if (!constraintResp.ok) {
-              throw new Error(`Constraint engine returned ${constraintResp.status}`);
-            }
-
-            return (await constraintResp.json()) as Record<string, unknown>;
-          } finally {
-            clearTimeout(timeoutId);
+    const constraintEvaluation = await evaluateLeaveConstraintsForRequest({
+      employeeId: employee.id,
+      companyId: employee.org_id,
+      leaveType,
+      startDate: data.start_date,
+      endDate: data.end_date,
+      isHalfDay: data.is_half_day,
+      balance: balanceSnapshot
+        ? {
+            annual_entitlement: balanceSnapshot.annual_entitlement,
+            carried_forward: balanceSnapshot.carried_forward,
+            used_days: balanceSnapshot.used_days,
+            pending_days: balanceSnapshot.pending_days,
+            encashed_days: balanceSnapshot.encashed_days,
+            remaining,
           }
-        },
-        () => createConstraintEngineFallback()
-      );
-
-      const violations = constraintResult.violations as unknown[] | undefined;
-      const warnings = constraintResult.warnings as unknown[] | undefined;
-
-      if (violations && violations.length > 0) {
-        constraintStatus = 'fail';
-      } else if (warnings && warnings.length > 0) {
-        constraintStatus = 'warnings';
-      }
-    }
+        : null,
+    });
+    const constraintResult = {
+      ...constraintEvaluation,
+      evaluated_at: new Date().toISOString(),
+    } as Record<string, unknown>;
+    const violations = constraintEvaluation.violations ?? [];
+    const warnings = constraintEvaluation.warnings ?? [];
+    const constraintStatus: 'pass' | 'warnings' | 'fail' =
+      violations.length > 0 ? 'fail' : warnings.length > 0 ? 'warnings' : 'pass';
 
     // Determine request status:
     // - auto-approve if engine recommends APPROVE and company has it enabled
@@ -354,6 +314,7 @@ async function executeSubmitLeave(
     const slaDeadline = company?.sla_hours
       ? new Date(Date.now() + company.sla_hours * 60 * 60 * 1000)
       : null;
+    const approverRouting = await resolveLeaveApprovers(employee.org_id, employee.id);
 
     let leaveRequest;
     try {
@@ -439,6 +400,7 @@ async function executeSubmitLeave(
           emp_id: employee.id,
           leave_type: leaveType,
           year: balanceYear,
+          updated_at: transactionalBalance.updated_at,
           ...(company?.negative_balance ? {} : { remaining: { gte: totalDays } }),
         },
         data:
@@ -456,7 +418,20 @@ async function executeSubmitLeave(
       });
 
       if (updateResult.count === 0) {
-        throw new Error('Insufficient leave balance');
+        const latestBalance = await tx.leaveBalance.findUnique({
+          where: {
+            emp_id_leave_type_year: {
+              emp_id: employee.id,
+              leave_type: leaveType,
+              year: balanceYear,
+            },
+          },
+          select: { remaining: true },
+        });
+        if (!company?.negative_balance && latestBalance && latestBalance.remaining < totalDays) {
+          throw new Error('Insufficient leave balance');
+        }
+        throw new Error('Leave balance was modified concurrently; please retry');
       }
 
       return createdRequest;
@@ -468,6 +443,9 @@ async function executeSubmitLeave(
       }
       if (message.includes('Insufficient')) {
         return serviceError('INSUFFICIENT_BALANCE', message, 400);
+      }
+      if (message.includes('concurrently')) {
+        return serviceError('NOT_FOUND', message, 409);
       }
       logger.error('leave_submit_transaction_error', { error: message });
       return serviceError('INTERNAL_ERROR', 'Internal server error', 500);
@@ -488,9 +466,6 @@ async function executeSubmitLeave(
         channel: ctx.channel,
       },
     });
-
-    // Resolve approver chain BEFORE emitting events so the approverId is available.
-    const approverRouting = await resolveLeaveApprovers(employee.org_id, employee.id);
 
     // Emit domain event for decoupled side-effects (webhooks, integrations, etc.)
     emitEvent({

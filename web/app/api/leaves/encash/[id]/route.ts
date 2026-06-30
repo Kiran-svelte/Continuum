@@ -93,12 +93,57 @@ export async function PATCH(
       const currentYear = new Date().getFullYear();
 
       const updatedEncashment = await prisma.$transaction(async (tx) => {
-        const updated = await tx.leaveEncashment.update({
-          where: { id },
+        const requestUpdate = await tx.leaveEncashment.updateMany({
+          where: { id, status: 'pending' },
           data: {
             status: 'approved',
             approved_by: employee.id,
           },
+        });
+
+        if (requestUpdate.count === 0) {
+          throw new Error('Encashment request was modified concurrently; please retry');
+        }
+
+        const balance = await tx.leaveBalance.findUnique({
+          where: {
+            emp_id_leave_type_year: {
+              emp_id: encashment.emp_id,
+              leave_type: encashment.leave_type,
+              year: currentYear,
+            },
+          },
+          select: { updated_at: true, remaining: true },
+        });
+
+        if (!balance) {
+          throw new Error('Leave balance not found for encashment year');
+        }
+
+        if (balance.remaining < encashment.days) {
+          throw new Error('Insufficient leave balance for encashment');
+        }
+
+        const balanceUpdate = await tx.leaveBalance.updateMany({
+          where: {
+            emp_id: encashment.emp_id,
+            leave_type: encashment.leave_type,
+            year: currentYear,
+            updated_at: balance.updated_at,
+            remaining: { gte: encashment.days },
+          },
+          data: {
+            remaining: { decrement: encashment.days },
+            encashed_days: { increment: encashment.days },
+          },
+        });
+
+        if (balanceUpdate.count === 0) {
+          throw new Error('Leave balance was modified concurrently; please retry');
+        }
+
+        const updated = await tx.leaveEncashment.findUnique({
+          where: { id },
           include: {
             employee: {
               select: {
@@ -114,19 +159,7 @@ export async function PATCH(
           },
         });
 
-        // Deduct from leave balance: decrement remaining, increment encashed_days
-        await tx.leaveBalance.updateMany({
-          where: {
-            emp_id: encashment.emp_id,
-            leave_type: encashment.leave_type,
-            year: currentYear,
-          },
-          data: {
-            remaining: { decrement: encashment.days },
-            encashed_days: { increment: encashment.days },
-          },
-        });
-
+        if (!updated) throw new Error('Encashment request not found');
         return updated;
       });
 
@@ -148,25 +181,35 @@ export async function PATCH(
       return NextResponse.json(updatedEncashment);
     } else {
       // Reject: update status to 'rejected'
-      const updatedEncashment = await prisma.leaveEncashment.update({
-        where: { id },
-        data: {
-          status: 'rejected',
-          approved_by: employee.id,
-        },
-        include: {
-          employee: {
-            select: {
-              id: true,
-              first_name: true,
-              last_name: true,
-              department: true,
+      const updatedEncashment = await prisma.$transaction(async (tx) => {
+        const requestUpdate = await tx.leaveEncashment.updateMany({
+          where: { id, status: 'pending' },
+          data: {
+            status: 'rejected',
+            approved_by: employee.id,
+          },
+        });
+        if (requestUpdate.count === 0) {
+          throw new Error('Encashment request was modified concurrently; please retry');
+        }
+        const updated = await tx.leaveEncashment.findUnique({
+          where: { id },
+          include: {
+            employee: {
+              select: {
+                id: true,
+                first_name: true,
+                last_name: true,
+                department: true,
+              },
+            },
+            approver: {
+              select: { first_name: true, last_name: true },
             },
           },
-          approver: {
-            select: { first_name: true, last_name: true },
-          },
-        },
+        });
+        if (!updated) throw new Error('Encashment request not found');
+        return updated;
       });
 
       await createAuditLog({
@@ -189,6 +232,12 @@ export async function PATCH(
   } catch (error) {
     if (error instanceof AuthError) {
       return NextResponse.json({ error: error.message }, { status: error.status });
+    }
+    if (error instanceof Error && error.message.includes('concurrently')) {
+      return NextResponse.json({ error: error.message }, { status: 409 });
+    }
+    if (error instanceof Error && error.message.includes('Insufficient')) {
+      return NextResponse.json({ error: error.message }, { status: 400 });
     }
     const message =
       process.env.NODE_ENV === 'production' ? 'Internal server error' : String(error);

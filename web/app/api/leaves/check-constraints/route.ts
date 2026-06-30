@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAuthEmployee, AuthError } from '@/lib/auth-guard';
 import { checkApiRateLimit, getRateLimitHeaders } from '@/lib/api-rate-limit';
 import { requireModuleForOrg } from '@/lib/core-functions/guard-handler';
+import { evaluateLeaveConstraintsForRequest } from '@/lib/leave-constraint-evaluator';
+import { LeaveWorkflowError, validateLeaveDateRange } from '@/lib/leave-workflow';
 
 export const dynamic = 'force-dynamic';
 
@@ -35,75 +37,43 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const constraintEngineUrl = process.env.CONSTRAINT_ENGINE_URL;
-
-    if (!constraintEngineUrl) {
-      // No constraint engine configured -- return clean pass
-      return NextResponse.json({
-        approved: true,
-        status: 'pass',
-        violations: [],
-        warnings: [],
-        suggestions: [],
-        message: 'No constraint engine configured',
-      });
-    }
-
-    // Calculate total_days to match submit route logic
-    const startDate = new Date(start_date);
-    const endDate = new Date(end_date);
-    const diffMs = endDate.getTime() - startDate.getTime();
-    const days = Math.ceil(diffMs / (1000 * 60 * 60 * 24)) + 1;
-    const totalDays = is_half_day ? 0.5 : days;
-
-    // Call the constraint engine -- matching the exact URL and payload from submit route
     try {
-      const constraintResp = await fetch(`${constraintEngineUrl}/api/evaluate`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-API-Key': process.env.CRON_SECRET || '',
-        },
-        body: JSON.stringify({
-          employee_id: employee.id,
-          company_id: employee.org_id!,
-          leave_type,
-          start_date,
-          end_date,
-          total_days: totalDays,
-        }),
-        signal: AbortSignal.timeout(10000),
-      });
-
-      if (!constraintResp.ok) {
-        // Engine error -- return clean pass so the user is not blocked from previewing
-        return NextResponse.json({
-          approved: true,
-          status: 'pass',
-          violations: [],
-          warnings: [],
-          suggestions: [
-            'Constraint engine is temporarily unavailable. Your request will be fully validated on submit.',
-          ],
-          message: 'Constraint engine unavailable',
-        });
+      validateLeaveDateRange(start_date, end_date);
+    } catch (error) {
+      if (error instanceof LeaveWorkflowError) {
+        return NextResponse.json({ error: error.message }, { status: error.status });
       }
-
-      const result = await constraintResp.json();
-      return NextResponse.json(result);
-    } catch {
-      // Constraint engine unreachable -- return clean pass
-      return NextResponse.json({
-        approved: true,
-        status: 'pass',
-        violations: [],
-        warnings: [],
-        suggestions: [
-          'Constraint engine is temporarily unavailable. Your request will be fully validated on submit.',
-        ],
-        message: 'Constraint engine unavailable',
-      });
+      throw error;
     }
+
+    const evaluation = await evaluateLeaveConstraintsForRequest({
+      employeeId: employee.id,
+      companyId: employee.org_id!,
+      leaveType: leave_type,
+      startDate: start_date,
+      endDate: end_date,
+      isHalfDay: Boolean(is_half_day),
+    });
+    const status =
+      evaluation.violations.length > 0 ? 'fail' : evaluation.warnings.length > 0 ? 'warnings' : 'pass';
+
+    return NextResponse.json({
+      approved: evaluation.passed,
+      status,
+      violations: evaluation.violations,
+      warnings: evaluation.warnings,
+      suggestions: [
+        ...evaluation.violations.map((violation) => violation.suggestion || violation.message),
+        ...evaluation.warnings.map((warning) => warning.suggestion || warning.message),
+      ],
+      recommendation: evaluation.recommendation,
+      confidence_score: evaluation.confidence_score,
+      source: evaluation.source,
+      message:
+        evaluation.source === 'engine'
+          ? 'Constraint engine evaluated the request.'
+          : 'Constraint engine fallback evaluated the request locally.',
+    });
   } catch (error) {
     if (error instanceof AuthError) {
       return NextResponse.json({ error: error.message }, { status: error.status });

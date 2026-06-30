@@ -1,13 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { getAuthEmployee, AuthError } from '@/lib/auth-guard';
+import {
+  getAuthEmployee,
+  requireCompanyContext,
+  requirePermissionGuard,
+  AuthError,
+} from '@/lib/auth-guard';
 import { checkApiRateLimit, getRateLimitHeaders } from '@/lib/api-rate-limit';
+import { requireModuleForOrg } from '@/lib/core-functions/guard-handler';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
   try {
     const employee = await getAuthEmployee();
+    requireCompanyContext(employee);
+    const moduleGuard = await requireModuleForOrg(employee.org_id, 'payroll');
+    if (moduleGuard) return moduleGuard;
 
     const rateLimit = checkApiRateLimit(employee.id, 'general');
     if (!rateLimit.allowed) {
@@ -25,21 +34,29 @@ export async function GET(request: NextRequest) {
     const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10));
     const limit = Math.min(100, Math.max(1, parseInt(searchParams.get('limit') || '50', 10)));
 
-    const isHrOrAdmin = ['hr', 'admin'].includes(employee.primary_role);
+    const canViewAll =
+      employee.primary_role === 'super_admin' ||
+      employee.permissions.includes('*') ||
+      employee.permissions.includes('payroll.view_all');
+    if (canViewAll) {
+      requirePermissionGuard(employee, 'payroll.view_all');
+    } else {
+      requirePermissionGuard(employee, 'payroll.view_own');
+    }
 
     // Non-HR users can only view their own payslips
-    if (!isHrOrAdmin && empId && empId !== employee.id) {
+    if (!canViewAll && empId && empId !== employee.id) {
       return NextResponse.json({ error: 'Access denied' }, { status: 403 });
     }
 
     const where: Record<string, unknown> = {
-      company_id: employee.org_id!,
+      company_id: employee.org_id,
     };
 
     if (runId) where.payroll_run_id = runId;
-    if (isHrOrAdmin && empId) {
+    if (canViewAll && empId) {
       where.emp_id = empId;
-    } else if (!isHrOrAdmin) {
+    } else if (!canViewAll) {
       where.emp_id = employee.id;
     }
     if (month) where.month = month;

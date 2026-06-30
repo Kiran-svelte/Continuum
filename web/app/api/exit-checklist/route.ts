@@ -224,6 +224,16 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: 'Exit checklist not found.' }, { status: 404 });
     }
 
+    const canManageChecklist =
+      employee.primary_role === 'admin' ||
+      employee.primary_role === 'hr' ||
+      employee.secondary_roles?.includes('admin') ||
+      employee.secondary_roles?.includes('hr');
+
+    if (!canManageChecklist && checklist.emp_id !== employee.id) {
+      return NextResponse.json({ error: 'Access denied.' }, { status: 403 });
+    }
+
     const previousState = {
       status: checklist.status,
       completed_at: checklist.completed_at,

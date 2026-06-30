@@ -1,10 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { getAuthEmployee, AuthError } from '@/lib/auth-guard';
+import {
+  getAuthEmployee,
+  requireCompanyContext,
+  requirePermissionGuard,
+  AuthError,
+} from '@/lib/auth-guard';
 import { checkApiRateLimit, getRateLimitHeaders } from '@/lib/api-rate-limit';
 import { createAuditLog, AUDIT_ACTIONS } from '@/lib/audit';
 import { sanitizeInput } from '@/lib/security';
 import { sendNotification } from '@/lib/notification-service';
+import { requireModuleForOrg } from '@/lib/core-functions/guard-handler';
 
 export const dynamic = 'force-dynamic';
 
@@ -18,6 +24,10 @@ export const dynamic = 'force-dynamic';
 export async function POST(request: NextRequest) {
   try {
     const employee = await getAuthEmployee();
+    requireCompanyContext(employee);
+    const moduleGuard = await requireModuleForOrg(employee.org_id, 'attendance');
+    if (moduleGuard) return moduleGuard;
+    requirePermissionGuard(employee, 'attendance.mark_own');
 
     const rateLimit = checkApiRateLimit(employee.id, 'general');
     if (!rateLimit.allowed) {
@@ -77,7 +87,7 @@ export async function POST(request: NextRequest) {
     const existing = await prisma.attendanceRegularization.findFirst({
       where: {
         emp_id: employee.id,
-        company_id: employee.org_id!,
+        company_id: employee.org_id,
         date: parsedDate,
         status: { in: ['pending', 'approved'] },
       },
@@ -97,7 +107,7 @@ export async function POST(request: NextRequest) {
     const attendanceRecord = await prisma.attendance.findFirst({
       where: {
         emp_id: employee.id,
-        company_id: employee.org_id!,
+        company_id: employee.org_id,
         date: {
           gte: startOfDay,
           lte: endOfDay,
@@ -109,7 +119,7 @@ export async function POST(request: NextRequest) {
     const regularization = await prisma.attendanceRegularization.create({
       data: {
         emp_id: employee.id,
-        company_id: employee.org_id!,
+        company_id: employee.org_id,
         attendance_id: attendanceRecord?.id ?? null,
         date: parsedDate,
         reason: sanitizedReason,
@@ -118,7 +128,7 @@ export async function POST(request: NextRequest) {
     });
 
     await createAuditLog({
-      companyId: employee.org_id!,
+      companyId: employee.org_id,
       actorId: employee.id,
       action: AUDIT_ACTIONS.ATTENDANCE_REGULARIZE,
       entityType: 'AttendanceRegularization',
@@ -139,7 +149,7 @@ export async function POST(request: NextRequest) {
     if (empRecord?.manager_id) {
       void sendNotification(
         empRecord.manager_id,
-        employee.org_id!,
+        employee.org_id,
         'attendance',
         'Regularization Request',
         `${employee.first_name} ${employee.last_name} submitted an attendance regularization for ${date}.`
@@ -173,6 +183,9 @@ export async function POST(request: NextRequest) {
 export async function GET(request: NextRequest) {
   try {
     const employee = await getAuthEmployee();
+    requireCompanyContext(employee);
+    const moduleGuard = await requireModuleForOrg(employee.org_id, 'attendance');
+    if (moduleGuard) return moduleGuard;
 
     const rateLimit = checkApiRateLimit(employee.id, 'general');
     if (!rateLimit.allowed) {
@@ -188,27 +201,38 @@ export async function GET(request: NextRequest) {
     const limit = Math.min(100, Math.max(1, parseInt(searchParams.get('limit') ?? '20', 10)));
     const skip = (page - 1) * limit;
 
-    const isManager = employee.primary_role === 'manager' || employee.primary_role === 'director';
-    const isHrOrAdmin = employee.primary_role === 'hr' || employee.primary_role === 'admin';
+    const canViewAll =
+      employee.primary_role === 'super_admin' ||
+      employee.permissions.includes('*') ||
+      employee.permissions.includes('attendance.view_all');
+    const canViewTeam = canViewAll || employee.permissions.includes('attendance.view_team');
+
+    if (canViewAll) {
+      requirePermissionGuard(employee, 'attendance.view_all');
+    } else if (canViewTeam) {
+      requirePermissionGuard(employee, 'attendance.view_team');
+    } else {
+      requirePermissionGuard(employee, 'attendance.mark_own');
+    }
 
     // Build where clause
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const where: any = {
-      company_id: employee.org_id!,
+      company_id: employee.org_id,
     };
 
     if (statusFilter && ['pending', 'approved', 'rejected'].includes(statusFilter)) {
       where.status = statusFilter;
     }
 
-    if (isHrOrAdmin) {
+    if (canViewAll) {
       // HR/Admin see all for their company -- no extra filter
-    } else if (isManager) {
+    } else if (canViewTeam) {
       // Managers see requests from their direct reports
       const directReports = await prisma.employee.findMany({
         where: {
           manager_id: employee.id,
-          org_id: employee.org_id!,
+          org_id: employee.org_id,
           deleted_at: null,
         },
         select: { id: true },

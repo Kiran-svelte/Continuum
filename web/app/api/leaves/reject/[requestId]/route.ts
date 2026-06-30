@@ -5,6 +5,10 @@ import { createAuditLog, AUDIT_ACTIONS } from '@/lib/audit';
 import { sendLeaveRejectionEmail } from '@/lib/email-service';
 import { sendNotification, sendPusherEvent } from '@/lib/notification-service';
 import { requireModuleForOrg } from '@/lib/core-functions/guard-handler';
+import {
+  getLeaveBalanceYear,
+  updateLeaveBalanceWithConcurrencyCheck,
+} from '@/lib/leave-workflow';
 
 export const dynamic = 'force-dynamic';
 
@@ -59,10 +63,10 @@ export async function POST(
     const previousState = { status: leaveRequest.status };
 
     // Atomically update status and balance in a transaction
-    const balanceYear = leaveRequest.start_date.getFullYear();
+    const balanceYear = getLeaveBalanceYear(leaveRequest.start_date);
     const updatedRequest = await prisma.$transaction(async (tx) => {
-      const updated = await tx.leaveRequest.update({
-        where: { id: requestId },
+      const requestUpdate = await tx.leaveRequest.updateMany({
+        where: { id: requestId, status: leaveRequest.status },
         data: {
           status: 'rejected',
           approved_by: employee.id,
@@ -71,19 +75,22 @@ export async function POST(
         },
       });
 
-      // Restore balance: pending_days -= total_days, remaining += total_days
-      await tx.leaveBalance.updateMany({
-        where: {
-          emp_id: leaveRequest.emp_id,
-          leave_type: leaveRequest.leave_type,
-          year: balanceYear,
-        },
+      if (requestUpdate.count === 0) {
+        throw new Error('Leave request was modified concurrently; please retry');
+      }
+
+      await updateLeaveBalanceWithConcurrencyCheck(tx, {
+        empId: leaveRequest.emp_id,
+        leaveType: leaveRequest.leave_type,
+        year: balanceYear,
         data: {
           pending_days: { decrement: leaveRequest.total_days },
           remaining: { increment: leaveRequest.total_days },
         },
       });
 
+      const updated = await tx.leaveRequest.findUnique({ where: { id: requestId } });
+      if (!updated) throw new Error('Leave request not found');
       return updated;
     });
 
@@ -143,6 +150,9 @@ export async function POST(
   } catch (error) {
     if (error instanceof AuthError) {
       return NextResponse.json({ error: error.message }, { status: error.status });
+    }
+    if (error instanceof Error && error.message.includes('concurrently')) {
+      return NextResponse.json({ error: error.message }, { status: 409 });
     }
     const message =
       process.env.NODE_ENV === 'production' ? 'Internal server error' : String(error);

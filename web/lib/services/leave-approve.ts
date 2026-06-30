@@ -3,6 +3,7 @@
  * Implements L5-03-005 approveLeaveService.
  */
 import { z } from 'zod';
+import type { Prisma } from '@prisma/client';
 import prisma from '@/lib/prisma';
 import { hasPermission, type PermissionCode } from '@/lib/rbac';
 import { checkApiRateLimit } from '@/lib/api-rate-limit';
@@ -42,6 +43,69 @@ export interface LeaveApproveOutput {
   requestId: string;
   status: string;
   is_final?: boolean;
+}
+
+function normalizeAttendanceDate(date: Date): Date {
+  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+}
+
+function addUtcDay(date: Date): Date {
+  const next = new Date(date);
+  next.setUTCDate(next.getUTCDate() + 1);
+  return next;
+}
+
+async function syncApprovedLeaveToAttendance(
+  tx: Prisma.TransactionClient,
+  params: {
+    companyId: string;
+    employeeId: string;
+    startDate: Date;
+    endDate: Date;
+    isHalfDay: boolean;
+  }
+): Promise<void> {
+  for (
+    let date = normalizeAttendanceDate(params.startDate);
+    date <= normalizeAttendanceDate(params.endDate);
+    date = addUtcDay(date)
+  ) {
+    const existing = await tx.attendance.findUnique({
+      where: {
+        emp_id_date: {
+          emp_id: params.employeeId,
+          date,
+        },
+      },
+      select: { id: true, check_in: true, check_out: true },
+    });
+
+    if (existing?.check_in || existing?.check_out) {
+      continue;
+    }
+
+    const data = {
+      company_id: params.companyId,
+      status: params.isHalfDay ? 'half_day' as const : 'on_leave' as const,
+      is_wfh: false,
+      total_hours: null,
+    };
+
+    if (existing) {
+      await tx.attendance.update({
+        where: { id: existing.id },
+        data,
+      });
+    } else {
+      await tx.attendance.create({
+        data: {
+          emp_id: params.employeeId,
+          date,
+          ...data,
+        },
+      });
+    }
+  }
 }
 
 async function executeApproveLeave(
@@ -189,6 +253,16 @@ async function executeApproveLeave(
                   pending_days: { decrement: currentRequest.total_days },
                   remaining: { increment: currentRequest.total_days },
                 },
+        });
+      }
+
+      if (isFinalApproval) {
+        await syncApprovedLeaveToAttendance(tx, {
+          companyId: currentRequest.company_id,
+          employeeId: currentRequest.emp_id,
+          startDate: leaveRequest.start_date,
+          endDate: leaveRequest.end_date,
+          isHalfDay: leaveRequest.is_half_day,
         });
       }
     });

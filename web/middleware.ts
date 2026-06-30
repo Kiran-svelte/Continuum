@@ -253,6 +253,35 @@ if (typeof setInterval !== 'undefined') {
 // ─── Security Headers ───────────────────────────────────────────────────────
 
 function addSecurityHeaders(response: NextResponse): void {
+  const isDevelopment = process.env.NODE_ENV !== 'production';
+  const scriptSrc = [
+    "script-src 'self'",
+    "'unsafe-inline'",
+    isDevelopment ? "'unsafe-eval'" : null,
+    'https://accounts.google.com',
+    'https://vercel.live',
+    'https://va.vercel-scripts.com',
+    'https://www.googletagmanager.com',
+  ].filter(Boolean).join(' ');
+  const connectSrc = [
+    "connect-src 'self'",
+    'https://accounts.google.com',
+    'https://*.pusher.com',
+    'wss://*.pusher.com',
+    'https://*.sentry.io',
+    'https://vitals.vercel-insights.com',
+    'https://va.vercel-scripts.com',
+  ].join(' ');
+  const imgSrc = [
+    "img-src 'self'",
+    'data:',
+    'blob:',
+    'https://continuum.support',
+    'https://*.vercel.app',
+    'https://*.appwrite.io',
+    'https://fra.cloud.appwrite.io',
+  ].join(' ');
+
   response.headers.set('X-Frame-Options', 'DENY');
   response.headers.set('X-Content-Type-Options', 'nosniff');
   response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
@@ -265,12 +294,14 @@ function addSecurityHeaders(response: NextResponse): void {
     'Content-Security-Policy',
     [
       "default-src 'self'",
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+      scriptSrc,
       "style-src 'self' 'unsafe-inline'",
-      "img-src 'self' data: https:",
+      imgSrc,
       "font-src 'self' data:",
-      "connect-src 'self' https://accounts.google.com",
+      connectSrc,
       "frame-src 'self' https://accounts.google.com",
+      "base-uri 'self'",
+      "form-action 'self'",
     ].join('; ')
   );
   response.headers.set('X-DNS-Prefetch-Control', 'on');

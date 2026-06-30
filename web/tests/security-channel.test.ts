@@ -66,7 +66,17 @@ test('SEC-11/SEC-13: WhatsApp admin page is feature flagged before Chunk 05', ()
   const view = read('components/pages/admin/whatsapp-integration-view.tsx');
   assert.ok(page.includes('NEXT_PUBLIC_WHATSAPP_ENABLED'));
   assert.ok(page.includes('notFound()'));
-  assert.ok(view.includes('Connect WhatsApp Business'));
+  assert.ok(view.includes('Connect your company WhatsApp Business Account'));
+  assert.ok(view.includes('Open Meta Business Manager'));
+});
+
+test('SEC-34: WhatsApp webhook verifies Meta HMAC signatures', () => {
+  const route = read('app/api/webhooks/whatsapp/route.ts');
+  assert.ok(route.includes('x-hub-signature-256'));
+  assert.ok(route.includes('createHmac'));
+  assert.ok(route.includes('timingSafeEqual'));
+  assert.ok(route.includes('WHATSAPP_APP_SECRET'));
+  assert.ok(route.includes('401'));
 });
 
 test('SEC-20: disabling WhatsApp does not touch web leave service execution', () => {

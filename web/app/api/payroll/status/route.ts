@@ -1,9 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import prisma from '@/lib/prisma';
-import { getAuthEmployee, requireRole, AuthError } from '@/lib/auth-guard';
+import {
+  getAuthEmployee,
+  requireCompanyContext,
+  requirePermissionGuard,
+  AuthError,
+} from '@/lib/auth-guard';
 import { checkApiRateLimit, getRateLimitHeaders } from '@/lib/api-rate-limit';
 import { createAuditLog, AUDIT_ACTIONS } from '@/lib/audit';
+import { requireModuleForOrg } from '@/lib/core-functions/guard-handler';
 
 export const dynamic = 'force-dynamic';
 
@@ -39,7 +45,9 @@ const statusSchema = z.object({
 export async function PATCH(request: NextRequest) {
   try {
     const employee = await getAuthEmployee();
-    requireRole(employee, 'hr', 'admin');
+    requireCompanyContext(employee);
+    const moduleGuard = await requireModuleForOrg(employee.org_id, 'payroll');
+    if (moduleGuard) return moduleGuard;
 
     const rateLimit = checkApiRateLimit(employee.id, 'general');
     if (!rateLimit.allowed) {
@@ -59,6 +67,13 @@ export async function PATCH(request: NextRequest) {
     }
 
     const { payroll_run_id, new_status, comments } = parsed.data;
+    if (new_status === 'processed' || new_status === 'paid') {
+      requirePermissionGuard(employee, 'payroll.process');
+    } else if (new_status === 'draft') {
+      requirePermissionGuard(employee, 'payroll.generate');
+    } else {
+      requirePermissionGuard(employee, 'payroll.approve');
+    }
 
     const run = await prisma.payrollRun.findUnique({
       where: { id: payroll_run_id },

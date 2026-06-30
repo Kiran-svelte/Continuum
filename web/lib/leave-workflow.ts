@@ -113,6 +113,21 @@ export function resolveConstraintEngineUrl(): string | null {
     return null;
   }
 
+  if (process.env.NODE_ENV === 'production') {
+    try {
+      const parsed = new URL(normalized);
+      const isLocalhost =
+        parsed.hostname === 'localhost' ||
+        parsed.hostname === '127.0.0.1' ||
+        parsed.hostname === '::1';
+      if (parsed.protocol !== 'https:' && !isLocalhost) {
+        return null;
+      }
+    } catch {
+      return null;
+    }
+  }
+
   return normalized;
 }
 

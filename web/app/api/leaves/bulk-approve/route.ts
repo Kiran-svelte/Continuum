@@ -4,6 +4,10 @@ import { getAuthEmployee, requireRole, AuthError } from '@/lib/auth-guard';
 import { checkApiRateLimit, getRateLimitHeaders } from '@/lib/api-rate-limit';
 import { createAuditLog, AUDIT_ACTIONS } from '@/lib/audit';
 import { requireModuleForOrg } from '@/lib/core-functions/guard-handler';
+import {
+  getLeaveBalanceYear,
+  updateLeaveBalanceWithConcurrencyCheck,
+} from '@/lib/leave-workflow';
 
 export const dynamic = 'force-dynamic';
 
@@ -133,11 +137,11 @@ export async function POST(request: NextRequest) {
       await prisma.$transaction(async (tx) => {
         for (const leaveRequest of validRequests) {
           const now = new Date();
-          const balanceYear = leaveRequest.start_date.getFullYear();
+          const balanceYear = getLeaveBalanceYear(leaveRequest.start_date);
 
           if (action === 'approve') {
-            await tx.leaveRequest.update({
-              where: { id: leaveRequest.id },
+            const requestUpdate = await tx.leaveRequest.updateMany({
+              where: { id: leaveRequest.id, status: leaveRequest.status },
               data: {
                 status: 'approved',
                 approved_by: employee.id,
@@ -146,13 +150,14 @@ export async function POST(request: NextRequest) {
               },
             });
 
-            // Update leave balance: used_days += total_days, pending_days -= total_days
-            await tx.leaveBalance.updateMany({
-              where: {
-                emp_id: leaveRequest.emp_id,
-                leave_type: leaveRequest.leave_type,
-                year: balanceYear,
-              },
+            if (requestUpdate.count === 0) {
+              throw new Error(`Leave request ${leaveRequest.id} was modified concurrently; please retry`);
+            }
+
+            await updateLeaveBalanceWithConcurrencyCheck(tx, {
+              empId: leaveRequest.emp_id,
+              leaveType: leaveRequest.leave_type,
+              year: balanceYear,
               data: {
                 used_days: { increment: leaveRequest.total_days },
                 pending_days: { decrement: leaveRequest.total_days },
@@ -160,8 +165,8 @@ export async function POST(request: NextRequest) {
             });
           } else {
             // reject
-            await tx.leaveRequest.update({
-              where: { id: leaveRequest.id },
+            const requestUpdate = await tx.leaveRequest.updateMany({
+              where: { id: leaveRequest.id, status: leaveRequest.status },
               data: {
                 status: 'rejected',
                 approved_by: employee.id,
@@ -170,13 +175,14 @@ export async function POST(request: NextRequest) {
               },
             });
 
-            // Restore balance: pending_days -= total_days, remaining += total_days
-            await tx.leaveBalance.updateMany({
-              where: {
-                emp_id: leaveRequest.emp_id,
-                leave_type: leaveRequest.leave_type,
-                year: balanceYear,
-              },
+            if (requestUpdate.count === 0) {
+              throw new Error(`Leave request ${leaveRequest.id} was modified concurrently; please retry`);
+            }
+
+            await updateLeaveBalanceWithConcurrencyCheck(tx, {
+              empId: leaveRequest.emp_id,
+              leaveType: leaveRequest.leave_type,
+              year: balanceYear,
               data: {
                 pending_days: { decrement: leaveRequest.total_days },
                 remaining: { increment: leaveRequest.total_days },
@@ -225,6 +231,9 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     if (error instanceof AuthError) {
       return NextResponse.json({ error: error.message }, { status: error.status });
+    }
+    if (error instanceof Error && error.message.includes('concurrently')) {
+      return NextResponse.json({ error: error.message }, { status: 409 });
     }
     const message =
       process.env.NODE_ENV === 'production' ? 'Internal server error' : String(error);
