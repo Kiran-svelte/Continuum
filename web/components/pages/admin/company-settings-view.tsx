@@ -1,6 +1,7 @@
 "use client"
 
 import React, { useState, useEffect, useTransition } from 'react';
+import { toast } from 'sonner';
 import { Shield, BellRing, Clock, Save, Globe2, AlertTriangle, Building2, Loader2, Users, Layers, GitBranch, Network, AppWindow } from 'lucide-react';
 import { fetchLiveCompanyState, updateSystemConfig } from '@/app/admin/(main)/company-settings/actions';
 import { Input, Select } from '@/components/ui/input';
@@ -158,13 +159,13 @@ export default function CompanySettingsView() {
       });
       const data = await res.json();
       if (res.ok && data.success) {
-        alert('Role model updated: ' + data.message);
+        toast.success('Role model updated: ' + data.message);
         fetchRoleModel();
       } else {
-        alert('Error: ' + (data.error || 'Failed to update'));
+        toast.error('Error: ' + (data.error || 'Failed to update'));
       }
     } catch (err) {
-      alert('Network error');
+      toast.error('Network error updating role model');
       console.error('[Settings] Role model update error:', err);
     } finally {
       setIsRoleModelSaving(false);
@@ -185,9 +186,10 @@ export default function CompanySettingsView() {
         body: JSON.stringify({ forceGlobalMfa: true }),
       });
       const data = await res.json().catch(() => ({}));
-      alert(res.ok ? 'Global MFA requirement enabled.' : `Error: ${data.error || 'Failed to enable MFA'}`);
+      if (res.ok) toast.success('Global MFA requirement enabled.');
+      else toast.error(data.error || 'Failed to enable MFA');
     } catch {
-      alert('Network error while enabling MFA.');
+      toast.error('Network error while enabling MFA.');
     } finally {
       setIsMfaSaving(false);
     }
@@ -201,7 +203,8 @@ export default function CompanySettingsView() {
     e.preventDefault();
     startTransition(async () => {
       const result = await updateSystemConfig(formData);
-      alert(result.success ? "Success: " + result.message : "Error: " + result.error);
+      if (result.success) toast.success(result.message ?? 'Settings saved.');
+      else toast.error(result.error ?? 'Failed to save settings.');
     });
   };
 

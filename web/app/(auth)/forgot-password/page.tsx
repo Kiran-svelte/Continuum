@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { FadeIn, TiltCard, AmbientBackground } from '@/components/motion';
 import { GlassPanel } from '@/components/glass-panel';
+import { toast } from 'sonner';
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
@@ -30,8 +31,10 @@ export default function ForgotPasswordPage() {
       }
 
       setSent(true);
+      toast.success('Reset link sent! Check your inbox.');
     } catch (err) {
       setError('Failed to send reset email. Please try again.');
+      toast.error('Failed to send reset email. Please try again.');
     } finally {
       setLoading(false);
     }

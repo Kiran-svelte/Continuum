@@ -9,7 +9,8 @@ import { createCompanyAndEmployee, joinCompanyAsEmployee } from '@/app/actions/a
 import { fetchWithTimeout, ONBOARDING_FETCH_TIMEOUT_MS } from '@/lib/fetch-with-timeout';
 import { resolvePostSignInPath } from '@/lib/post-sign-in-routing';
 import { LEAVE_TYPE_CATALOG } from '@/lib/leave-types-config';
-import { TOTAL_ONBOARDING_STEPS } from '@/lib/onboarding-step-contract';
+import { TOTAL_ONBOARDING_STEPS, filterOnboardingSteps } from '@/lib/onboarding-step-contract';
+import type { ModuleSlug } from '@/lib/core-functions/catalog';
 import {
   Building2,
   ClipboardList,
@@ -997,13 +998,15 @@ const DEFAULT_HOLIDAYS: HolidayEntry[] = [
 
 // ─── Step indicator ──────────────────────────────────────────────────────────
 
-function StepIndicator({ currentStep }: { currentStep: number }) {
+function StepIndicator({ currentStep, visibleStepIds }: { currentStep: number; visibleStepIds: number[] }) {
+  const visibleSteps = STEPS.filter(s => visibleStepIds.includes(s.id));
+  const visibleIndex = visibleSteps.findIndex(s => s.id === STEPS[currentStep]?.id);
   return (
     <div className="flex items-center justify-center gap-3 mb-8">
-      {STEPS.map((step, index) => {
+      {visibleSteps.map((step, index) => {
         const StepIcon = step.icon;
-        const isCompleted = index < currentStep;
-        const isCurrent = index === currentStep;
+        const isCompleted = index < visibleIndex;
+        const isCurrent = index === visibleIndex;
 
         return (
           <div key={step.id} className="flex items-center">
@@ -1039,7 +1042,7 @@ function StepIndicator({ currentStep }: { currentStep: number }) {
                 {step.label}
               </span>
             </div>
-            {index < STEPS.length - 1 && (
+            {index < visibleSteps.length - 1 && (
               <div className={`h-[2px] w-12 mx-1 transition-colors duration-300 ${
                 isCompleted ? 'bg-primary' : 'bg-white/10'
               }`} />
@@ -1062,6 +1065,20 @@ function OnboardingPageInner() {
   const [joinCode, setJoinCode] = useState('');
   const [loading, setLoading] = useState(true);
   const [companyId, setCompanyId] = useState<string | null>(null);
+  const [enabledModules, setEnabledModules] = useState<ModuleSlug[]>([]);
+
+  // Which step IDs to show — all until modules are known, then filtered
+  const visibleStepIds =
+    enabledModules.length > 0
+      ? filterOnboardingSteps(enabledModules)
+      : Array.from({ length: TOTAL_ONBOARDING_STEPS }, (_, i) => i + 1);
+
+  function nextVisibleStep(from: number): number {
+    for (let next = from + 1; next < STEPS.length; next++) {
+      if (visibleStepIds.includes(STEPS[next].id)) return next;
+    }
+    return STEPS.length - 1;
+  }
 
   // Per-step state
   const [companyData, setCompanyData] = useState<CompanyData>({
@@ -1197,9 +1214,20 @@ function OnboardingPageInner() {
     checkAuth();
   }, [router, searchParams]);
 
-  const isLastContentStep = currentStep === STEPS.length - 2; // step before "Complete"
+  // "Complete" is always the last step (id=13, index=12)
   const isCompletionStep = currentStep === STEPS.length - 1;
+  // Last content step = the visible step just before "Complete"
+  const visibleBeforeComplete = visibleStepIds.filter(id => id < 13);
+  const lastContentStepId = visibleBeforeComplete[visibleBeforeComplete.length - 1] ?? 12;
+  const isLastContentStep = STEPS[currentStep]?.id === lastContentStepId;
   const isFirstStep = currentStep === 0;
+
+  function prevVisibleStep(from: number): number {
+    for (let prev = from - 1; prev >= 0; prev--) {
+      if (visibleStepIds.includes(STEPS[prev].id)) return prev;
+    }
+    return 0;
+  }
 
   async function handleNext() {
     setError('');
@@ -1242,6 +1270,17 @@ function OnboardingPageInner() {
           setCompanyId(result.company.id);
           setJoinCode(result.company.joinCode || '');
         }
+
+        // Fetch enabled modules so we can filter later steps
+        try {
+          const meRes = await fetch('/api/auth/me', { credentials: 'include' });
+          if (meRes.ok) {
+            const meData = await meRes.json();
+            if (Array.isArray(meData.enabledModules) && meData.enabledModules.length > 0) {
+              setEnabledModules(meData.enabledModules as ModuleSlug[]);
+            }
+          }
+        } catch { /* non-critical */ }
 
         setCurrentStep(1);
         setSaving(false);
@@ -1314,13 +1353,13 @@ function OnboardingPageInner() {
         }
 
         if (json.join_code) setJoinCode(json.join_code);
-        setCurrentStep((s) => s + 1);
+        setCurrentStep((s) => nextVisibleStep(s));
         setSaving(false);
         return;
       }
 
       // Normal next step
-      setCurrentStep((s) => s + 1);
+      setCurrentStep((s) => nextVisibleStep(s));
     } catch (err) {
       console.error('[Onboarding] handleNext error:', err);
       setError(ONBOARDING_COMPLETE_FALLBACK_ERROR);
@@ -1456,7 +1495,7 @@ function OnboardingPageInner() {
 
         {/* Step Indicators */}
         <FadeIn delay={0.1}>
-          <StepIndicator currentStep={currentStep} />
+          <StepIndicator currentStep={currentStep} visibleStepIds={visibleStepIds} />
         </FadeIn>
 
         {/* Step Content */}
@@ -1486,7 +1525,7 @@ function OnboardingPageInner() {
                   <div className="flex justify-between mt-8 pt-4 border-t border-white/10">
                     <button
                       type="button"
-                      onClick={() => setCurrentStep((s) => s - 1)}
+                      onClick={() => setCurrentStep((s) => prevVisibleStep(s))}
                       disabled={isFirstStep || saving}
                       className="border border-white/20 text-white/80 rounded-xl px-6 py-2.5 hover:bg-white/10 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
                     >

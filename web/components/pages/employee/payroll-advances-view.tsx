@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { toast } from 'sonner';
 import { Banknote, Plus, Clock, CheckCircle2, XCircle, Check, X } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -151,11 +152,11 @@ export default function PayrollAdvancesView({ enableTeamApprovals = false }: Pay
         return;
       }
       const approverName = json.pendingApprover?.name;
-      setSuccessMsg(
-        approverName
-          ? `Request submitted. Pending approval from ${approverName}.`
-          : 'Payroll advance request submitted.'
-      );
+      const msg = approverName
+        ? `Request submitted. Pending approval from ${approverName}.`
+        : 'Payroll advance request submitted.';
+      setSuccessMsg(msg);
+      toast.success(msg);
       setShowForm(false);
       setAmount('');
       setReason('');

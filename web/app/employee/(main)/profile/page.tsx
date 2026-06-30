@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { Pencil, CheckCircle, Phone, Building2, MapPin, Eye, EyeOff, MessageCircle } from 'lucide-react';
 import { StaggerContainer, FadeIn, TiltCard } from '@/components/motion';
+import { toast } from 'sonner';
 
 interface Profile {
   id: string;
@@ -163,10 +164,12 @@ export default function ProfilePage() {
       const json = await res.json();
       if (!res.ok) {
         setSaveError(json.error ?? 'Failed to update profile');
+        toast.error(json.error ?? 'Failed to update profile');
         return;
       }
       setProfile((prev) => prev ? { ...prev, ...json } : prev);
       setSaveSuccess('Profile updated successfully.');
+      toast.success('Profile updated successfully.');
       setEditing(false);
     } finally {
       setSaving(false);

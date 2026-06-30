@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { ProgressBar } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ensureMe } from '@/lib/client-auth';
+import { toast } from 'sonner';
 import {
   ArrowLeft,
   Mail,
@@ -218,10 +219,13 @@ export default function EmployeeDetailPage() {
 
       setEditing(false);
       setSaveMessage({ type: 'success', text: 'Employee updated successfully' });
+      toast.success('Employee updated successfully');
       setTimeout(() => setSaveMessage(null), 5000);
       fetchEmployee();
     } catch (err) {
-      setSaveMessage({ type: 'error', text: err instanceof Error ? err.message : 'Save failed' });
+      const errMsg = err instanceof Error ? err.message : 'Save failed';
+      setSaveMessage({ type: 'error', text: errMsg });
+      toast.error(errMsg);
       setTimeout(() => setSaveMessage(null), 5000);
     } finally {
       setSaving(false);

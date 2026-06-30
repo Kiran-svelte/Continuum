@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -392,6 +393,7 @@ export default function HolidaysPage() {
           throw new Error(data.error || 'Failed to update holiday');
         }
         setStatusMsg({ message: 'Holiday updated successfully.', type: 'success' });
+        toast.success('Holiday updated successfully.');
       } else {
         // POST - Create
         const res = await fetch('/api/company/holidays', {
@@ -405,6 +407,7 @@ export default function HolidaysPage() {
           throw new Error(data.error || 'Failed to add holiday');
         }
         setStatusMsg({ message: 'Holiday added successfully.', type: 'success' });
+        toast.success('Holiday added successfully.');
       }
       setShowForm(false);
       setEditingHoliday(null);
@@ -433,6 +436,7 @@ export default function HolidaysPage() {
         throw new Error(data.error || 'Failed to delete holiday');
       }
       setStatusMsg({ message: 'Holiday deleted successfully.', type: 'success' });
+      toast.success('Holiday deleted.');
       setDeletingHoliday(null);
       await fetchHolidays();
     } catch (err: unknown) {

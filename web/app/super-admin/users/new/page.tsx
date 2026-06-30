@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, UserPlus, Loader2, CheckCircle, Copy, AlertCircle, Info } from 'lucide-react';
+import { toast } from 'sonner';
 
 /**
  * Create New User Form (Super Admin)
@@ -43,6 +44,7 @@ export default function CreateUserPage() {
 
       if (!response.ok) {
         setError(data.error || 'Failed to create user');
+        toast.error(data.error || 'Failed to create user');
         setLoading(false);
         return;
       }
@@ -51,6 +53,7 @@ export default function CreateUserPage() {
         inviteUrl: data.inviteUrl,
         tempPassword: data.tempPassword,
       });
+      toast.success('Invite sent! Share the link with the user.');
     } catch (err) {
       setError('An unexpected error occurred');
     } finally {
