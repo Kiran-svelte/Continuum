@@ -9,17 +9,15 @@
     }
   },
   "crons": [
-    {
-      "path": "/api/cron/sla-check",
-      "schedule": "0 9 * * *"
-    },
-    {
-      "path": "/api/cron/leave-accrual",
-      "schedule": "0 0 1 * *"
-    },
-    {
-      "path": "/api/cron/year-end-carry-forward",
-      "schedule": "0 1 1 1 *"
-    }
+    { "path": "/api/cron/sla-check",             "schedule": "0 9 * * *"    },
+    { "path": "/api/cron/leave-accrual",          "schedule": "0 0 1 * *"    },
+    { "path": "/api/cron/year-end-carry-forward", "schedule": "0 1 1 1 *"    },
+    { "path": "/api/cron/audit-verification",     "schedule": "0 2 * * *"    },
+    { "path": "/api/cron/document-expiry",        "schedule": "0 8 * * *"    },
+    { "path": "/api/cron/learning-overdue",       "schedule": "0 8 * * 1"    },
+    { "path": "/api/cron/leave-sla-breach",       "schedule": "0 9 * * *"    },
+    { "path": "/api/cron/performance-overdue",    "schedule": "0 8 * * 1"    },
+    { "path": "/api/cron/probation-check",        "schedule": "0 8 * * *"    },
+    { "path": "/api/cron/process-events",         "schedule": "*/15 * * * *" }
   ]
 }

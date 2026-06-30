@@ -1,3 +1,17 @@
 .vercel
 .env*.local
 .env*
+
+# Temp / scratch files — never commit
+temp_*.txt
+temp_*.json
+test.js
+test2.js
+test-smtp.js
+testbody.json
+afterdeploy.json
+prodtest.json
+fb_test.json
+session_test.json
+update_profile.js
+wipe_and_seed.js
