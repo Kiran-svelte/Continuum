@@ -1,5 +1,6 @@
 import sgMail from '@sendgrid/mail';
 import nodemailer from 'nodemailer';
+import { Resend } from 'resend';
 import { redisEmailRateLimit } from '@/lib/redis';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -22,7 +23,7 @@ interface EmailResult {
   messageId?: string;
   error?: string;
   /** Which transport delivered the email */
-  transport?: 'sendgrid' | 'smtp';
+  transport?: 'resend' | 'sendgrid' | 'smtp';
 }
 
 // ─── HTML Escaping (XSS Prevention) ─────────────────────────────────────────
@@ -50,6 +51,60 @@ function checkEmailRateLimit(): boolean {
     emailSendTimestamps.shift();
   }
   return emailSendTimestamps.length < MAX_EMAILS_PER_MINUTE;
+}
+
+// ─── Resend Transport ────────────────────────────────────────────────────────
+
+let resendClient: Resend | null = null;
+
+function getResendClient(): Resend | null {
+  if (resendClient) return resendClient;
+  const apiKey = process.env.RESEND_API_KEY?.trim();
+  if (!apiKey) return null;
+  resendClient = new Resend(apiKey);
+  return resendClient;
+}
+
+async function sendViaResend(
+  to: string | string[],
+  subject: string,
+  html: string,
+  options?: EmailOptions
+): Promise<EmailResult> {
+  const client = getResendClient();
+  if (!client) return { success: false, error: 'Resend API key not configured' };
+
+  const fromEmail = process.env.RESEND_FROM_EMAIL || process.env.SENDGRID_FROM_EMAIL || 'noreply@continuum.hr';
+  const fromName = process.env.EMAIL_FROM_NAME || process.env.SENDGRID_FROM_NAME?.trim() || 'Continuum HR';
+
+  try {
+    const { data, error } = await client.emails.send({
+      from: `${fromName} <${fromEmail}>`,
+      to: Array.isArray(to) ? to : [to],
+      subject,
+      html,
+      ...(options?.cc && { cc: Array.isArray(options.cc) ? options.cc : [options.cc] }),
+      ...(options?.bcc && { bcc: Array.isArray(options.bcc) ? options.bcc : [options.bcc] }),
+      ...(options?.replyTo && { reply_to: options.replyTo }),
+      ...(options?.attachments?.length && {
+        attachments: options.attachments.map((att) => ({
+          filename: att.filename,
+          content: typeof att.content === 'string' ? att.content : att.content.toString('base64'),
+        })),
+      }),
+    });
+
+    if (error) {
+      console.error('[EmailService] Resend error:', error);
+      return { success: false, error: error.message };
+    }
+
+    return { success: true, messageId: data?.id, transport: 'resend' };
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : 'Resend delivery failed';
+    console.error('[EmailService] Resend exception:', msg);
+    return { success: false, error: msg };
+  }
 }
 
 // ─── SendGrid Web API Transport ─────────────────────────────────────────────
@@ -193,20 +248,29 @@ export async function sendEmail(
 
     const provider = process.env.EMAIL_PROVIDER?.trim() || 'sendgrid';
 
-    // Try primary: SendGrid Web API
-    if (provider === 'sendgrid' || !provider) {
+    // Try primary: Resend
+    if (provider === 'resend') {
+      const result = await sendViaResend(to, subject, html, options);
+      if (result.success) {
+        emailSendTimestamps.push(Date.now());
+        console.log(`[EmailService] Sent via Resend to ${Array.isArray(to) ? to.join(', ') : to} (${options?.category || 'general'})`);
+        return result;
+      }
+      console.warn(`[EmailService] Resend failed, falling back to SendGrid: ${result.error}`);
+    }
+
+    // Try SendGrid
+    if (provider === 'sendgrid' || provider === 'resend') {
       const sgResult = await sendViaSendGrid(to, subject, html, options);
       if (sgResult.success) {
         emailSendTimestamps.push(Date.now());
         console.log(`[EmailService] Sent via SendGrid to ${Array.isArray(to) ? to.join(', ') : to} (${options?.category || 'general'})`);
         return sgResult;
       }
-
-      // SendGrid failed — fall through to SMTP
       console.warn(`[EmailService] SendGrid failed, falling back to SMTP: ${sgResult.error}`);
     }
 
-    // Fallback: SMTP
+    // Last resort: SMTP
     const smtpResult = await sendViaSmtp(to, subject, html, options);
     emailSendTimestamps.push(Date.now());
     console.log(`[EmailService] Sent via SMTP fallback to ${Array.isArray(to) ? to.join(', ') : to}`);
