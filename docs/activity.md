@@ -369,3 +369,23 @@ Prompt:
 ```text
 no mails received .wtf ?? are you literally making just issues correct or globally you are making the functions to work perfectly ?
 ```
+
+## 2026-07-02 21:58:00 +05:30
+
+Action:
+
+- Started `SIGNINFIX-20260702` because `/sign-in` on `continuum.support` still returned 500 from `/api/auth/signin`.
+- Checked live Vercel logs and found the exact production error: `AuthSecretError` because `JWT_SECRET`, `SESSION_SECRET`, and `CSRF_SECRET` were all set but did not match.
+- Confirmed this is an auth-secret resolver failure, not a user password failure.
+- Hardened `web/lib/auth-secret.ts` so JWT signing uses stable precedence (`JWT_SECRET` > `SESSION_SECRET` > `CSRF_SECRET`) and throws only when no usable signing secret exists.
+- Added a regression test in `web/tests/auth-flow.test.ts` proving JWT signing does not crash when session/CSRF secrets are separate.
+- Removed the temporary Vercel env pull file after comparing configuration shape.
+- Ran `npx tsx --test tests\auth-flow.test.ts tests\proderr-20260702.test.ts tests\mailfix-20260702.test.ts`; 41/41 tests passed.
+- Ran `npx tsc --noEmit --pretty false --incremental false`; passed.
+- Ran `npm run build`; Prisma generation and the Next production build completed successfully.
+
+Prompt:
+
+```text
+do i need to say everytime to test on production before handing it over to me ?
+```

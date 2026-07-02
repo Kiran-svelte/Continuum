@@ -216,6 +216,21 @@ describe('Auth Libraries', () => {
       );
     }
   });
+
+  it('auth JWT signing should prefer JWT_SECRET without requiring session/csrf secrets to match', async () => {
+    const { getAuthSecretKey } = await import('../lib/auth-secret.ts');
+    const key = getAuthSecretKey({
+      JWT_SECRET: 'jwt-production-signing-secret',
+      SESSION_SECRET: 'separate-session-cookie-secret',
+      CSRF_SECRET: 'separate-csrf-token-secret',
+    });
+
+    assert.strictEqual(
+      Buffer.from(key).toString('utf8'),
+      'jwt-production-signing-secret',
+      'JWT signing should not throw when unrelated auth secrets are present with different values'
+    );
+  });
 });
 
 // ─── CSP Configuration Tests ─────────────────────────────────────────────────

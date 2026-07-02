@@ -288,3 +288,37 @@ Audit identifier: `MAILFIX-20260702`
 - [x] `MAILFIX-20260702-BUILD` - Re-run production build after the transport hardening patch.
 - [x] `MAILFIX-20260702-GIT` - Commit and push only the scoped mail-delivery batch.
 - [x] `MAILFIX-20260702-DEPLOY` - Redeploy from GitHub `main` and verify live forgot-password again.
+
+## Production Sign-In 500 Remediation Todo
+
+Audit identifier: `SIGNINFIX-20260702`
+
+### Impact Mapping
+
+- UI pages: `/sign-in` shows `Sign-in failed` while the browser console reports 500 from `/api/auth/signin`.
+- APIs: `/api/auth/signin` must never crash because unrelated auth secret env vars differ.
+- Auth infrastructure: JWT signing must use `JWT_SECRET`; session-cookie signing and CSRF signing may use separate secrets.
+- Logs/error handling: production should return 401 for bad credentials and 200 for valid credentials, not 500 for configuration mismatch.
+- User permissions/navigation: successful auth must still route users to their role-specific dashboard after cookies are set.
+
+### Gap Analysis
+
+- Production logs showed `AuthSecretError` from `/api/auth/signin`: `JWT_SECRET`, `SESSION_SECRET`, and `CSRF_SECRET` were all set but did not match.
+- Local code already had a safer resolver, but it was not committed/deployed to production.
+- Existing auth tests did not assert that JWT signing tolerates separate session/CSRF secrets.
+
+### Complete Spec
+
+- `getAuthSecretKey` must resolve JWT signing secrets by stable precedence: `JWT_SECRET`, then `SESSION_SECRET`, then `CSRF_SECRET`.
+- The resolver must throw only when no usable signing secret exists.
+- Separate session/CSRF values must not block sign-in because they sign different auth concerns.
+- Proof must include focused auth regression tests, TypeScript, production build, commit/push/deploy, live `/api/auth/signin` smoke, and Vercel log verification that the `AuthSecretError` no longer appears.
+
+### Todo
+
+- [x] `SIGNINFIX-20260702-LOGS` - Inspect live Vercel logs and identify the exact `/api/auth/signin` 500 cause.
+- [x] `SIGNINFIX-20260702-CODE` - Harden JWT secret resolution to avoid crashing when session/CSRF secrets differ.
+- [x] `SIGNINFIX-20260702-TESTS` - Add regression coverage for mismatched JWT/session/CSRF env values.
+- [x] `SIGNINFIX-20260702-BUILD` - Run focused tests, TypeScript, and production build.
+- [ ] `SIGNINFIX-20260702-GIT` - Commit and push the scoped sign-in fix.
+- [ ] `SIGNINFIX-20260702-DEPLOY` - Deploy to Vercel/Render and verify production sign-in no longer returns 500.

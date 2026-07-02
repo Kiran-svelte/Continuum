@@ -146,3 +146,25 @@ Deployment proof:
 - Live `/api/auth/forgot-password` for the known super-admin account returned neutral success and created a fresh unused `PasswordResetToken` at `2026-07-02T16:07:54.616Z`.
 - Vercel logs for the same request show `Sent via Resend` for the security email and no 500 logs in the request window.
 - Resend reports `continuum.support` as a verified domain with sending enabled. DKIM is present. DMARC exists with `p=none`.
+
+## SIGNINFIX-20260702 Addendum
+
+Root cause: the deployed `/api/auth/signin` path was still using strict auth-secret consistency logic. Production has `JWT_SECRET`, `SESSION_SECRET`, and `CSRF_SECRET` all configured, but they are different values. The route crashed with `AuthSecretError` before completing authentication.
+
+Files changed:
+
+- `web/lib/auth-secret.ts`
+  - Uses stable JWT signing secret precedence: `JWT_SECRET`, then `SESSION_SECRET`, then `CSRF_SECRET`.
+  - Throws only when no usable signing secret exists.
+  - Allows session and CSRF secrets to remain separate from JWT signing.
+- `web/tests/auth-flow.test.ts`
+  - Adds regression coverage that mismatched JWT/session/CSRF secrets do not crash JWT signing.
+- `tasks/todo.md`, `docs/activity.md`, `REPORT.md`
+  - Records impact mapping, gap analysis, complete spec, and proof for the sign-in production incident.
+
+Proof before commit/deploy:
+
+- Vercel logs showed `/api/auth/signin` 500 caused by `AuthSecretError`.
+- `npx tsx --test tests\auth-flow.test.ts tests\proderr-20260702.test.ts tests\mailfix-20260702.test.ts` passed 41/41.
+- `npx tsc --noEmit --pretty false --incremental false` passed.
+- `npm run build` passed.
