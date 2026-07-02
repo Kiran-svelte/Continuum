@@ -341,3 +341,25 @@ ASSUME NOTHING EXISTS. Always think: 'If I was building this for 10,000 users in
 
 Apply this to EVERY request, no exceptions.)
 ```
+
+## 2026-07-02 21:11:00 +05:30
+
+Action:
+
+- Started `MAILFIX-20260702` because the `/forgot-password` UI showed the neutral success state but the user still did not receive mail.
+- Checked live Vercel logs for `continuum.support` and confirmed `/api/auth/forgot-password` returned 200 while logging an underlying Prisma connection/table failure.
+- Compared the Prisma schema to the production database and found one missing model table: `PasswordResetToken`.
+- Added an idempotent `PasswordResetToken` migration and applied it to production with `npx prisma migrate deploy --schema prisma\schema.prisma`.
+- Verified production now has the `PasswordResetToken` table.
+- Sent a live forgot-password request for the known super-admin account and verified production created an unused reset token row.
+- Verified Vercel logs show Resend accepted the security email for the test account.
+- Hardened `web/lib/email-service.ts` so Resend, SendGrid, and SMTP fallback credentials/from values are sanitized before use.
+- Added focused regression coverage in `web/tests/mailfix-20260702.test.ts`.
+- Ran `npx tsx --test tests\mailfix-20260702.test.ts tests\proderr-20260702.test.ts tests\auth-flow.test.ts`; 40/40 tests passed.
+- Ran `npm run build`; Prisma generation and the Next production build completed successfully.
+
+Prompt:
+
+```text
+no mails received .wtf ?? are you literally making just issues correct or globally you are making the functions to work perfectly ?
+```

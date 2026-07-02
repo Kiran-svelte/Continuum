@@ -247,3 +247,44 @@ Local and database proof completed on 2026-07-02:
 - `npx prisma migrate deploy --schema prisma/schema.prisma` completed successfully.
 - `npx prisma migrate status --schema prisma/schema.prisma` now reports: `Database schema is up to date!`
 - Deployment proof is still pending until commit/push and Vercel/Render deploy verification finish.
+
+## Password Reset Mail Delivery Remediation Todo
+
+Audit identifier: `MAILFIX-20260702`
+
+### Impact Mapping
+
+- UI pages: `/forgot-password` success state can appear even when the server suppressed an infrastructure failure for anti-enumeration safety.
+- APIs: `/api/auth/forgot-password` must create a durable one-time reset token and send the reset email without leaking whether the account exists.
+- Database tables: `PasswordResetToken`, `Employee`, and `SuperAdmin`; token writes must exist before mail delivery is attempted.
+- Notification systems: Resend primary transport plus SendGrid/SMTP fallbacks; provider acceptance must be visible in server logs.
+- Logs/error handling/loading states: production must return neutral user-safe responses, while server logs distinguish token/database failure from provider delivery failure.
+- User permissions: forgot-password remains a public endpoint by design; reset consumption remains token-protected.
+
+### Gap Analysis
+
+- `PasswordResetToken` existed in Prisma schema but did not exist in the production database; create a durable migration and apply it.
+- Email transport existed, but environment values with escaped newline characters could break provider keys, sender names, or SMTP fallback credentials; sanitize env reads centrally.
+- The forgot-password success page existed, but it only confirmed request acceptance, not actual mail delivery; verify the server-side provider log and token row.
+- Existing tests covered neutral responses but not the production token table or transport env sanitation; add focused regression tests.
+
+### Complete Spec
+
+- Forgot-password must store a hashed, one-time, expiring reset token for known Employee and SuperAdmin accounts.
+- The token table must be part of committed Prisma migrations so new environments cannot silently miss it.
+- Mail provider credentials, from addresses, from names, and SMTP fallback credentials must be normalized before use.
+- The production response must stay neutral to avoid account enumeration, but server logs must prove whether a reset mail was accepted by the provider.
+- Proof must include migration deploy, recent token-row verification, provider acceptance log, typecheck, focused tests, production build, commit, push, and live deploy verification.
+
+### Todo
+
+- [x] `MAILFIX-20260702-LOGS` - Inspect live forgot-password logs and confirm the neutral success screen was hiding a server-side Prisma failure.
+- [x] `MAILFIX-20260702-SCHEMA` - Compare Prisma models to production tables and identify the missing `PasswordResetToken` table.
+- [x] `MAILFIX-20260702-MIGRATION` - Add and apply an idempotent production-safe migration for `PasswordResetToken`.
+- [x] `MAILFIX-20260702-TRANSPORT` - Harden email transport env handling for Resend, SendGrid, and SMTP fallback paths.
+- [x] `MAILFIX-20260702-TESTS` - Add focused regression tests for migration coverage, env sanitation, and token-before-mail behavior.
+- [x] `MAILFIX-20260702-PRODDB` - Verify production DB now has `PasswordResetToken` and a live forgot-password call creates a fresh unused token.
+- [x] `MAILFIX-20260702-PROVIDER` - Verify production logs show Resend accepted the reset email for the test account.
+- [x] `MAILFIX-20260702-BUILD` - Re-run production build after the transport hardening patch.
+- [ ] `MAILFIX-20260702-GIT` - Commit and push only the scoped mail-delivery batch.
+- [ ] `MAILFIX-20260702-DEPLOY` - Redeploy from GitHub `main` and verify live forgot-password again.

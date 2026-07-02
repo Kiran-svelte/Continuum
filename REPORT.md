@@ -109,3 +109,30 @@ Fixed the reported CSP, missing icon, public auth probing, forgot-password, supe
 ## Deployment Status
 
 Pending at report creation. Commit, push, Vercel deploy, Render deploy, and live smoke verification are the remaining steps.
+
+## MAILFIX-20260702 Addendum
+
+Root cause: `/forgot-password` could show the correct anti-enumeration success screen while production failed before actual mail delivery because the production database was missing the `PasswordResetToken` table.
+
+Files changed:
+
+- `web/prisma/migrations/20260702162000_password_reset_token/migration.sql`
+  - Adds the durable reset-token table, unique token-hash index, and lookup/expiry indexes.
+- `web/lib/email-service.ts`
+  - Normalizes mail-related environment values before use.
+  - Keeps Resend as primary and hardens SendGrid/SMTP fallback paths against escaped newline characters in env values.
+- `web/tests/mailfix-20260702.test.ts`
+  - Verifies the migration creates `PasswordResetToken`.
+  - Verifies mail env values are sanitized.
+  - Verifies forgot-password stores the reset token before calling mail delivery.
+- `tasks/todo.md`, `docs/activity.md`, `REPORT.md`
+  - Records impact mapping, gap analysis, complete spec, and proof for the mail-delivery incident.
+
+Proof completed before commit/deploy:
+
+- Production migration applied successfully with `npx prisma migrate deploy --schema prisma\schema.prisma`.
+- Production database now contains `PasswordResetToken`.
+- Live `/api/auth/forgot-password` for the known super-admin account returned neutral success, created an unused token row, and Vercel logs showed Resend accepted the security email.
+- `npx tsx --test tests\mailfix-20260702.test.ts tests\proderr-20260702.test.ts tests\auth-flow.test.ts` passed 40/40.
+- `npx tsc --noEmit --pretty false --incremental false` passed.
+- `npm run build` passed after the mail transport hardening patch.

@@ -26,6 +26,24 @@ interface EmailResult {
   transport?: 'resend' | 'sendgrid' | 'smtp';
 }
 
+function cleanEnv(value: string | undefined): string {
+  return (value || '')
+    .replace(/^\uFEFF/, '')
+    .replace(/\\r/g, '')
+    .replace(/\\n/g, '')
+    .replace(/\r/g, '')
+    .replace(/\n/g, '')
+    .trim();
+}
+
+function envValue(...keys: string[]): string {
+  for (const key of keys) {
+    const value = cleanEnv(process.env[key]);
+    if (value) return value;
+  }
+  return '';
+}
+
 // ─── HTML Escaping (XSS Prevention) ─────────────────────────────────────────
 
 function escapeHtml(text: string): string {
@@ -59,7 +77,7 @@ let resendClient: Resend | null = null;
 
 function getResendClient(): Resend | null {
   if (resendClient) return resendClient;
-  const apiKey = process.env.RESEND_API_KEY?.trim();
+  const apiKey = envValue('RESEND_API_KEY');
   if (!apiKey) return null;
   resendClient = new Resend(apiKey);
   return resendClient;
@@ -74,8 +92,8 @@ async function sendViaResend(
   const client = getResendClient();
   if (!client) return { success: false, error: 'Resend API key not configured' };
 
-  const fromEmail = process.env.RESEND_FROM_EMAIL || process.env.SENDGRID_FROM_EMAIL || 'noreply@continuum.hr';
-  const fromName = process.env.EMAIL_FROM_NAME || process.env.SENDGRID_FROM_NAME?.trim() || 'Continuum HR';
+  const fromEmail = envValue('RESEND_FROM_EMAIL', 'SENDGRID_FROM_EMAIL', 'SMTP_FROM', 'GMAIL_USER') || 'noreply@continuum.hr';
+  const fromName = envValue('EMAIL_FROM_NAME', 'SENDGRID_FROM_NAME') || 'Continuum HR';
 
   try {
     const { data, error } = await client.emails.send({
@@ -113,7 +131,7 @@ let sgInitialized = false;
 
 function initSendGrid(): boolean {
   if (sgInitialized) return true;
-  const apiKey = process.env.SENDGRID_API_KEY?.trim();
+  const apiKey = envValue('SENDGRID_API_KEY');
   if (!apiKey) return false;
   sgMail.setApiKey(apiKey);
   sgInitialized = true;
@@ -130,8 +148,8 @@ async function sendViaSendGrid(
     return { success: false, error: 'SendGrid API key not configured' };
   }
 
-  const fromEmail = process.env.SENDGRID_FROM_EMAIL || process.env.SMTP_FROM || 'noreply@continuum.hr';
-  const fromName = process.env.SENDGRID_FROM_NAME || 'Continuum HR';
+  const fromEmail = envValue('SENDGRID_FROM_EMAIL', 'SMTP_FROM', 'GMAIL_USER') || 'noreply@continuum.hr';
+  const fromName = envValue('SENDGRID_FROM_NAME', 'EMAIL_FROM_NAME') || 'Continuum HR';
 
   const msg: sgMail.MailDataRequired = {
     to: Array.isArray(to) ? to : [to],
@@ -181,10 +199,10 @@ async function sendViaSendGrid(
 // ─── SMTP Fallback Transport ────────────────────────────────────────────────
 
 function createSmtpTransport(): nodemailer.Transporter {
-  const smtpHost = process.env.SMTP_HOST?.trim() || 'smtp.sendgrid.net';
-  const smtpPort = parseInt(process.env.SMTP_PORT || '587', 10);
-  const smtpUser = process.env.SMTP_USER?.trim() || '';
-  const smtpPass = process.env.SMTP_PASS?.trim() || '';
+  const smtpHost = envValue('SMTP_HOST') || 'smtp.sendgrid.net';
+  const smtpPort = parseInt(envValue('SMTP_PORT') || '587', 10);
+  const smtpUser = envValue('SMTP_USER', 'GMAIL_USER');
+  const smtpPass = envValue('SMTP_PASS', 'GMAIL_APP_PASSWORD');
 
   if (!smtpUser || !smtpPass) {
     console.warn('[EmailService] SMTP credentials not set — SMTP fallback will fail');
@@ -209,7 +227,9 @@ async function sendViaSmtp(
   options?: EmailOptions
 ): Promise<EmailResult> {
   const transporter = createSmtpTransport();
-  const from = `${process.env.SENDGRID_FROM_NAME || 'Continuum HR'} <${process.env.SMTP_FROM || process.env.SENDGRID_FROM_EMAIL || 'noreply@continuum.hr'}>`;
+  const fromName = envValue('EMAIL_FROM_NAME', 'SENDGRID_FROM_NAME') || 'Continuum HR';
+  const fromEmail = envValue('SMTP_FROM', 'GMAIL_USER', 'SENDGRID_FROM_EMAIL') || 'noreply@continuum.hr';
+  const from = `${fromName} <${fromEmail}>`;
 
   const mailOptions: nodemailer.SendMailOptions = {
     from,
@@ -246,7 +266,7 @@ export async function sendEmail(
       return { success: false, error: 'Email rate limit exceeded' };
     }
 
-    const provider = process.env.EMAIL_PROVIDER?.trim() || 'sendgrid';
+    const provider = envValue('EMAIL_PROVIDER') || 'sendgrid';
 
     // Try primary: Resend
     if (provider === 'resend') {
