@@ -4,11 +4,11 @@
 
 const CONTENT_SECURITY_POLICY =
   "default-src 'self'; " +
-  "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://sdk.cashfree.com https://checkout.razorpay.com; " +
+  "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://sdk.cashfree.com https://checkout.razorpay.com https://static.cloudflareinsights.com; " +
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
   "img-src 'self' data: https:; " +
   "font-src 'self' data: https://fonts.gstatic.com; " +
-  "connect-src 'self' https://accounts.google.com wss://*.pusher.com https://*.pusher.com https://api.cashfree.com https://sandbox.cashfree.com https://api.razorpay.com; " +
+  "connect-src 'self' https://accounts.google.com wss://*.pusher.com https://*.pusher.com https://api.cashfree.com https://sandbox.cashfree.com https://api.razorpay.com https://cloudflareinsights.com https://*.cloudflareinsights.com; " +
   "frame-src 'self' https://accounts.google.com https://api.cashfree.com https://sandbox.cashfree.com https://api.razorpay.com;";
 
 export function getProductionSecurityHeaders(): Record<string, string> {

@@ -13,7 +13,7 @@ import {
 } from '@/lib/core-functions/resolve';
 import { normalizeCap, validateDependencies } from '@/lib/core-functions/validate';
 import prisma from '@/lib/prisma';
-import { createAuditLog } from '@/lib/audit';
+import { createSuperAdminAuditLog } from '@/lib/super-admin-audit';
 
 export const dynamic = 'force-dynamic';
 
@@ -132,9 +132,9 @@ export async function PATCH(
         : undefined,
     });
 
-    await createAuditLog({
+    const audit = await createSuperAdminAuditLog({
       companyId,
-      actorId: currentUser.id,
+      actor: currentUser,
       action: 'module_config_updated',
       entityType: 'CompanySettings',
       entityId: companyId,
@@ -149,6 +149,7 @@ export async function PATCH(
       superAdminCap: saved.superAdminCap,
       enabledModules: saved.enabledSlugs,
       moduleFeatures: saved.features,
+      audit,
     });
   } catch (error) {
     console.error('[SUPER ADMIN MODULES PATCH]', error);

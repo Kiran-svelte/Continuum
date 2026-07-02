@@ -5,11 +5,12 @@ import crypto from 'crypto';
 import { validatePassword } from '@/lib/password-validation';
 import { hashPassword } from '@/lib/password-service';
 import { signOutAll } from '@/lib/auth-service';
+import { verifyPasswordResetToken } from '@/lib/password-reset';
 
 export const dynamic = 'force-dynamic';
 
 const schema = z.object({
-  email: z.string().email(),
+  email: z.string().email().optional(),
   token: z.string().min(1),
   password: z.string().min(8),
 });
@@ -22,29 +23,50 @@ const schema = z.object({
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { email, token, password } = schema.parse(body);
+    const parsed = schema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: 'Invalid reset request.' },
+        { status: 400 }
+      );
+    }
 
-    const emailLower = email.toLowerCase();
+    const { email, token, password } = parsed.data;
+    const emailLower = email?.toLowerCase();
 
     // Verify token
     const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
 
-    const resetRecord = await prisma.passwordResetToken.findFirst({
+    let resetRecord = await prisma.passwordResetToken.findFirst({
       where: {
-        email: emailLower,
         token_hash: tokenHash,
         is_used: false,
         expires_at: {
           gt: new Date()
-        }
+        },
+        ...(emailLower ? { email: emailLower } : {}),
       }
     });
 
+    let targetEmail = resetRecord?.email.toLowerCase() ?? null;
+
     if (!resetRecord) {
-      return NextResponse.json(
-        { error: 'Invalid or expired reset link.' },
-        { status: 400 }
-      );
+      try {
+        const signedToken = await verifyPasswordResetToken(token);
+        const signedEmail = signedToken.email.toLowerCase();
+        if (emailLower && signedEmail !== emailLower) {
+          return NextResponse.json(
+            { error: 'Invalid or expired reset link.' },
+            { status: 400 }
+          );
+        }
+        targetEmail = signedEmail;
+      } catch {
+        return NextResponse.json(
+          { error: 'Invalid or expired reset link.' },
+          { status: 400 }
+        );
+      }
     }
 
     // Validate password
@@ -59,11 +81,18 @@ export async function POST(request: NextRequest) {
     // Hash new password
     const newPasswordHash = await hashPassword(password);
 
+    if (!targetEmail) {
+      return NextResponse.json(
+        { error: 'Invalid or expired reset link.' },
+        { status: 400 }
+      );
+    }
+
     // Update password for Employee OR SuperAdmin
-    const employee = await prisma.employee.findUnique({ where: { email: emailLower } });
+    const employee = await prisma.employee.findUnique({ where: { email: targetEmail } });
     if (employee) {
       await prisma.employee.update({
-        where: { email: emailLower },
+        where: { email: targetEmail },
         data: {
           password_hash: newPasswordHash,
           password_changed_at: new Date(),
@@ -73,10 +102,10 @@ export async function POST(request: NextRequest) {
       // Revoke sessions
       await signOutAll(employee.id).catch(() => {});
     } else {
-      const superAdmin = await prisma.superAdmin.findUnique({ where: { email: emailLower } });
+      const superAdmin = await prisma.superAdmin.findUnique({ where: { email: targetEmail } });
       if (superAdmin) {
         await prisma.superAdmin.update({
-          where: { email: emailLower },
+          where: { email: targetEmail },
           data: {
             password_hash: newPasswordHash,
             updated_at: new Date()
@@ -92,10 +121,12 @@ export async function POST(request: NextRequest) {
     }
 
     // Mark token as used
-    await prisma.passwordResetToken.update({
-      where: { id: resetRecord.id },
-      data: { is_used: true }
-    });
+    if (resetRecord) {
+      await prisma.passwordResetToken.update({
+        where: { id: resetRecord.id },
+        data: { is_used: true }
+      });
+    }
 
     // We can also trigger the password-change audit log via internal call or just rely on the existing mechanism
     // if the client calls the /api/auth/password-change endpoint after this completes.

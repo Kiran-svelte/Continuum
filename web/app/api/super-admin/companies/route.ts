@@ -4,7 +4,7 @@ import { getCurrentUser } from '@/lib/auth-service';
 import { hashPassword } from '@/lib/password-service';
 import { validatePassword } from '@/lib/password-validation';
 import { buildAppUrl } from '@/lib/url-origin';
-import { createAuditLog } from '@/lib/audit';
+import { createSuperAdminAuditLog } from '@/lib/super-admin-audit';
 import { assertValidCompanyTimezone } from '@/lib/api-guards';
 import { TOTAL_ONBOARDING_STEPS } from '@/lib/onboarding-step-contract';
 import type { Prisma, Role } from '@prisma/client';
@@ -13,6 +13,41 @@ import { isModuleSlug, type ModuleSlug } from '@/lib/core-functions/catalog';
 import { clampEnabledToCap, validateDependencies } from '@/lib/core-functions/validate';
 
 export const dynamic = 'force-dynamic';
+
+const MAX_PAGE_LIMIT = 100;
+
+function asString(value: unknown): string {
+  return typeof value === 'string' ? value.trim() : '';
+}
+
+function getErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : 'Unknown error';
+}
+
+function getPrismaErrorCode(error: unknown): string | undefined {
+  if (typeof error !== 'object' || error === null || !('code' in error)) {
+    return undefined;
+  }
+
+  const code = (error as { code?: unknown }).code;
+  return typeof code === 'string' ? code : undefined;
+}
+
+async function generateUniqueJoinCode(): Promise<string> {
+  for (let attempt = 0; attempt < 8; attempt++) {
+    const code = generateJoinCode();
+    const existing = await prisma.company.findUnique({
+      where: { join_code: code },
+      select: { id: true },
+    });
+
+    if (!existing) {
+      return code;
+    }
+  }
+
+  throw new Error('Unable to generate a unique company join code. Please try again.');
+}
 
 /**
  * POST /api/super-admin/companies
@@ -32,6 +67,7 @@ export async function POST(request: NextRequest) {
     const { 
       // Company info
       companyName,
+      legalName,
       industry,
       size,
       countryCode = 'IN',
@@ -80,6 +116,18 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const normalizedCompanyName = asString(companyName);
+    const normalizedOwnerEmail = asString(ownerEmail).toLowerCase();
+    const normalizedOwnerFirstName = asString(ownerFirstName);
+    const normalizedOwnerLastName = asString(ownerLastName);
+
+    if (!normalizedCompanyName || !normalizedOwnerEmail || !normalizedOwnerFirstName || !normalizedOwnerLastName) {
+      return NextResponse.json(
+        { error: 'Company name, owner email, first name, and last name cannot be blank' },
+        { status: 400 }
+      );
+    }
+
     const passwordValidation = validatePassword(ownerPassword);
     if (!passwordValidation.valid) {
       return NextResponse.json(
@@ -88,9 +136,18 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const normalizedOwnerRole = asString(ownerRole).toLowerCase() || 'admin';
+    const allowedOwnerRoles: Role[] = ['admin', 'hr', 'director', 'manager'];
+    if (!allowedOwnerRoles.includes(normalizedOwnerRole as Role)) {
+      return NextResponse.json(
+        { error: 'Invalid owner role. Use admin, hr, director, or manager.' },
+        { status: 400 }
+      );
+    }
+
     // Check if email already exists
     const existingUser = await prisma.employee.findUnique({
-      where: { email: ownerEmail.toLowerCase() },
+      where: { email: normalizedOwnerEmail },
     });
 
     if (existingUser) {
@@ -101,7 +158,7 @@ export async function POST(request: NextRequest) {
     }
 
     const passwordHash = await hashPassword(ownerPassword);
-    const joinCode = generateJoinCode();
+    const joinCode = await generateUniqueJoinCode();
 
     // Transaction: Create company, owner, and initialize settings
     const result = await prisma.$transaction(async (tx) => {
@@ -109,10 +166,11 @@ export async function POST(request: NextRequest) {
       const company = await tx.company.create({
         data: {
           id: crypto.randomUUID(),
-          name: companyName,
-          industry,
-          size,
-          country_code: countryCode,
+          name: normalizedCompanyName,
+          legalName: asString(legalName) || null,
+          industry: asString(industry) || null,
+          size: asString(size) || null,
+          country_code: asString(countryCode) || 'IN',
           timezone: normalizedTimezone,
           join_code: joinCode,
           onboarding_completed: false,
@@ -124,15 +182,14 @@ export async function POST(request: NextRequest) {
       const owner = await tx.employee.create({
         data: {
           id: crypto.randomUUID(),
-          email: ownerEmail.toLowerCase(),
-          first_name: ownerFirstName,
-          last_name: ownerLastName,
-          phone: ownerPhone,
+          email: normalizedOwnerEmail,
+          first_name: normalizedOwnerFirstName,
+          last_name: normalizedOwnerLastName,
+          phone: asString(ownerPhone) || null,
           org_id: company.id,
-          primary_role: ownerRole as Role,
+          primary_role: normalizedOwnerRole as Role,
           password_hash: passwordHash,
           status: 'onboarding',
-          invited_by_id: currentUser.id,
           invited_by_type: 'super_admin',
           updated_at: new Date(),
         },
@@ -161,16 +218,16 @@ export async function POST(request: NextRequest) {
       return { company, owner };
     });
 
-    // Audit log - outside transaction for proper hash chain integrity
-    await createAuditLog({
+    // Audit log - outside transaction for proper hash chain integrity.
+    const audit = await createSuperAdminAuditLog({
       companyId: result.company.id,
-      actorId: currentUser.id,
+      actor: currentUser,
       action: 'company_created',
       entityType: 'company',
       entityId: result.company.id,
       newState: {
-        company_name: companyName,
-        owner_email: ownerEmail,
+        company_name: normalizedCompanyName,
+        owner_email: normalizedOwnerEmail,
         created_by: 'super_admin',
       },
       ipAddress: request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip'),
@@ -187,6 +244,7 @@ export async function POST(request: NextRequest) {
         id: result.company.id,
         name: result.company.name,
         joinCode: result.company.join_code,
+        onboardingStatus: 'pending',
       },
       owner: {
         id: result.owner.id,
@@ -197,18 +255,35 @@ export async function POST(request: NextRequest) {
         status: result.owner.status,
       },
       credentials: {
-        email: ownerEmail.toLowerCase(),
+        email: normalizedOwnerEmail,
         loginUrl,
         mustChangePassword: false,
         setupRequired: true,
         setup_required: true,
         supportMessage: 'Owner password was set during profile creation. Share credentials via approved secure channel.',
       },
+      audit,
       instructions: 'Do not share credentials over API responses. Provide onboarding access via approved secure channel. Owner can sign in immediately and complete onboarding wizard.',
     });
   } catch (error) {
     console.error('[SUPER ADMIN CREATE COMPANY] Error:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const errorMessage = getErrorMessage(error);
+    const prismaCode = getPrismaErrorCode(error);
+
+    if (prismaCode === 'P2002') {
+      return NextResponse.json(
+        { error: 'A company or user with one of these unique values already exists', details: errorMessage },
+        { status: 409 }
+      );
+    }
+
+    if (errorMessage.startsWith('Module dependency validation failed')) {
+      return NextResponse.json(
+        { error: errorMessage },
+        { status: 400 }
+      );
+    }
+
     return NextResponse.json(
       { error: 'Failed to create company', details: errorMessage },
       { status: 500 }
@@ -230,9 +305,14 @@ export async function GET(request: NextRequest) {
     }
 
     const { searchParams } = new URL(request.url);
-    const page = parseInt(searchParams.get('page') || '1');
-    const limit = parseInt(searchParams.get('limit') || '20');
-    const search = searchParams.get('search') || '';
+    const requestedPage = Number.parseInt(searchParams.get('page') || '1', 10);
+    const requestedLimit = Number.parseInt(searchParams.get('limit') || '20', 10);
+    const page = Number.isFinite(requestedPage) && requestedPage > 0 ? requestedPage : 1;
+    const limit = Number.isFinite(requestedLimit)
+      ? Math.min(Math.max(requestedLimit, 1), MAX_PAGE_LIMIT)
+      : 20;
+    const search = (searchParams.get('search') || '').trim();
+    const status = searchParams.get('status') || 'all';
 
     const skip = (page - 1) * limit;
 
@@ -240,11 +320,40 @@ export async function GET(request: NextRequest) {
     const where: Prisma.CompanyWhereInput = {
       deleted_at: null,
     };
+    const andFilters: Prisma.CompanyWhereInput[] = [];
 
     if (search) {
-      where.OR = [
+      andFilters.push({
+        OR: [
         { name: { contains: search, mode: 'insensitive' } },
-      ];
+          { legalName: { contains: search, mode: 'insensitive' } },
+        ],
+      });
+    }
+
+    if (status === 'pending') {
+      andFilters.push({ onboarding_completed: false, onboarding_step: 0 });
+    } else if (status === 'in_progress') {
+      andFilters.push({
+        onboarding_completed: false,
+        onboarding_step: { gt: 0, lt: TOTAL_ONBOARDING_STEPS },
+      });
+    } else if (status === 'completed') {
+      andFilters.push({
+        OR: [
+          { onboarding_completed: true },
+          { onboarding_step: { gte: TOTAL_ONBOARDING_STEPS } },
+        ],
+      });
+    } else if (status !== 'all') {
+      return NextResponse.json(
+        { error: 'Invalid status filter' },
+        { status: 400 }
+      );
+    }
+
+    if (andFilters.length > 0) {
+      where.AND = andFilters;
     }
 
     // Fetch companies with employee count
@@ -266,6 +375,7 @@ export async function GET(request: NextRequest) {
             where: {
               invited_by_type: 'super_admin',
             },
+            orderBy: { created_at: 'asc' },
             select: {
               id: true,
               email: true,
@@ -294,7 +404,7 @@ export async function GET(request: NextRequest) {
       return {
         id: company.id,
         name: company.name,
-        legalName: company.name, // Use name as legal name if not different
+        legalName: company.legalName || company.name,
         industry: company.industry,
         size: company.size,
         countryCode: company.country_code,

@@ -24,6 +24,8 @@ import {
 } from '@/lib/jwt-service';
 import { verifyPassword, hashPassword } from '@/lib/password-service';
 import { COOKIE_ROLE, COOKIE_ROLES } from '@/lib/brand';
+import { isDemoAuthEnabled } from '@/lib/auth-routing';
+import { SESSION_COOKIE_NAME } from '@/lib/session';
 import type { Role, Employee } from '@prisma/client';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -171,8 +173,20 @@ export async function signIn(email: string, password: string): Promise<AuthResul
  * Signs in a super admin.
  */
 export async function signInSuperAdmin(email: string, password: string): Promise<AuthResult> {
+  const normalizedEmail = email.toLowerCase();
+
+  if (normalizedEmail.endsWith('@demo.continuum.io')) {
+    if (!isDemoAuthEnabled()) {
+      return {
+        success: false,
+        error: 'Invalid email or password',
+        code: 'INVALID_CREDENTIALS',
+      };
+    }
+  }
+
   const superAdmin = await prisma.superAdmin.findUnique({
-    where: { email: email.toLowerCase() },
+    where: { email: normalizedEmail },
   });
 
   if (!superAdmin) {
@@ -545,6 +559,7 @@ export function setAuthCookies(response: NextResponse, accessToken: string, refr
 export function clearAuthCookies(response: NextResponse): void {
   response.cookies.set(ACCESS_COOKIE_NAME, '', { maxAge: 0, path: '/' });
   response.cookies.set(REFRESH_COOKIE_NAME, '', { maxAge: 0, path: '/api/auth' });
+  response.cookies.set(SESSION_COOKIE_NAME, '', { maxAge: 0, path: '/' });
   response.cookies.set(COOKIE_ROLE, '', { maxAge: 0, path: '/' });
   response.cookies.set(COOKIE_ROLES, '', { maxAge: 0, path: '/' });
 }
@@ -585,6 +600,7 @@ export async function clearAuthCookiesAsync(): Promise<void> {
 
   cookieStore.set(ACCESS_COOKIE_NAME, '', { maxAge: 0 });
   cookieStore.set(REFRESH_COOKIE_NAME, '', { maxAge: 0, path: '/api/auth' });
+  cookieStore.set(SESSION_COOKIE_NAME, '', { maxAge: 0, path: '/' });
 }
 
 // ─── Password Management ────────────────────────────────────────────────────

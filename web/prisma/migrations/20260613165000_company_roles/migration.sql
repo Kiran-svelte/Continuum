@@ -30,6 +30,36 @@ CREATE TABLE IF NOT EXISTS "CompanyRolePermission" (
   CONSTRAINT "CompanyRolePermission_pkey" PRIMARY KEY ("id")
 );
 
+ALTER TABLE "CompanyRole" ADD COLUMN IF NOT EXISTS "can_create_roles" JSONB;
+UPDATE "CompanyRole" SET "can_create_roles" = '[]'::jsonb WHERE "can_create_roles" IS NULL;
+ALTER TABLE "CompanyRole" ALTER COLUMN "can_create_roles" SET DEFAULT '[]'::jsonb;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM "CompanyRole" WHERE "can_create_roles" IS NULL) THEN
+    ALTER TABLE "CompanyRole" ALTER COLUMN "can_create_roles" SET NOT NULL;
+  END IF;
+END $$;
+
+ALTER TABLE "CompanyRolePermission" ADD COLUMN IF NOT EXISTS "company_id" TEXT;
+ALTER TABLE "CompanyRolePermission" ADD COLUMN IF NOT EXISTS "scope" TEXT;
+UPDATE "CompanyRolePermission" SET "scope" = 'all' WHERE "scope" IS NULL;
+UPDATE "CompanyRolePermission" AS "permission"
+SET "company_id" = "role"."company_id"
+FROM "CompanyRole" AS "role"
+WHERE "permission"."company_role_id" = "role"."id"
+  AND "permission"."company_id" IS NULL;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM "CompanyRolePermission" WHERE "company_id" IS NULL) THEN
+    ALTER TABLE "CompanyRolePermission" ALTER COLUMN "company_id" SET NOT NULL;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM "CompanyRolePermission" WHERE "scope" IS NULL) THEN
+    ALTER TABLE "CompanyRolePermission" ALTER COLUMN "scope" SET NOT NULL;
+  END IF;
+END $$;
+
 CREATE UNIQUE INDEX IF NOT EXISTS "CompanyRole_company_id_slug_key" ON "CompanyRole"("company_id", "slug");
 CREATE INDEX IF NOT EXISTS "CompanyRole_company_id_idx" ON "CompanyRole"("company_id");
 CREATE INDEX IF NOT EXISTS "CompanyRole_reports_to_id_idx" ON "CompanyRole"("reports_to_id");

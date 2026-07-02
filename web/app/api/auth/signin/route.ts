@@ -37,6 +37,7 @@ export async function POST(request: NextRequest) {
     const userAgent = request.headers.get('user-agent') || undefined;
 
     let result;
+    let resolvedSuperAdmin = Boolean(is_super_admin);
 
     if (is_super_admin) {
       // Super admin login
@@ -44,6 +45,13 @@ export async function POST(request: NextRequest) {
     } else {
       // Regular employee login
       result = await signIn(email, password);
+      if (!result.success && result.code === 'INVALID_CREDENTIALS') {
+        const superAdminResult = await signInSuperAdmin(email, password);
+        if (superAdminResult.success) {
+          result = superAdminResult;
+          resolvedSuperAdmin = true;
+        }
+      }
     }
 
     if (!result.success) {
@@ -102,7 +110,7 @@ export async function POST(request: NextRequest) {
         companyId: auditCompanyId,
         actorId: auditActorId,
         action: AUDIT_ACTIONS.LOGIN,
-        entityType: is_super_admin ? 'SuperAdmin' : 'Employee',
+        entityType: resolvedSuperAdmin ? 'SuperAdmin' : 'Employee',
         entityId: auditActorId,
         ipAddress: ip,
         userAgent,

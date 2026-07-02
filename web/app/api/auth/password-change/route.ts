@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { createAuditLog, AUDIT_ACTIONS } from '@/lib/audit';
-import prisma from '@/lib/prisma';
+import { AuthError, getAuthEmployee } from '@/lib/auth-guard';
+import { signOutAll } from '@/lib/auth-service';
 
 export const dynamic = 'force-dynamic';
 
 const schema = z.object({
-  email: z.string().email(),
   type: z.enum(['reset', 'change']).default('reset'),
 });
 
@@ -19,7 +19,12 @@ const schema = z.object({
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { email, type } = schema.parse(body);
+    const { type } = schema.parse(body);
+    const employee = await getAuthEmployee(request);
+
+    if (!employee.org_id || employee.primary_role === 'super_admin') {
+      return NextResponse.json({ logged: false });
+    }
 
     // Get IP and user agent
     const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
@@ -27,34 +32,29 @@ export async function POST(request: NextRequest) {
       'unknown';
     const userAgent = request.headers.get('user-agent') || undefined;
 
-    // Find the employee by email to get their company for the audit log
-    const employee = await prisma.employee.findFirst({
-      where: { email: email.toLowerCase() },
-      select: { id: true, org_id: true, email: true },
+    await createAuditLog({
+      companyId: employee.org_id,
+      actorId: employee.id,
+      action: AUDIT_ACTIONS.PASSWORD_CHANGE,
+      entityType: 'Employee',
+      entityId: employee.id,
+      ipAddress: ip,
+      userAgent,
+      newState: {
+        email: employee.email,
+        type: type === 'reset' ? 'password_reset' : 'password_change',
+        changed_at: new Date().toISOString(),
+      },
     });
 
-    if (employee) {
-      // Log to the company's audit trail
-      await createAuditLog({
-        companyId: employee.org_id!,
-        actorId: employee.id, // User who changed their own password
-        action: AUDIT_ACTIONS.PASSWORD_CHANGE,
-        entityType: 'Employee',
-        entityId: employee.id,
-        ipAddress: ip,
-        userAgent,
-        newState: {
-          email: employee.email,
-          type: type === 'reset' ? 'password_reset' : 'password_change',
-          changed_at: new Date().toISOString(),
-        },
-      });
-    }
-    // If employee doesn't exist in our system, we don't log
-    // (they may have reset Firebase/Supabase password for account that isn't in our DB)
+    await signOutAll(employee.id);
 
     return NextResponse.json({ logged: true });
   } catch (err) {
+    if (err instanceof AuthError) {
+      return NextResponse.json({ logged: false });
+    }
+
     // Always return success to avoid leaking information
     // about whether the audit succeeded
     return NextResponse.json({ logged: true });

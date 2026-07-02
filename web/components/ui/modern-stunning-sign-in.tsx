@@ -18,6 +18,7 @@ const SIGN_IN_MESSAGES = [
 ];
 
 const MESSAGE_INTERVAL_MS = 5_500;
+const COMPANY_ONBOARDING_PATH = '/onboarding';
 
 export const SignIn1 = () => {
   const router = useRouter()
@@ -162,6 +163,10 @@ export const SignIn1 = () => {
 
       const email = identifier.trim()
       let destination = resolvePostSignInPath(me, { redirectTarget })
+      if (destination === COMPANY_ONBOARDING_PATH) {
+        router.push(COMPANY_ONBOARDING_PATH)
+        return
+      }
       if (demoAuthEnabled && email.toLowerCase() === "super@demo.continuum.io") {
         destination = '/super-admin/dashboard'
       }

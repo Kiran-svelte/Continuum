@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import prisma from '@/lib/prisma';
 import { sendPasswordResetEmail } from '@/lib/email-service';
+import { buildAppUrl } from '@/lib/url-origin';
 import crypto from 'crypto';
 
 export const dynamic = 'force-dynamic';
@@ -9,6 +10,16 @@ export const dynamic = 'force-dynamic';
 const schema = z.object({
   email: z.string().email(),
 });
+
+const neutralMessage = 'If that email exists in our system, we have sent a reset link.';
+
+function neutralResponse(extra: Record<string, unknown> = {}) {
+  if (process.env.NODE_ENV === 'production') {
+    return NextResponse.json({ success: true, message: neutralMessage });
+  }
+
+  return NextResponse.json({ success: true, message: neutralMessage, ...extra });
+}
 
 /**
  * POST /api/auth/forgot-password
@@ -18,7 +29,15 @@ const schema = z.object({
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { email } = schema.parse(body);
+    const parsed = schema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: 'Enter a valid email address.' },
+        { status: 400 }
+      );
+    }
+
+    const { email } = parsed.data;
 
     const emailLower = email.toLowerCase();
 
@@ -35,7 +54,7 @@ export async function POST(request: NextRequest) {
 
     // To prevent email enumeration, we always return success
     if (!employee && !superAdmin) {
-      return NextResponse.json({ success: true, message: 'If that email exists in our system, we have sent a reset link.' });
+      return neutralResponse({ delivered: false });
     }
 
     // Generate token
@@ -55,15 +74,33 @@ export async function POST(request: NextRequest) {
     });
 
     // Send email
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || (request.headers.get('host') ? `https://${request.headers.get('host')}` : 'http://localhost:3000');
-    const resetUrl = `${baseUrl}/reset-password?token=${rawToken}&email=${encodeURIComponent(emailLower)}`;
+    const resetUrl = buildAppUrl(
+      `/reset-password?token=${rawToken}&email=${encodeURIComponent(emailLower)}`,
+      { request }
+    );
 
-    await sendPasswordResetEmail(emailLower, resetUrl);
+    const emailResult = await sendPasswordResetEmail(emailLower, resetUrl);
+    if (!emailResult.success) {
+      console.error('[AUTH FORGOT PASSWORD] Email delivery failed:', emailResult.error);
+      return neutralResponse({
+        delivered: false,
+        email_error: emailResult.error,
+        reset_link: resetUrl,
+      });
+    }
 
-    return NextResponse.json({ success: true, message: 'If that email exists in our system, we have sent a reset link.' });
+    return neutralResponse({
+      delivered: true,
+      transport: emailResult.transport,
+      reset_link: resetUrl,
+    });
 
   } catch (error) {
     console.error('[AUTH FORGOT PASSWORD] Error:', error);
+    if (process.env.NODE_ENV === 'production') {
+      return neutralResponse();
+    }
+
     return NextResponse.json(
       { error: 'Failed to process request.' },
       { status: 500 }

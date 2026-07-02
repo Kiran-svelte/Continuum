@@ -41,6 +41,38 @@ Prompt:
 </environment_context>
 ```
 
+## 2026-07-02 00:00:00 +05:30
+
+Action:
+
+- Continued `PRODERR-20260702` after the user asked to reverse engineer broader issues rather than only the direct console errors.
+- Fixed auth/session hardening uncovered by focused tests:
+  - `/api/auth/callback` now uses safe redirect helpers and no longer trusts forwarded host headers.
+  - client auth retries `/api/auth/refresh` after `/api/auth/me` 401 and clears stale cookies when refresh fails.
+  - `/api/auth/refresh` returns `requiresReauth` and clears cookies on failure.
+  - `/api/auth/password-change` resolves the actor from the authenticated session instead of trusting body email input.
+  - `/api/test-neon` now requires authenticated super-admin access.
+  - `/api/auth/me` returns normalized roles and email-verification state.
+  - `/api/auth/signin` can fall back to super-admin verification after employee credential auth fails.
+  - `/api/auth/reset-password` supports token-only clients and signed-token compatibility fallback.
+- Ran `npx tsc --noEmit --pretty false --incremental false`; it passed.
+- Ran `npx tsx --test tests/proderr-20260702.test.ts tests/auth-flow.test.ts tests/critical-workflow-stabilization.test.ts`; it passed 43/43.
+- Ran `npm run build`; the first attempt timed out before returning output, then the longer rerun passed.
+- Checked production Prisma migration status with `web/.env.prod`; it showed nine pending migrations and a failed zero-step `0_init` baseline.
+- Resolved `0_init` as applied because it failed on already-existing baseline schema objects.
+- Fixed `20260613_zero_ui_channel_identity` migration UUID/TEXT drift, resolved its failed production attempt as rolled back, and retried.
+- Fixed `20260613165000_company_roles` migration compatibility for older `CompanyRolePermission` table shape, resolved its failed production attempt as rolled back, and retried.
+- Ran `npx prisma migrate deploy --schema prisma/schema.prisma`; it applied all remaining pending migrations including `20260701120000_invite_module_cap`.
+- Ran final `npx prisma migrate status --schema prisma/schema.prisma`; it reported the database schema is up to date.
+- Created `REPORT.md` with a file-by-file remediation report and proof record.
+- Updated the `PRODERR-20260702` review section in `tasks/todo.md`.
+
+Prompt:
+
+```text
+continue don't just focus on straight path , just find every possible issues and clear . reverse engineer and do it
+```
+
 ## 2026-06-30 00:00:00 +05:30
 
 Action:
@@ -261,3 +293,51 @@ Action:
 - Ran `npm run build` successfully; the generated route table includes `/api/attendance/reports/monthly`, `/api/attendance/shifts`, and `/api/attendance/shifts/assign`.
 - Updated LOOP state, progress, remediation, and todo docs without marking SVC-003 complete because biometric/raw-punch ingestion and overtime workflows remain open.
 - Prepared a scoped git batch for the attendance shift-roster route hardening, route aliases, regression test, LOOP state, proof, progress report, and documentation updates only.
+
+## 2026-07-02 00:00:00 +05:30
+
+Action:
+
+- Started `PRODERR-20260702` production-console remediation for the reported `continuum.support` errors.
+- Mapped the visible failures to CSP headers, missing public app icons, public-page auth probing, forgot-password handling, and super-admin company/user credential APIs.
+- Confirmed the current branch is `main` and the worktree already has many unrelated modified files, so this pass will keep changes scoped and avoid reverting existing work.
+- Checked Vercel project linkage and recent deployment build logs for `continuum.support`.
+
+Prompt:
+
+```text
+Loading the script 'https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496' violates the following Content Security Policy directive: "script-src 'self' 'unsafe-inline' https://accounts.google.com https://vercel.live https://va.vercel-scripts.com https://www.googletagmanager.com". Note that 'script-src-elem' was not explicitly set, so 'script-src' is used as a fallback. The action has been blocked.
+content.js:1111 ForcePaste keyboard shortcuts initialized (Alt+P)
+api/auth/me:1  Failed to load resource: the server responded with a status of 401 ()
+icon.svg:1  Failed to load resource: the server responded with a status of 404 ()
+apple-icon.png:1  Failed to load resource: the server responded with a status of 404 ()
+8Error while trying to use the following icon from the Manifest: <URL> (Download error or resource isn't a valid image)
+favicon.ico:1  Failed to load resource: the server responded with a status of 404 ()
+apple-icon.png:1  Failed to load resource: the server responded with a status of 404 ()
+67263-1abaa5a02da94b68.js:1 Pusher connected successfully
+apple-icon.png:1  Failed to load resource: the server responded with a status of 404 ()
+api/super-admin/users:1  Failed to load resource: the server responded with a status of 500 ()
+apple-icon.png:1  Failed to load resource: the server responded with a status of 404 ()
+api/super-admin/companies:1  Failed to load resource: the server responded with a status of 500 ()
+api/super-admin/companies:1  Failed to load resource: the server responded with a status of 409 ()
+apple-icon.png:1  Failed to load resource: the server responded with a status of 404 ()
+apple-icon.png:1  Failed to load resource: the server responded with a status of 404 ()
+api/super-admin/companies/dd6ae9b5-e21b-4cee-8fa6-be0c84d30a9b/resend-credentials:1  Failed to load resource: the server responded with a status of 500 ()
+apple-icon.png:1  Failed to load resource: the server responded with a status of 404 ()
+api/auth/me:1  Failed to load resource: the server responded with a status of 401 ()
+api/auth/signin:1  Failed to load resource: the server responded with a status of 401 ()
+api/auth/signin:1  Failed to load resource: the server responded with a status of 401 ()
+apple-icon.png:1  Failed to load resource: the server responded with a status of 404 ()
+api/auth/forgot-password:1  Failed to load resource: the server responded with a status of 500 ()
+api/auth/forgot-password:1  Failed to load resource: the server responded with a status of 500 () . there are multiple errors , so please find actual issues and fix them completely and test ,commit,push and deploy  .for each work and fix (1. IMPACT MAPPING: Identify EVERYTHING this touches: UI pages, navigation, dashboard widgets, database tables, APIs, admin panels, notification systems, logs, error handling, loading states, user permissions.
+
+2. GAP ANALYSIS: For each impact point, ask: 'Does this exist? If not, what needs to be CREATED? If yes, what needs to be MODIFIED?'
+
+3. COMPLETE SPEC: Generate a detailed spec showing ALL moving parts—including things I didn't mention that a production system NEEDS (dashboards, monitoring, admin controls, edge-case handling, retry logic, audit trails).
+
+4. THEN CODE: implement EVERYTHING—the visible UI AND the invisible infrastructure.
+
+ASSUME NOTHING EXISTS. Always think: 'If I was building this for 10,000 users in production, what would I need that the user forgot to ask for?' Then build that too.
+
+Apply this to EVERY request, no exceptions.)
+```

@@ -2,11 +2,10 @@
  * Client-side helper to get the current authenticated employee via cookies.
  *
  * Auth resolution order:
- * 1. Try /api/auth/me with existing session cookie (continuum-session JWT)
- * 2. If Supabase client has a session, mint session cookie via /api/auth/session and retry
+ * 1. Try /api/auth/me with existing session cookie.
+ * 2. If the access token expired, refresh once and retry.
+ * 3. If refresh fails, clear client-visible session state.
  */
-
-import { supabaseGetSession } from '@/lib/supabase';
 
 export type MeResponse = {
   id: string;
@@ -32,47 +31,50 @@ async function fetchMe(): Promise<{ ok: true; me: MeResponse } | { ok: false; st
   return { ok: true, me };
 }
 
+export async function tryRefreshSession(): Promise<boolean> {
+  try {
+    const res = await fetch('/api/auth/refresh', {
+      method: 'POST',
+      credentials: 'include',
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Returns the /api/auth/me payload if authenticated, otherwise null.
  *
  * Auth resolution order:
- * 1. Try /api/auth/me with existing session cookie (continuum-session JWT)
- * 2. If Supabase client has a session, create server-side session cookie and retry
+ * 1. Try /api/auth/me with existing session cookie.
+ * 2. Refresh the HTTP-only session once on 401.
+ * 3. Clear stale auth state if refresh fails.
  */
 export async function ensureMe(): Promise<MeResponse | null> {
   // First attempt: existing session cookie
-  const first = await fetchMe();
-  if (first.ok) {
-    return first.me;
+  const res = await fetchMe();
+  if (res.ok) {
+    return res.me;
   }
 
-  // Second attempt: Supabase client session, mint session cookie
-  try {
-    const { data } = await supabaseGetSession();
-    if (!data.session) {
-      return null;
-    }
-
-    const sessionRes = await fetch('/api/auth/session', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ accessToken: data.session.access_token }),
-    });
-
-    if (!sessionRes.ok) {
-      return null;
-    }
-
+  if (res.status === 401 && await tryRefreshSession()) {
     const second = await fetchMe();
-    return second.ok ? second.me : null;
-  } catch {
-    return null;
+    if (second.ok) {
+      return second.me;
+    }
   }
+
+  if (res.status === 401) {
+    await forceClientSignOut({ redirect: true });
+  }
+
+  return null;
 }
 
-export async function forceClientSignOut(): Promise<void> {
+export async function forceClientSignOut(options: { redirect?: boolean } = {}): Promise<void> {
   try {
-    await fetch('/api/auth/signout', {
+    await fetch('/api/auth/sign-out', {
       method: 'POST',
       credentials: 'include',
     });
@@ -81,9 +83,12 @@ export async function forceClientSignOut(): Promise<void> {
   }
 
   try {
-    const { getSupabaseBrowserClient } = await import('@/lib/supabase');
-    await getSupabaseBrowserClient().auth.signOut();
+    await fetch('/api/auth/session', { method: 'DELETE', credentials: 'include' });
   } catch {
-    // Supabase may be unconfigured in JWT-only deployments.
+    // Cookie cleanup is best effort when the browser is already offline.
+  }
+
+  if (options.redirect && typeof window !== 'undefined') {
+    window.location.replace('/sign-in');
   }
 }

@@ -31,7 +31,7 @@ export default function ForgotPasswordPage() {
       }
 
       setSent(true);
-      toast.success('Reset link sent! Check your inbox.');
+      toast.success('Request received. Check your inbox if the account exists.');
     } catch (err) {
       setError('Failed to send reset email. Please try again.');
       toast.error('Failed to send reset email. Please try again.');
@@ -69,14 +69,13 @@ export default function ForgotPasswordPage() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                   </svg>
                 </div>
-                <h2 className="text-lg font-semibold text-white dark:text-white">Check your email</h2>
+                <h2 className="text-lg font-semibold text-white dark:text-white">Request received</h2>
                 <p className="text-sm text-white/60 dark:text-white/60 mt-2">
-                  We&apos;ve sent a password reset link to{' '}
-                  <span className="font-medium text-white dark:text-white">{email}</span>.
+                  If an account exists for that email, a password reset link will be delivered shortly.
                   The link expires in 1 hour.
                 </p>
                 <p className="text-xs text-white/60 dark:text-white/60 mt-3">
-                  Didn&apos;t receive it? Check your spam folder, or{' '}
+                  Check your spam folder, or{' '}
                   <button
                     onClick={() => setSent(false)}
                     className="text-primary hover:text-primary/80 font-medium transition-colors"

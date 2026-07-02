@@ -6,9 +6,28 @@ import {
   hydrateAuthResponseCookies,
 } from '@/lib/auth-state-cookies';
 import { getAuthModulePayload } from '@/lib/core-functions/resolve';
+import {
+  extractEmailVerificationState,
+  getEmailVerificationState,
+} from '@/lib/product-readiness';
 import prisma from '@/lib/prisma';
 
 export const dynamic = 'force-dynamic';
+
+function buildRolesList(primaryRole?: string | null, secondaryRoles?: unknown): string[] {
+  const roles = new Set<string>();
+  if (typeof primaryRole === 'string' && primaryRole.trim()) {
+    roles.add(primaryRole.trim());
+  }
+  if (Array.isArray(secondaryRoles)) {
+    for (const role of secondaryRoles) {
+      if (typeof role === 'string' && role.trim()) {
+        roles.add(role.trim());
+      }
+    }
+  }
+  return Array.from(roles);
+}
 
 /**
  * GET /api/auth/me
@@ -38,6 +57,8 @@ export async function GET(request: NextRequest) {
         timezone: 'Asia/Kolkata',
         company: null,
         is_super_admin: true,
+        roles: buildRolesList(employee.primary_role, null),
+        email_verification: { verified: true, verifiedAt: null },
         employee_onboarding_completed: true,
         employee_welcome_pending: false,
         enabledModules: modulePayload.enabledModules,
@@ -55,7 +76,7 @@ export async function GET(request: NextRequest) {
       return response;
     }
 
-    const [employeeDetails, company, profile, modulePayload] = await Promise.all([
+    const [employeeDetails, company, profile, modulePayload, emailVerificationFromToken] = await Promise.all([
       prisma.employee.findUnique({
         where: { id: employee.id },
         select: { designation: true },
@@ -78,19 +99,20 @@ export async function GET(request: NextRequest) {
           phone: true,
           current_address: true,
           tutorial_completed: true,
+          notification_preferences: true,
         },
       }),
       getAuthModulePayload(employee.org_id),
+      getEmailVerificationState(employee.id),
     ]);
 
-    const allRoles: string[] = [employee.primary_role];
-    if (employee.secondary_roles && Array.isArray(employee.secondary_roles)) {
-      for (const role of employee.secondary_roles) {
-        if (typeof role === 'string' && !allRoles.includes(role)) {
-          allRoles.push(role);
-        }
-      }
-    }
+    const allRoles = buildRolesList(employee.primary_role, employee.secondary_roles);
+    const emailVerificationFromPrefs = extractEmailVerificationState(
+      profile?.notification_preferences
+    );
+    const emailVerification = emailVerificationFromToken.verified
+      ? emailVerificationFromToken
+      : emailVerificationFromPrefs;
 
     const onboardingFlags = deriveEmployeeOnboardingFlags(employee.primary_role, profile);
 
@@ -101,6 +123,7 @@ export async function GET(request: NextRequest) {
       last_name: employee.last_name,
       primary_role: employee.primary_role,
       secondary_roles: employee.secondary_roles,
+      roles: allRoles,
       department: employee.department,
       designation: employeeDetails?.designation || null,
       org_id: employee.org_id,
@@ -117,6 +140,7 @@ export async function GET(request: NextRequest) {
         : null,
       employee_onboarding_completed: onboardingFlags.employee_onboarding_completed,
       employee_welcome_pending: onboardingFlags.employee_welcome_pending,
+      email_verification: emailVerification,
       enabledModules: modulePayload.enabledModules,
       moduleCap: modulePayload.moduleCap,
       moduleFeatures: modulePayload.moduleFeatures,

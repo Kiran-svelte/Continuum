@@ -1,6 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
+import { usePathname } from 'next/navigation';
 import { ensureMe, type MeResponse } from '@/lib/client-auth';
 
 interface AuthContextValue {
@@ -17,7 +18,42 @@ const AuthContext = createContext<AuthContextValue>({
   hasPermission: () => false,
 });
 
+const AUTH_BOOTSTRAP_PREFIXES = [
+  '/admin',
+  '/employee',
+  '/hr',
+  '/manager',
+  '/onboarding',
+  '/super-admin',
+];
+
+const PUBLIC_AUTH_SKIP_PREFIXES = [
+  '/admin/login',
+  '/forgot-password',
+  '/help',
+  '/privacy',
+  '/reset-password',
+  '/sign-in',
+  '/sign-up',
+  '/status',
+  '/support',
+  '/terms',
+];
+
+function shouldBootstrapAuth(pathname: string): boolean {
+  if (!pathname || pathname === '/') {
+    return false;
+  }
+
+  if (PUBLIC_AUTH_SKIP_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`))) {
+    return false;
+  }
+
+  return AUTH_BOOTSTRAP_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname() ?? '';
   const [user, setUser] = useState<MeResponse | null>(null);
   const [permissions, setPermissions] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -26,6 +62,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     let mounted = true;
 
     async function loadAuth() {
+      if (!shouldBootstrapAuth(pathname)) {
+        if (mounted) {
+          setUser(null);
+          setPermissions([]);
+          setIsLoading(false);
+        }
+        return;
+      }
+
+      setIsLoading(true);
+
       try {
         const me = await ensureMe();
         if (mounted) {
@@ -46,7 +93,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [pathname]);
 
   const hasPermission = (code: string) => {
     if (permissions.includes('*')) return true;

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { getCurrentUser } from '@/lib/auth-service';
-import { createAuditLog } from '@/lib/audit';
+import { createSuperAdminAuditLog } from '@/lib/super-admin-audit';
 import { assertValidCompanyTimezone } from '@/lib/api-guards';
 import { TOTAL_ONBOARDING_STEPS } from '@/lib/onboarding-step-contract';
 
@@ -111,10 +111,13 @@ export async function GET(
       company: {
         id: company.id,
         name: company.name,
+        legalName: company.legalName,
         industry: company.industry,
         size: company.size,
         countryCode: company.country_code,
         timezone: company.timezone,
+        domain: null,
+        logoUrl: null,
         joinCode: company.join_code,
         onboardingCompleted: company.onboarding_completed,
         onboardingStatus, // 'pending' | 'in_progress' | 'completed'
@@ -202,7 +205,6 @@ export async function PATCH(
       size,
       countryCode,
       timezone,
-      domain,
     } = body;
     let normalizedTimezone: string | undefined;
 
@@ -231,15 +233,14 @@ export async function PATCH(
         ...(size !== undefined && { size }),
         ...(countryCode !== undefined && { country_code: countryCode }),
         ...(normalizedTimezone !== undefined && { timezone: normalizedTimezone }),
-        ...(domain !== undefined && { domain }),
         updated_at: new Date(),
       },
     });
 
     // Audit log
-    await createAuditLog({
+    const audit = await createSuperAdminAuditLog({
       companyId,
-      actorId: currentUser.id,
+      actor: currentUser,
       action: 'company_updated',
       entityType: 'company',
       entityId: companyId,
@@ -254,6 +255,7 @@ export async function PATCH(
         id: company.id,
         name: company.name,
       },
+      audit,
     });
   } catch (error) {
     console.error('[SUPER ADMIN UPDATE COMPANY] Error:', error);
@@ -290,9 +292,9 @@ export async function DELETE(
     });
 
     // Audit log
-    await createAuditLog({
+    const audit = await createSuperAdminAuditLog({
       companyId,
-      actorId: currentUser.id,
+      actor: currentUser,
       action: 'company_deleted',
       entityType: 'company',
       entityId: companyId,
@@ -304,6 +306,7 @@ export async function DELETE(
     return NextResponse.json({
       success: true,
       message: 'Company deleted successfully',
+      audit,
     });
   } catch (error) {
     console.error('[SUPER ADMIN DELETE COMPANY] Error:', error);

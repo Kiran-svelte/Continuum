@@ -1,10 +1,14 @@
 import { NextResponse } from 'next/server';
 import { neonAuth } from '@/lib/neon-auth';
+import { AuthError, getAuthEmployee, requireSuperAdmin } from '@/lib/auth-guard';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    const employee = await getAuthEmployee(request);
+    requireSuperAdmin(employee);
+
     console.log('Testing Neon Auth service...');
     
     const results = {
@@ -44,6 +48,10 @@ export async function GET() {
 
     return NextResponse.json(results);
   } catch (error) {
+    if (error instanceof AuthError) {
+      return NextResponse.json({ error: error.message }, { status: error.status });
+    }
+
     console.error('Neon Auth test error:', error);
     return NextResponse.json(
       { 

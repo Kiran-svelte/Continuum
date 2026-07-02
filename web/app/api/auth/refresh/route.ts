@@ -18,10 +18,12 @@ export async function POST(request: NextRequest) {
     const refreshToken = await getRefreshTokenFromCookies();
 
     if (!refreshToken) {
-      return NextResponse.json(
-        { error: 'No refresh token found' },
+      const response = NextResponse.json(
+        { error: 'No refresh token found', requiresReauth: true },
         { status: 401 }
       );
+      clearAuthCookies(response);
+      return response;
     }
 
     // Attempt to refresh
@@ -30,7 +32,7 @@ export async function POST(request: NextRequest) {
     if (!result.success) {
       // Clear cookies on failure
       const response = NextResponse.json(
-        { error: result.error || 'Token refresh failed' },
+        { error: result.error || 'Token refresh failed', requiresReauth: true },
         { status: 401 }
       );
       clearAuthCookies(response);
@@ -64,7 +66,7 @@ export async function POST(request: NextRequest) {
     
     // Clear cookies on error
     const response = NextResponse.json(
-      { error: 'Token refresh failed', details: errorMessage },
+      { error: 'Token refresh failed', details: errorMessage, requiresReauth: true },
       { status: 500 }
     );
     clearAuthCookies(response);

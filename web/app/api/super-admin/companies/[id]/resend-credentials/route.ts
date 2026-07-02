@@ -4,7 +4,7 @@ import { getCurrentUser } from '@/lib/auth-service';
 import { hashPassword, generateTemporaryPassword } from '@/lib/password-service';
 import { sendCompanyOwnerCredentialsEmail } from '@/lib/email-service';
 import { buildAppUrl } from '@/lib/url-origin';
-import { createAuditLog } from '@/lib/audit';
+import { createSuperAdminAuditLog } from '@/lib/super-admin-audit';
 
 export const dynamic = 'force-dynamic';
 
@@ -37,6 +37,7 @@ export async function POST(
               { primary_role: 'admin' },
             ],
           },
+          orderBy: { created_at: 'asc' },
           take: 1,
         },
       },
@@ -66,9 +67,9 @@ export async function POST(
     });
 
     // Audit log
-    await createAuditLog({
+    const audit = await createSuperAdminAuditLog({
       companyId,
-      actorId: currentUser.id,
+      actor: currentUser,
       action: 'credentials_resent',
       entityType: 'employee',
       entityId: owner.id,
@@ -112,6 +113,7 @@ export async function POST(
         transport: emailResult.transport,
         error: emailResult.error,
       },
+      audit,
       ...(exposeCredentials
         ? {
             credentials: {

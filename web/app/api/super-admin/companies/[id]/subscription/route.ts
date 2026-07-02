@@ -4,7 +4,7 @@ import { randomUUID } from 'crypto';
 import { getCurrentUser } from '@/lib/auth-service';
 import prisma from '@/lib/prisma';
 import { clampModulesForPlan } from '@/lib/core-functions/plan-modules';
-import { createAuditLog } from '@/lib/audit';
+import { createSuperAdminAuditLog } from '@/lib/super-admin-audit';
 
 export const dynamic = 'force-dynamic';
 
@@ -55,16 +55,16 @@ export async function PATCH(
 
     const { moduleCap: capped } = await clampModulesForPlan(companyId, body.plan);
 
-    await createAuditLog({
+    const audit = await createSuperAdminAuditLog({
       companyId,
-      actorId: currentUser.id,
+      actor: currentUser,
       action: 'subscription.update',
       entityType: 'subscription',
       entityId: subscription.id,
       newState: { plan: body.plan, status: subscription.status, moduleCap: capped },
     });
 
-    return NextResponse.json({ subscription, moduleCap: capped });
+    return NextResponse.json({ subscription, moduleCap: capped, audit });
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: 'Validation failed', details: error.flatten() }, { status: 422 });

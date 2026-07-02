@@ -104,7 +104,7 @@ export default function CompaniesIdView() {
     setError(null);
 
     try {
-      const response = await fetch(`/api/super-admin/companies/${companyId}`);
+      const response = await fetch(`/api/super-admin/companies/${companyId}`, { credentials: 'include' });
       const data = await response.json();
 
       if (!response.ok) {
@@ -138,13 +138,23 @@ export default function CompaniesIdView() {
     try {
       const response = await fetch(`/api/super-admin/companies/${companyId}/resend-credentials`, {
         method: 'POST',
+        credentials: 'include',
       });
-      
+
+      const data = await response.json().catch(() => ({}));
       if (!response.ok) {
-        throw new Error('Failed to resend credentials');
+        throw new Error(data.error || 'Failed to resend credentials');
       }
-      
-      alert('Credentials resent successfully');
+
+      if (data.email?.sent) {
+        alert('Credentials regenerated and emailed successfully');
+      } else if (data.credentials?.temporaryPassword) {
+        alert(
+          `Credentials regenerated, but email delivery failed.\n\nEmail: ${data.credentials.email}\nTemporary password: ${data.credentials.temporaryPassword}\nLogin URL: ${data.credentials.loginUrl}\n\nShare this through an approved secure channel.`
+        );
+      } else {
+        alert(data.message || 'Credentials regenerated, but email delivery status is unknown');
+      }
     } catch (error: unknown) {
       alert(error instanceof Error ? error.message : 'Failed to resend credentials');
     } finally {
@@ -161,6 +171,7 @@ export default function CompaniesIdView() {
     try {
       const response = await fetch(`/api/super-admin/companies/${companyId}`, {
         method: 'DELETE',
+        credentials: 'include',
       });
 
       const data = await response.json().catch(() => ({}));

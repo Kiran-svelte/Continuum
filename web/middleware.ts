@@ -262,6 +262,7 @@ function addSecurityHeaders(response: NextResponse): void {
     'https://vercel.live',
     'https://va.vercel-scripts.com',
     'https://www.googletagmanager.com',
+    'https://static.cloudflareinsights.com',
   ].filter(Boolean).join(' ');
   const connectSrc = [
     "connect-src 'self'",
@@ -271,6 +272,8 @@ function addSecurityHeaders(response: NextResponse): void {
     'https://*.sentry.io',
     'https://vitals.vercel-insights.com',
     'https://va.vercel-scripts.com',
+    'https://cloudflareinsights.com',
+    'https://*.cloudflareinsights.com',
   ].join(' ');
   const imgSrc = [
     "img-src 'self'",
