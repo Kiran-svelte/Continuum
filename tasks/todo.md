@@ -286,5 +286,5 @@ Audit identifier: `MAILFIX-20260702`
 - [x] `MAILFIX-20260702-PRODDB` - Verify production DB now has `PasswordResetToken` and a live forgot-password call creates a fresh unused token.
 - [x] `MAILFIX-20260702-PROVIDER` - Verify production logs show Resend accepted the reset email for the test account.
 - [x] `MAILFIX-20260702-BUILD` - Re-run production build after the transport hardening patch.
-- [ ] `MAILFIX-20260702-GIT` - Commit and push only the scoped mail-delivery batch.
-- [ ] `MAILFIX-20260702-DEPLOY` - Redeploy from GitHub `main` and verify live forgot-password again.
+- [x] `MAILFIX-20260702-GIT` - Commit and push only the scoped mail-delivery batch.
+- [x] `MAILFIX-20260702-DEPLOY` - Redeploy from GitHub `main` and verify live forgot-password again.

@@ -136,3 +136,13 @@ Proof completed before commit/deploy:
 - `npx tsx --test tests\mailfix-20260702.test.ts tests\proderr-20260702.test.ts tests\auth-flow.test.ts` passed 40/40.
 - `npx tsc --noEmit --pretty false --incremental false` passed.
 - `npm run build` passed after the mail transport hardening patch.
+
+Deployment proof:
+
+- Commit `716e2a1` (`Fix password reset email delivery`) pushed to GitHub `main`.
+- Vercel deployment `dpl_24GeZmQge2m3NwtLco88aRkJUngm` is Ready and aliased to `https://continuum.support`.
+- Render deployment `dep-d938oamq1p3s73ecnqhg` is live on commit `716e2a1`.
+- `curl.exe -i https://continuum.support/api/health` returned HTTP 200. Database, constraint engine, vault, redis, email, memory, and disk checks were healthy; Neon Auth remains degraded because it is not configured.
+- Live `/api/auth/forgot-password` for the known super-admin account returned neutral success and created a fresh unused `PasswordResetToken` at `2026-07-02T16:07:54.616Z`.
+- Vercel logs for the same request show `Sent via Resend` for the security email and no 500 logs in the request window.
+- Resend reports `continuum.support` as a verified domain with sending enabled. DKIM is present. DMARC exists with `p=none`.

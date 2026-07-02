@@ -357,6 +357,12 @@ Action:
 - Added focused regression coverage in `web/tests/mailfix-20260702.test.ts`.
 - Ran `npx tsx --test tests\mailfix-20260702.test.ts tests\proderr-20260702.test.ts tests\auth-flow.test.ts`; 40/40 tests passed.
 - Ran `npm run build`; Prisma generation and the Next production build completed successfully.
+- Committed and pushed `716e2a1` (`Fix password reset email delivery`) to `main`.
+- Verified Vercel deployment `dpl_24GeZmQge2m3NwtLco88aRkJUngm` is Ready and aliased to `https://continuum.support`.
+- Verified Render deployment `dep-d938oamq1p3s73ecnqhg` is live on commit `716e2a1`.
+- Verified live `/api/auth/forgot-password` returned neutral success, created a fresh unused `PasswordResetToken`, and Vercel logs showed Resend accepted the reset email.
+- Verified no 500 logs for the live forgot-password request window.
+- Verified Resend reports `continuum.support` as a verified sending domain.
 
 Prompt:
 
