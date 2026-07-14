@@ -14,6 +14,7 @@ import { requiresCompanyOnboarding, requiresEmployeeOnboarding } from '@/lib/emp
 import {
   COOKIE_ACCESS,
   COOKIE_COMPANY_SETUP,
+  COOKIE_EMAIL_VERIFIED,
   COOKIE_ENABLED_MODULES,
   COOKIE_ONBOARDING,
   COOKIE_EMP_ONBOARDING,
@@ -34,6 +35,7 @@ const ACCESS_TOKEN_COOKIE = COOKIE_ACCESS;
 const COMPANY_ONBOARDING_STATUS_COOKIE = COOKIE_ONBOARDING;
 const EMPLOYEE_ONBOARDING_STATUS_COOKIE = COOKIE_EMP_ONBOARDING;
 const EMPLOYEE_WELCOME_PENDING_COOKIE = COOKIE_EMP_WELCOME;
+const EMAIL_VERIFIED_STATUS_COOKIE = COOKIE_EMAIL_VERIFIED;
 
 /**
  * Verify the access JWT in middleware (Edge runtime).
@@ -593,6 +595,14 @@ export async function middleware(request: NextRequest) {
       const primaryRole = tokenPayload.role?.toLowerCase() || userRoles[0];
       const requestedRedirectPathname = requestedRedirect?.split('?')[0] ?? null;
 
+      // An unverified user must be able to stay on /sign-in so it can show the
+      // verification prompt — bouncing them into a portal would just send them
+      // straight back out through the email-verification gate below, looping.
+      const emailVerifiedStatus = request.cookies.get(EMAIL_VERIFIED_STATUS_COOKIE)?.value;
+      if (primaryRole !== 'super_admin' && emailVerifiedStatus === '0') {
+        return response;
+      }
+
       // Keep /admin/login stable unless user is returning from a protected-route
       // bounce with an explicit valid redirect target.
       // This avoids millisecond redirect loops when a stale/partial auth state exists.
@@ -638,6 +648,31 @@ export async function middleware(request: NextRequest) {
     const legacyUrl = request.nextUrl.clone();
     legacyUrl.pathname = legacyTarget;
     return NextResponse.redirect(legacyUrl, 308);
+  }
+
+  // 8.4 Email verification gate — runs before onboarding/module gates so an
+  // unverified user can never reach a portal page by navigating directly to
+  // its URL. Verification state was previously enforced client-side only
+  // (sign-in page redirect logic), which meant a valid session cookie was
+  // enough to bypass it entirely.
+  if (!isApiRoute(pathname) && !AUTH_ENTRY_ROUTES.has(pathname)) {
+    const accessToken = request.cookies.get(ACCESS_TOKEN_COOKIE)?.value ||
+                        request.cookies.get(COOKIE_SESSION)?.value;
+    const tokenPayload = accessToken ? await verifyAccessToken(accessToken) : null;
+
+    let primaryRole = tokenPayload?.role?.toLowerCase() ?? '';
+    if (!primaryRole) {
+      primaryRole = request.cookies.get(COOKIE_ROLE)?.value?.toLowerCase() || '';
+    }
+
+    const emailVerifiedStatus = request.cookies.get(EMAIL_VERIFIED_STATUS_COOKIE)?.value;
+    if (primaryRole && primaryRole !== 'super_admin' && emailVerifiedStatus === '0') {
+      const verifyUrl = request.nextUrl.clone();
+      verifyUrl.pathname = '/sign-in';
+      verifyUrl.searchParams.set('reason', 'verify-email');
+      verifyUrl.search = verifyUrl.searchParams.toString();
+      return NextResponse.redirect(verifyUrl);
+    }
   }
 
   // 8.5 Role-aware onboarding gate for authenticated users on non-API routes.

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { hashToken, setEmailVerificationState } from '@/lib/product-readiness';
+import { hydrateAuthResponseCookies } from '@/lib/auth-state-cookies';
 
 export const dynamic = 'force-dynamic';
 
@@ -28,7 +29,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Verification token has expired.' }, { status: 400, headers: { 'x-token-expired': '1' } });
   }
 
-  await prisma.$transaction([
+  const [, , employee] = await prisma.$transaction([
     prisma.otpToken.update({
       where: { id: verification.id },
       data: { is_used: true },
@@ -37,8 +38,24 @@ export async function POST(request: NextRequest) {
       where: { id: verification.emp_id },
       data: { updated_at: new Date() },
     }),
+    prisma.employee.findUnique({
+      where: { id: verification.emp_id },
+      select: { id: true, primary_role: true, secondary_roles: true, org_id: true },
+    }),
   ]);
 
   await setEmailVerificationState(verification.emp_id, true);
-  return NextResponse.json({ success: true });
+
+  const response = NextResponse.json({ success: true });
+  // Refresh the email-verified cookie immediately so the user isn't stuck
+  // behind the middleware gate until their access token next refreshes.
+  if (employee) {
+    await hydrateAuthResponseCookies(response, {
+      employeeId: employee.id,
+      primaryRole: employee.primary_role,
+      secondaryRoles: employee.secondary_roles as string[] | null,
+      orgId: employee.org_id,
+    });
+  }
+  return response;
 }

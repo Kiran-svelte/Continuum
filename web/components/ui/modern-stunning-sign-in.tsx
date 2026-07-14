@@ -65,7 +65,14 @@ export const SignIn1 = () => {
           email_verification?: { verified?: boolean }
         }
 
-        if (me.email_verification?.verified === false) return
+        if (me.email_verification?.verified === false) {
+          if (cancelled) return
+          await fetch('/api/auth/email-verification/send', { method: 'POST', credentials: 'include' }).catch(() => null)
+          if (!cancelled) {
+            setError('Your email is not verified. A new verification link has been sent.')
+          }
+          return
+        }
 
         router.replace(resolvePostSignInPath(me, { redirectTarget }))
       } catch {

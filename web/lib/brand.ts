@@ -88,6 +88,9 @@ export const COOKIE_EMP_ONBOARDING = `${BRAND_COOKIE_PREFIX}-employee-onboarding
 /** Employee welcome screen pending flag cookie. */
 export const COOKIE_EMP_WELCOME = `${BRAND_COOKIE_PREFIX}-employee-welcome-pending`;
 
+/** Email verification status flag cookie — enforced server-side in middleware. */
+export const COOKIE_EMAIL_VERIFIED = `${BRAND_COOKIE_PREFIX}-email-verified`;
+
 /** Comma-separated enabled module slugs (middleware portal guards). */
 export const COOKIE_ENABLED_MODULES = `${BRAND_COOKIE_PREFIX}-enabled-modules`;
 

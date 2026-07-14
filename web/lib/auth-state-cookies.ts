@@ -1,5 +1,6 @@
 import type { NextResponse } from 'next/server';
 import {
+  COOKIE_EMAIL_VERIFIED,
   COOKIE_EMP_ONBOARDING,
   COOKIE_EMP_WELCOME,
   COOKIE_ONBOARDING,
@@ -14,6 +15,7 @@ import {
   requiresCompanyOnboarding,
   requiresEmployeeOnboarding,
 } from '@/lib/employee-onboarding';
+import { isEmailVerified } from '@/lib/product-readiness';
 import prisma from '@/lib/prisma';
 
 const cookieOpts = {
@@ -47,8 +49,11 @@ export function setAuthStateCookies(
     companyOnboardingCompleted: boolean;
     employeeProfile?: EmployeeOnboardingProfile | null;
     modulePayload?: AuthModulePayload;
+    emailVerified: boolean;
   }
 ): void {
+  response.cookies.set(COOKIE_EMAIL_VERIFIED, input.emailVerified ? '1' : '0', cookieOpts);
+
   const role = (input.primaryRole || '').toLowerCase();
   const modulePayload =
     input.modulePayload ??
@@ -119,11 +124,12 @@ export async function hydrateAuthResponseCookies(
       companyOnboardingCompleted: true,
       employeeProfile: { tutorial_completed: true },
       modulePayload,
+      emailVerified: true,
     });
     return;
   }
 
-  const [company, profile, modulePayload] = await Promise.all([
+  const [company, profile, modulePayload, emailVerified] = await Promise.all([
     input.orgId
       ? prisma.company.findUnique({
           where: { id: input.orgId },
@@ -139,6 +145,7 @@ export async function hydrateAuthResponseCookies(
       },
     }),
     getAuthModulePayload(input.orgId),
+    isEmailVerified(input.employeeId),
   ]);
 
   setAuthStateCookies(response, {
@@ -147,6 +154,7 @@ export async function hydrateAuthResponseCookies(
     companyOnboardingCompleted: company?.onboarding_completed === true,
     employeeProfile: profile,
     modulePayload,
+    emailVerified,
   });
 }
 
