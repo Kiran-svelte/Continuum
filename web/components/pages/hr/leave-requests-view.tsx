@@ -22,7 +22,7 @@ import {
   FileText,
 } from 'lucide-react';
 import { downloadCSVLegacy, downloadPDF } from '@/lib/report-export';
-import { Input, Select } from '@/components/ui/input';
+import { Input, Select, Textarea } from '@/components/ui/input';
 
 interface ConstraintViolation {
   rule_id: string;
@@ -109,6 +109,8 @@ export default function LeaveRequestsView() {
 
   // Success/error messages
   const [actionMessage, setActionMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [rejectingId, setRejectingId] = useState<string | null>(null);
+  const [rejectComment, setRejectComment] = useState('');
 
   // Selectable rows (only pending or escalated)
   const selectableRequests = useMemo(
@@ -188,6 +190,8 @@ export default function LeaveRequestsView() {
       setRequests(json.requests);
       setTotalPages(json.pagination.pages || 1);
       setTotal(json.pagination.total || 0);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to load requests');
     } finally {
       setLoading(false);
     }
@@ -205,13 +209,15 @@ export default function LeaveRequestsView() {
     setTimeout(() => setActionMessage(null), 5000);
   }
 
-  async function handleAction(requestId: string, action: 'approve' | 'reject') {
+  async function handleAction(requestId: string, action: 'approve' | 'reject', comment?: string) {
     setActionLoading(requestId + action);
+    setRejectingId(null);
+    setRejectComment('');
     try {
       const isApproval = action === 'approve';
       const requestBody = isApproval
         ? { action: 'approve' }
-        : { comments: null };
+        : { comments: comment || null };
       const res = await fetch(`/api/leaves/${action}/${requestId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -719,27 +725,48 @@ export default function LeaveRequestsView() {
                           </td>
                           <td className="py-3 pl-2">
                             {isSelectable ? (
-                              <div className="flex gap-2">
-                                <Button
-                                  variant="success"
-                                  size="sm"
-                                  loading={actionLoading === req.id + 'approve'}
-                                  disabled={!!actionLoading || bulkLoading}
-                                  onClick={() => handleAction(req.id, 'approve')}
-                                >
-                                  <Check className="w-3.5 h-3.5" />
-                                  Approve
-                                </Button>
-                                <Button
-                                  variant="danger"
-                                  size="sm"
-                                  loading={actionLoading === req.id + 'reject'}
-                                  disabled={!!actionLoading || bulkLoading}
-                                  onClick={() => handleAction(req.id, 'reject')}
-                                >
-                                  <X className="w-3.5 h-3.5" />
-                                  Reject
-                                </Button>
+                              <div className="flex flex-col gap-1">
+                                {rejectingId === req.id ? (
+                                  <div className="flex flex-col gap-1 min-w-[180px]">
+                                    <Textarea
+                                      className="w-full text-xs resize-none p-1.5"
+                                      rows={2}
+                                      placeholder="Reason (optional)"
+                                      value={rejectComment}
+                                      onChange={e => setRejectComment(e.target.value)}
+                                    />
+                                    <div className="flex gap-1">
+                                      <Button variant="danger" size="sm" loading={actionLoading === req.id + 'reject'} onClick={() => handleAction(req.id, 'reject', rejectComment)}>
+                                        <X className="w-3 h-3" /> Confirm
+                                      </Button>
+                                      <Button variant="outline" size="sm" onClick={() => { setRejectingId(null); setRejectComment(''); }}>
+                                        Cancel
+                                      </Button>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <div className="flex gap-2">
+                                    <Button
+                                      variant="success"
+                                      size="sm"
+                                      loading={actionLoading === req.id + 'approve'}
+                                      disabled={!!actionLoading || bulkLoading}
+                                      onClick={() => handleAction(req.id, 'approve')}
+                                    >
+                                      <Check className="w-3.5 h-3.5" />
+                                      Approve
+                                    </Button>
+                                    <Button
+                                      variant="danger"
+                                      size="sm"
+                                      disabled={!!actionLoading || bulkLoading}
+                                      onClick={() => { setRejectingId(req.id); setRejectComment(''); }}
+                                    >
+                                      <X className="w-3.5 h-3.5" />
+                                      Reject
+                                    </Button>
+                                  </div>
+                                )}
                               </div>
                             ) : (
                               <span className="text-xs text-muted-foreground">{'\u2014'}</span>
@@ -999,27 +1026,54 @@ export default function LeaveRequestsView() {
 
             {/* Drawer footer — contextual action buttons */}
             {(selectedRequest.status === 'pending' || selectedRequest.status === 'escalated') && (
-              <div className="p-4 border-t border-[var(--border)] flex gap-3 bg-[var(--card)]">
-                <Button
-                  variant="success"
-                  className="flex-1"
-                  loading={actionLoading === selectedRequest.id + 'approve'}
-                  disabled={!!actionLoading || bulkLoading}
-                  onClick={() => handleAction(selectedRequest.id, 'approve')}
-                >
-                  <Check className="w-4 h-4" />
-                  Approve
-                </Button>
-                <Button
-                  variant="danger"
-                  className="flex-1"
-                  loading={actionLoading === selectedRequest.id + 'reject'}
-                  disabled={!!actionLoading || bulkLoading}
-                  onClick={() => handleAction(selectedRequest.id, 'reject')}
-                >
-                  <X className="w-4 h-4" />
-                  Reject
-                </Button>
+              <div className="p-4 border-t border-[var(--border)] bg-[var(--card)] flex flex-col gap-3">
+                {rejectingId === selectedRequest.id && (
+                  <Textarea
+                    className="w-full text-sm resize-none p-2"
+                    rows={2}
+                    placeholder="Reason for rejection (optional)"
+                    value={rejectComment}
+                    onChange={e => setRejectComment(e.target.value)}
+                  />
+                )}
+                <div className="flex gap-3">
+                  <Button
+                    variant="success"
+                    className="flex-1"
+                    loading={actionLoading === selectedRequest.id + 'approve'}
+                    disabled={!!actionLoading || bulkLoading}
+                    onClick={() => handleAction(selectedRequest.id, 'approve')}
+                  >
+                    <Check className="w-4 h-4" />
+                    Approve
+                  </Button>
+                  {rejectingId === selectedRequest.id ? (
+                    <>
+                      <Button
+                        variant="danger"
+                        className="flex-1"
+                        loading={actionLoading === selectedRequest.id + 'reject'}
+                        onClick={() => handleAction(selectedRequest.id, 'reject', rejectComment)}
+                      >
+                        <X className="w-4 h-4" />
+                        Confirm Reject
+                      </Button>
+                      <Button variant="outline" onClick={() => { setRejectingId(null); setRejectComment(''); }}>
+                        Cancel
+                      </Button>
+                    </>
+                  ) : (
+                    <Button
+                      variant="danger"
+                      className="flex-1"
+                      disabled={!!actionLoading || bulkLoading}
+                      onClick={() => { setRejectingId(selectedRequest.id); setRejectComment(''); }}
+                    >
+                      <X className="w-4 h-4" />
+                      Reject
+                    </Button>
+                  )}
+                </div>
               </div>
             )}
           </motion.aside>

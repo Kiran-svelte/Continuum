@@ -7,6 +7,7 @@ import { GlassPanel } from '@/components/glass-panel';
 import { PageHeader } from '@/components/page-header';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { Button } from '@/components/ui/button';
+import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -90,25 +91,7 @@ function ToggleSwitch({
   label?: string;
   disabled?: boolean;
 }) {
-  return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={value}
-      aria-label={label}
-      disabled={disabled}
-      onClick={() => !disabled && onChange(!value)}
-      className={`relative w-12 h-6 rounded-full transition-all duration-300 ${
-        disabled ? 'opacity-50 cursor-not-allowed' : ''
-      } ${value ? 'bg-primary' : 'bg-white/5'}`}
-    >
-      <span
-        className={`absolute top-1 left-1 w-4 h-4 rounded-full bg-white shadow-md transition-transform duration-300 ${
-          value ? 'translate-x-6' : 'translate-x-0'
-        }`}
-      />
-    </button>
-  );
+  return <Switch checked={value} onChange={onChange} label={label} disabled={disabled} />;
 }
 
 function CopyButton({ text }: { text: string }) {
@@ -169,22 +152,24 @@ function EditableRow({
             >
               Save
             </Button>
-            <button
+            <Button
+              variant="ghost"
               onClick={() => { setVal(displayValue); setEditing(false); }}
-              className="text-xs text-white/60 hover:text-white hover:underline"
+              className="text-xs text-white/60 hover:text-white hover:underline min-h-0 h-auto p-0"
             >
               Cancel
-            </button>
+            </Button>
           </>
         ) : (
           <>
             <span className="text-sm font-medium text-white">{displayValue}</span>
-            <button
+            <Button
+              variant="ghost"
               onClick={() => setEditing(true)}
-              className="text-xs text-primary hover:underline"
+              className="text-xs text-primary hover:underline min-h-0 h-auto p-0"
             >
               Edit
-            </button>
+            </Button>
           </>
         )}
       </div>
@@ -331,13 +316,14 @@ export default function HRSettingsPage() {
         <div className="p-4 rounded-lg bg-destructive/10 border border-destructive/30 text-destructive flex items-center gap-3">
           <AlertTriangle className="w-5 h-5 shrink-0" />
           <p className="text-sm flex-1">{error || 'Failed to load settings'}</p>
-          <button
+          <Button
             type="button"
+            variant="ghost"
             onClick={loadAll}
-            className="ml-2 text-sm underline hover:no-underline shrink-0"
+            className="ml-2 text-sm underline hover:no-underline shrink-0 min-h-0 h-auto p-0"
           >
             Retry
-          </button>
+          </Button>
         </div>
       </div>
     );
@@ -759,9 +745,9 @@ export default function HRSettingsPage() {
             <div className="grid gap-4 md:grid-cols-2">
               <Button variant="outline" className="justify-start gap-3 h-auto py-4" onClick={async () => {
                 try {
-                  const response = await fetch('/api/auth/me');
+                  const response = await fetch('/api/auth/me', { credentials: 'include' });
                   const data = await response.json();
-                  if (!data.user?.email) {
+                  if (!data.email) {
                     setError('Unable to determine your email address. Please sign in again.');
                     setTimeout(() => setError(''), 5000);
                     return;
@@ -769,7 +755,7 @@ export default function HRSettingsPage() {
                   const resetResponse = await fetch('/api/auth/forgot-password', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ email: data.user.email })
+                    body: JSON.stringify({ email: data.email })
                   });
                   if (!resetResponse.ok) {
                     const errorData = await resetResponse.json();

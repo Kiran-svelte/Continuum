@@ -14,7 +14,7 @@ export function SignOutButton({ variant = 'sidebar' }: SignOutButtonProps) {
   async function handleSignOut() {
     // 1. Call server-side sign-out API first (creates audit log while cookies still exist)
     try {
-      await fetch('/api/auth/sign-out', { method: 'POST' });
+      await fetch('/api/auth/sign-out', { method: 'POST', credentials: 'include' });
     } catch {
       // Continue with sign-out even if audit fails
     }

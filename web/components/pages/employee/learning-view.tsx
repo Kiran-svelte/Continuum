@@ -65,14 +65,26 @@ export default function LearningView() {
         fetch('/api/courses', { credentials: 'include' }),
       ]);
 
-      if (enrollRes.status === 'fulfilled' && enrollRes.value.ok) {
-        const data = await enrollRes.value.json();
-        setEnrollments(data.enrollments ?? []);
+      if (enrollRes.status === 'fulfilled') {
+        if (enrollRes.value.ok) {
+          const data = await enrollRes.value.json();
+          setEnrollments(data.enrollments ?? []);
+        } else {
+          toast.error('Failed to load enrollments');
+        }
+      } else {
+        toast.error('Failed to load enrollments');
       }
 
-      if (coursesRes.status === 'fulfilled' && coursesRes.value.ok) {
-        const data = await coursesRes.value.json();
-        setAvailableCourses(data.courses ?? []);
+      if (coursesRes.status === 'fulfilled') {
+        if (coursesRes.value.ok) {
+          const data = await coursesRes.value.json();
+          setAvailableCourses(data.courses ?? []);
+        } else {
+          toast.error('Failed to load courses');
+        }
+      } else {
+        toast.error('Failed to load courses');
       }
     } catch {
       toast.error('Failed to load learning data');

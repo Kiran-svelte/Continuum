@@ -16,6 +16,7 @@ import {
   logOnboardingApiError,
   onboardingSafeErrorBody,
 } from '@/lib/onboarding/api-errors';
+import { completeOnboardingState } from '@/lib/onboarding/server';
 
 export const dynamic = 'force-dynamic';
 
@@ -150,7 +151,7 @@ export async function POST(request: NextRequest) {
     const companyId = employee.org_id!;
     companyIdForLog = companyId;
 
-    await prisma.$transaction(async (tx) => {
+    const onboardingWasCompletedNow = await prisma.$transaction(async (tx) => {
       // 1. Update company fields if provided
       if (data.company) {
         const companyUpdate: Record<string, unknown> = {};
@@ -370,7 +371,14 @@ export async function POST(request: NextRequest) {
           });
         }
 
-        // Create initial ConstraintPolicy snapshot
+        // Create ConstraintPolicy snapshot, incrementing version if prior ones exist
+        const latestPolicy = await tx.constraintPolicy.findFirst({
+          where: { company_id: companyId },
+          orderBy: { version: 'desc' },
+          select: { version: true },
+        });
+        const nextVersion = (latestPolicy?.version ?? 0) + 1;
+
         await tx.constraintPolicy.updateMany({
           where: { company_id: companyId, is_active: true },
           data: { is_active: false },
@@ -383,26 +391,33 @@ export async function POST(request: NextRequest) {
         await tx.constraintPolicy.create({
           data: {
             company_id: companyId,
-            version: 1,
+            version: nextVersion,
             is_active: true,
             rules: savedRules as unknown as import('@prisma/client').Prisma.InputJsonValue,
           },
         });
       }
 
-      // 6. Mark onboarding as complete
-      await tx.company.update({
-        where: { id: companyId },
-        data: { onboarding_completed: true },
-      });
-
-      // 7. Set the admin employee (the one completing onboarding) to 'active'
-      // Other 'onboarding' employees remain in 'onboarding' status for HR approval
-      await tx.employee.update({
-        where: { id: employee.id },
-        data: { status: 'active' },
-      });
+      // 6. Mark onboarding as complete, set step=13, activate owner, clear draft
+      return completeOnboardingState(tx, companyId, employee.id);
     }, ONBOARDING_TRANSACTION_OPTIONS);
+
+    // Fetch join_code and company name to return to the client — needed
+    // either way (a racing duplicate request still needs a valid response).
+    const company = await prisma.company.findUnique({
+      where: { id: companyId },
+      select: { join_code: true, name: true },
+    });
+
+    // completeOnboardingState returns false when this company's onboarding
+    // was already completed (e.g. a racing duplicate request, or a client
+    // retry after a slow-but-successful first response). The core state
+    // change is correctly a no-op in that case — skip the one-time side
+    // effects below too, so a race can't send two welcome emails or write
+    // two "onboarding complete" audit rows for a single real completion.
+    if (!onboardingWasCompletedNow) {
+      return NextResponse.json({ success: true, join_code: company?.join_code ?? null });
+    }
 
     // Non-critical post-completion setup must not block or roll back onboarding.
     // Notification preferences still function if template seeding is retried later.
@@ -414,11 +429,51 @@ export async function POST(request: NextRequest) {
       });
     });
 
-    // Fetch join_code and company name to return to the client
-    const company = await prisma.company.findUnique({
-      where: { id: companyId },
-      select: { join_code: true, name: true },
-    });
+    // Initialize leave quotas for the founding admin (fire-and-forget)
+    void (async () => {
+      try {
+        const year = new Date().getFullYear();
+        const [leaveTypes, ownerRecord] = await Promise.all([
+          prisma.leaveType.findMany({
+            where: { company_id: companyId, is_active: true, deleted_at: null },
+            select: { code: true, default_quota: true, gender_specific: true },
+          }),
+          prisma.employee.findUnique({
+            where: { id: employee.id },
+            select: { id: true, gender: true },
+          }),
+        ]);
+        if (ownerRecord && leaveTypes.length > 0) {
+          const { randomUUID } = await import('crypto');
+          await prisma.leaveBalance.createMany({
+            data: leaveTypes
+              .filter(
+                (lt) => !lt.gender_specific || lt.gender_specific === 'all' || lt.gender_specific === ownerRecord.gender
+              )
+              .map((lt) => ({
+                id: randomUUID(),
+                emp_id: ownerRecord.id,
+                leave_type: lt.code,
+                year,
+                annual_entitlement: lt.default_quota,
+                carried_forward: 0,
+                used_days: 0,
+                pending_days: 0,
+                encashed_days: 0,
+                remaining: lt.default_quota,
+                company_id: companyId,
+                updated_at: new Date(),
+              })),
+            skipDuplicates: true,
+          });
+        }
+      } catch (err) {
+        logger.warn('Leave quota initialization failed after onboarding completion', {
+          companyId,
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
+    })();
 
     // Audit log
     await createAuditLog({

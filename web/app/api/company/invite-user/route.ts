@@ -7,6 +7,7 @@ import {
   assertManagerInviteRole,
   validateReportingManager,
 } from '@/lib/invite-reporting-manager';
+import { sendInviteEmail } from '@/lib/email-service';
 import type { Role } from '@prisma/client';
 
 export const dynamic = 'force-dynamic';
@@ -176,6 +177,27 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    // Send invite email (non-blocking — failure doesn't break the invite creation)
+    const inviter = await prisma.employee.findUnique({
+      where: { id: user.id },
+      select: { first_name: true, last_name: true },
+    });
+    const inviterName = inviter
+      ? `${inviter.first_name} ${inviter.last_name}`.trim()
+      : 'Your HR team';
+    const companyRecord = await prisma.company.findUnique({
+      where: { id: user.orgId },
+      select: { name: true },
+    });
+    void sendInviteEmail(
+      email.toLowerCase(),
+      companyRecord?.name ?? 'Your Company',
+      inviterName,
+      inviteToken,
+      normalizedRole,
+      body.department ?? undefined
+    ).catch((err) => console.error('[COMPANY INVITE USER] Email send failed:', err));
+
     return NextResponse.json({
       success: true,
       invite: {
@@ -195,5 +217,49 @@ export async function POST(request: NextRequest) {
       { error: 'Failed to invite user', details: errorMessage },
       { status: 500 }
     );
+  }
+}
+
+/**
+ * GET /api/company/invite-user?status=pending
+ * Returns pending invitations for the current user's company.
+ */
+export async function GET(request: NextRequest) {
+  try {
+    const user = await getCurrentUser();
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    if (!user.orgId) return NextResponse.json({ error: 'Company context required' }, { status: 400 });
+
+    const isHrAdmin = ['admin', 'hr', 'super_admin'].includes(user.role);
+    if (!isHrAdmin) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+
+    const { searchParams } = new URL(request.url);
+    const status = searchParams.get('status') || 'pending';
+
+    const invites = await prisma.userInvite.findMany({
+      where: {
+        company_id: user.orgId,
+        ...(status === 'pending'
+          ? { status: 'pending', expires_at: { gt: new Date() } }
+          : {}),
+      },
+      orderBy: { created_at: 'desc' },
+      take: 100,
+      select: {
+        id: true,
+        email: true,
+        first_name: true,
+        last_name: true,
+        role: true,
+        status: true,
+        expires_at: true,
+        created_at: true,
+      },
+    });
+
+    return NextResponse.json({ invites });
+  } catch (error) {
+    console.error('[COMPANY INVITE USER GET] Error:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

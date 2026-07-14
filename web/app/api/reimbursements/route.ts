@@ -74,7 +74,11 @@ export async function GET(request: NextRequest) {
       where.category = categoryFilter;
     }
 
-    const [reimbursements, total] = await Promise.all([
+    // Base where without status/category for summary stats
+    const summaryWhere: Record<string, unknown> = { company_id: employee.org_id! };
+    if (!isHrOrAdmin) summaryWhere.emp_id = employee.id;
+
+    const [reimbursements, total, pendingCount, summaryAgg] = await Promise.all([
       prisma.reimbursement.findMany({
         where,
         include: {
@@ -100,7 +104,17 @@ export async function GET(request: NextRequest) {
         take: limit,
       }),
       prisma.reimbursement.count({ where }),
+      prisma.reimbursement.count({ where: { ...summaryWhere, status: 'pending' } }),
+      prisma.reimbursement.aggregate({
+        where: { ...summaryWhere, status: { in: ['approved', 'processed'] } },
+        _sum: { amount: true },
+      }),
     ]);
+
+    const processedAgg = await prisma.reimbursement.aggregate({
+      where: { ...summaryWhere, status: 'processed' },
+      _sum: { amount: true },
+    });
 
     return NextResponse.json({
       reimbursements,
@@ -109,6 +123,11 @@ export async function GET(request: NextRequest) {
         limit,
         total,
         pages: Math.ceil(total / limit),
+      },
+      summary: {
+        pendingReview: pendingCount,
+        totalApprovedAmount: summaryAgg._sum.amount ?? 0,
+        totalProcessedAmount: processedAgg._sum.amount ?? 0,
       },
     });
   } catch (error) {

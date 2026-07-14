@@ -140,8 +140,9 @@ export async function POST(request: NextRequest) {
     let skippedCount = 0;
 
     if (overwrite) {
+      const employeeIdsToOverwrite = balancesToCreate.map((b) => b.emp_id);
       await prisma.$transaction(async (tx) => {
-        await tx.leaveBalance.deleteMany({ where: { company_id: companyId, year } });
+        await tx.leaveBalance.deleteMany({ where: { company_id: companyId, year, emp_id: { in: employeeIdsToOverwrite } } });
         await tx.leaveBalance.createMany({ data: balancesToCreate });
       });
     } else {

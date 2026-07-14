@@ -7,6 +7,7 @@ import { GlassPanel } from '@/components/glass-panel';
 import { StaggerContainer, FadeIn, TiltCard, MagneticButton, GlowCard, Counter } from '@/components/motion';
 import { PageHeader } from '@/components/page-header';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ensureMe } from '@/lib/client-auth';
 import {
@@ -243,16 +244,17 @@ export default function SystemHealthPage() {
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <button
+          <Button
+            variant="ghost"
             onClick={() => setAutoRefresh(!autoRefresh)}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-all border ${autoRefresh
+            className={`flex items-center gap-2 px-4 py-2 min-h-0 rounded-xl text-[10px] font-bold uppercase tracking-wider border ${autoRefresh
                 ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.1)]'
                 : 'border-white/10 bg-white/5 text-white/40'
               }`}
           >
             <div className={`w-2 h-2 rounded-full ${autoRefresh ? 'bg-emerald-500 animate-pulse' : 'bg-white/20'}`} />
             Live Sync {autoRefresh ? 'Active' : 'Paused'}
-          </button>
+          </Button>
           <MagneticButton
             variant="gradient"
             size="sm"

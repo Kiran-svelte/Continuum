@@ -70,14 +70,26 @@ export default function TravelView() {
         fetch('/api/expenses', { credentials: 'include' }),
       ]);
 
-      if (travelRes.status === 'fulfilled' && travelRes.value.ok) {
-        const data = await travelRes.value.json();
-        setTravelRequests(data.requests ?? []);
+      if (travelRes.status === 'fulfilled') {
+        if (travelRes.value.ok) {
+          const data = await travelRes.value.json();
+          setTravelRequests(data.requests ?? []);
+        } else {
+          toast.error('Failed to load travel requests');
+        }
+      } else {
+        toast.error('Failed to load travel requests');
       }
 
-      if (expensesRes.status === 'fulfilled' && expensesRes.value.ok) {
-        const data = await expensesRes.value.json();
-        setExpenses(data.expenses ?? []);
+      if (expensesRes.status === 'fulfilled') {
+        if (expensesRes.value.ok) {
+          const data = await expensesRes.value.json();
+          setExpenses(data.expenses ?? []);
+        } else {
+          toast.error('Failed to load expense data');
+        }
+      } else {
+        toast.error('Failed to load expense data');
       }
     } catch {
       toast.error('Failed to load travel & expense data');

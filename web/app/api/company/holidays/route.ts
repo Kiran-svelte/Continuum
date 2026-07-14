@@ -101,13 +101,18 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const company = await prisma.company.findUnique({
+      where: { id: employee.org_id! },
+      select: { country_code: true },
+    });
+
     const holiday = await prisma.publicHoliday.create({
       data: {
         name: name.trim(),
         date: parsedDate,
         company_id: employee.org_id!,
         is_custom: is_custom !== undefined ? Boolean(is_custom) : true,
-        country_code: 'IN',
+        country_code: company?.country_code ?? 'IN',
       },
       select: {
         id: true,

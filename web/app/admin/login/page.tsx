@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Shield, Lock, Mail, AlertCircle, Loader2, Eye, EyeOff, AlertTriangle, Server, Database, Users } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 
 /**
  * Super Admin Login Page - Apex Dark UI
@@ -178,11 +180,11 @@ export default function SuperAdminLoginPage() {
                 <label className="input-label">Super Admin Email</label>
                 <div className="relative">
                   <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-muted" />
-                  <input
+                  <Input
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="input pl-11"
+                    className="pl-11"
                     placeholder="admin@platform.com"
                     required
                     disabled={loading}
@@ -195,44 +197,45 @@ export default function SuperAdminLoginPage() {
                 <label className="input-label">Password</label>
                 <div className="relative">
                   <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-muted" />
-                  <input
+                  <Input
                     type={showPassword ? 'text' : 'password'}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="input pl-11 pr-11"
+                    className="pl-11 pr-11"
                     placeholder="Enter your password"
                     required
                     disabled={loading}
                     autoComplete="current-password"
                   />
-                  <button
+                  <Button
                     type="button"
+                    variant="ghost"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted hover:text-primary transition-colors"
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 min-h-0 h-auto p-0 text-muted hover:text-primary"
                     disabled={loading}
                   >
                     {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                  </button>
+                  </Button>
                 </div>
               </div>
 
-              <button
+              <Button
                 type="submit"
                 disabled={loading}
-                className="btn btn-primary btn-block btn-lg bg-gradient-to-br from-amber-500 to-orange-600 border-transparent"
+                className="btn-lg w-full h-12 bg-gradient-to-br from-amber-500 to-orange-600 border-transparent"
               >
                 {loading ? (
                   <>
-                    <Loader2 className="w-5 h-5 animate-spin" />
-                    Authenticating...
+                    <Loader2 className="w-5 h-5 animate-spin flex-shrink-0" />
+                    <span>Authenticating...</span>
                   </>
                 ) : (
                   <>
-                    <Shield className="w-5 h-5" />
-                    Sign In to Platform
+                    <Shield className="w-5 h-5 flex-shrink-0" />
+                    <span>Sign In to Platform</span>
                   </>
                 )}
-              </button>
+              </Button>
             </form>
 
             {/* Security Notice */}

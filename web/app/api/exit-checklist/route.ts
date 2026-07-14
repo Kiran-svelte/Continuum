@@ -199,7 +199,12 @@ export async function PATCH(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { id, completed } = body;
+    const { id, completed, itemIndex, isCustom } = body as {
+      id: unknown;
+      completed: unknown;
+      itemIndex?: unknown;
+      isCustom?: unknown;
+    };
 
     if (!id || typeof id !== 'string') {
       return NextResponse.json({ error: 'Checklist ID is required.' }, { status: 400 });
@@ -239,12 +244,43 @@ export async function PATCH(request: NextRequest) {
       completed_at: checklist.completed_at,
     };
 
-    const newStatus = completed ? 'completed' : 'in_progress';
-    const completedAt = completed ? new Date() : null;
+    type ChecklistItemShape = { task: string; category: string; completed: boolean; due_date?: string };
+    let newItems = checklist.items as ChecklistItemShape[];
+    let newCustomItems = (checklist.custom_items as ChecklistItemShape[] | null) ?? [];
+
+    if (typeof itemIndex === 'number') {
+      // Per-item toggle: flip exactly one item's completed field, in whichever
+      // array it belongs to.
+      if (isCustom === true) {
+        if (itemIndex < 0 || itemIndex >= newCustomItems.length) {
+          return NextResponse.json({ error: 'Item index out of range.' }, { status: 400 });
+        }
+        newCustomItems = newCustomItems.map((item, i) => (i === itemIndex ? { ...item, completed } : item));
+      } else {
+        if (itemIndex < 0 || itemIndex >= newItems.length) {
+          return NextResponse.json({ error: 'Item index out of range.' }, { status: 400 });
+        }
+        newItems = newItems.map((item, i) => (i === itemIndex ? { ...item, completed } : item));
+      }
+    } else {
+      // No item index: a whole-checklist bulk action (HR "mark complete" /
+      // "reopen") — set every item, in both arrays, to the requested state.
+      newItems = newItems.map((item) => ({ ...item, completed }));
+      newCustomItems = newCustomItems.map((item) => ({ ...item, completed }));
+    }
+
+    // Derive overall status from every item across both arrays
+    const allItemsCombined = [...newItems, ...newCustomItems];
+    const allDone = allItemsCombined.length > 0 && allItemsCombined.every((item) => item.completed);
+    const anyDone = allItemsCombined.some((item) => item.completed);
+    const newStatus = allDone ? 'completed' : anyDone ? 'in_progress' : 'not_started';
+    const completedAt = allDone ? new Date() : null;
 
     const updated = await prisma.exitChecklist.update({
       where: { id },
       data: {
+        items: newItems as import('@prisma/client').Prisma.InputJsonValue,
+        custom_items: (checklist.custom_items === null ? null : newCustomItems) as import('@prisma/client').Prisma.InputJsonValue,
         status: newStatus,
         completed_at: completedAt,
       },

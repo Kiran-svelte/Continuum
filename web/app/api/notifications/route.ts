@@ -57,8 +57,10 @@ export async function GET(request: NextRequest) {
     if (error instanceof AuthError) {
       return NextResponse.json({ error: error.message }, { status: error.status });
     }
-    const message =
-      process.env.NODE_ENV === 'production' ? 'Internal server error' : String(error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    const isProd = process.env.NODE_ENV === 'production';
+    return NextResponse.json(
+      { error: isProd ? 'Internal server error' : String(error) },
+      { status: 500 }
+    );
   }
 }

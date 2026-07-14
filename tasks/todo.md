@@ -320,5 +320,63 @@ Audit identifier: `SIGNINFIX-20260702`
 - [x] `SIGNINFIX-20260702-CODE` - Harden JWT secret resolution to avoid crashing when session/CSRF secrets differ.
 - [x] `SIGNINFIX-20260702-TESTS` - Add regression coverage for mismatched JWT/session/CSRF env values.
 - [x] `SIGNINFIX-20260702-BUILD` - Run focused tests, TypeScript, and production build.
-- [ ] `SIGNINFIX-20260702-GIT` - Commit and push the scoped sign-in fix.
+- [x] `SIGNINFIX-20260702-GIT` - Commit and push the scoped sign-in fix. (Note: found already committed as `3a2f9f1` on `main` when this todo was revisited on 2026-07-09 — this checkbox was simply never updated after the commit landed.)
 - [ ] `SIGNINFIX-20260702-DEPLOY` - Deploy to Vercel/Render and verify production sign-in no longer returns 500.
+
+## Enterprise/Global-Scale Backlog Todo
+
+Session identifier: `BACKLOG-20260709`
+
+Goal: produce a verified (not self-reported) Epics → Features → Tasks backlog covering both the existing product and the net-new "enterprise, self-serve, 100+ companies, 1M+ employees, worldwide" scope, then implement the pure-code items that don't require a new vendor account, legal engagement, or business decision.
+
+Output: `docs/EPICS_FEATURES_TASKS_BACKLOG.md` (created, see file for full detail — 18 existing-product epics CF-000..CF-017, 14 new epics ENT-01..14).
+
+Key finding: `web/LOOP_STATE.json` self-reports `"status": "COMPLETE"` for all 64 RALPH services; this is false (verified directly — no MFA/SSO, Sentry/Pusher/Redis/Razorpay unset in prod, no CI workflow file exists despite being claimed elsewhere). Root `LOOP_STATE.json` (28% complete) is closer to reality but still self-reported, not independently verified. Neither file should be trusted for status going forward — use `docs/EPICS_FEATURES_TASKS_BACKLOG.md` instead.
+
+### Todo
+
+- [x] `BACKLOG-20260709-VERIFY` - Verify current-code status of items claimed done/broken in `web/COMPLETE_AUDIT.md`, `docs/OPERATIONS_READINESS_20.md`, and both `LOOP_STATE.json` files before writing any new backlog.
+- [x] `BACKLOG-20260709-DISCOVER` - Locate and read the existing planning corpus (`chunks/`, `LOOP.md`, `COMPLETE_SOLUTION_MAPPING.md`, `SOLUTION_INDEX.md`, `tasks/todo.md`) before writing a parallel/duplicate system.
+- [x] `BACKLOG-20260709-WRITE` - Write `docs/EPICS_FEATURES_TASKS_BACKLOG.md` with verified status per epic/feature and an explicit pure-code-vs-blocked-on-you split.
+- [x] `BACKLOG-20260709-ACTIVITY` - Append this session to `docs/activity.md`.
+- [x] `BACKLOG-20260709-CI` - Add a real `.github/workflows/web-ci.yml` (typecheck, lint, test, build on PR) — closes the falsely-claimed-done CI/CD gap (ENT-07). Added `web/package.json` `typecheck` script the workflow calls.
+- [x] `BACKLOG-20260709-TESTFIX` - (Not originally scoped, found while establishing a green baseline before adding CI) Fixed 10 pre-existing failing tests across 7 files, unrelated to any of today's other work — see `docs/activity.md` for the full file-by-file list. Repo test suite was not actually green before this session.
+- [ ] `BACKLOG-20260709-MFA` - Build TOTP-based MFA (enrollment, backup codes, sign-in verification step) (ENT-01).
+- [ ] `BACKLOG-20260709-APIKEY` - Build API-key authentication middleware enforcing the existing unused `ApiKey` Prisma model (ENT-02).
+- [x] `BACKLOG-20260709-PROOF` - Ran typecheck (`npx tsc --noEmit`, 0 errors), full test suite (`npx tsx --test tests/*.test.ts`, 400/400 passing after fixes), scoped ESLint on every touched file (0 new errors/warnings — 1 pre-existing unrelated error and 35 pre-existing unrelated warnings found, none introduced by this session), and a full `next build` with dummy env vars and no live database (succeeds — confirms the CI workflow's build job will actually pass).
+- [ ] `BACKLOG-20260709-GIT` - Commit and push only the scoped, tested batch.
+
+### Review
+
+`BACKLOG-20260709-CI` and `BACKLOG-20260709-TESTFIX` complete with passing proof (see above and `docs/activity.md`). MFA and API-key auth middleware remain — larger scope, not started this pass. Do not mark `BACKLOG-20260709-GIT` complete until the user has reviewed and approved the diff for commit (per this session's operating instructions, commits require explicit user request).
+
+## Code Review Remediation Todo
+
+Session identifier: `CODEREVIEW-20260709`
+
+Goal: fix the 15 confirmed findings from the `/code-review ultra` max-effort pass (10 finder angles, 11 verified) before this diff is committed. All 15 are CONFIRMED, not PLAUSIBLE — see `docs/activity.md` for the full list and severity ranking.
+
+### Todo — ranked most severe first
+
+- [x] `CODEREVIEW-20260709-01` - Fixed self-approval bug: added `leaveReq.emp_id === manager.id` guard in `web/app/api/manager/approvals/[id]/action/route.ts`, matching the guard already present in the bulk-approve route and `leave-approve.ts` service.
+- [x] `CODEREVIEW-20260709-02` - Fixed concurrency race in the same route: status update now uses `updateMany` gated on the previously-read status (409 on conflict), and the balance mutation now calls the shared `updateLeaveBalanceWithConcurrencyCheck` helper instead of an unguarded `findUnique`+`update`.
+- [x] `CODEREVIEW-20260709-03` - Fixed payroll LOP zeroing for fully-absent employees in `web/app/api/payroll/generate/route.ts` — replaced the buggy inline present/absent calc with a call to `summarizePayrollAttendance()`.
+- [x] `CODEREVIEW-20260709-04` - Fixed payroll working-days calculation to exclude weekends/holidays — same fix as -03 (one call to `summarizePayrollAttendance()` fixed both).
+- [x] `CODEREVIEW-20260709-05` - Fixed exit-checklist per-item completion: PATCH route now handles per-item toggle (with `isCustom` for the custom-items array) and a separate whole-checklist bulk-mark path (no `itemIndex` = HR's "mark all" action, previously a no-op); both live pages updated to match. Status is now derived from `items` + `custom_items` combined (previously ignored `custom_items` entirely).
+- [x] `CODEREVIEW-20260709-06` - Fixed manager-picker dropdown: `/api/employees` now parses `role=a,b,c` into an `{in: [...]}` filter instead of exact-match equality.
+- [x] `CODEREVIEW-20260709-07` - Fixed audit-trail corruption risk: status-history insert and the employee update are now in one `$transaction`; the password reset (external Supabase call) now runs first, before any DB write, so a failure can't leave a phantom history row.
+- [x] `CODEREVIEW-20260709-08` - Fixed duplicate welcome-email/audit-log risk: the route now captures `completeOnboardingState`'s boolean return and skips the notification/leave-quota/audit-log/email side effects entirely when it's `false` (already completed).
+- [x] `CODEREVIEW-20260709-09` - Fixed module-gate mismatch: `/hr/surveys` + `/employee/surveys` now require `performance` in both middleware and nav (was `analytics` in middleware/nav vs `performance` in the API).
+- [x] `CODEREVIEW-20260709-10` - Fixed module-gate mismatch: `/hr/benefits` now requires `employees` (always-on) in both middleware and nav, matching what the API actually enforces (was `payroll` in middleware/nav).
+- [x] `CODEREVIEW-20260709-11` - Fixed HR reject-comment `null` default: restored a guaranteed non-empty placeholder (`comment?.trim() || 'Action taken by HR.'`) in `approvals-view.tsx`.
+- [x] `CODEREVIEW-20260709-12` - Fixed toggle-switch hover masking: built a real `components/ui/switch.tsx` primitive (no Button hover classes at all) and replaced all three `ToggleSwitch` copies (employee settings, HR settings, and the pre-existing broken one in `hr/settings-view.tsx`) to delegate to it — also fixes the pre-existing 44px-instead-of-24px bug as a side effect.
+- [x] `CODEREVIEW-20260709-13` - Fixed `Button`/`.btn` text clipping: reverted to the exact prior working classes (`whitespace-normal break-words` / `overflow: visible; white-space: normal; overflow-wrap: anywhere`) in `button.tsx` and `globals.css`.
+- [x] `CODEREVIEW-20260709-14` - Fixed stale-closure `setReviewDrafts` bug in `performance-view.tsx`: all three updaters now read `prev[review.id] ?? draft` instead of the outer `draft` variable.
+- [x] `CODEREVIEW-20260709-15` - Restored `welcome-sequence` route's super-admin cross-company `companyId` targeting (with the original authorization check) — no evidence it was an intentional removal, and it's a low-risk restoration.
+- [x] `CODEREVIEW-20260709-BONUS` - Fixed all four: the 3 unconditional `/manager/directory` links now check `directory` module state (server-side `getCompanyModuleState`/`isModuleEnabled` in the two server components, `useCompanyModules()` hook in the client component) before rendering; 3 files now import `Textarea` from `@/components/ui/input` (matching sibling `Input`/`Select` styling) instead of the differently-styled `@/components/ui/textarea`; FAQ accordion in `support/page.tsx` child div now has `w-full` to fix the `inline-flex` stretch-collapse; pre-existing broken switch folded into the -12 fix above.
+- [x] `CODEREVIEW-20260709-VERIFY` - `npx tsc --noEmit` clean, full test suite 400/400 passing, scoped ESLint on every touched file (only pre-existing, unrelated warnings — confirmed by reading the flagged lines directly), and `next build` exits 0 with dummy env vars and no live database. Live browser check of the CSS-level fixes (toggle switch, FAQ layout) was attempted but blocked by a `.next` build-cache conflict with another session's dev server already running on this same project directory (unrelated to these changes) — stopped rather than risk interfering with that session; relying on precise, mechanism-level CSS/tailwind-merge reasoning (already cross-confirmed by independent review agents) plus the clean production build instead.
+- [ ] `CODEREVIEW-20260709-GIT` - Commit and push only after user review/approval (same rule as `BACKLOG-20260709-GIT`).
+
+### Code Review Review
+
+All 15 confirmed findings plus the 4 bonus items are fixed and verified (typecheck/tests/lint/build all clean). Nothing committed — awaiting explicit user go-ahead per this session's operating rule.

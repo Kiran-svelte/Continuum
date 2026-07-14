@@ -397,6 +397,8 @@ th{background:#f5f5f5;font-weight:600}
               if (printWindow) {
                 printWindow.document.write(html);
                 printWindow.document.close();
+              } else {
+                alert('Popup blocked. Please allow popups for this site to download your payslip.');
               }
             }}>
               <Download className="w-5 h-5" /> Download Payslip

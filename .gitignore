@@ -15,3 +15,7 @@ coverage/
 .turbo/
 prometheus/
 *.tsbuildinfo
+
+# Local-only scripts containing plaintext credentials — never commit
+web/scripts/upsert-super-admin.mjs
+web/wipe_and_seed.js

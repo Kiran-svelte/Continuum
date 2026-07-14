@@ -294,9 +294,10 @@ export async function GET(request: NextRequest) {
     // Sort results
     allResults = sortResults(allResults, sortBy, sortOrder);
 
-    // Pagination
+    // Pagination — clamp offset to actual result count
     const totalResults = allResults.length;
-    const paginatedResults = allResults.slice(offset, offset + limit);
+    const safeOffset = Math.min(offset, totalResults);
+    const paginatedResults = allResults.slice(safeOffset, safeOffset + limit);
 
     // Generate search insights
     const insights = generateSearchInsights(allResults, searchTerms, {
@@ -318,7 +319,7 @@ export async function GET(request: NextRequest) {
         returned_results: paginatedResults.length,
         limit,
         offset,
-        has_more: offset + limit < totalResults,
+        has_more: safeOffset + limit < totalResults,
         search_time_ms: Date.now(),
         user_role: userRole,
         filters_applied: {

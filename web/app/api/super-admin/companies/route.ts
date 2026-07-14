@@ -195,6 +195,23 @@ export async function POST(request: NextRequest) {
         },
       });
 
+      // 2b. Mark the owner's email as already verified. A super admin issues
+      // these credentials directly (and the UI presents them as ready to use),
+      // so the owner must not be trapped behind the email-verification wall on
+      // first sign-in. Verification state is a used `email_verify` OtpToken row
+      // (see getEmailVerificationState / email-verification confirm route).
+      await tx.otpToken.create({
+        data: {
+          id: crypto.randomUUID(),
+          emp_id: owner.id,
+          company_id: company.id,
+          action: 'email_verify',
+          code_hash: `super-admin-issued:${crypto.randomUUID()}`,
+          expires_at: new Date(),
+          is_used: true,
+        },
+      });
+
       // 3. Initialize Company Settings with module cap + enabled defaults
       const moduleSeed = buildDefaultModuleSeed(capSlugs);
       if (requestedInitialEnabled) {

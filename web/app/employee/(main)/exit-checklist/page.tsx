@@ -142,14 +142,14 @@ export default function EmployeeExitChecklistPage() {
     loadChecklists();
   }, [loadChecklists]);
 
-  async function toggleChecklist(id: string, completed: boolean) {
+  async function toggleChecklist(id: string, itemIndex: number, isCustom: boolean, completed: boolean) {
     setToggling(id);
     try {
       const res = await fetch('/api/exit-checklist', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ id, completed }),
+        body: JSON.stringify({ id, itemIndex, isCustom, completed }),
       });
       if (res.ok) {
         const data = await res.json();
@@ -319,6 +319,8 @@ export default function EmployeeExitChecklistPage() {
                       {items.map((item, idx) => {
                         const isOverdue = !item.completed && item.due_date && new Date(item.due_date) < now;
                         const catColor = CATEGORY_COLORS[item.category] ?? CATEGORY_COLORS['Other'];
+                        const isCustomItem = idx >= cl.items.length;
+                        const itemArrayIndex = isCustomItem ? idx - cl.items.length : idx;
 
                         return (
                           <FadeIn key={`${cl.id}-${idx}`}>
@@ -331,16 +333,11 @@ export default function EmployeeExitChecklistPage() {
                                   : 'border-white/10'
                               }`}
                             >
-                              <button
-                                onClick={() => {
-                                  if (cl.status !== 'completed') {
-                                    toggleChecklist(cl.id, true);
-                                  } else {
-                                    toggleChecklist(cl.id, false);
-                                  }
-                                }}
+                              <Button
+                                variant="ghost"
+                                onClick={() => toggleChecklist(cl.id, itemArrayIndex, isCustomItem, !item.completed)}
                                 disabled={toggling === cl.id}
-                                className="mt-1 shrink-0"
+                                className="mt-1 shrink-0 min-h-0 h-auto p-0"
                               >
                                 {toggling === cl.id ? (
                                   <Loader2 className="w-5 h-5 text-white/50 animate-spin" />
@@ -349,7 +346,7 @@ export default function EmployeeExitChecklistPage() {
                                 ) : (
                                   <Circle className="w-5 h-5 text-white/40 hover:text-primary transition-colors" />
                                 )}
-                              </button>
+                              </Button>
 
                               <div className="flex-1 min-w-0">
                                 <p className={`text-sm font-medium ${

@@ -8,6 +8,7 @@ import { GlassPanel } from '@/components/glass-panel';
 import { PageHeader } from '@/components/page-header';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { Button } from '@/components/ui/button';
+import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -89,24 +90,7 @@ function ToggleSwitch({
   label?: string;
   disabled?: boolean;
 }) {
-  return (
-    <Button
-      type="button"
-      variant="ghost"
-      aria-label={label ? `${label}: ${value ? 'enabled' : 'disabled'}` : `Toggle setting: ${value ? 'enabled' : 'disabled'}`}
-      disabled={disabled}
-      onClick={() => !disabled && onChange(!value)}
-      className={`relative w-12 h-6 rounded-full transition-all duration-300 ${
-        disabled ? 'opacity-50 cursor-not-allowed' : ''
-      } ${value ? 'bg-primary' : 'bg-[var(--bg-surface-hover)]'}`}
-    >
-      <span
-        className={`absolute top-1 left-1 w-4 h-4 rounded-full bg-[var(--bg-surface)] shadow-md transition-transform duration-300 ${
-          value ? 'translate-x-6' : 'translate-x-0'
-        }`}
-      />
-    </Button>
-  );
+  return <Switch checked={value} onChange={onChange} label={label} disabled={disabled} />;
 }
 
 function EditableRow({

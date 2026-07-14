@@ -158,30 +158,30 @@ export default function CompaniesNewView() {
               <div className="flex items-center gap-2">
                 <span className="text-sm text-muted-foreground w-24 flex-shrink-0">Login URL</span>
                 <code className="flex-1 bg-muted/50 px-3 py-2 rounded text-sm font-mono truncate">{loginUrl}</code>
-                <button onClick={() => copyToClipboard(loginUrl, 'url')} className="p-2 hover:bg-muted rounded transition-colors">
+                <Button variant="ghost" size="sm" onClick={() => copyToClipboard(loginUrl, 'url')} className="p-2 min-h-0 h-auto rounded">
                   {copied === 'url' ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4 text-muted-foreground" />}
-                </button>
+                </Button>
               </div>
               <div className="flex items-center gap-2">
                 <span className="text-sm text-muted-foreground w-24 flex-shrink-0">Email</span>
                 <code className="flex-1 bg-muted/50 px-3 py-2 rounded text-sm font-mono">{ownerEmail}</code>
-                <button onClick={() => copyToClipboard(ownerEmail, 'email')} className="p-2 hover:bg-muted rounded transition-colors">
+                <Button variant="ghost" size="sm" onClick={() => copyToClipboard(ownerEmail, 'email')} className="p-2 min-h-0 h-auto rounded">
                   {copied === 'email' ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4 text-muted-foreground" />}
-                </button>
+                </Button>
               </div>
               <div className="flex items-center gap-2">
                 <span className="text-sm text-muted-foreground w-24 flex-shrink-0">Password</span>
                 <code className="flex-1 bg-muted/50 px-3 py-2 rounded text-sm font-mono">{formData.ownerPassword}</code>
-                <button onClick={() => copyToClipboard(formData.ownerPassword, 'pw')} className="p-2 hover:bg-muted rounded transition-colors">
+                <Button variant="ghost" size="sm" onClick={() => copyToClipboard(formData.ownerPassword, 'pw')} className="p-2 min-h-0 h-auto rounded">
                   {copied === 'pw' ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4 text-muted-foreground" />}
-                </button>
+                </Button>
               </div>
               <div className="flex items-center gap-2">
                 <span className="text-sm text-muted-foreground w-24 flex-shrink-0">Join Code</span>
                 <code className="flex-1 bg-muted/50 px-3 py-2 rounded text-sm font-mono tracking-widest">{joinCode}</code>
-                <button onClick={() => copyToClipboard(joinCode, 'code')} className="p-2 hover:bg-muted rounded transition-colors">
+                <Button variant="ghost" size="sm" onClick={() => copyToClipboard(joinCode, 'code')} className="p-2 min-h-0 h-auto rounded">
                   {copied === 'code' ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4 text-muted-foreground" />}
-                </button>
+                </Button>
               </div>
             </div>
             <div className="mt-4 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded text-xs text-amber-800 dark:text-amber-300">

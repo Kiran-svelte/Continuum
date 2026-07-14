@@ -190,10 +190,9 @@ export async function POST(request: NextRequest) {
       select: { enabled_roles: true },
     });
 
-    const allowedCreateRoles = resolveDefaultCreationTargets(
-      data.canCreateUsers ? data.slug : data.slug,
-      companyRecord?.enabled_roles || []
-    );
+    const allowedCreateRoles = data.canCreateUsers
+      ? resolveDefaultCreationTargets(data.slug, companyRecord?.enabled_roles || [])
+      : [];
 
     const invalidCreateRoles = data.canCreateRoles.filter(
       (candidate) => !allowedCreateRoles.includes(candidate)

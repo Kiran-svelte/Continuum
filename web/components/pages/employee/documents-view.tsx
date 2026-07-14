@@ -18,11 +18,12 @@ type DocumentRecord = {
 export default function DocumentsView() {
   const [documents, setDocuments] = useState<DocumentRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [isUploading, startUpload] = useTransition();
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
   const [activeCategory, setActiveCategory] = useState<'all' | 'identity' | 'financial' | 'policies'>('all');
   const [searchQuery, setSearchQuery] = useState('');
-  
+
   const inferCategory = (fileName: string): string => {
     const ext = fileName.split('.').pop()?.toLowerCase() || '';
     if (['jpg', 'jpeg', 'png'].includes(ext)) return 'personal_id';
@@ -31,9 +32,11 @@ export default function DocumentsView() {
   };
 
   const loadDocuments = async () => {
-    const response = await fetch('/api/documents?limit=100', { method: 'GET' });
+    setLoadError(null);
+    const response = await fetch('/api/documents?limit=100', { method: 'GET', credentials: 'include' });
     if (!response.ok) {
-      setDocuments([]);
+      const payload = await response.json().catch(() => ({}));
+      setLoadError(payload.error || 'Failed to load documents. Please refresh.');
       setIsLoading(false);
       return;
     }
@@ -43,9 +46,16 @@ export default function DocumentsView() {
     setIsLoading(false);
   };
 
+  // Only reload after upload transition ends or after delete completes (isDeleting becomes null)
   useEffect(() => {
     void loadDocuments();
-  }, [isUploading, isDeleting]);
+  }, [isUploading]);
+
+  useEffect(() => {
+    if (isDeleting === null) {
+      void loadDocuments();
+    }
+  }, [isDeleting]);
 
   const handleFileUpload = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -62,6 +72,7 @@ export default function DocumentsView() {
       const res = await fetch('/api/documents/upload', {
         method: 'POST',
         body: formData,
+        credentials: 'include',
       });
 
       if (!res.ok) {
@@ -81,14 +92,13 @@ export default function DocumentsView() {
     const res = await fetch('/api/documents', {
       method: 'DELETE',
       headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
       body: JSON.stringify({ id }),
     });
 
     if (!res.ok) {
       const payload = await res.json().catch(() => ({}));
       alert("Failed to delete: " + (payload.error || 'Please try again'));
-    } else {
-      await loadDocuments();
     }
 
     setIsDeleting(null);
@@ -260,6 +270,10 @@ export default function DocumentsView() {
                 <div className="p-12 text-center">
                   <Loader2 className="w-6 h-6 animate-spin mx-auto mb-3 text-[var(--primary)]" />
                   <p className="text-[var(--muted-foreground)]">Loading documents...</p>
+                </div>
+              ) : loadError ? (
+                <div className="p-12 text-center">
+                  <p className="text-[var(--destructive)]">{loadError}</p>
                 </div>
               ) : documents.length === 0 ? (
                 <div className="p-12 text-center">

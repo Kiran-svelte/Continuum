@@ -30,7 +30,13 @@ test('critical leave workflow paths resolve to leave module', () => {
 test('employees module paths stay reachable when cookie omits employees slug', () => {
   const enabled = new Set(['leave', 'attendance']);
   assert.equal(isPortalPathAllowedByModules('/manager/team', enabled), true);
-  assert.equal(isPortalPathAllowedByModules('/manager/directory', enabled), true);
   assert.equal(isPortalPathAllowedByModules('/manager/org-chart', enabled), true);
   assert.equal(isPortalPathAllowedByModules('/manager/performance', enabled), false);
+});
+
+test('directory module paths are gated by the directory module, not treated as always-on employees paths', () => {
+  const withoutDirectory = new Set(['leave', 'attendance']);
+  const withDirectory = new Set(['leave', 'attendance', 'directory']);
+  assert.equal(isPortalPathAllowedByModules('/manager/directory', withoutDirectory), false);
+  assert.equal(isPortalPathAllowedByModules('/manager/directory', withDirectory), true);
 });

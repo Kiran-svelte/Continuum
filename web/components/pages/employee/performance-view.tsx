@@ -39,6 +39,8 @@ interface ReviewInstance {
   ReviewCycle: { name: string; start_date: string; end_date: string };
 }
 
+type ReviewDraft = { rating: number; strengths: string; improvements: string };
+
 type TabId = 'goals' | 'reviews';
 
 // ─── View ─────────────────────────────────────────────────────────────────────
@@ -51,6 +53,8 @@ export default function EmployeePerformanceView() {
   const [isModuleDisabled, setIsModuleDisabled] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [newGoalTitle, setNewGoalTitle] = useState('');
+  const [reviewDrafts, setReviewDrafts] = useState<Record<string, ReviewDraft>>({});
+  const [submittingReview, setSubmittingReview] = useState<string | null>(null);
 
   const fetchData = useCallback(async () => {
     setIsLoading(true);
@@ -71,12 +75,22 @@ export default function EmployeePerformanceView() {
         if (goalsRes.value.ok) {
           const data = await goalsRes.value.json();
           setGoals((data as { goals?: Goal[] }).goals ?? []);
+        } else if (goalsRes.value.status !== 403) {
+          toast.error('Failed to load goals');
         }
+      } else if (goalsRes.status === 'rejected') {
+        toast.error('Failed to load goals');
       }
 
-      if (reviewsRes.status === 'fulfilled' && reviewsRes.value.ok) {
-        const data = await reviewsRes.value.json();
-        setReviews((data as { instances?: ReviewInstance[] }).instances ?? []);
+      if (reviewsRes.status === 'fulfilled') {
+        if (reviewsRes.value.ok) {
+          const data = await reviewsRes.value.json();
+          setReviews((data as { instances?: ReviewInstance[] }).instances ?? []);
+        } else if (reviewsRes.value.status !== 403) {
+          toast.error('Failed to load reviews');
+        }
+      } else if (reviewsRes.status === 'rejected') {
+        toast.error('Failed to load reviews');
       }
     } catch {
       toast.error('Failed to load performance data');
@@ -272,27 +286,101 @@ export default function EmployeePerformanceView() {
               </div>
             ) : (
               <div className="divide-y divide-[var(--border)] border border-[var(--border)] bg-[var(--card)] rounded-lg overflow-hidden">
-                {reviews.map((review) => (
-                  <div key={review.id} className="p-4 sm:p-6 flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-[var(--foreground)]">{review.ReviewCycle.name}</p>
-                      <p className="text-xs text-[var(--muted-foreground)] mt-0.5">
-                        {new Date(review.ReviewCycle.start_date).toLocaleDateString('en-IN')} –{' '}
-                        {new Date(review.ReviewCycle.end_date).toLocaleDateString('en-IN')}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      {review.overall_rating !== null && (
-                        <span className="text-sm font-bold text-[var(--primary)]">
-                          {review.overall_rating}/5
-                        </span>
+                {reviews.map((review) => {
+                  const isOpen = review.status === 'pending' || review.status === 'in_progress';
+                  const draft = reviewDrafts[review.id] ?? { rating: 0, strengths: '', improvements: '' };
+                  return (
+                    <div key={review.id} className="p-4 sm:p-6">
+                      <div className="flex items-center justify-between mb-2">
+                        <div>
+                          <p className="text-sm font-medium text-[var(--foreground)]">{review.ReviewCycle.name}</p>
+                          <p className="text-xs text-[var(--muted-foreground)] mt-0.5">
+                            {new Date(review.ReviewCycle.start_date).toLocaleDateString('en-IN')} –{' '}
+                            {new Date(review.ReviewCycle.end_date).toLocaleDateString('en-IN')}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          {review.overall_rating !== null && (
+                            <span className="text-sm font-bold text-[var(--primary)]">{review.overall_rating}/5</span>
+                          )}
+                          <Badge variant={review.status === 'completed' ? 'default' : 'outline'}>
+                            {review.status.replace(/_/g, ' ')}
+                          </Badge>
+                        </div>
+                      </div>
+                      {isOpen && (
+                        <div className="mt-3 space-y-3 border-t border-[var(--border)] pt-3">
+                          <div>
+                            <label className="text-xs font-medium text-[var(--muted-foreground)]">Overall Rating (1–5)</label>
+                            <div className="flex gap-2 mt-1">
+                              {[1,2,3,4,5].map((n) => (
+                                <button
+                                  key={n}
+                                  type="button"
+                                  onClick={() => setReviewDrafts((prev) => ({ ...prev, [review.id]: { ...(prev[review.id] ?? draft), rating: n } }))}
+                                  className={`w-8 h-8 rounded-full text-sm font-medium border transition-colors ${draft.rating === n ? 'bg-[var(--primary)] text-white border-[var(--primary)]' : 'border-[var(--border)] hover:border-[var(--primary)]'}`}
+                                >{n}</button>
+                              ))}
+                            </div>
+                          </div>
+                          <div>
+                            <label className="text-xs font-medium text-[var(--muted-foreground)]">Strengths</label>
+                            <textarea
+                              rows={2}
+                              value={draft.strengths}
+                              onChange={(e) => setReviewDrafts((prev) => ({ ...prev, [review.id]: { ...(prev[review.id] ?? draft), strengths: e.target.value } }))}
+                              placeholder="What went well this cycle?"
+                              className="mt-1 w-full text-sm rounded-md border border-[var(--border)] bg-[var(--background)] px-3 py-2 resize-none"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-xs font-medium text-[var(--muted-foreground)]">Areas for improvement</label>
+                            <textarea
+                              rows={2}
+                              value={draft.improvements}
+                              onChange={(e) => setReviewDrafts((prev) => ({ ...prev, [review.id]: { ...(prev[review.id] ?? draft), improvements: e.target.value } }))}
+                              placeholder="What can be improved?"
+                              className="mt-1 w-full text-sm rounded-md border border-[var(--border)] bg-[var(--background)] px-3 py-2 resize-none"
+                            />
+                          </div>
+                          <Button
+                            size="sm"
+                            disabled={!draft.rating || submittingReview === review.id}
+                            onClick={async () => {
+                              setSubmittingReview(review.id);
+                              try {
+                                const res = await fetch(`/api/review-instances/${review.id}`, {
+                                  method: 'PATCH',
+                                  credentials: 'include',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({
+                                    action: 'submit',
+                                    overallRating: draft.rating,
+                                    strengths: draft.strengths,
+                                    improvements: draft.improvements,
+                                  }),
+                                });
+                                if (res.ok) {
+                                  toast.success('Self-review submitted');
+                                  setReviews((prev) => prev.map((r) => r.id === review.id ? { ...r, status: 'completed', overall_rating: draft.rating } : r));
+                                } else {
+                                  const data = await res.json().catch(() => ({}));
+                                  toast.error((data as { error?: string }).error ?? 'Failed to submit review');
+                                }
+                              } catch {
+                                toast.error('Failed to submit review');
+                              } finally {
+                                setSubmittingReview(null);
+                              }
+                            }}
+                          >
+                            {submittingReview === review.id ? 'Submitting…' : 'Submit Self-Review'}
+                          </Button>
+                        </div>
                       )}
-                      <Badge variant={review.status === 'completed' ? 'default' : 'outline'}>
-                        {review.status.replace(/_/g, ' ')}
-                      </Badge>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>

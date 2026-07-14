@@ -109,10 +109,18 @@ describe('ui21 redesign: hardcoded hex guard in app routes', () => {
     const tsxFiles = listFilesRecursive(APP_DIR, '.tsx');
     const hexLiteralRegex = /#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})\b/g;
 
+    // Next.js `ImageResponse` (edge runtime, Satori) icon generators are not part of the
+    // themed React/CSS render tree — Satori cannot resolve `var(--...)` custom properties at
+    // all, so these files structurally require literal color values. Not a migration gap.
+    const SATORI_ICON_ROUTES = new Set(['app/icon.tsx', 'app/apple-icon.tsx']);
+
     const violations: string[] = [];
 
     for (const absolutePath of tsxFiles) {
       const relativePath = path.relative(WEB_ROOT, absolutePath).replaceAll('\\', '/');
+      if (SATORI_ICON_ROUTES.has(relativePath)) {
+        continue;
+      }
       const content = fs.readFileSync(absolutePath, 'utf-8');
       const lines = content.split('\n');
 

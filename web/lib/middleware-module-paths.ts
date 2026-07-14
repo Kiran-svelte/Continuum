@@ -70,6 +70,26 @@ export const PORTAL_MODULE_PATH_RULES: Array<{ prefix: string; slug: ModuleSlug 
   { prefix: '/hr/compliance', slug: 'compliance' },
   { prefix: '/hr/audit-logs', slug: 'compliance' },
 
+  // HR — RALPH-batch modules (skills, career, succession, loans, benefits, tax,
+  // policies, engagement/analytics, bulk/custom-field admin, overtime/scheduling)
+  { prefix: '/hr/skill-matrix', slug: 'learning' },
+  { prefix: '/hr/career-paths', slug: 'learning' },
+  { prefix: '/hr/succession', slug: 'performance' },
+  { prefix: '/hr/loans', slug: 'payroll' },
+  { prefix: '/hr/benefits', slug: 'employees' },
+  { prefix: '/hr/tax-declarations', slug: 'payroll' },
+  { prefix: '/hr/policies', slug: 'compliance' },
+  { prefix: '/hr/announcements', slug: 'analytics' },
+  { prefix: '/hr/surveys', slug: 'performance' },
+  { prefix: '/hr/workforce-analytics', slug: 'analytics' },
+  { prefix: '/hr/predictive-analytics', slug: 'analytics' },
+  { prefix: '/hr/workforce-planning', slug: 'analytics' },
+  { prefix: '/hr/diversity', slug: 'analytics' },
+  { prefix: '/hr/bulk-operations', slug: 'employees' },
+  { prefix: '/hr/custom-fields', slug: 'employees' },
+  { prefix: '/hr/overtime', slug: 'attendance' },
+  { prefix: '/hr/scheduling', slug: 'attendance' },
+
   // Employee
   { prefix: '/employee/request-leave', slug: 'leave' },
   { prefix: '/employee/leave-history', slug: 'leave' },
@@ -83,6 +103,15 @@ export const PORTAL_MODULE_PATH_RULES: Array<{ prefix: string; slug: ModuleSlug 
   { prefix: '/employee/learning', slug: 'learning' },
   { prefix: '/employee/performance', slug: 'performance' },
   { prefix: '/employee/exit-checklist', slug: 'exit' },
+  { prefix: '/employee/expenses', slug: 'expenses' },
+  { prefix: '/employee/loans', slug: 'payroll' },
+  { prefix: '/employee/overtime', slug: 'attendance' },
+  { prefix: '/employee/skills', slug: 'learning' },
+  { prefix: '/employee/career-path', slug: 'performance' },
+  { prefix: '/employee/tax-declaration', slug: 'payroll' },
+  { prefix: '/employee/policies', slug: 'compliance' },
+  { prefix: '/employee/announcements', slug: 'analytics' },
+  { prefix: '/employee/surveys', slug: 'performance' },
 
   // Manager
   { prefix: '/manager/request-leave', slug: 'leave' },

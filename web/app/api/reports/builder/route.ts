@@ -234,8 +234,10 @@ async function runLeaveRequestsReport(companyId: string, filters: ReportFilters,
 
 async function runAttendanceSummaryReport(companyId: string, filters: ReportFilters, skip: number, take: number) {
   const where: Record<string, unknown> = { company_id: companyId };
-  if (filters.startDate) where.date = { gte: new Date(filters.startDate) };
-  if (filters.endDate && where.date) (where.date as Record<string, Date>).lte = new Date(filters.endDate);
+  const dateFilter: Record<string, Date> = {};
+  if (filters.startDate) dateFilter.gte = new Date(filters.startDate);
+  if (filters.endDate) dateFilter.lte = new Date(filters.endDate);
+  if (Object.keys(dateFilter).length > 0) where.date = dateFilter;
 
   const [records, total] = await Promise.all([
     prisma.attendance.findMany({

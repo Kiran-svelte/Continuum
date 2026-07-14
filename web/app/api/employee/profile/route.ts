@@ -14,6 +14,7 @@ import { createAuditLog, AUDIT_ACTIONS } from '@/lib/audit';
 import { revokeChannelLinksForEmployee } from '@/lib/channel/revoke-links';
 import { normalizePhone } from '@/lib/phone/normalize';
 import { sanitizeInput } from '@/lib/security';
+import { sendNotification } from '@/lib/notification-service';
 
 export const dynamic = 'force-dynamic';
 
@@ -25,7 +26,10 @@ const profileUpdateSchema = z.object({
   emergency_contact_relationship: z.string().max(50).optional(),
   current_address: z.string().max(500).optional(),
   blood_group: z.string().max(5).optional(),
-  date_of_birth: z.string().optional(),
+  date_of_birth: z.string().optional().refine(
+    (v) => !v || !isNaN(Date.parse(v)),
+    { message: 'Invalid date_of_birth' }
+  ),
   bank_account_number: z.string().max(30).optional(),
   bank_name: z.string().max(100).optional(),
   ifsc_code: z.string().max(15).optional(),
@@ -165,6 +169,28 @@ export async function PUT(request: NextRequest) {
       typeof sanitizedUpdates.phone === 'string' ? sanitizedUpdates.phone : previousPhone;
     if (previousPhone && previousPhone !== nextPhone) {
       await revokeChannelLinksForEmployee(employee.id, 'phone_changed', 'whatsapp');
+    }
+
+    // Notify HR if sensitive financial fields changed
+    const sensitiveFields = ['bank_account_number', 'ifsc_code', 'pan_number', 'bank_name'];
+    const changedSensitive = sensitiveFields.filter((f) => f in sanitizedUpdates);
+    if (changedSensitive.length > 0 && employee.org_id) {
+      const hrEmployees = await prisma.employee.findMany({
+        where: { org_id: employee.org_id, primary_role: { in: ['hr', 'admin'] }, deleted_at: null, status: 'active' },
+        select: { id: true },
+        take: 5,
+      });
+      const empName = `${employee.first_name ?? ''} ${employee.last_name ?? ''}`.trim() || employee.email || employee.id;
+      for (const hr of hrEmployees) {
+        sendNotification(
+          hr.id,
+          employee.org_id,
+          'profile_update',
+          'Sensitive Profile Change',
+          `${empName} updated their ${changedSensitive.join(', ')}. Please verify.`,
+          'in_app',
+        ).catch(() => {});
+      }
     }
 
     return NextResponse.json({

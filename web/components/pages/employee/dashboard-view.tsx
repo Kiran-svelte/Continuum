@@ -43,7 +43,7 @@ export default async function DashboardView() {
   }
 
   if (!employee.org_id) {
-    throw new Error('Employee dashboard requires company context.');
+    redirect('/onboarding');
   }
 
   const now = new Date();
@@ -147,7 +147,7 @@ export default async function DashboardView() {
             <h3 className="font-semibold text-sm text-blue-700 dark:text-blue-300">Next Approved Leave</h3>
             <p className="text-xs max-w-md opacity-80 mt-0.5">
               {upcomingLeave
-                ? `${upcomingLeave.leave_type}: ${upcomingLeave.start_date.toLocaleDateString()} – ${upcomingLeave.end_date.toLocaleDateString()}`
+                ? `${upcomingLeave.leave_type}: ${upcomingLeave.start_date.toLocaleDateString()} – ${upcomingLeave.end_date?.toLocaleDateString() ?? ''}`
                 : 'No upcoming approved leave on your calendar.'}
             </p>
           </div>
@@ -189,7 +189,7 @@ export default async function DashboardView() {
                         {item.leave_type} request is <span className="capitalize">{item.status}</span>
                       </p>
                       <p className="text-xs text-[var(--muted-foreground)]">
-                        {item.start_date.toLocaleDateString()} – {item.end_date.toLocaleDateString()}
+                        {item.start_date.toLocaleDateString()} – {item.end_date?.toLocaleDateString() ?? ''}
                       </p>
                     </div>
                     <Link href="/employee/leave-history" className="text-[10px] px-2 py-0.5 rounded-xl font-medium whitespace-nowrap badge-warning">

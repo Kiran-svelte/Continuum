@@ -142,14 +142,25 @@ export default function ExitChecklistView() {
     loadChecklists();
   }, [loadChecklists]);
 
-  async function toggleChecklist(id: string, completed: boolean) {
+  async function toggleChecklist(id: string, completed: boolean, itemIndex?: number) {
     setToggling(id);
+    // Optimistically update the item in local state
+    if (typeof itemIndex === 'number') {
+      setChecklists((prev) =>
+        prev.map((cl) =>
+          cl.id !== id ? cl : {
+            ...cl,
+            items: cl.items.map((item, i) => i === itemIndex ? { ...item, completed } : item),
+          }
+        )
+      );
+    }
     try {
       const res = await fetch('/api/exit-checklist', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ id, completed }),
+        body: JSON.stringify({ id, completed, itemIndex }),
       });
       if (res.ok) {
         const data = await res.json();
@@ -335,13 +346,7 @@ export default function ExitChecklistView() {
                                 type="button"
                                 variant="ghost"
                                 size="sm"
-                                onClick={() => {
-                                  if (cl.status !== 'completed') {
-                                    toggleChecklist(cl.id, true);
-                                  } else {
-                                    toggleChecklist(cl.id, false);
-                                  }
-                                }}
+                                onClick={() => toggleChecklist(cl.id, !item.completed, idx)}
                                 disabled={toggling === cl.id}
                                 className="mt-1 shrink-0 px-0 py-0 h-auto"
                               >

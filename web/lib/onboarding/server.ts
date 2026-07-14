@@ -54,6 +54,10 @@ export async function completeOnboardingState(
     data: { onboarding_completed: true, onboarding_step: 13 },
   });
 
+  if (completion.count === 0) {
+    return false;
+  }
+
   await tx.employee.update({
     where: { id: employeeId },
     data: { status: 'active' },
@@ -61,5 +65,5 @@ export async function completeOnboardingState(
 
   await clearOnboardingDraft(tx, companyId);
 
-  return completion.count > 0;
+  return true;
 }

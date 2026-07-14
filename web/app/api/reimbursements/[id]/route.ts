@@ -52,6 +52,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     if (body.status && ['approved', 'rejected', 'processed'].includes(body.status)) {
       if (!hasPermission(employee.permissions, 'expenses.approve'))
         return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      if (r.emp_id === employee.id)
+        return NextResponse.json({ error: 'Cannot approve or reject your own reimbursement' }, { status: 403 });
       const updated = await prisma.reimbursement.update({
         where: { id },
         data: { status: body.status as ReimbursementStatus, approved_by: employee.id },
@@ -62,15 +64,22 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     if (r.emp_id !== employee.id) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     if (r.status !== 'pending') return NextResponse.json({ error: 'Cannot edit non-pending claim' }, { status: 400 });
 
-    const updated = await prisma.reimbursement.update({
-      where: { id },
-      data: {
-        category: body.category,
-        amount: body.amount ? Number(body.amount) : undefined,
-        description: body.description,
-        receipt_url: body.receipt_url,
-      },
-    });
+    const updateData: Record<string, unknown> = {};
+    if (body.category !== undefined) {
+      if (typeof body.category !== 'string' || body.category.trim().length === 0)
+        return NextResponse.json({ error: 'Invalid category' }, { status: 400 });
+      updateData.category = body.category.trim();
+    }
+    if (body.amount !== undefined) {
+      const amt = Number(body.amount);
+      if (!Number.isFinite(amt) || amt <= 0)
+        return NextResponse.json({ error: 'Amount must be a positive number' }, { status: 400 });
+      updateData.amount = amt;
+    }
+    if (body.description !== undefined) updateData.description = String(body.description).trim();
+    if (body.receipt_url !== undefined) updateData.receipt_url = String(body.receipt_url);
+
+    const updated = await prisma.reimbursement.update({ where: { id }, data: updateData });
     return NextResponse.json({ reimbursement: updated });
   } catch (e) {
     if (e instanceof AuthError) return NextResponse.json({ error: e.message }, { status: e.status });

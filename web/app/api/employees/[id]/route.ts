@@ -3,6 +3,7 @@ import prisma from '@/lib/prisma';
 import { getAuthEmployee, requireRole, AuthError } from '@/lib/auth-guard';
 import { checkApiRateLimit, getRateLimitHeaders } from '@/lib/api-rate-limit';
 import { createAuditLog, AUDIT_ACTIONS } from '@/lib/audit';
+import { getSupabaseAdmin } from '@/lib/supabase-server';
 
 export const dynamic = 'force-dynamic';
 
@@ -31,8 +32,8 @@ export async function GET(
 
     requireRole(employee, 'admin', 'hr', 'director', 'manager');
 
-    const target = await prisma.employee.findUnique({
-      where: { id },
+    const target = await prisma.employee.findFirst({
+      where: { id, deleted_at: null },
       select: {
         id: true,
         email: true,
@@ -147,6 +148,7 @@ export async function PUT(
       select: {
         id: true,
         org_id: true,
+        auth_id: true,
         first_name: true,
         last_name: true,
         phone: true,
@@ -167,7 +169,7 @@ export async function PUT(
     }
 
     const body = await request.json();
-    const { firstName, lastName, phone, department, designation, managerId, status, role } = body;
+    const { firstName, lastName, phone, department, designation, managerId, status, role, password } = body;
 
     // Build update data
     const updateData: Record<string, unknown> = {};
@@ -233,39 +235,68 @@ export async function PUT(
       previousState.status = target.status;
       updateData.status = status;
       newState.status = status;
-
-      // Create status history record
-      await prisma.employeeStatusHistory.create({
-        data: {
-          emp_id: target.id,
-          company_id: employee.org_id!,
-          from_status: target.status,
-          to_status: status,
-          changed_by: employee.id,
-        },
-      });
+      // Status history is written later, in the same transaction as the
+      // actual employee.status update — not here — so a later failure
+      // (e.g. the password reset below) can't leave a history row recording
+      // a transition that never actually persisted.
     }
 
-    if (Object.keys(updateData).length === 0) {
+    const statusChanged = status !== undefined && status !== target.status;
+
+    // Handle password reset via Supabase Admin API. This is an external call
+    // that can't participate in a DB transaction, so it must run — and be
+    // allowed to fail — before any database write happens below.
+    let passwordResetDone = false;
+    if (typeof password === 'string' && password.length >= 6) {
+      if (!target.auth_id) {
+        return NextResponse.json({ error: 'Cannot reset password: employee has no linked auth account.' }, { status: 400 });
+      }
+      const supabaseAdmin = getSupabaseAdmin();
+      const { error: pwError } = await supabaseAdmin.auth.admin.updateUserById(target.auth_id, { password });
+      if (pwError) {
+        return NextResponse.json({ error: `Password reset failed: ${pwError.message}` }, { status: 500 });
+      }
+      passwordResetDone = true;
+    }
+
+    if (Object.keys(updateData).length === 0 && !passwordResetDone) {
       return NextResponse.json({ error: 'No fields to update.' }, { status: 400 });
     }
 
-    const updated = await prisma.employee.update({
-      where: { id },
-      data: updateData,
-      select: {
-        id: true,
-        email: true,
-        first_name: true,
-        last_name: true,
-        phone: true,
-        primary_role: true,
-        department: true,
-        designation: true,
-        status: true,
-        manager_id: true,
-        date_of_joining: true,
-      },
+    if (Object.keys(updateData).length === 0) {
+      return NextResponse.json({ message: 'Password reset successfully.' });
+    }
+
+    const updated = await prisma.$transaction(async (tx) => {
+      if (statusChanged) {
+        await tx.employeeStatusHistory.create({
+          data: {
+            emp_id: target.id,
+            company_id: employee.org_id!,
+            from_status: target.status,
+            to_status: status,
+            changed_by: employee.id,
+          },
+        });
+      }
+
+      return tx.employee.update({
+        where: { id },
+        data: updateData,
+        select: {
+          id: true,
+          email: true,
+          first_name: true,
+          last_name: true,
+          phone: true,
+          primary_role: true,
+          department: true,
+          designation: true,
+          status: true,
+          manager_id: true,
+          date_of_joining: true,
+        },
+      });
     });
 
     // Audit log

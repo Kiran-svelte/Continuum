@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ProgressBar } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useCompanyModules } from '@/hooks/use-company-modules';
 import {
   Users,
   CheckCircle,
@@ -462,6 +463,8 @@ export default function ManagerTeamPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const detailCacheRef = useRef<Map<string, EmployeeDetail>>(new Map());
+  const { isModuleEnabled } = useCompanyModules();
+  const directoryEnabled = isModuleEnabled('directory');
 
   /* ---- Fetch manager identity then direct reports ---- */
   useEffect(() => {
@@ -602,9 +605,11 @@ export default function ManagerTeamPage() {
                 <Link href="/manager/people/invite" className="btn btn-primary btn-sm no-underline">
                   Invite Team Member
                 </Link>
-                <Link href="/manager/directory" className="btn btn-outline btn-sm no-underline">
-                  Open Directory
-                </Link>
+                {directoryEnabled && (
+                  <Link href="/manager/directory" className="btn btn-outline btn-sm no-underline">
+                    Open Directory
+                  </Link>
+                )}
               </div>
             </GlassPanel>
           </div>
@@ -631,9 +636,11 @@ export default function ManagerTeamPage() {
           icon={<Users className="w-6 h-6 text-primary" />}
           action={
             <div className="flex flex-wrap gap-2">
-              <Link href="/manager/directory" className="btn btn-outline btn-sm no-underline">
-                Company Directory
-              </Link>
+              {directoryEnabled && (
+                <Link href="/manager/directory" className="btn btn-outline btn-sm no-underline">
+                  Company Directory
+                </Link>
+              )}
               <Link href="/manager/people/invite" className="btn btn-primary btn-sm no-underline">
                 Invite Team Member
               </Link>

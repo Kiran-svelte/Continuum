@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { GlassPanel } from '@/components/glass-panel';
 import { FadeIn, StaggerContainer, TiltCard, AmbientBackground } from '@/components/motion';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Mail, MessageCircle, Phone, Search, ExternalLink, BookOpen, HelpCircle, FileText, Users, Settings } from 'lucide-react';
 
 const SUPPORT_CATEGORIES = [
@@ -101,12 +102,12 @@ export default function SupportPage() {
 
             <div className="relative max-w-xl mx-auto">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/50" />
-              <input
+              <Input
                 type="text"
                 placeholder="Search for help articles..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-12 pr-4 py-3 rounded-xl bg-white/10 backdrop-blur-sm text-white border border-white/20 placeholder:text-white/50 focus:border-white/40 focus:shadow-[0_0_15px_rgba(255,255,255,0.1)] focus:outline-none transition-all"
+                className="w-full pl-12 pr-4 py-3 rounded-xl bg-white/10 backdrop-blur-sm text-white border border-white/20 placeholder:text-white/50 focus:border-white/40 focus:shadow-[0_0_15px_rgba(255,255,255,0.1)]"
               />
             </div>
           </div>
@@ -150,11 +151,12 @@ export default function SupportPage() {
                 expandedFaq === index ? 'border-primary/30 shadow-[0_0_15px_rgba(var(--primary-rgb),0.15)]' : ''
               }`}
             >
-              <button
+              <Button
+                variant="ghost"
                 onClick={() => setExpandedFaq(expandedFaq === index ? null : index)}
-                className="w-full text-left"
+                className="w-full !justify-start !text-left !p-0 !min-h-0 !rounded-none !bg-transparent"
               >
-                <div className="px-6 py-4">
+                <div className="w-full px-6 py-4">
                   <div className="flex items-center justify-between">
                     <h3 className="text-base font-medium text-white">
                       {item.question}
@@ -171,7 +173,7 @@ export default function SupportPage() {
                     </svg>
                   </div>
                 </div>
-              </button>
+              </Button>
               <AnimatePresence>
                 {expandedFaq === index && (
                   <motion.div

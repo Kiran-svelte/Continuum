@@ -28,10 +28,10 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
   const body = await request.json().catch(() => ({}));
-  const checklist = backfillOnboardingChecklist(body.checklist);
   if (!Array.isArray(body.checklist)) {
     return NextResponse.json({ error: 'Invalid checklist payload' }, { status: 400 });
   }
+  const checklist = backfillOnboardingChecklist(body.checklist);
   const settings = await prisma.companySettings.findUnique({ where: { company_id: user.orgId } });
   const portalPolicy = backfillPortalPolicy(settings?.portal_policy);
   portalPolicy.onboardingChecklist = checklist;

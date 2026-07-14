@@ -80,7 +80,7 @@ export default async function DashboardView({ searchParams }: PageProps) {
   }
 
   if (!authEmployee.org_id) {
-    throw new Error('HR dashboard requires company context.');
+    redirect('/onboarding');
   }
 
   const companyId = authEmployee.org_id;

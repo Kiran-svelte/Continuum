@@ -6,6 +6,7 @@ import { LeavePulseRow, LEAVE_PULSE_ICONS } from '@/components/dashboard/leave-p
 import { redirect } from 'next/navigation';
 import prisma from '@/lib/prisma';
 import { getAuthEmployee, requirePermissionGuard, requireRole, AuthError } from '@/lib/auth-guard';
+import { getCompanyModuleState, isModuleEnabled } from '@/lib/core-functions/resolve';
 
 function pctClass(value: number): string {
   if (value >= 90) return 'w-full';
@@ -32,11 +33,13 @@ export default async function DashboardView() {
   }
 
   if (!manager.org_id) {
-    throw new Error('Manager dashboard requires company context.');
+    redirect('/onboarding');
   }
 
   const companyId = manager.org_id;
   const next30Days = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+  const moduleState = await getCompanyModuleState(companyId);
+  const directoryEnabled = isModuleEnabled(moduleState, 'directory');
 
   const [
     teamMembers,
@@ -142,12 +145,16 @@ export default async function DashboardView() {
             icon: Users,
             emphasis: teamSize === 0 ? 'primary' : 'default',
           },
-          {
-            label: 'Company directory',
-            description: 'See who reports to whom org-wide',
-            href: '/manager/directory',
-            icon: LEAVE_PULSE_ICONS.balance,
-          },
+          ...(directoryEnabled
+            ? [
+                {
+                  label: 'Company directory',
+                  description: 'See who reports to whom org-wide',
+                  href: '/manager/directory',
+                  icon: LEAVE_PULSE_ICONS.balance,
+                },
+              ]
+            : []),
           {
             label: 'Request leave',
             description: 'Submit your own time-off request',

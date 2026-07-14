@@ -130,7 +130,7 @@ export default function AttendanceView() {
     setRegLoading(true);
     try {
       const params = new URLSearchParams({ page: String(page), limit: '10', status });
-      const res = await fetch(`/api/attendance/regularize?${params}`);
+      const res = await fetch(`/api/attendance/regularize?${params}`, { credentials: 'include' });
       if (!res.ok) throw new Error('Failed to fetch regularization requests');
       const data = await res.json();
       setRegRequests(data.regularizations ?? []);
@@ -149,8 +149,10 @@ export default function AttendanceView() {
   const fetchRegSummary = useCallback(async () => {
     try {
       const res = await fetch('/api/attendance/regularize/summary', { credentials: 'include' });
-      if(res.ok) setRegSummary(await res.json());
-    } catch {}
+      if (res.ok) setRegSummary(await res.json());
+    } catch {
+      // summary badge is non-critical; swallow fetch errors silently
+    }
   }, []);
 
   /** Exports the currently visible attendance records as a CSV download. */
@@ -192,6 +194,8 @@ export default function AttendanceView() {
     try {
       const res = await fetch(`/api/attendance/regularize/${id}`, {
         method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ action }),
       });
       if (!res.ok) throw new Error((await res.json()).error || 'Request failed');
@@ -225,7 +229,8 @@ export default function AttendanceView() {
     return <span className={`px-2 py-0.5 text-xs font-semibold rounded-full border ${styles[status] || 'bg-[var(--accent)] text-foreground/90 border-[var(--border)]/60'}`}>{status.replace('_', ' ')}</span>;
   };
 
-  const attendanceRate = summary.total > 0 ? (((summary.present + summary.late) / (summary.total - summary.onLeave)) * 100).toFixed(1) : '0.0';
+  const workingDays = summary.total - summary.onLeave;
+  const attendanceRate = workingDays > 0 ? (((summary.present + summary.late) / workingDays) * 100).toFixed(1) : '0.0';
 
   return (
     <StaggerContainer>

@@ -275,8 +275,11 @@ function SlipsTable({
   useEffect(() => {
     if (!open) return;
     setLoading(true);
-    fetch(`/api/payroll/slips?run_id=${runId}`)
-      .then((r) => r.json())
+    fetch(`/api/payroll/slips?run_id=${runId}`, { credentials: 'include' })
+      .then(async (r) => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return r.json();
+      })
       .then((data) => setSlips(data.slips || []))
       .catch(() => setSlips([]))
       .finally(() => setLoading(false));

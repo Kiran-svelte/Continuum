@@ -125,7 +125,7 @@ export default function GoalsView() {
           description: formDescription || undefined,
           category: formCategory,
           metricType: formMetricType,
-          targetValue: parseFloat(formTargetValue) || 100,
+          targetValue: formTargetValue !== '' && !isNaN(parseFloat(formTargetValue)) ? parseFloat(formTargetValue) : 100,
           dueDate: formDueDate || undefined,
         }),
       });

@@ -180,10 +180,17 @@ export async function createCompanyAndEmployee(input: CreateCompanyInput) {
 
   const existingEmployee = await resolveAuthenticatedEmployee(user);
 
-  if (existingEmployee) {
+  // If employee already has a company, redirect them — don't re-create
+  if (existingEmployee?.org_id) {
+    const onboardingDone = existingEmployee.company?.onboarding_completed;
     return {
       success: false,
-      error: 'You already have an account. Please refresh the page.',
+      alreadySetup: true,
+      onboardingCompleted: !!onboardingDone,
+      companyId: existingEmployee.org_id,
+      error: onboardingDone
+        ? 'Your company is already set up.'
+        : 'You already have a company in progress. Resuming setup.',
     };
   }
 
@@ -213,10 +220,11 @@ export async function createCompanyAndEmployee(input: CreateCompanyInput) {
     }
 
     // Use provided names from sign-up form, fallback to email prefix
-    const firstName = input.firstName?.trim() || email.split('@')[0] || 'User';
-    const lastName = input.lastName?.trim() || '';
+    const firstName = input.firstName?.trim() || existingEmployee?.first_name || email.split('@')[0] || 'User';
+    const lastName = input.lastName?.trim() || existingEmployee?.last_name || '';
 
     // Create Company + Employee in a transaction
+    // If employee record already exists without a company, link it instead of creating new
     const result = await prisma.$transaction(async (tx) => {
       const now = new Date();
       const company = await tx.company.create({
@@ -235,21 +243,36 @@ export async function createCompanyAndEmployee(input: CreateCompanyInput) {
         },
       });
 
-      const employee = await tx.employee.create({
-        data: {
-          id: randomUUID(),
-          auth_id: user.id,
-          email: email,
-          first_name: firstName,
-          last_name: lastName || 'Admin',
-          org_id: company.id,
-          primary_role: input.primaryRole || 'admin',
-          date_of_joining: new Date(),
-          gender: 'other',
-          status: 'onboarding',
-          updated_at: now,
-        },
-      });
+      let employee;
+      if (existingEmployee) {
+        // Link existing employee record to the new company
+        employee = await tx.employee.update({
+          where: { id: existingEmployee.id },
+          data: {
+            org_id: company.id,
+            auth_id: user.id,
+            primary_role: input.primaryRole || existingEmployee.primary_role || 'admin',
+            status: 'onboarding',
+            updated_at: now,
+          },
+        });
+      } else {
+        employee = await tx.employee.create({
+          data: {
+            id: randomUUID(),
+            auth_id: user.id,
+            email: email,
+            first_name: firstName,
+            last_name: lastName || 'Admin',
+            org_id: company.id,
+            primary_role: input.primaryRole || 'admin',
+            date_of_joining: new Date(),
+            gender: 'other',
+            status: 'onboarding',
+            updated_at: now,
+          },
+        });
+      }
 
       return { company, employee };
     });

@@ -75,7 +75,7 @@ export default function RbacView() {
           return;
         }
 
-        const res = await fetch('/api/admin/rbac');
+        const res = await fetch('/api/admin/rbac', { credentials: 'include' });
         if (!res.ok) {
           throw new Error(`RBAC API returned ${res.status}`);
         }
@@ -147,6 +147,7 @@ export default function RbacView() {
       const res = await fetch('/api/admin/rbac', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ matrix }),
       });
 

@@ -189,7 +189,7 @@ export function NotificationBell() {
 
   async function markRead(id: string) {
     try {
-      await fetch(`/api/notifications/${id}/read`, { method: 'PATCH' });
+      await fetch(`/api/notifications/${id}/read`, { method: 'PATCH', credentials: 'include' });
       setNotifications((prev) =>
         prev.map((n) => (n.id === id ? { ...n, is_read: true } : n))
       );
@@ -200,7 +200,7 @@ export function NotificationBell() {
 
   async function markAllRead() {
     try {
-      await fetch('/api/notifications/read-all', { method: 'PATCH' });
+      await fetch('/api/notifications/read-all', { method: 'PATCH', credentials: 'include' });
       setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
     } catch (error) {
       console.error('Failed to mark all notifications as read:', error);

@@ -12,6 +12,7 @@ import {
 } from '@/lib/capability-access';
 import { getDefaultPortalForRoles } from '@/lib/auth-routing';
 import { AccessDeniedPanel } from '@/components/access-denied-panel';
+import { getCompanyModuleState, isModuleEnabled } from '@/lib/core-functions/resolve';
 
 export const dynamic = 'force-dynamic';
 
@@ -51,14 +52,16 @@ export default async function PeopleView() {
   const hasAccess = actorRoles.some((role) => allowedRoles.includes(role));
 
   if (!hasAccess) {
+    const moduleState = await getCompanyModuleState(employee.org_id);
+    const directoryEnabled = isModuleEnabled(moduleState, 'directory');
     return (
       <AccessDeniedPanel
         title="People operations unavailable"
         message="Your role does not include company-wide people operations. Use My Team to manage direct reports, or ask HR to grant access."
         homeHref="/manager/team"
         homeLabel="Go to My Team"
-        secondaryHref="/manager/directory"
-        secondaryLabel="Company directory"
+        secondaryHref={directoryEnabled ? '/manager/directory' : undefined}
+        secondaryLabel={directoryEnabled ? 'Company directory' : undefined}
       />
     );
   }

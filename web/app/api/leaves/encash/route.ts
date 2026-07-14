@@ -82,45 +82,40 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check leave balance
-    const balance = await prisma.leaveBalance.findUnique({
-      where: {
-        emp_id_leave_type_year: {
-          emp_id: employee.id,
-          leave_type: leaveType,
-          year: currentYear,
+    // Check balance and create encashment atomically to prevent TOCTOU race
+    const encashment = await prisma.$transaction(async (tx) => {
+      const balance = await tx.leaveBalance.findUnique({
+        where: {
+          emp_id_leave_type_year: {
+            emp_id: employee.id,
+            leave_type: leaveType,
+            year: currentYear,
+          },
         },
-      },
-    });
+      });
 
-    if (!balance) {
-      return NextResponse.json(
-        { error: 'No leave balance found for this leave type in the current year' },
-        { status: 400 }
-      );
-    }
+      if (!balance) {
+        throw Object.assign(new Error('No leave balance found for this leave type in the current year'), { status: 400 });
+      }
 
-    if (balance.remaining < days) {
-      return NextResponse.json(
-        {
-          error: 'Insufficient leave balance for encashment',
+      if (balance.remaining < days) {
+        throw Object.assign(new Error('Insufficient leave balance for encashment'), {
+          status: 400,
           remaining: balance.remaining,
           requested: days,
-        },
-        { status: 400 }
-      );
-    }
+        });
+      }
 
-    // Create the encashment record with status 'pending'
-    const encashment = await prisma.leaveEncashment.create({
-      data: {
-        emp_id: employee.id,
-        company_id: employee.org_id!,
-        leave_type: leaveType,
-        days,
-        amount: 0, // Amount to be calculated by HR/payroll on approval
-        status: 'pending',
-      },
+      return tx.leaveEncashment.create({
+        data: {
+          emp_id: employee.id,
+          company_id: employee.org_id!,
+          leave_type: leaveType,
+          days,
+          amount: 0,
+          status: 'pending',
+        },
+      });
     });
 
     // Audit log
@@ -142,8 +137,10 @@ export async function POST(request: NextRequest) {
     if (error instanceof AuthError) {
       return NextResponse.json({ error: error.message }, { status: error.status });
     }
-    const message =
-      process.env.NODE_ENV === 'production' ? 'Internal server error' : String(error);
+    if (error instanceof Error && 'status' in error) {
+      const e = error as Error & { status: number; remaining?: number; requested?: number };
+      return NextResponse.json({ error: e.message, remaining: e.remaining, requested: e.requested }, { status: e.status });
+    }
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

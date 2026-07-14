@@ -16,5 +16,8 @@ test('moduleSlugForPortalPath uses segment boundaries and longest prefix', () =>
   assert.equal(moduleSlugForPortalPath('/manager/team-calendar'), 'leave');
   assert.equal(moduleSlugForPortalPath('/admin/directory'), 'employees');
   assert.equal(moduleSlugForPortalPath('/hr/directory'), 'employees');
-  assert.equal(moduleSlugForPortalPath('/employee/directory'), 'employees');
+  // Employee/manager self-service directory access is gated by the optional
+  // `directory` module (CF-012), unlike the HR/admin org-wide directory view.
+  assert.equal(moduleSlugForPortalPath('/employee/directory'), 'directory');
+  assert.equal(moduleSlugForPortalPath('/manager/directory'), 'directory');
 });

@@ -135,6 +135,11 @@ export default function PayrollAdvancesView({ enableTeamApprovals = false }: Pay
       setSubmitting(false);
       return;
     }
+    if (!months || months <= 0 || !Number.isInteger(months)) {
+      setError('Enter a valid number of repayment months (minimum 1).');
+      setSubmitting(false);
+      return;
+    }
     try {
       const res = await fetch('/api/payroll-advances', {
         method: 'POST',

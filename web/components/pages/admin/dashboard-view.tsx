@@ -55,7 +55,7 @@ export default async function DashboardView() {
   }
 
   if (!authEmployee.org_id) {
-    throw new Error('Admin dashboard requires company context.');
+    redirect('/onboarding');
   }
 
   const companyId = authEmployee.org_id;

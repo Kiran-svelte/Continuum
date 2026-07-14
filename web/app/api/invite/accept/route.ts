@@ -92,7 +92,8 @@ export async function POST(request: NextRequest) {
         },
       });
     } else {
-      // Create new employee
+      // Create new employee — invited_by_id is an Employee FK, only set it for
+      // employee-to-employee invites (not super_admin invites which use a different table)
       employee = await prisma.employee.create({
         data: {
           email: invite.email.toLowerCase(),
@@ -100,8 +101,8 @@ export async function POST(request: NextRequest) {
           last_name: invite.last_name || '',
           primary_role: invite.role,
           password_hash: passwordHash,
-          invited_by_id: invite.invited_by_super_id || invite.invited_by_id,
-          invited_by_type: invite.invited_by_super_id ? 'super_admin' : 'employee',
+          invited_by_id: invite.invited_by_id ?? null,
+          invited_by_type: invite.invited_by_super_id ? 'super_admin' : invite.invited_by_id ? 'employee' : null,
           invite_accepted_at: new Date(),
           org_id: invite.company_id,
           manager_id: invite.manager_id ?? null,
@@ -156,6 +157,8 @@ export async function POST(request: NextRequest) {
         orgId: employee.org_id ?? null,
       },
       needsCompanySetup: !employee.org_id,
+      // Pass module_cap so onboarding wizard can apply it when creating the company
+      moduleCap: invite.module_cap ?? null,
     });
 
     // Set auth cookies
@@ -242,6 +245,7 @@ export async function GET(request: NextRequest) {
         lastName: invite.last_name,
         companyName: invite.company?.name,
         expiresAt: invite.expires_at,
+        moduleCap: invite.module_cap ?? null,
       },
     });
   } catch (error) {

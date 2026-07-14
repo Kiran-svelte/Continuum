@@ -23,6 +23,7 @@ describe('Leave Role Surface Coverage', () => {
     const nav = buildPortalNav('manager', ['leave', 'attendance', 'employees', 'compliance']);
     const requestLeavePage = await readSource('../app/manager/(main)/request-leave/page.tsx');
     const approvalsPage = await readSource('../app/manager/(main)/approvals/page.tsx');
+    const approvalsView = await readSource('../components/pages/manager/approvals-view.tsx');
 
     assert.ok(hasHref(nav, '/manager/request-leave'), 'manager nav should expose request leave');
     assert.ok(hasHref(nav, '/manager/approvals'), 'manager nav should expose approvals');
@@ -33,8 +34,12 @@ describe('Leave Role Surface Coverage', () => {
       'manager request leave page should map to canonical leave request UI'
     );
     assert.ok(
-      approvalsPage.includes("action: 'approve' | 'reject'") && approvalsPage.includes('/api/leaves/${action}/'),
-      'manager approvals page should support approve/reject actions'
+      approvalsPage.includes('@/components/pages/manager/approvals-view'),
+      'manager approvals page should delegate to the canonical approvals view'
+    );
+    assert.ok(
+      approvalsView.includes("action: 'approve' | 'reject'") && approvalsView.includes('/api/leaves/${action}/'),
+      'manager approvals view should support approve/reject actions'
     );
   });
 

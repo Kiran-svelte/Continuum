@@ -125,6 +125,8 @@ export default function ApprovalsView() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkLoading, setBulkLoading] = useState<'approve' | 'reject' | null>(null);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [rejectingId, setRejectingId] = useState<string | null>(null);
+  const [rejectComment, setRejectComment] = useState('');
 
   const debouncedSearch = useDebounce(searchQuery, 300);
 
@@ -169,13 +171,15 @@ export default function ApprovalsView() {
     setTimeout(() => setMessage(null), 5000);
   };
 
-  const handleAction = async (requestId: string, action: 'approve' | 'reject') => {
+  const handleAction = async (requestId: string, action: 'approve' | 'reject', comment?: string) => {
     setActionLoading({ id: requestId, action });
+    setRejectingId(null);
+    setRejectComment('');
     try {
       const isApproval = action === 'approve';
       const requestBody = isApproval
         ? { action: 'approve' }
-        : { comments: 'Action taken by HR.' };
+        : { comments: comment?.trim() || 'Action taken by HR.' };
       const res = await fetch(`/api/leaves/${action}/${requestId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -410,14 +414,34 @@ export default function ApprovalsView() {
 
                           {req.reason && <p className="text-sm text-[var(--muted-foreground)] bg-[var(--muted)]/30 p-2 rounded-md mb-3">{req.reason}</p>}
 
-                          <div className="flex items-center gap-2">
-                            <Button size="sm" onClick={() => handleAction(req.id, 'approve')} loading={isActioning && actionLoading?.action === 'approve'} disabled={isActioning}>
-                              <Check className="w-4 h-4 mr-1" /> Approve
-                            </Button>
-                            <Button size="sm" variant="outline" onClick={() => handleAction(req.id, 'reject')} loading={isActioning && actionLoading?.action === 'reject'} disabled={isActioning}>
-                              <X className="w-4 h-4 mr-1" /> Reject
-                            </Button>
-                          </div>
+                          {rejectingId === req.id ? (
+                            <div className="flex flex-col gap-2 mt-1">
+                              <textarea
+                                className="input w-full text-sm resize-none rounded-md border border-[var(--border)] bg-[var(--muted)]/40 p-2 focus:outline-none focus:ring-1 focus:ring-[var(--primary)]"
+                                rows={2}
+                                placeholder="Reason for rejection (optional)"
+                                value={rejectComment}
+                                onChange={e => setRejectComment(e.target.value)}
+                              />
+                              <div className="flex gap-2">
+                                <Button size="sm" variant="danger" onClick={() => handleAction(req.id, 'reject', rejectComment)} loading={isActioning && actionLoading?.action === 'reject'}>
+                                  <X className="w-4 h-4 mr-1" /> Confirm Reject
+                                </Button>
+                                <Button size="sm" variant="outline" onClick={() => { setRejectingId(null); setRejectComment(''); }}>
+                                  Cancel
+                                </Button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-2">
+                              <Button size="sm" onClick={() => handleAction(req.id, 'approve')} loading={isActioning && actionLoading?.action === 'approve'} disabled={isActioning}>
+                                <Check className="w-4 h-4 mr-1" /> Approve
+                              </Button>
+                              <Button size="sm" variant="outline" onClick={() => { setRejectingId(req.id); setRejectComment(''); }} disabled={isActioning}>
+                                <X className="w-4 h-4 mr-1" /> Reject
+                              </Button>
+                            </div>
+                          )}
                         </div>
                       </div>
                     </div>

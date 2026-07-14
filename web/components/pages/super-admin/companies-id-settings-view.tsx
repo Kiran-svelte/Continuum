@@ -65,7 +65,7 @@ export default function CompaniesIdSettingsView() {
       setError(null);
 
       try {
-        const response = await fetch(`/api/super-admin/companies/${companyId}`);
+        const response = await fetch(`/api/super-admin/companies/${companyId}`, { credentials: 'include' });
         const data: CompanyResponse & { error?: string } = await response.json();
 
         if (!response.ok) {
@@ -112,6 +112,7 @@ export default function CompaniesIdSettingsView() {
     try {
       const response = await fetch(`/api/super-admin/companies/${companyId}`, {
         method: 'PATCH',
+        credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
         },

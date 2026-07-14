@@ -5,19 +5,20 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, UserPlus, Loader2, CheckCircle, Copy, AlertCircle, Info } from 'lucide-react';
 import { toast } from 'sonner';
+import { CORE_FUNCTION_CATALOG, type ModuleSlug } from '@/lib/core-functions/catalog';
 
 /**
  * Create New User Form (Super Admin)
- * 
+ *
  * Creates a new company owner/admin user and sends them an invitation.
- * Updated with clean, professional design system.
+ * Includes optional module cap pre-selection (applied when user creates their company).
  */
 export default function CreateUserPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<{ 
-    inviteUrl: string; 
+  const [success, setSuccess] = useState<{
+    inviteUrl: string;
     tempPassword?: string;
   } | null>(null);
 
@@ -28,6 +29,10 @@ export default function CreateUserPage() {
     role: 'admin',
   });
 
+  const [moduleCap, setModuleCap] = useState<Set<ModuleSlug>>(
+    () => new Set(CORE_FUNCTION_CATALOG.map((cf) => cf.slug))
+  );
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -37,7 +42,8 @@ export default function CreateUserPage() {
       const response = await fetch('/api/super-admin/users', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
+        credentials: 'include',
+        body: JSON.stringify({ ...formData, moduleCap: [...moduleCap] }),
       });
 
       const data = await response.json();
@@ -254,16 +260,46 @@ export default function CreateUserPage() {
           </p>
         </div>
 
+        {/* Module Cap */}
+        <div>
+          <h3 className="font-medium text-foreground mb-1">Module Cap (Optional)</h3>
+          <p className="text-sm text-muted mb-3">
+            Pre-select which modules this company is allowed to use. Applied automatically when they create their company during onboarding. All modules are enabled by default.
+          </p>
+          <div className="grid sm:grid-cols-2 gap-2 text-sm border border-border rounded-lg p-4 bg-surface-alt">
+            {CORE_FUNCTION_CATALOG.map((cf) => (
+              <label key={cf.id} className="inline-flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={moduleCap.has(cf.slug)}
+                  disabled={cf.mandatory}
+                  onChange={() => {
+                    setModuleCap((prev) => {
+                      const next = new Set(prev);
+                      if (next.has(cf.slug)) next.delete(cf.slug);
+                      else next.add(cf.slug);
+                      return next;
+                    });
+                  }}
+                  className="rounded"
+                />
+                <span className={cf.mandatory ? 'text-muted' : ''}>{cf.name}{cf.mandatory ? ' (required)' : ''}</span>
+              </label>
+            ))}
+          </div>
+        </div>
+
         <div className="bg-surface-alt rounded-lg p-4">
           <h3 className="font-medium text-foreground mb-2 flex items-center gap-2">
             <Info className="w-4 h-4 text-primary" />
             What happens next?
           </h3>
           <ul className="text-sm text-muted space-y-1">
-            <li>• An invitation will be sent to the user's email</li>
+            <li>• An invitation will be sent to the user&apos;s email</li>
             <li>• They will set their password and complete account setup</li>
-            <li>• If Admin role: They can then create their company</li>
-            <li>• They can invite their own HR and employees</li>
+            <li>• If Admin role: They create their company during onboarding</li>
+            <li>• The module cap you selected above will be applied to their company</li>
+            <li>• They can then invite their own HR and employees</li>
           </ul>
         </div>
 

@@ -2,13 +2,21 @@
 
 import prisma from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
+import { getCurrentUser } from "@/lib/auth-service";
+
+async function requireSuperAdmin() {
+  const user = await getCurrentUser();
+  if (!user || user.role !== 'super_admin') {
+    throw new Error('Unauthorized: super_admin role required');
+  }
+  return user;
+}
 
 export async function forceSyncPermissionsAction() {
   try {
+    await requireSuperAdmin();
     const roles = await prisma.roleTemplate.count().catch(() => 0);
-    // Role permissions are read dynamically; this action is an explicit cache refresh.
     console.log(`[Super Admin Action] Refreshing RBAC views across ${roles} role templates...`);
-    
     revalidatePath("/super-admin/dashboard");
     return { success: true, message: "RBAC views refreshed successfully." };
   } catch (error: unknown) {
@@ -21,7 +29,7 @@ export async function forceSyncPermissionsAction() {
 
 export async function purgeDocumentsAction() {
   try {
-    // Attempting to locate softly deleted or expired documents
+    await requireSuperAdmin();
     const purged = await prisma.document.deleteMany({
       where: {
         OR: [
@@ -30,7 +38,6 @@ export async function purgeDocumentsAction() {
         ]
       }
     });
-
     revalidatePath("/super-admin/dashboard");
     return { success: true, message: `Successfully obliterated ${purged.count} orphaned document records.` };
   } catch (error: unknown) {
@@ -43,7 +50,7 @@ export async function purgeDocumentsAction() {
 
 export async function maintenanceModeAction() {
   try {
-    // Current implementation is a safe no-op toggle placeholder while preserving explicit operator action semantics.
+    await requireSuperAdmin();
     revalidatePath('/super-admin/dashboard');
     return { success: true, message: 'Maintenance mode action completed.' };
   } catch (error: unknown) {
@@ -53,4 +60,3 @@ export async function maintenanceModeAction() {
     };
   }
 }
-

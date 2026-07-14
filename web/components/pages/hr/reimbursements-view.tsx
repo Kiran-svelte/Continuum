@@ -109,6 +109,7 @@ export default function ReimbursementsView() {
   const [page, setPage] = useState(1);
   const [pagination, setPagination] = useState<Pagination | null>(null);
   const [statusFilter, setStatusFilter] = useState('');
+  const [summaryStats, setSummaryStats] = useState<{ pendingReview: number; totalApprovedAmount: number; totalProcessedAmount: number } | null>(null);
 
   // Action state
   const [actionLoading, setActionLoading] = useState<string | null>(null);
@@ -136,6 +137,7 @@ export default function ReimbursementsView() {
       }
       setReimbursements(json.reimbursements);
       setPagination(json.pagination);
+      if (json.summary) setSummaryStats(json.summary);
     } catch {
       setError('Network error. Please try again.');
     } finally {
@@ -153,18 +155,13 @@ export default function ReimbursementsView() {
   // ─── Summary ────────────────────────────────────────────────────────────────
 
   const summary = useMemo(() => {
-    const all = reimbursements;
     return {
-      totalRequests: pagination?.total ?? all.length,
-      pendingReview: all.filter((r) => r.status === 'pending').length,
-      totalApprovedAmount: all
-        .filter((r) => r.status === 'approved' || r.status === 'processed')
-        .reduce((sum, r) => sum + r.amount, 0),
-      totalProcessedAmount: all
-        .filter((r) => r.status === 'processed')
-        .reduce((sum, r) => sum + r.amount, 0),
+      totalRequests: pagination?.total ?? reimbursements.length,
+      pendingReview: summaryStats?.pendingReview ?? reimbursements.filter((r) => r.status === 'pending').length,
+      totalApprovedAmount: summaryStats?.totalApprovedAmount ?? reimbursements.filter((r) => r.status === 'approved' || r.status === 'processed').reduce((sum, r) => sum + r.amount, 0),
+      totalProcessedAmount: summaryStats?.totalProcessedAmount ?? reimbursements.filter((r) => r.status === 'processed').reduce((sum, r) => sum + r.amount, 0),
     };
-  }, [reimbursements, pagination]);
+  }, [reimbursements, pagination, summaryStats]);
 
   // ─── Action Handlers ────────────────────────────────────────────────────────
 

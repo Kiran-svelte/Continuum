@@ -8,6 +8,7 @@ import { GlassPanel } from '@/components/glass-panel';
 import { TabButton } from '@/components/tab-button';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/input';
 import { Modal, ModalFooter } from '@/components/ui/modal';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ensureMe } from '@/lib/client-auth';
@@ -730,13 +731,13 @@ export default function HRReimbursementsPage() {
             <label className="block text-sm font-medium text-white mb-1.5">
               Reason for Rejection
             </label>
-            <textarea
+            <Textarea
               value={rejectReason}
               onChange={(e) => setRejectReason(e.target.value)}
               placeholder="Enter the reason for rejection..."
               maxLength={500}
               rows={3}
-              className="w-full px-3 py-2 text-sm rounded-lg border border-white/10 bg-white/5 text-white focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors resize-none"
+              className="w-full px-3 py-2 text-sm rounded-lg border border-white/10 bg-white/5 text-white resize-none"
             />
             <p className="text-xs text-white/60 mt-1 text-right">
               {rejectReason.length}/500

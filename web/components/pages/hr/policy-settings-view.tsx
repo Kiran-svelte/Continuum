@@ -878,9 +878,13 @@ export default function PolicySettingsView() {
         setSuccess(successMessage);
         toast.success(successMessage);
         setTimeout(() => setSuccess(''), 4000);
-        const updated = await fetch('/api/hr/policy', { credentials: 'include' }).then((r) => r.json());
-        setPolicy(updated);
+        const updatedRes = await fetch('/api/hr/policy', { credentials: 'include' });
+        if (updatedRes.ok) setPolicy(await updatedRes.json());
       }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to save rule';
+      setError(msg);
+      toast.error(msg);
     } finally {
       setSaving(false);
     }

@@ -23,8 +23,8 @@ export default async function SuperAdminDashboard() {
     activeInvites,
     recentCompanies,
   ] = await Promise.all([
-    prisma.company.count(),
-    prisma.employee.count(),
+    prisma.company.count({ where: { deleted_at: null } }),
+    prisma.employee.count({ where: { deleted_at: null } }),
     prisma.userInvite.count({
       where: {
         status: 'pending',

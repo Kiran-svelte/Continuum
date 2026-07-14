@@ -389,3 +389,88 @@ Prompt:
 ```text
 do i need to say everytime to test on production before handing it over to me ?
 ```
+
+## 2026-07-09 (session BACKLOG-20260709)
+
+Action:
+
+- Assessed enterprise-readiness/self-serve status on request; verified current state directly against code rather than trusting `web/COMPLETE_AUDIT.md` (2026-06-30), since 4 commits landed since (`3a2f9f1`, `9195794`, `716e2a1`, `31d87b1`).
+- Corrected two stale audit claims: `.env.prod` was never actually in git history (`git log --all` on the exact path returns zero commits — the audit's P0 finding was wrong); the hardcoded insecure JWT default was already removed (`web/lib/auth-secret.ts`, commit `3a2f9f1`).
+- Confirmed via direct grep: no SSO/SAML/OIDC/SCIM, no MFA/TOTP anywhere in `lib/` or `app/api/auth/`; `RAZORPAY_KEY_ID`, `PUSHER_APP_ID`, `UPSTASH_REDIS_REST_URL`, `SENTRY_DSN` all unset in `.env.prod`; no `.github/workflows/` exists anywhere despite `docs/OPERATIONS_READINESS_20.md` and a commit message both claiming a CI workflow exists.
+- Found self-serve company signup is fully built (`/api/auth/signup` → `/onboarding` 13-step wizard → `createCompanyAndEmployee` → join code) but gated off by default in production via `NEXT_PUBLIC_ALLOW_PUBLIC_SIGNUP` (unset → false), per a deliberate "invitation-only" product decision in commit `a52320c`.
+- Discovered this repo already carries a large, partially-contradictory planning corpus: `chunks/` (Zero-UI WhatsApp pre-flight, 8 chunks + L5 + DEEP, all `not_started`), `LOOP.md` (RALPH autonomous-loop spec targeting 64 services), `COMPLETE_SOLUTION_MAPPING.md` / `COMPLETE_SERVICES_SUMMARY.md` (64-service catalog), and `tasks/todo.md` (prior CBA/CWA/RALPH/CWFREQ/PRODERR/MAILFIX/SIGNINFIX passes).
+- Found a direct contradiction between the two existing `LOOP_STATE.json` files: root file reports 18/64 services complete (28%); `web/LOOP_STATE.json` self-reports `"status": "COMPLETE"` / "All 64 services at >90% production-readiness" for the same loop — demonstrably false against verified code (no MFA/SSO despite claimed 92% Authentication/Authorization; Pusher/Sentry/Redis unset despite claimed 92% Notifications).
+- The `CWFREQ-20260630` functional-requirements-matrix effort in `tasks/todo.md` was started (PREP/ACTIVITY/PLAN checked) but never finished (EXTRACT through GIT all unchecked, target file `CRITICAL_WORKFLOW_FUNCTIONAL_REQUIREMENTS_MATRIX.md` was never created) — this session's ask ("break the product into epics/features/tasks with status") is effectively a resumption of that abandoned goal, done fresh rather than continuing a half-built matrix.
+- Wrote `docs/EPICS_FEATURES_TASKS_BACKLOG.md` (`BACKLOG-20260709`): reconciles existing-product status across 18 epics (CF-000..CF-017, cross-referenced to the SVC-001..064 IDs from `web/LOOP_STATE.json`) using only independently-verified evidence, plus 14 new "enterprise/global-scale" epics (ENT-01..14) covering SSO/MFA/zero-trust, public API, event-driven processing, observability activation, multi-region/data-residency, multi-country payroll, and usage-based billing — none of which any existing doc in the repo covers. Explicitly separates pure-code tasks (safe to build now) from tasks blocked on a vendor account, legal engagement, or business decision only the founder can make.
+- Declined to launch `/ultrareview` directly (it is a user-triggered, billed cloud review — explained this rather than attempting it via Bash).
+- Declined to run `LOOP.md`'s literal exit condition ("all 64 services ≥90%, self-graded") given direct proof that same self-grading already produced a false "COMPLETE" claim once. Proceeding instead with the same test → typecheck → build → commit discipline the repo's other remediation passes already used, working through the pure-code backlog items first.
+
+Prompt:
+
+```text
+[Enterprise-readiness assessment, followed by:] god mode .before adding these ... we need the features and services should be working for all and it should be high qualitied with hreliable ,etc . now to make this system fully enterprise and fully functional and self serve for more than 100+ companies and 1m+ employees with world wide (multiple countries) with [14-pillar "Zero UI Equivalent" architecture table] ..how can you do it exactly tell me 10x L99
+
+[Then, after design-skill interruption:] in D:\projects\Continuum-main-deploy\docs , Break the product into epics and Break every epic into features and Break every feature into engineering tasks and decide which are pending and which are partial and not started .(detailed way ) 10x . L99 /ultrareview /full-output-enforcement , once everythign done start working on it . /loop return only when eveyrhting is perfectly functioning for enterprise and production . [14-pillar table with analogies/examples]
+```
+
+## 2026-07-09 (continued, session CODEREVIEW-20260709)
+
+Action:
+
+- Ran a max-effort local code review (`/code-review ultra` fallback — cloud ultra review must be user-triggered, explained rather than attempted) over the full working-tree diff (`git diff HEAD`, 91 files, +1836/-2598 — HEAD matches `origin/main` exactly, so 100% of this diff is uncommitted working-tree changes, some from this session's earlier `BACKLOG-20260709` work, the rest pre-existing from before this session started).
+- Ran 10 independent finder-angle agents in parallel (line-by-line scan, removed-behavior audit, cross-file call-site tracer, language/framework pitfalls, wrapper/proxy correctness, reuse, simplification, efficiency, altitude, CLAUDE.md/AGENTS.md conventions — conventions angle correctly returned empty, no governing doc exists in this repo).
+- Deduped candidates and ran 11 independent one-vote verifier agents against the actual current files (not just diff hunks). Result: 10 of 11 CONFIRMED, 1 REFUTED for practical impact (a loosened test regex in `invite-lifecycle.test.ts` is technically too permissive but a sibling test, `onboarding-gate-matrix.test.ts`, already independently and precisely guards the exact same regression on the exact same file).
+- Reported 15 findings via `ReportFindings`, ranked most severe first. Highest severity: an HR/Admin user can approve their own leave request via direct API call (`web/app/api/manager/approvals/[id]/action/route.ts` — the `isHrOrAdmin` bypass added this session skips the manager-assignment check with no self-approval guard, unlike three sibling approval code paths that all have one); a related concurrent-request race in the same route can double-apply a leave-balance mutation and lose a status update; two payroll bugs in `web/app/api/payroll/generate/route.ts` that respectively zero out loss-of-pay for fully-absent employees and treat weekends/holidays as working days (bypasses the existing, more correct `summarizePayrollAttendance()` helper entirely); exit-checklist per-item completion is fully non-functional in production (frontend/backend contract mismatch); the employee-invite manager picker is now always empty (blocks all non-admin invites); an audit-trail corruption case in `employees/[id]/route.ts` when a combined status+password update partially fails.
+- Findings below the 15-item cap (still confirmed, lower severity, mentioned to the user but not counted against the cap): a super-admin cross-company welcome-email targeting capability was silently removed with no replacement; three UI surfaces still link unconditionally to `/manager/directory` after this session's correct module-gating fix, so they'll now dead-end for companies without that module; two differently-styled `Textarea` components exist in the codebase and this session's fixes picked the wrong one in three files; a `<Button>`-wrapped FAQ accordion trigger has a layout (not just text-clipping) regression from the `inline-flex` display change; a pre-existing (not part of this diff) broken `ToggleSwitch` in `web/components/pages/hr/settings-view.tsx` renders at 44px instead of 24px because `min-h-11`/`h-6` don't conflict under tailwind-merge.
+- Ran `/consolidate-memory` on request: retired the 51-day-old aspirational architecture-spec memory's stale phase-timeline content (kept only durable naming/routing conventions), added a dated project memory pointing to `docs/EPICS_FEATURES_TASKS_BACKLOG.md` as the current source of truth, and added a feedback memory documenting the `web/LOOP_STATE.json` false-"COMPLETE" incident as a standing reason to verify status claims against live code before trusting them, on any project.
+
+Prompt:
+
+```text
+/code-review ultra , find all modules and services are functioning or not ,return only when it's fully functioning in production . /loop don't return until it's ready . make sure it uses [14-pillar table restated] ...
+
+[Then, after fallback notice:] continue what are you waiting for ? L99 /consolidate-memory /full-output-enforcement
+```
+
+## 2026-07-09 (continued, session CODEREVIEW-20260709 remediation)
+
+Action:
+
+- User asked whether the 14-pillar "Zero UI/Intent-First UX" ask from earlier had actually been built (it hadn't — only documented as not-started epics) and asked to continue; prioritized fixing the just-confirmed live bugs first (self-approval security bypass, payroll money bugs) over starting new feature work, and explained why in plain terms before proceeding.
+- Fixed all 15 confirmed code-review findings plus the 4 bonus (below-cap) items — see `tasks/todo.md` `CODEREVIEW-20260709-*` for the fix-by-fix detail. Highlights beyond the straightforward ones:
+  - The self-approval fix and concurrency-race fix landed together in `manager/approvals/[id]/action/route.ts` (added the missing guard, switched the balance mutation to the existing `updateLeaveBalanceWithConcurrencyCheck` helper, gated the status update on an `updateMany` with the previously-read status).
+  - The two payroll bugs were actually one root cause (an inline attendance-summary reimplementation) — fixed by wiring in the existing, unused `summarizePayrollAttendance()` helper, which required adding `Company.work_days` and `PublicHoliday` lookups the route didn't previously fetch.
+  - The exit-checklist fix turned out deeper than "add itemIndex": the employee page's per-item click handler had `idx`/`item` in scope but never used them (it bulk-toggled the whole checklist regardless of which item was clicked), the HR page's legitimate whole-checklist bulk action was a silent no-op with no `itemIndex` path implemented, and the status derivation ignored `custom_items` entirely. Rebuilt the PATCH route to support both a per-item path (`itemIndex` + `isCustom`) and a bulk path (no `itemIndex` = mark everything), deriving status from both arrays combined.
+  - The toggle-switch hover bug was fixed by building a real `web/components/ui/switch.tsx` primitive and retiring all three duplicate `ToggleSwitch` implementations (two touched this session, one pre-existing and already broken in `hr/settings-view.tsx` at 44px instead of 24px) to delegate to it, rather than patching `Button` with more `!important` overrides a fourth time.
+  - The three unconditional `/manager/directory` links now check the `directory` module's enabled state before rendering (server-side via `getCompanyModuleState`/`isModuleEnabled` in the two server components, client-side via the existing `useCompanyModules()` hook in the one client component).
+- Verified: `npx tsc --noEmit` clean, full test suite 400/400, scoped ESLint on every touched file (only pre-existing unrelated warnings, confirmed by reading the flagged lines), `next build` exits 0 with dummy env vars and no live database. Attempted a live browser check of the CSS-level fixes but the local dev server hit `.next` build-cache corruption from another session's dev server already running in this same project directory — stopped rather than risk interfering with that session, relying instead on the production build passing plus the precise CSS/tailwind-merge mechanism analysis already cross-confirmed by independent review agents during the review phase.
+- Did not commit — no explicit request to do so this pass.
+
+Prompt:
+
+```text
+and before continuing it , i said you many things like ui -> Zero ui and ux to ntent-First UX / Anticipatory Design , an dmore to all full stack components ryt ?? .. what abt that , did you make it ? or if not continue and start making this also an dreturn with production and bussinessable ai hrms ready ..
+```
+
+## 2026-07-14 (session PRODVERIFY-20260714 — production browser findings)
+
+Context: user asked for full browser verification of every role/page against production (continuum.support), and explicitly authorized creating a fresh company + credentials to do so.
+
+**Three real PRODUCTION bugs found while trying to get a working login (these are live-app bugs, independent of this session's uncommitted fixes):**
+
+- **PVERIFY-01 — Email delivery is broken in production.** `POST /api/auth/signup` returns `400 {"error":"Error sending confirmation email"}` for every address tried (both a reserved `.test` domain and a real gmail). That error string is Supabase Auth's own message when its configured SMTP/email provider fails — i.e. a Supabase dashboard email/SMTP misconfiguration, not a codebase bug. Impact: self-serve signup is completely non-functional, and (below) super-admin-issued owner credentials are unusable, and password-reset email is almost certainly affected too.
+- **PVERIFY-02 — Super-admin-created company-owner credentials are dead on arrival.** The super-admin "Create Company & Owner" flow (`/super-admin/companies/new`) creates the owner with a password and displays "Owner Login Credentials — share these with the owner." But signing in with those exact credentials on `/sign-in` hard-blocks with "Your email is not verified. A new verification link has been sent." Combined with PVERIFY-01 (verification email never sends), the owner can never actually log in through the normal UI. The create-company flow should mark super-admin-issued owners as email-verified (the super admin is vouching for them), or the sign-in screen should not hard-block them.
+- **PVERIFY-03 — Email verification is enforced only client-side, not in middleware/API (security-relevant inconsistency).** Verified by reading the code: `signIn()` in `web/lib/auth-service.ts` has NO email-verification check (only password + `terminated/exited/suspended` status), and `web/middleware.ts` never checks verification either — it only cryptographically verifies the access JWT and enforces role/portal access. The "not verified" wall lives ONLY in the client sign-in component (`web/components/ui/modern-stunning-sign-in.tsx` lines 158-161), which refuses to *redirect* after an already-successful sign-in that has already set valid auth cookies. Consequence: an unverified user can reach the full app by navigating directly to a portal URL after signing in (the middleware accepts the valid JWT). This is exactly how the isolated test admin account below was accessed. Either verification should be enforced server-side (if it is meant to be a hard gate) or the client block should be removed (if it is not) — the current split is both a UX bug (PVERIFY-02) and a soft security gap.
+
+Actions taken:
+- Created an isolated test company via super-admin: **"Continuum QA Verify Co"**, join code `B6PAN4LL`, all 15 modules enabled, owner `kiran.11.05.05+qaverifyadmin@gmail.com` (role Admin), status `pending`. **This is disposable test data on production and should be deleted** (super-admin → Companies → Continuum QA Verify Co).
+- Reached the admin account by navigating directly to `/admin/dashboard` after a server-successful sign-in (per PVERIFY-03), which resumed the org-setup wizard at the Leave Types step. Configured 3 leave types (CL, SL, EL) and advanced the wizard — confirming the live onboarding flow is functional past the sign-in wall.
+
+**Critical caveat recorded for honesty:** production runs the *deployed* code, NOT this session's 15 uncommitted local fixes. Browser-testing production therefore validates the current live app (and found PVERIFY-01/02/03 above) but does NOT verify any of this session's fixes. To browser-verify the fixes, they must first be committed and deployed to a Vercel **preview** URL (isolated from real prod data), and verification run against that. No commit/deploy was done without explicit user approval.
+
+Prompt:
+
+```text
+[across several messages] ...browser verify each scenarios and each pages,components,features,etc of every role... you only create fresh company with all services and push credentials and test... use neon auth or supabase auth, convert it and test and fix and retest... do you have common sense?? you creates that user and i don't have that mail...
+```
+

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { Lock, Mail, User, AlertCircle, Loader2, CheckCircle, Building2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 interface InviteData {
   email: string;
@@ -99,7 +100,12 @@ export default function AcceptInvitePage() {
       // Redirect based on whether company setup is needed
       setTimeout(() => {
         if (data.needsCompanySetup) {
-          router.push('/onboarding');
+          const params = new URLSearchParams();
+          if (data.moduleCap && Array.isArray(data.moduleCap) && data.moduleCap.length > 0) {
+            params.set('moduleCap', data.moduleCap.join(','));
+          }
+          const qs = params.toString();
+          router.push(qs ? `/onboarding?${qs}` : '/onboarding');
         } else {
           router.push('/employee/dashboard');
         }
@@ -256,10 +262,10 @@ export default function AcceptInvitePage() {
             </ul>
           </div>
 
-          <button
+          <Button
             type="submit"
             disabled={submitting}
-            className="btn-primary w-full flex items-center justify-center gap-2"
+            className="w-full flex items-center justify-center gap-2"
           >
             {submitting ? (
               <>
@@ -269,7 +275,7 @@ export default function AcceptInvitePage() {
             ) : (
               'Complete Setup'
             )}
-          </button>
+          </Button>
         </form>
 
         {/* Footer */}

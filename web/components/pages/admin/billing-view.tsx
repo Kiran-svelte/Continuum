@@ -184,7 +184,9 @@ export default async function BillingView() {
           <p className="text-xs text-[var(--muted-foreground)]">
             {planInfo.maxEmployees === Infinity
               ? 'Unlimited seats on your plan'
-              : `${planInfo.maxEmployees - employeeCount} seats remaining`}
+              : planInfo.maxEmployees - employeeCount >= 0
+                ? `${planInfo.maxEmployees - employeeCount} seats remaining`
+                : `${employeeCount - planInfo.maxEmployees} seats over plan limit`}
           </p>
         </div>
       </section>

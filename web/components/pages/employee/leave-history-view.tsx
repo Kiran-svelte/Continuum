@@ -223,13 +223,15 @@ export default function LeaveHistoryView() {
       const params = new URLSearchParams({ page: String(p), limit: '10' });
       if (status) params.set('status', status);
       const res = await fetch(`/api/leaves/list?${params}`, { credentials: 'include' });
-      const json = await res.json();
+      const json = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setError(json.error ?? 'Failed to load leave history');
+        setError((json as { error?: string }).error ?? 'Failed to load leave history');
         return;
       }
       setRequests(json.requests);
-      setTotalPages(json.pagination.pages || 1);
+      setTotalPages(json.pagination?.pages || 1);
+    } catch {
+      setError('Failed to load leave history');
     } finally {
       setLoading(false);
     }
@@ -280,7 +282,12 @@ export default function LeaveHistoryView() {
         setRequests((prev) =>
           prev.map((r) => (r.id === requestId ? { ...r, status: 'cancelled' } : r))
         );
+      } else {
+        const data = await res.json().catch(() => ({}));
+        setError(data.error || 'Failed to cancel request. Please try again.');
       }
+    } catch {
+      setError('Failed to cancel request. Please try again.');
     } finally {
       setCancellingId(null);
     }

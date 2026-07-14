@@ -7,6 +7,7 @@ import { PageHeader } from '@/components/page-header';
 import { GlassPanel } from '@/components/glass-panel';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Input, Select, Textarea } from '@/components/ui/input';
 import { Modal, ModalFooter } from '@/components/ui/modal';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ensureMe } from '@/lib/client-auth';
@@ -411,20 +412,21 @@ export default function EmployeeReimbursementsPage() {
                 { value: 'rejected', label: 'Rejected' },
                 { value: 'processed', label: 'Processed' },
               ].map((f) => (
-                <button
+                <Button
                   key={f.value}
+                  variant="ghost"
                   onClick={() => {
                     setStatusFilter(f.value);
                     setPage(1);
                   }}
-                  className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-300 transform hover:-translate-y-0.5 ${
+                  className={`px-3 py-1.5 min-h-0 rounded-full text-xs font-medium transform hover:-translate-y-0.5 ${
                     statusFilter === f.value
                       ? 'bg-primary text-primary-foreground shadow-md shadow-primary/30'
                       : 'bg-white/5 text-white/60 hover:bg-white/10 hover:text-white border border-white/10'
                   }`}
                 >
                   {f.label}
-                </button>
+                </Button>
               )))}
             </div>
           </FadeIn>
@@ -575,7 +577,7 @@ export default function EmployeeReimbursementsPage() {
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                       <div>
                         <label className="text-sm font-medium text-white/80 block mb-2">Category</label>
-                        <select
+                        <Select
                           value={formCategory}
                           onChange={(e) => setFormCategory(e.target.value)}
                           className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white focus:ring-primary focus:border-primary"
@@ -583,19 +585,19 @@ export default function EmployeeReimbursementsPage() {
                           {Object.entries(CATEGORY_LABELS).map(([key, label]) => (
                             <option key={key} value={key}>{label}</option>
                           ))}
-                        </select>
+                        </Select>
                       </div>
                       <div>
                         <label htmlFor="amount" className="text-sm font-medium text-white/80 block mb-2">Amount (INR)</label>
                         <div className="relative">
                           <IndianRupee className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40" />
-                          <input
+                          <Input
                             id="amount"
                             type="number"
                             value={formAmount}
                             onChange={(e) => setFormAmount(e.target.value)}
                             placeholder="0.00"
-                            className="w-full bg-white/5 border border-white/10 rounded-lg pl-9 pr-3 py-2 text-white focus:ring-primary focus:border-primary"
+                            className="w-full pl-9 pr-3 py-2"
                             required
                           />
                         </div>
@@ -604,7 +606,7 @@ export default function EmployeeReimbursementsPage() {
                     {/* Description */}
                     <div>
                       <label htmlFor="description" className="text-sm font-medium text-white/80 block mb-2">Description</label>
-                      <textarea
+                      <Textarea
                         id="description"
                         value={formDescription}
                         onChange={(e) => setFormDescription(e.target.value)}
@@ -634,12 +636,12 @@ export default function EmployeeReimbursementsPage() {
                           {formReceiptFile ? `Selected: ${formReceiptFile.name}` : 'Upload a file'}
                         </label>
                         <p className="text-xs text-white/50 mt-1">or paste a URL below</p>
-                        <input
+                        <Input
                           type="text"
                           value={formReceiptUrl}
                           onChange={(e) => setFormReceiptUrl(e.target.value)}
                           placeholder="https://example.com/receipt.jpg"
-                          className="mt-3 w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:ring-primary focus:border-primary"
+                          className="mt-3 w-full text-sm"
                         />
                         {receiptPreview && <img src={receiptPreview} alt="Receipt preview" className="mt-4 max-h-40 mx-auto rounded-lg" />}
                       </div>

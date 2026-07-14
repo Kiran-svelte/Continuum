@@ -6,6 +6,7 @@ import { FadeIn, StaggerContainer, AmbientBackground } from '@/components/motion
 import { PageHeader } from '@/components/page-header';
 import { GlassPanel } from '@/components/glass-panel';
 import { Button } from '@/components/ui/button';
+import { Switch } from '@/components/ui/switch';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   Bell,
@@ -60,25 +61,7 @@ function ToggleSwitch({
   label?: string;
   disabled?: boolean;
 }) {
-  return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={value ? 'true' : 'false'}
-      aria-label={label}
-      disabled={disabled}
-      onClick={() => !disabled && onChange(!value)}
-      className={`relative w-12 h-6 rounded-full transition-all duration-300 ${
-        disabled ? 'opacity-50 cursor-not-allowed' : ''
-      } ${value ? 'bg-primary' : 'bg-white/5'}`}
-    >
-      <span
-        className={`absolute top-1 left-1 w-4 h-4 rounded-full bg-white shadow-md transition-transform duration-300 ${
-          value ? 'translate-x-6' : 'translate-x-0'
-        }`}
-      />
-    </button>
-  );
+  return <Switch checked={value} onChange={onChange} label={label} disabled={disabled} />;
 }
 
 function SettingsLoadingSkeleton() {

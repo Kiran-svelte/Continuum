@@ -8,19 +8,9 @@ interface LeaveType { code: string; name: string; }
 
 function makeId() { return Math.random().toString(36).slice(2); }
 
-const DEFAULT_ROWS: QuotaRow[] = [
-  { id: makeId(), role: 'employee', leaveType: 'CL', quota: 12 },
-  { id: makeId(), role: 'employee', leaveType: 'SL', quota: 7 },
-  { id: makeId(), role: 'manager', leaveType: 'CL', quota: 15 },
-  { id: makeId(), role: 'manager', leaveType: 'SL', quota: 7 },
-];
-
 export default function LeaveQuotasView() {
-  const [rows, setRows] = useState<QuotaRow[]>(DEFAULT_ROWS);
-  const [leaveTypes, setLeaveTypes] = useState<LeaveType[]>([
-    { code: 'CL', name: 'Casual Leave' }, { code: 'SL', name: 'Sick Leave' },
-    { code: 'EL', name: 'Earned Leave' }, { code: 'PL', name: 'Privilege Leave' },
-  ]);
+  const [rows, setRows] = useState<QuotaRow[]>([]);
+  const [leaveTypes, setLeaveTypes] = useState<LeaveType[]>([]);
   const [enabledRoles, setEnabledRoles] = useState(['employee','team_lead','manager','director','hr','admin']);
   const [applyToExisting, setApplyToExisting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);

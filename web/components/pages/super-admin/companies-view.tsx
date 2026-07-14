@@ -66,7 +66,7 @@ export default function CompaniesView() {
         status: statusFilter,
       });
 
-      const response = await fetch(`/api/super-admin/companies?${params}`);
+      const response = await fetch(`/api/super-admin/companies?${params}`, { credentials: 'include' });
       const data = await response.json();
 
       if (!response.ok) {

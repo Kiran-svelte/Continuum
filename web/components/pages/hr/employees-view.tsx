@@ -56,7 +56,7 @@ export default async function EmployeesView({ searchParams }: PageProps) {
   }
 
   if (!authEmployee.org_id) {
-    throw new Error('HR directory requires company context.');
+    redirect('/onboarding');
   }
 
   const companyId = authEmployee.org_id;

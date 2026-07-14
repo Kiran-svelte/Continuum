@@ -9,6 +9,7 @@ import {
 } from '@/lib/auth-guard';
 import { createAuditLog, AUDIT_ACTIONS } from '@/lib/audit';
 import { calculateNetPay } from '@/lib/india-tax';
+import { summarizePayrollAttendance } from '@/lib/payroll-attendance';
 
 export const dynamic = 'force-dynamic';
 
@@ -46,7 +47,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Create draft payroll run
+    // Create draft payroll run (placeholder — will be updated inside the transaction)
     const payrollRun = await prisma.payrollRun.create({
       data: {
         company_id: employee.org_id!,
@@ -67,6 +68,67 @@ export async function POST(request: NextRequest) {
         salary_structure: true,
       },
     });
+
+    // Fetch attendance summary for the pay period (approved leave + attendance logs)
+    const periodStart = new Date(year, month - 1, 1);
+    const periodEnd = new Date(year, month, 0); // last day of month
+
+    const empIds = employees.map((e) => e.id);
+    const [company, attendanceLogs, approvedLeaves, publicHolidays] = await Promise.all([
+      prisma.company.findUniqueOrThrow({
+        where: { id: employee.org_id! },
+        select: { work_days: true, country_code: true },
+      }),
+      prisma.attendance.findMany({
+        where: {
+          company_id: employee.org_id!,
+          date: { gte: periodStart, lte: periodEnd },
+          emp_id: { in: empIds },
+        },
+        select: { emp_id: true, date: true, status: true, is_wfh: true },
+      }),
+      prisma.leaveRequest.findMany({
+        where: {
+          company_id: employee.org_id!,
+          status: 'approved',
+          start_date: { lte: periodEnd },
+          end_date: { gte: periodStart },
+          emp_id: { in: empIds },
+        },
+        select: { emp_id: true, start_date: true, end_date: true, is_half_day: true },
+      }),
+      prisma.publicHoliday.findMany({
+        where: {
+          date: { gte: periodStart, lte: periodEnd },
+          OR: [{ company_id: employee.org_id! }, { company_id: null }],
+        },
+        select: { date: true, company_id: true },
+      }),
+    ]);
+
+    // Company-specific holidays take precedence over global ones on the same date.
+    const holidayDateKeys = new Set<string>();
+    for (const h of publicHolidays) {
+      if (h.company_id === employee.org_id) holidayDateKeys.add(h.date.toISOString().slice(0, 10));
+    }
+    for (const h of publicHolidays) {
+      if (h.company_id === null) holidayDateKeys.add(h.date.toISOString().slice(0, 10));
+    }
+    const holidayDates = [...holidayDateKeys].map((key) => new Date(`${key}T00:00:00Z`));
+
+    // Group attendance/leave records per employee for summarizePayrollAttendance
+    const attendanceByEmp = new Map<string, { emp_id: string; date: Date; status: string; is_wfh: boolean }[]>();
+    for (const log of attendanceLogs) {
+      const list = attendanceByEmp.get(log.emp_id) ?? [];
+      list.push(log);
+      attendanceByEmp.set(log.emp_id, list);
+    }
+    const leavesByEmp = new Map<string, { emp_id: string; start_date: Date; end_date: Date; is_half_day: boolean }[]>();
+    for (const lr of approvedLeaves) {
+      const list = leavesByEmp.get(lr.emp_id) ?? [];
+      list.push(lr);
+      leavesByEmp.set(lr.emp_id, list);
+    }
 
     let totalGross = 0;
     let totalDeductions = 0;
@@ -106,15 +168,25 @@ export async function POST(request: NextRequest) {
 
       const gross = salary.basic + salary.hra + salary.da + salary.special_allowance;
 
+      const summary = summarizePayrollAttendance({
+        year,
+        month,
+        workDays: company.work_days,
+        attendance: attendanceByEmp.get(emp.id) ?? [],
+        leaveRequests: leavesByEmp.get(emp.id) ?? [],
+        holidayDates,
+      });
+      const { workingDays: workingDaysInMonth, presentDays, leaveDays: empLeaveDays, absentDays } = summary;
+
       const netPayResult = calculateNetPay({
         basic: salary.basic,
         hra: salary.hra,
         da: salary.da,
         specialAllowance: salary.special_allowance,
-        workingDays: 30,
-        presentDays: 30,
-        leaveDays: 0,
-        absentDays: 0,
+        workingDays: workingDaysInMonth,
+        presentDays,
+        leaveDays: empLeaveDays,
+        absentDays,
         annualIncome: salary.ctc,
       });
 
@@ -142,34 +214,43 @@ export async function POST(request: NextRequest) {
         esi_employer: netPayResult.esi.employerContribution,
         professional_tax: netPayResult.professionalTax.monthlyTax,
         tds: netPayResult.tds.monthlyTax,
-        lop_deduction: 0,
+        lop_deduction: netPayResult.lopDeduction ?? 0,
         total_deductions: netPayResult.totalDeductions,
         net_pay: netPayResult.netPay,
-        working_days: 30,
-        present_days: 30,
-        leave_days: 0,
-        absent_days: 0,
+        working_days: workingDaysInMonth,
+        present_days: presentDays,
+        leave_days: empLeaveDays,
+        absent_days: absentDays,
       });
     }
 
-    if (slips.length > 0) {
-      await prisma.payrollSlip.createMany({ data: slips });
+    // Wrap slip creation and run status update in a transaction so a partial
+    // failure doesn't leave the run stuck in 'draft' with zero slips.
+    let updatedRun;
+    try {
+      updatedRun = await prisma.$transaction(async (tx) => {
+        if (slips.length > 0) {
+          await tx.payrollSlip.createMany({ data: slips });
+        }
+        return tx.payrollRun.update({
+          where: { id: payrollRun.id },
+          data: {
+            status: 'generated',
+            total_gross: totalGross,
+            total_deductions: totalDeductions,
+            total_net: totalNet,
+            total_pf: totalPf,
+            total_esi: totalEsi,
+            total_tds: totalTds,
+            employee_count: slips.length,
+          },
+        });
+      });
+    } catch (txError) {
+      // Roll back the payroll run record so it can be re-generated next time
+      await prisma.payrollRun.delete({ where: { id: payrollRun.id } }).catch(() => undefined);
+      throw txError;
     }
-
-    // Update payroll run totals and status
-    const updatedRun = await prisma.payrollRun.update({
-      where: { id: payrollRun.id },
-      data: {
-        status: 'generated',
-        total_gross: totalGross,
-        total_deductions: totalDeductions,
-        total_net: totalNet,
-        total_pf: totalPf,
-        total_esi: totalEsi,
-        total_tds: totalTds,
-        employee_count: slips.length,
-      },
-    });
 
     await createAuditLog({
       companyId: employee.org_id!,

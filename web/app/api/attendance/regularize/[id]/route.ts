@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { getAuthEmployee, requireRole, AuthError } from '@/lib/auth-guard';
+import { requireModuleForOrg } from '@/lib/core-functions/guard-handler';
 import { checkApiRateLimit, getRateLimitHeaders } from '@/lib/api-rate-limit';
 import { createAuditLog, AUDIT_ACTIONS } from '@/lib/audit';
 import { sendNotification } from '@/lib/notification-service';
@@ -21,6 +22,8 @@ export async function PATCH(
   try {
     const employee = await getAuthEmployee();
     requireRole(employee, 'manager', 'hr', 'admin', 'director');
+    const moduleGuard = await requireModuleForOrg(employee.org_id, 'attendance');
+    if (moduleGuard) return moduleGuard;
 
     const rateLimit = checkApiRateLimit(employee.id, 'general');
     if (!rateLimit.allowed) {
@@ -41,9 +44,9 @@ export async function PATCH(
       );
     }
 
-    // Fetch the regularization request
-    const regularization = await prisma.attendanceRegularization.findUnique({
-      where: { id },
+    // Fetch the regularization request — scoped to org to prevent cross-tenant info disclosure
+    const regularization = await prisma.attendanceRegularization.findFirst({
+      where: { id, company_id: employee.org_id! },
       include: {
         attendance: true,
       },
@@ -53,14 +56,6 @@ export async function PATCH(
       return NextResponse.json(
         { error: 'Regularization request not found.' },
         { status: 404 }
-      );
-    }
-
-    // Must belong to the same company
-    if (regularization.company_id !== employee.org_id!) {
-      return NextResponse.json(
-        { error: 'Access denied.' },
-        { status: 403 }
       );
     }
 

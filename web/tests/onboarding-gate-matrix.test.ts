@@ -19,6 +19,6 @@ test('legacy company onboarding route redirects to canonical onboarding', () => 
 test('active app surfaces do not push users to legacy onboarding company route', () => {
   const inviteAccept = read('app/invite/accept/[token]/page.tsx');
   assert.ok(!inviteAccept.includes("router.push('/onboarding/company')"));
-  assert.ok(inviteAccept.includes("router.push('/onboarding')"));
+  assert.ok(/router\.push\(.*['"`]\/onboarding(?!\/company)/.test(inviteAccept));
 });
 

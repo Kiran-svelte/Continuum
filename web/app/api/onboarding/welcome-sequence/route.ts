@@ -13,10 +13,12 @@ export async function POST(request: NextRequest) {
   }
 
   const body = await request.json().catch(() => ({}));
-  const companyId = String(body.companyId || '');
+  // Regular admin/hr can only trigger their own company's sequence; super_admin
+  // may target any company (e.g. to manually nudge a specific customer).
+  const companyId = typeof body.companyId === 'string' && body.companyId ? body.companyId : user.orgId;
   const day = Number(body.day || 0);
-  if (!companyId || ![0, 3, 7].includes(day)) {
-    return NextResponse.json({ error: 'companyId and day(0/3/7) are required' }, { status: 400 });
+  if (![0, 3, 7].includes(day)) {
+    return NextResponse.json({ error: 'day(0/3/7) is required' }, { status: 400 });
   }
   if (companyId !== user.orgId && user.role !== 'super_admin') {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });

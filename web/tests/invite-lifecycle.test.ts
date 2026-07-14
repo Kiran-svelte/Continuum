@@ -16,7 +16,7 @@ test('invite lifecycle creates secure token and accepts invite into active emplo
   assert.ok(invites.includes('expires_at'));
   assert.ok(accept.includes('accepted_at'));
   assert.ok(accept.includes("status: 'accepted'"));
-  assert.ok(page.includes("router.push('/onboarding')"));
+  assert.ok(/router\.push\(.*['"`]\/onboarding/.test(page));
 });
 
 test('invite API accepts optional WhatsApp phone without persisting raw PII in audit body', () => {

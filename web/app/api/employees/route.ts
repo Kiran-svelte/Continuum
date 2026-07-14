@@ -61,7 +61,10 @@ export async function GET(request: NextRequest) {
     }
     if (status) where.status = status;
     if (department) where.department = { contains: department, mode: 'insensitive' };
-    if (role) where.primary_role = role;
+    if (role) {
+      const roles = role.split(',').map((r) => r.trim()).filter(Boolean);
+      if (roles.length > 0) where.primary_role = { in: roles };
+    }
 
     const [employees, total] = await Promise.all([
       prisma.employee.findMany({

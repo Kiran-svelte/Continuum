@@ -206,11 +206,12 @@ export default function ApprovalsView() {
       const res = await fetch('/api/leaves/list?status=pending,escalated&limit=50', {
         credentials: 'include',
       });
-      const json = await res.json();
       if (!res.ok) {
-        setError(json.error ?? 'Failed to load pending requests');
+        const json = await res.json().catch(() => ({}));
+        setError((json as { error?: string }).error ?? 'Failed to load pending requests');
         return;
       }
+      const json = await res.json();
       setRequests(json.requests);
     } finally {
       setLoading(false);
@@ -225,11 +226,12 @@ export default function ApprovalsView() {
         `/api/leaves/list?status=approved,rejected,cancelled&limit=20&page=${page}`,
         { credentials: 'include' }
       );
-      const json = await res.json();
       if (!res.ok) {
-        setHistoryError(json.error ?? 'Failed to load history');
+        const json = await res.json().catch(() => ({}));
+        setHistoryError((json as { error?: string }).error ?? 'Failed to load history');
         return;
       }
+      const json = await res.json();
       setHistoryRequests(json.requests);
       setHistoryPagination(json.pagination);
     } finally {

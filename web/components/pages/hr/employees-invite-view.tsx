@@ -128,7 +128,7 @@ export default function EmployeesInviteView() {
 
   async function fetchCompanyRoles() {
     try {
-      const res = await fetchWithTimeout('/api/company/roles', undefined, REQUEST_TIMEOUT_MS);
+      const res = await fetchWithTimeout('/api/company/roles', { credentials: 'include' }, REQUEST_TIMEOUT_MS);
       if (res.ok) {
         const data = await res.json().catch(() => ({}));
         setCompanyRoles(data);
@@ -143,7 +143,7 @@ export default function EmployeesInviteView() {
 
   async function fetchDepartments() {
     try {
-      const res = await fetchWithTimeout('/api/hr/departments', undefined, REQUEST_TIMEOUT_MS);
+      const res = await fetchWithTimeout('/api/hr/departments', { credentials: 'include' }, REQUEST_TIMEOUT_MS);
       if (res.ok) {
         const data = await res.json().catch(() => ({}));
         setDepartments(data.departments || []);
@@ -155,8 +155,11 @@ export default function EmployeesInviteView() {
 
   async function fetchPendingInvites() {
     try {
-      const res = await fetchWithTimeout('/api/company/invite-user?status=pending', undefined, REQUEST_TIMEOUT_MS);
-      if (!res.ok) return;
+      const res = await fetchWithTimeout('/api/company/invite-user?status=pending', { credentials: 'include' }, REQUEST_TIMEOUT_MS);
+      if (!res.ok) {
+        console.error('Failed to fetch pending invites:', res.status);
+        return;
+      }
       const data = await res.json().catch(() => ({}));
       setPendingInvites(data.invites || []);
     } catch (err) {
@@ -167,8 +170,8 @@ export default function EmployeesInviteView() {
   async function fetchManagers() {
     try {
       const res = await fetchWithTimeout(
-        '/api/employees?limit=500&roles=admin,hr,manager,director,team_lead',
-        undefined,
+        '/api/employees?limit=500&role=admin,hr,manager,director,team_lead',
+        { credentials: 'include' },
         REQUEST_TIMEOUT_MS
       );
       if (res.ok) {
@@ -214,6 +217,7 @@ export default function EmployeesInviteView() {
     try {
       const res = await fetchWithTimeout('/api/company/invite-user', {
         method: 'POST',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           authMode: accountMode,
@@ -277,7 +281,7 @@ export default function EmployeesInviteView() {
         let identifier = 'Unknown';
 
         if (bulkAccountMode === 'invite') {
-          const [email, firstName, lastName, role = 'employee', department = ''] = values;
+          const [email, firstName, lastName, role = 'employee', department = '', managerId = ''] = values;
 
           if (!email || !firstName || !lastName) {
             newResults.push({ email: email || 'Unknown', success: false, error: 'Invalid invite CSV row' });
@@ -292,6 +296,7 @@ export default function EmployeesInviteView() {
             lastName,
             role,
             department,
+            ...(managerId ? { managerId } : {}),
           };
         } else {
           const [username, email, firstName, lastName, role = 'employee', department = '', password] = values;
@@ -321,6 +326,7 @@ export default function EmployeesInviteView() {
         try {
           const res = await fetchWithTimeout('/api/company/invite-user', {
             method: 'POST',
+            credentials: 'include',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload),
           }, REQUEST_TIMEOUT_MS);
@@ -734,10 +740,13 @@ export default function EmployeesInviteView() {
             {bulkAccountMode === 'invite' ? (
               <>
                 <p className="text-sm text-foreground font-mono">
-                  Format: email,firstName,lastName,role,department
+                  Format: email,firstName,lastName,role,department,managerId
                 </p>
                 <p className="text-xs text-muted mt-2">
-                  Example: john@company.com,John,Doe,employee,Engineering
+                  Example: john@company.com,John,Doe,employee,Engineering,&lt;manager-employee-id&gt;
+                </p>
+                <p className="text-xs text-muted mt-1">
+                  managerId is optional for admin role; required for all other roles. Find it from the employee directory.
                 </p>
               </>
             ) : (

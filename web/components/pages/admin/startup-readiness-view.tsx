@@ -11,25 +11,36 @@ export default function StartupReadinessView() {
   const [alerts, setAlerts] = React.useState<Json>({});
   const [ops, setOps] = React.useState<Json | null>(null);
   const [loading, setLoading] = React.useState(true);
+  const [loadError, setLoadError] = React.useState<string | null>(null);
 
   const load = React.useCallback(async () => {
     setLoading(true);
-    const [c, i, a, o] = await Promise.all([
-      fetch('/api/onboarding/checklist', { credentials: 'include' }).then((r) => r.json()).catch(() => ({ checklist: [] })),
-      fetch('/api/settings/integrations', { credentials: 'include' }).then((r) => r.json()).catch(() => ({ connectors: [] })),
-      fetch('/api/settings/alerts', { credentials: 'include' }).then((r) => r.json()).catch(() => ({ alerts: {} })),
-      fetch('/api/ops/startup-readiness', { credentials: 'include' }).then((r) => r.json()).catch(() => ({ readiness: null })),
-    ]);
-    setChecklist(c.checklist || []);
-    setIntegrations(i.connectors || []);
-    setAlerts(a.alerts || {});
-    setOps(o.readiness || null);
-    setLoading(false);
+    setLoadError(null);
+    try {
+      const [c, i, a, o] = await Promise.all([
+        fetch('/api/onboarding/checklist', { credentials: 'include' }).then((r) => r.json()).catch(() => null),
+        fetch('/api/settings/integrations', { credentials: 'include' }).then((r) => r.json()).catch(() => null),
+        fetch('/api/settings/alerts', { credentials: 'include' }).then((r) => r.json()).catch(() => null),
+        fetch('/api/ops/startup-readiness', { credentials: 'include' }).then((r) => r.json()).catch(() => null),
+      ]);
+      if (!c && !i && !a && !o) {
+        setLoadError('Failed to load startup readiness data. Please refresh.');
+      }
+      setChecklist(c?.checklist || []);
+      setIntegrations(i?.connectors || []);
+      setAlerts(a?.alerts || {});
+      setOps(o?.readiness || null);
+    } catch {
+      setLoadError('Unexpected error loading data. Please refresh.');
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   React.useEffect(() => void load(), [load]);
 
   if (loading) return <div className="p-6 text-sm text-muted-foreground">Loading startup readiness...</div>;
+  if (loadError) return <div className="p-6 text-sm text-destructive">{loadError}</div>;
 
   return (
     <div className="p-6 space-y-6">

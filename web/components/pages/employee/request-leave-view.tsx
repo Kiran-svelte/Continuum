@@ -189,6 +189,7 @@ export default function RequestLeaveView() {
       const res = await fetch('/api/leaves/check-constraints', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ leave_type: leaveType, start_date: startDate, end_date: endDate, is_half_day: halfDay }),
       });
       if (res.ok) {
