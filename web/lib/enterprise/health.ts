@@ -153,31 +153,35 @@ async function checkVault(): Promise<ComponentCheck> {
 }
 
 async function checkRedis(): Promise<ComponentCheck> {
-  if (!process.env.REDIS_URL) {
+  if (!process.env.UPSTASH_REDIS_REST_URL || !process.env.UPSTASH_REDIS_REST_TOKEN) {
     return {
       status: 'healthy',
-      message: 'Redis not configured — skipped',
+      message: 'Redis not configured — using in-memory fallback',
       latency: 0,
     };
   }
 
   const start = Date.now();
   try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 3000);
-    // Basic TCP connectivity check via fetch to a Redis HTTP proxy if available
-    // In most setups, Redis health is checked via its client library
-    clearTimeout(timeout);
-    void controller;
+    const { getRedisClient } = await import('@/lib/redis');
+    const redis = getRedisClient();
+    if (!redis) {
+      return {
+        status: 'degraded',
+        message: 'Redis client failed to initialize despite configured credentials',
+        latency: Date.now() - start,
+      };
+    }
+    await redis.ping();
     return {
       status: 'healthy',
-      message: 'Redis configured',
+      message: 'Redis (Upstash) connection successful',
       latency: Date.now() - start,
     };
-  } catch {
+  } catch (error) {
     return {
       status: 'degraded',
-      message: 'Redis check inconclusive',
+      message: `Redis ping failed: ${error instanceof Error ? error.message : 'unknown error'}`,
       latency: Date.now() - start,
     };
   }
@@ -201,19 +205,28 @@ function checkMemoryUsage(): ComponentCheck {
   const heapUsedMB = Math.round(usage.heapUsed / 1024 / 1024);
   const heapTotalMB = Math.round(usage.heapTotal / 1024 / 1024);
   const rssMB = Math.round(usage.rss / 1024 / 1024);
-  const usagePercent = (usage.heapUsed / usage.heapTotal) * 100;
+
+  // V8's heap grows on demand — heapUsed/heapTotal is near-100% on every
+  // serverless cold start regardless of how much memory is actually
+  // available, making it a permanent false positive in this environment.
+  // Compare RSS against the function's real memory ceiling instead
+  // (AWS_LAMBDA_FUNCTION_MEMORY_SIZE is set by the Lambda runtime Vercel
+  // functions run on; default to Vercel's 1024 MB default outside Lambda).
+  const memoryLimitMB = Number(process.env.AWS_LAMBDA_FUNCTION_MEMORY_SIZE) || 1024;
+  const usagePercent = (rssMB / memoryLimitMB) * 100;
 
   let status: HealthStatus = 'healthy';
   if (usagePercent > 90) status = 'unhealthy';
-  else if (usagePercent > 85) status = 'degraded';
+  else if (usagePercent > 75) status = 'degraded';
 
   return {
     status,
-    message: `Heap: ${heapUsedMB}/${heapTotalMB} MB (${usagePercent.toFixed(1)}%), RSS: ${rssMB} MB`,
+    message: `RSS: ${rssMB}/${memoryLimitMB} MB (${usagePercent.toFixed(1)}%), Heap: ${heapUsedMB}/${heapTotalMB} MB`,
     details: {
       heapUsedMB,
       heapTotalMB,
       rssMB,
+      memoryLimitMB,
       externalMB: Math.round(usage.external / 1024 / 1024),
       usagePercent: Math.round(usagePercent),
     },
