@@ -3,6 +3,7 @@ import prisma from '@/lib/prisma';
 import { normalizeEmail } from '@/lib/email-normalization';
 import { hashPassword, generateTemporaryPassword } from '@/lib/password-service';
 import { resolveAcceptedInviteInvitedByType } from '@/lib/user-invite-inviter';
+import { markEmailVerified } from '@/lib/product-readiness';
 import type { Role } from '@prisma/client';
 
 export function normalizeInviteToken(raw: string): string {
@@ -72,6 +73,10 @@ export async function provisionTemporaryInviteAccess(
         updated_at: new Date(),
       },
     });
+    // Accepting an invite proves control of the invited mailbox, so the
+    // account is already verified — otherwise the temporary password we just
+    // issued would be rejected by the email-verification gate.
+    await markEmailVerified(existing.id, invite.company_id);
     return { temporaryPassword, employeeId: existing.id };
   }
 
@@ -94,6 +99,8 @@ export async function provisionTemporaryInviteAccess(
     },
     select: { id: true },
   });
+
+  await markEmailVerified(created.id, invite.company_id);
 
   return { temporaryPassword, employeeId: created.id };
 }

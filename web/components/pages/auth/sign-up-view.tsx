@@ -16,6 +16,7 @@ import { AuthShell } from '@/components/design-system';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { isPublicSignupEnabled } from '@/lib/public-signup';
+import { validatePassword } from '@/lib/password-validation';
 
 const CREATION_MESSAGES = [
   'Creating your workspace...',
@@ -141,8 +142,7 @@ function InvitationRequiredView() {
 }
 
 function CredentialSignUpView() {
-  const router = useRouter();
-  const [username, setUsername] = useState('');
+  const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [companyName, setCompanyName] = useState('');
   const [password, setPassword] = useState('');
@@ -151,6 +151,8 @@ function CredentialSignUpView() {
   const [error, setError] = useState('');
   const [progressMessage, setProgressMessage] = useState(CREATION_MESSAGES[0]);
   const [infoMessage, setInfoMessage] = useState('');
+  const [submittedEmail, setSubmittedEmail] = useState('');
+  const [emailDelivered, setEmailDelivered] = useState(true);
   const messageIndexRef = useRef(0);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -200,14 +202,15 @@ function CredentialSignUpView() {
     event.preventDefault();
     if (loading) return;
 
-    const normalizedUsername = username.trim();
-    if (!/^[a-zA-Z0-9._-]{3,40}$/.test(normalizedUsername)) {
-      setError('Username must be 3-40 chars and can contain letters, numbers, dot, underscore, or hyphen.');
+    const normalizedEmail = email.trim();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
+      setError('Enter a valid work email address.');
       return;
     }
 
-    if (password.length < 8) {
-      setError('Password must be at least 8 characters.');
+    const pwResult = validatePassword(password);
+    if (!pwResult.valid) {
+      setError(pwResult.errors[0]);
       return;
     }
 
@@ -216,10 +219,9 @@ function CredentialSignUpView() {
       return;
     }
 
-    if (email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
-      setError('Email format is invalid.');
-      return;
-    }
+    const nameParts = fullName.trim().split(/\s+/).filter(Boolean);
+    const firstName = nameParts[0] || '';
+    const lastName = nameParts.slice(1).join(' ');
 
     setLoading(true);
     setError('');
@@ -231,32 +233,25 @@ function CredentialSignUpView() {
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({
-          username: normalizedUsername,
-          email: email.trim() || undefined,
+          email: normalizedEmail,
           password,
+          firstName: firstName || undefined,
+          lastName: lastName || undefined,
           companyName: companyName.trim() || undefined,
         }),
       });
 
-      const payload = await response.json().catch(() => ({} as { error?: string }));
+      const payload = await response.json().catch(() => ({} as { error?: string; emailDelivered?: boolean }));
       if (!response.ok) {
         setError(payload.error || 'Unable to create account. Please try again.');
         return;
       }
 
-      const signinResponse = await fetch('/api/auth/signin', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ identifier: normalizedUsername, password }),
-      });
-
-      if (!signinResponse.ok) {
-        router.push('/sign-in');
-        return;
-      }
-
-      router.push('/onboarding');
+      // Account created — email must be verified before first sign-in, so we
+      // land on a "check your inbox" state instead of auto-signing in (the
+      // middleware verification gate would bounce an unverified session).
+      setEmailDelivered(payload.emailDelivered !== false);
+      setSubmittedEmail(normalizedEmail);
     } catch {
       setError('Sign up failed. Please check your network and try again.');
     } finally {
@@ -265,11 +260,59 @@ function CredentialSignUpView() {
     }
   };
 
+  if (submittedEmail) {
+    return (
+      <AuthShell
+        eyebrow="Sign up"
+        title="Verify your email"
+        subtitle="Your workspace account is created. One step left before you can sign in."
+        footer={
+          <p className="text-xs text-[var(--text-secondary)]">
+            Wrong email?{' '}
+            <button
+              type="button"
+              onClick={() => setSubmittedEmail('')}
+              className="text-[var(--primary)] hover:underline"
+            >
+              Start over
+            </button>
+          </p>
+        }
+      >
+        <div className="space-y-4">
+          <section className="auth-panel">
+            <div className="flex items-start gap-3">
+              <Mail className="mt-0.5 h-5 w-5 shrink-0 text-[var(--primary)]" aria-hidden />
+              <div>
+                <h2 className="text-sm font-semibold text-[var(--foreground)]">
+                  {emailDelivered ? 'Check your inbox' : 'Verification email delayed'}
+                </h2>
+                <p className="text-caption mt-1">
+                  {emailDelivered
+                    ? `We sent a verification link to ${submittedEmail}. Click it to activate your account, then sign in to start guided company setup.`
+                    : `Your account for ${submittedEmail} was created, but the verification email could not be sent right now. Sign in with your new credentials and a fresh verification link will be emailed to you automatically.`}
+                </p>
+              </div>
+            </div>
+          </section>
+
+          <Link
+            href="/sign-in"
+            className="btn btn-primary inline-flex h-11 w-full items-center justify-center gap-2 text-base no-underline"
+          >
+            Go to sign in
+            <ArrowRight className="h-4 w-4" />
+          </Link>
+        </div>
+      </AuthShell>
+    );
+  }
+
   return (
     <AuthShell
       eyebrow="Sign up"
       title="Create your workspace account"
-      subtitle="Start with username and password. Full profile and company setup happens in guided onboarding after first login."
+      subtitle="Start with your work email and a password. Verify your email, then guided onboarding sets up your company."
       aside={
         <div className="space-y-4">
           <div className="inline-flex h-12 w-12 items-center justify-center rounded-xl bg-[var(--primary)] text-[var(--primary-foreground)]">
@@ -302,18 +345,7 @@ function CredentialSignUpView() {
 
       <form onSubmit={handleSignUp} className="space-y-4">
         <Input
-          label="Username"
-          placeholder="your.username"
-          value={username}
-          onChange={(e) => {
-            setUsername(e.target.value);
-            if (error) setError('');
-          }}
-          required
-          autoComplete="username"
-        />
-        <Input
-          label="Email (optional)"
+          label="Work email"
           type="email"
           placeholder="name@company.com"
           value={email}
@@ -321,7 +353,18 @@ function CredentialSignUpView() {
             setEmail(e.target.value);
             if (error) setError('');
           }}
+          required
           autoComplete="email"
+        />
+        <Input
+          label="Your name (optional)"
+          placeholder="Aarav Sharma"
+          value={fullName}
+          onChange={(e) => {
+            setFullName(e.target.value);
+            if (error) setError('');
+          }}
+          autoComplete="name"
         />
         <Input
           label="Company name (optional now)"
@@ -335,7 +378,7 @@ function CredentialSignUpView() {
         <Input
           label="Password"
           type="password"
-          placeholder="Minimum 8 characters"
+          placeholder="8+ chars with upper, lower, number, symbol"
           value={password}
           onChange={(e) => {
             setPassword(e.target.value);

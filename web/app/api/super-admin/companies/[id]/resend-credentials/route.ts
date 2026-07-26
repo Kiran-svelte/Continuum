@@ -5,6 +5,7 @@ import { hashPassword, generateTemporaryPassword } from '@/lib/password-service'
 import { sendCompanyOwnerCredentialsEmail } from '@/lib/email-service';
 import { buildAppUrl } from '@/lib/url-origin';
 import { createSuperAdminAuditLog } from '@/lib/super-admin-audit';
+import { markEmailVerified } from '@/lib/product-readiness';
 
 export const dynamic = 'force-dynamic';
 
@@ -65,6 +66,12 @@ export async function POST(
         password_changed_at: null,
       },
     });
+
+    // A super admin issuing credentials has vouched for this address, and the
+    // email we are about to send presents the password as ready to use. Without
+    // this, the owner signs in successfully and is then bounced by the
+    // email-verification gate — the temporary password looks broken.
+    await markEmailVerified(owner.id, companyId);
 
     // Audit log
     const audit = await createSuperAdminAuditLog({

@@ -143,6 +143,7 @@ async function routeToTemplate(
         meta.endDate ?? '—',
         Number(meta.totalDays) || 1,
         meta.reason ?? '',
+        meta.approverRole ?? null,
       );
       logEmailResult('leave_submitted', email, result.success, result.error);
       break;
@@ -153,6 +154,7 @@ async function routeToTemplate(
         email,
         name,
         meta.companyName ?? 'your company',
+        meta.role ?? null,
       );
       logEmailResult('welcome', email, result.success, result.error);
       break;

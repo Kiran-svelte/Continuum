@@ -535,7 +535,7 @@ async function executeSubmitLeave(
           if (approverRouting.approverId) {
             const approver = await prisma.employee.findUnique({
               where: { id: approverRouting.approverId },
-              select: { email: true, first_name: true, last_name: true },
+              select: { email: true, first_name: true, last_name: true, primary_role: true },
             });
             if (approver?.email) {
               const approverName = `${approver.first_name} ${approver.last_name}`;
@@ -547,7 +547,8 @@ async function executeSubmitLeave(
                 data.start_date,
                 data.end_date,
                 totalDays,
-                reason
+                reason,
+                approver.primary_role
               );
             }
           }

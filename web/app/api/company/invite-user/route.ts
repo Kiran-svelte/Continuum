@@ -8,6 +8,7 @@ import {
   validateReportingManager,
 } from '@/lib/invite-reporting-manager';
 import { sendInviteEmail } from '@/lib/email-service';
+import { buildInviteAcceptUrl } from '@/lib/invite-url';
 import type { Role } from '@prisma/client';
 
 export const dynamic = 'force-dynamic';
@@ -152,7 +153,7 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    const inviteUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/invite/accept/${inviteToken}`;
+    const inviteUrl = buildInviteAcceptUrl(inviteToken, { request });
 
     let tempPassword: string | undefined;
     if (process.env.NODE_ENV === 'development') {

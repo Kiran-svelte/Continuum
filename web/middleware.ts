@@ -174,9 +174,20 @@ const PUBLIC_API_PATTERNS = [
   '/api/auth/reset-password',
   '/api/auth/refresh',
   '/api/auth/callback',
+  '/api/auth/signup',            // Self-serve workspace registration
+  '/api/auth/verify-email',      // Email verification link target (GET)
+  '/api/auth/email-verification/confirm', // Legacy client-side confirm
   '/api/invite/accept',    // Accept invitation
   '/api/auth/invite',      // Validate invite token (GET only)
 ];
+
+/**
+ * Query params that mean "this /sign-in visit is part of the email-verification
+ * round trip". A signed-in-but-unverified user arriving with one of these must
+ * stay on /sign-in: bouncing them to a portal drops the query string and the
+ * verification result is lost.
+ */
+const VERIFICATION_FLOW_PARAMS = ['verify_token', 'verified', 'verify_error'];
 
 // Cron routes that use CRON_SECRET instead of user auth
 const CRON_ROUTES = [
@@ -580,7 +591,13 @@ export async function middleware(request: NextRequest) {
       return clearResponse;
     }
 
-    const accessToken = request.cookies.get(ACCESS_TOKEN_COOKIE)?.value || 
+    // Never redirect away from an auth entry page that is mid-verification —
+    // the redirect would strip the token/result out of the URL.
+    if (VERIFICATION_FLOW_PARAMS.some((param) => request.nextUrl.searchParams.has(param))) {
+      return response;
+    }
+
+    const accessToken = request.cookies.get(ACCESS_TOKEN_COOKIE)?.value ||
                         request.cookies.get(COOKIE_SESSION)?.value;
     const tokenPayload = accessToken ? await verifyAccessToken(accessToken) : null;
 

@@ -109,7 +109,7 @@ export async function POST() {
       );
 
       if (shouldSendCompanyEmail(emailNotificationSettings, 'general')) {
-        sendWelcomeEmail(employee.email, empName, companyName).catch((err) => {
+        sendWelcomeEmail(employee.email, empName, companyName, employee.primary_role).catch((err) => {
           console.error('[ONBOARDING FINALIZE] Failed to send welcome email:', err);
         });
       }

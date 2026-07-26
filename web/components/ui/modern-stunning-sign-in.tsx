@@ -32,8 +32,45 @@ export const SignIn1 = () => {
   const [info, setInfo] = React.useState("")
   const [loading, setLoading] = React.useState(false)
   const [progressMessage, setProgressMessage] = React.useState(SIGN_IN_MESSAGES[0])
+  const [needsVerification, setNeedsVerification] = React.useState(false)
+  const [resending, setResending] = React.useState(false)
   const messageIndexRef = React.useRef(0)
   const timerRef = React.useRef<ReturnType<typeof setInterval> | null>(null)
+
+  const resendVerification = React.useCallback(async () => {
+    setResending(true)
+    setError("")
+    try {
+      const res = await fetch('/api/auth/email-verification/send', {
+        method: 'POST',
+        credentials: 'include',
+      })
+      const payload = (await res.json().catch(() => ({}))) as {
+        error?: string
+        throttled?: boolean
+        delivered?: boolean
+        alreadyVerified?: boolean
+      }
+      if (!res.ok) {
+        setError(payload.error || 'Could not send a verification link. Try again shortly.')
+        return
+      }
+      if (payload.alreadyVerified) {
+        setNeedsVerification(false)
+        setInfo('Your email is already verified — sign in to continue.')
+        return
+      }
+      setInfo(
+        payload.throttled
+          ? 'A verification link was sent moments ago. Check your inbox and spam folder.'
+          : 'Verification link sent. Check your inbox and spam folder.'
+      )
+    } catch {
+      setError('Could not send a verification link. Check your connection.')
+    } finally {
+      setResending(false)
+    }
+  }, [])
 
   function startProgressMessages() {
     messageIndexRef.current = 0
@@ -53,10 +90,55 @@ export const SignIn1 = () => {
 
   React.useEffect(() => () => stopProgressMessages(), [])
 
+  const verifyToken = searchParams?.get("verify_token") ?? null
+  const verifiedFlag = searchParams?.get("verified") ?? null
+  const verifyErrorCode = searchParams?.get("verify_error") ?? null
+
+  // Verification and the authenticated-redirect check must run in sequence, not
+  // in parallel. When they raced, the session check would read the stale
+  // "unverified" state, show the failure banner and trigger another email while
+  // the token was still being confirmed — so a user who had just verified was
+  // told they had not.
   React.useEffect(() => {
     let cancelled = false
 
-    async function redirectIfAuthenticated() {
+    async function confirmToken(): Promise<boolean> {
+      if (!verifyToken) return false
+      try {
+        const res = await fetch('/api/auth/email-verification/confirm', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ token: verifyToken }),
+        })
+        if (cancelled) return false
+        if (res.ok) {
+          setInfo('Email verified. Sign in to continue.')
+          return true
+        }
+        const payload = (await res.json().catch(() => ({}))) as { error?: string }
+        setError(payload.error || 'That verification link is no longer valid.')
+        setNeedsVerification(true)
+        return false
+      } catch {
+        return false
+      }
+    }
+
+    async function run() {
+      if (verifiedFlag === '1') {
+        setInfo('Email verified. Sign in to continue.')
+      } else if (verifyErrorCode) {
+        setError(
+          verifyErrorCode === 'expired'
+            ? 'That verification link has expired. Sign in and we will send a fresh one.'
+            : 'That verification link is not valid. Sign in and we will send a fresh one.'
+        )
+      }
+
+      const justVerified = await confirmToken()
+      if (cancelled) return
+
       try {
         const meResponse = await fetch('/api/auth/me', { credentials: 'include' })
         if (!meResponse.ok || cancelled) return
@@ -66,11 +148,9 @@ export const SignIn1 = () => {
         }
 
         if (me.email_verification?.verified === false) {
-          if (cancelled) return
-          await fetch('/api/auth/email-verification/send', { method: 'POST', credentials: 'include' }).catch(() => null)
-          if (!cancelled) {
-            setError('Your email is not verified. A new verification link has been sent.')
-          }
+          if (justVerified || cancelled) return
+          setNeedsVerification(true)
+          setError('Your email is not verified yet. Use the link we emailed you, or send a new one below.')
           return
         }
 
@@ -80,28 +160,11 @@ export const SignIn1 = () => {
       }
     }
 
-    void redirectIfAuthenticated()
+    void run()
     return () => {
       cancelled = true
     }
-  }, [redirectTarget, router])
-
-  React.useEffect(() => {
-    const verifyToken = searchParams?.get("verify_token")
-    if (!verifyToken) return
-    void fetch('/api/auth/email-verification/confirm', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ token: verifyToken }),
-    }).then(async (res) => {
-      if (res.ok) {
-        setInfo('Email verified. Sign in to continue.')
-      } else {
-        const payload = await res.json().catch(() => ({}))
-        setError(payload.error || 'Verification failed. Request a new link.')
-      }
-    })
-  }, [searchParams])
+  }, [redirectTarget, router, verifyToken, verifiedFlag, verifyErrorCode])
 
   const validateIdentifier = (value: string) => {
     const candidate = value.trim()
@@ -163,8 +226,8 @@ export const SignIn1 = () => {
       }
 
       if (me.email_verification?.verified === false) {
-        await fetch('/api/auth/email-verification/send', { method: 'POST', credentials: 'include' }).catch(() => null)
-        setError('Your email is not verified. A new verification link has been sent.')
+        setNeedsVerification(true)
+        setError('Your email is not verified yet. Use the link we emailed you, or send a new one below.')
         return
       }
 
@@ -247,6 +310,24 @@ export const SignIn1 = () => {
           <div className="rounded-xl border border-[var(--primary)]/35 bg-[var(--primary)]/10 px-3 py-2 text-sm text-[var(--foreground)]">
             {info}
           </div>
+        )}
+        {needsVerification && (
+          <Button
+            type="button"
+            variant="outline"
+            disabled={resending}
+            onClick={() => { void resendVerification() }}
+            className="h-10 w-full"
+          >
+            {resending ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Sending verification link...
+              </>
+            ) : (
+              'Send me a new verification link'
+            )}
+          </Button>
         )}
 
         <Button type="submit" disabled={loading} className="h-11 w-full" size="lg">

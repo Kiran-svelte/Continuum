@@ -488,7 +488,7 @@ export async function POST(request: NextRequest) {
     // Send welcome email (fire-and-forget)
     const empName = `${employee.first_name} ${employee.last_name}`.trim() || employee.email;
     const companyName = company?.name || 'your company';
-    sendWelcomeEmail(employee.email, empName, companyName).catch((err) => {
+    sendWelcomeEmail(employee.email, empName, companyName, employee.primary_role).catch((err) => {
       console.error('[ONBOARDING COMPLETE] Failed to send welcome email:', err);
     });
 

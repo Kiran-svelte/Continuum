@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { randomUUID } from 'crypto';
 import prisma from '@/lib/prisma';
 import { getCurrentUser } from '@/lib/auth-service';
@@ -6,6 +6,7 @@ import { buildAppUrl } from '@/lib/url-origin';
 import { sendEmailVerificationLinkEmail } from '@/lib/email-service';
 import {
   createOpaqueToken,
+  findRecentVerificationToken,
   getVerificationExpiryDate,
   hashToken,
   isEmailVerified,
@@ -13,13 +14,13 @@ import {
 
 export const dynamic = 'force-dynamic';
 
-export async function POST() {
+export async function POST(request: NextRequest) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   if (!user.orgId) return NextResponse.json({ error: 'Company context required' }, { status: 400 });
 
   if (await isEmailVerified(user.id)) {
-    return NextResponse.json({ success: true, message: 'Email is already verified.' });
+    return NextResponse.json({ success: true, alreadyVerified: true, message: 'Email is already verified.' });
   }
 
   const employee = await prisma.employee.findUnique({
@@ -29,6 +30,18 @@ export async function POST() {
   if (!employee) return NextResponse.json({ error: 'Employee not found' }, { status: 404 });
   if (!employee.email.includes('@') || employee.email.endsWith('@users.continuum.local')) {
     return NextResponse.json({ error: 'A real email address is required for verification.' }, { status: 400 });
+  }
+
+  // A link that is still valid and was only just sent is the one the user is
+  // most likely holding. Minting a replacement on every sign-in attempt pushed
+  // the working link down their inbox and made the flow look broken.
+  const recent = await findRecentVerificationToken(user.id);
+  if (recent) {
+    return NextResponse.json({
+      success: true,
+      throttled: true,
+      message: 'A verification link was just sent. Check your inbox, including spam.',
+    });
   }
 
   const token = createOpaqueToken();
@@ -48,8 +61,19 @@ export async function POST() {
     },
   });
 
-  const verificationUrl = buildAppUrl(`/sign-in?verify_token=${encodeURIComponent(token)}`);
-  void sendEmailVerificationLinkEmail(employee.email, employee.first_name || 'there', verificationUrl);
+  const verificationUrl = buildAppUrl(
+    `/api/auth/verify-email?token=${encodeURIComponent(token)}`,
+    { request },
+  );
+  const emailResult = await sendEmailVerificationLinkEmail(
+    employee.email,
+    employee.first_name || 'there',
+    verificationUrl,
+  ).catch(() => ({ success: false as const, error: 'send_failed' }));
 
-  return NextResponse.json({ success: true, expiresAt: expiresAt.toISOString() });
+  return NextResponse.json({
+    success: true,
+    delivered: Boolean(emailResult && emailResult.success),
+    expiresAt: expiresAt.toISOString(),
+  });
 }

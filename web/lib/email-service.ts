@@ -2,6 +2,9 @@ import sgMail from '@sendgrid/mail';
 import nodemailer from 'nodemailer';
 import { Resend } from 'resend';
 import { redisEmailRateLimit } from '@/lib/redis';
+import { BRAND_EMAIL_FROM_NAME, BRAND_PRODUCT_NAME } from '@/lib/brand';
+import { getDefaultPortalForRole } from '@/lib/auth-routing';
+import { resolveAppOrigin } from '@/lib/url-origin';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -42,6 +45,54 @@ function envValue(...keys: string[]): string {
     if (value) return value;
   }
   return '';
+}
+
+// ─── Link + Sender Resolution ───────────────────────────────────────────────
+
+/**
+ * Absolute origin for links inside emails.
+ *
+ * Emails are frequently sent from background jobs with no incoming request, so
+ * this resolves from configuration rather than request headers. Templates used
+ * to inline `process.env.NEXT_PUBLIC_APP_URL || 'https://continuum.hr'`, which
+ * silently shipped links to a domain this deployment does not serve whenever
+ * the env var was missing.
+ */
+function emailAppOrigin(): string {
+  try {
+    return resolveAppOrigin();
+  } catch (error) {
+    console.error(
+      '[EmailService] Cannot resolve the application origin for email links — set NEXT_PUBLIC_APP_URL or APP_URL.',
+      error instanceof Error ? error.message : error,
+    );
+    return '';
+  }
+}
+
+/** Builds an absolute in-app link for use inside an email body. */
+function emailAppUrl(pathname: string): string {
+  const origin = emailAppOrigin();
+  const path = pathname.startsWith('/') ? pathname : `/${pathname}`;
+  return `${origin}${path}`;
+}
+
+/**
+ * Default From: address when no sender is configured. Derived from the app's
+ * own hostname so a fresh deployment does not send as an unrelated domain.
+ */
+function defaultFromEmail(): string {
+  const origin = emailAppOrigin();
+  if (!origin) return 'noreply@localhost';
+  try {
+    return `noreply@${new URL(origin).hostname}`;
+  } catch {
+    return 'noreply@localhost';
+  }
+}
+
+function resolveFromName(...keys: string[]): string {
+  return envValue(...keys) || BRAND_EMAIL_FROM_NAME;
 }
 
 // ─── HTML Escaping (XSS Prevention) ─────────────────────────────────────────
@@ -92,8 +143,8 @@ async function sendViaResend(
   const client = getResendClient();
   if (!client) return { success: false, error: 'Resend API key not configured' };
 
-  const fromEmail = envValue('RESEND_FROM_EMAIL', 'SENDGRID_FROM_EMAIL', 'SMTP_FROM', 'GMAIL_USER') || 'noreply@continuum.hr';
-  const fromName = envValue('EMAIL_FROM_NAME', 'SENDGRID_FROM_NAME') || 'Continuum HR';
+  const fromEmail = envValue('RESEND_FROM_EMAIL', 'SENDGRID_FROM_EMAIL', 'SMTP_FROM', 'GMAIL_USER') || defaultFromEmail();
+  const fromName = resolveFromName('EMAIL_FROM_NAME', 'SENDGRID_FROM_NAME');
 
   try {
     const { data, error } = await client.emails.send({
@@ -148,8 +199,8 @@ async function sendViaSendGrid(
     return { success: false, error: 'SendGrid API key not configured' };
   }
 
-  const fromEmail = envValue('SENDGRID_FROM_EMAIL', 'SMTP_FROM', 'GMAIL_USER') || 'noreply@continuum.hr';
-  const fromName = envValue('SENDGRID_FROM_NAME', 'EMAIL_FROM_NAME') || 'Continuum HR';
+  const fromEmail = envValue('SENDGRID_FROM_EMAIL', 'SMTP_FROM', 'GMAIL_USER') || defaultFromEmail();
+  const fromName = resolveFromName('SENDGRID_FROM_NAME', 'EMAIL_FROM_NAME');
 
   const msg: sgMail.MailDataRequired = {
     to: Array.isArray(to) ? to : [to],
@@ -227,8 +278,8 @@ async function sendViaSmtp(
   options?: EmailOptions
 ): Promise<EmailResult> {
   const transporter = createSmtpTransport();
-  const fromName = envValue('EMAIL_FROM_NAME', 'SENDGRID_FROM_NAME') || 'Continuum HR';
-  const fromEmail = envValue('SMTP_FROM', 'GMAIL_USER', 'SENDGRID_FROM_EMAIL') || 'noreply@continuum.hr';
+  const fromName = resolveFromName('EMAIL_FROM_NAME', 'SENDGRID_FROM_NAME');
+  const fromEmail = envValue('SMTP_FROM', 'GMAIL_USER', 'SENDGRID_FROM_EMAIL') || defaultFromEmail();
   const from = `${fromName} <${fromEmail}>`;
 
   const mailOptions: nodemailer.SendMailOptions = {
@@ -314,7 +365,7 @@ function wrapTemplate(content: string): string {
         ${content}
         <hr style="border: none; border-top: 1px solid #eee; margin: 24px 0;" />
         <p style="font-size: 12px; color: #999; text-align: center;">
-          Continuum HR Platform — This is an automated message, please do not reply directly.
+          ${escapeHtml(BRAND_PRODUCT_NAME)} — This is an automated message, please do not reply directly.
         </p>
       </div>
     </body>
@@ -413,12 +464,17 @@ export async function sendOTPEmail(
 export async function sendWelcomeEmail(
   to: string,
   employeeName: string,
-  companyName: string
+  companyName: string,
+  role?: string | null
 ): Promise<EmailResult> {
+  // Send people to the portal their role actually lands on — an admin or HR
+  // user following an /employee/dashboard link just gets bounced.
+  const dashboardUrl = emailAppUrl(getDefaultPortalForRole(role));
+
   const html = wrapTemplate(`
-    <h2 style="color: #2563eb;">Welcome to Continuum! 🎉</h2>
+    <h2 style="color: #2563eb;">Welcome to ${escapeHtml(BRAND_PRODUCT_NAME)}! 🎉</h2>
     <p>Hi <strong>${escapeHtml(employeeName)}</strong>,</p>
-    <p>Welcome to <strong>${escapeHtml(companyName)}</strong> on the Continuum HR platform.</p>
+    <p>Welcome to <strong>${escapeHtml(companyName)}</strong> on ${escapeHtml(BRAND_PRODUCT_NAME)}.</p>
     <p>Your account has been set up and you can now:</p>
     <ul style="color: #444; line-height: 1.8;">
       <li>View your leave balance and apply for leave</li>
@@ -427,14 +483,14 @@ export async function sendWelcomeEmail(
       <li>Access your team calendar</li>
     </ul>
     <div style="text-align: center; margin: 24px 0;">
-      <a href="${process.env.NEXT_PUBLIC_APP_URL || 'https://continuum.hr'}/employee/dashboard"
+      <a href="${escapeHtml(dashboardUrl)}"
          style="background: #2563eb; color: white; padding: 12px 32px; border-radius: 6px; text-decoration: none; font-weight: 600; display: inline-block;">
         Go to Dashboard →
       </a>
     </div>
   `);
 
-  return sendEmail(to, `Welcome to ${escapeHtml(companyName)} on Continuum`, html, { category: 'welcome' });
+  return sendEmail(to, `Welcome to ${escapeHtml(companyName)} on ${BRAND_PRODUCT_NAME}`, html, { category: 'welcome' });
 }
 
 export async function sendRegistrationApprovedEmail(
@@ -453,7 +509,7 @@ export async function sendRegistrationApprovedEmail(
       <li>Access your team calendar and documents</li>
     </ul>
     <div style="text-align: center; margin: 24px 0;">
-      <a href="${process.env.NEXT_PUBLIC_APP_URL || 'https://continuum.hr'}/sign-in"
+      <a href="${escapeHtml(emailAppUrl('/sign-in'))}"
          style="background: #16a34a; color: white; padding: 12px 32px; border-radius: 6px; text-decoration: none; font-weight: 600; display: inline-block;">
         Sign In Now →
       </a>
@@ -487,8 +543,19 @@ export async function sendLeaveSubmissionEmail(
   startDate: string,
   endDate: string,
   totalDays: number,
-  reason: string
+  reason: string,
+  approverRole?: string | null
 ): Promise<EmailResult> {
+  // HR and admin approvers review from their own portal, not /manager.
+  const normalizedRole = (approverRole || '').toLowerCase();
+  const reviewPath =
+    normalizedRole === 'hr'
+      ? '/hr/leave-requests'
+      : normalizedRole === 'admin'
+        ? '/admin/leave-requests'
+        : '/manager/leave-requests';
+  const reviewUrl = emailAppUrl(reviewPath);
+
   const html = wrapTemplate(`
     <h2 style="color: #2563eb;">New Leave Request 📋</h2>
     <p>Hi <strong>${escapeHtml(approverName)}</strong>,</p>
@@ -500,7 +567,7 @@ export async function sendLeaveSubmissionEmail(
       <tr><td style="padding: 8px; border-bottom: 1px solid #eee; color: #666;">Reason</td><td style="padding: 8px; border-bottom: 1px solid #eee;">${escapeHtml(reason)}</td></tr>
     </table>
     <div style="text-align: center; margin: 24px 0;">
-      <a href="${process.env.NEXT_PUBLIC_APP_URL || 'https://continuum.hr'}/manager/leave-requests"
+      <a href="${escapeHtml(reviewUrl)}"
          style="background: #2563eb; color: white; padding: 12px 32px; border-radius: 6px; text-decoration: none; font-weight: 600; display: inline-block;">
         Review Request →
       </a>
@@ -518,7 +585,7 @@ export async function sendInviteEmail(
   role: string,
   department?: string
 ): Promise<EmailResult> {
-  const signUpUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://continuum.hr'}/sign-up?invite=${token}`;
+  const signUpUrl = emailAppUrl(`/sign-up?invite=${encodeURIComponent(token)}`);
   const roleLabel = role.replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase());
 
   const html = wrapTemplate(`
@@ -599,12 +666,12 @@ export async function sendSignupConfirmationEmail(
   to: string,
   name: string
 ): Promise<EmailResult> {
-  const dashboardUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://continuum.hr'}/sign-in`;
+  const dashboardUrl = emailAppUrl('/sign-in');
 
   const html = wrapTemplate(`
     <h2 style="color: #2563eb;">Account Created Successfully!</h2>
     <p>Hi <strong>${escapeHtml(name)}</strong>,</p>
-    <p>Your Continuum account has been created with the email <strong>${escapeHtml(to)}</strong>.</p>
+    <p>Your ${escapeHtml(BRAND_PRODUCT_NAME)} account has been created with the email <strong>${escapeHtml(to)}</strong>.</p>
     <p>You can now sign in and set up your organization or join your team:</p>
     <div style="text-align: center; margin: 24px 0;">
       <a href="${dashboardUrl}"
