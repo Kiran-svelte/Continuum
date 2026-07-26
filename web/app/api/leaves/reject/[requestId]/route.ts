@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { getAuthEmployee, requireRole, AuthError } from '@/lib/auth-guard';
+import { canActOnLeaveRequest } from '@/lib/leave-approval-routing';
 import { createAuditLog, AUDIT_ACTIONS } from '@/lib/audit';
 import { sendLeaveRejectionEmail } from '@/lib/email-service';
 import { sendNotification, sendPusherEvent } from '@/lib/notification-service';
@@ -18,13 +19,27 @@ export async function POST(
 ) {
   try {
     const employee = await getAuthEmployee();
-    requireRole(employee, 'manager', 'hr', 'admin', 'director');
+    // team_lead belongs here: the router assigns requests to team leads, and
+    // /api/leaves/approve already lets them act. Omitting the role made the
+    // approval queue one-sided — the assigned approver could approve but got
+    // a 403 on reject.
+    requireRole(employee, 'team_lead', 'manager', 'hr', 'admin', 'director');
     const moduleGuard = await requireModuleForOrg(employee.org_id, 'leave');
     if (moduleGuard) return moduleGuard;
 
     const { requestId } = await params;
     const body = await request.json().catch(() => ({}));
-    const comments = typeof body.comments === 'string' ? body.comments : null;
+    const comments = typeof body.comments === 'string' ? body.comments.trim() : '';
+
+    // The employee is told why elsewhere in the product (the rejection email
+    // renders a "Reason" row), so an unexplained rejection produces a blank
+    // notification and no audit trail for the decision.
+    if (comments.length < 3) {
+      return NextResponse.json(
+        { error: 'A rejection reason is required so the employee knows why.' },
+        { status: 400 }
+      );
+    }
 
     const leaveRequest = await prisma.leaveRequest.findUnique({
       where: { id: requestId },
@@ -46,14 +61,18 @@ export async function POST(
       );
     }
 
-    // Verify approver is in hierarchy or is HR/admin
-    const isHrOrAdmin =
-      employee.primary_role === 'hr' ||
-      employee.primary_role === 'admin' ||
-      employee.primary_role === 'director';
-    const isDirectManager = leaveRequest.employee.manager_id === employee.id;
+    // Authorize against the same routed approver chain the approve path uses,
+    // rather than a literal direct-manager check — otherwise anyone the router
+    // legitimately assigned (skip-level approver, HR partner, invite owner)
+    // could not action the request they were sent.
+    const authorized = await canActOnLeaveRequest({
+      requesterId: leaveRequest.emp_id,
+      approverId: employee.id,
+      companyId: employee.org_id!,
+      approverRole: employee.primary_role,
+    });
 
-    if (!isHrOrAdmin && !isDirectManager) {
+    if (!authorized && leaveRequest.current_approver_id !== employee.id) {
       return NextResponse.json(
         { error: 'You are not authorized to reject this request' },
         { status: 403 }
@@ -72,6 +91,11 @@ export async function POST(
           approved_by: employee.id,
           approved_at: new Date(),
           approver_comments: comments,
+          // A rejected request is out of the queue. Leaving current_approver_id
+          // set kept it counted as pending work for the routed approver, and
+          // left the request in a state no portal could act on.
+          current_approver_id: null,
+          sla_deadline: null,
         },
       });
 

@@ -8,6 +8,8 @@ import prisma from '@/lib/prisma';
 import {
   dateKeyToUtcRange,
   getDateKeyInTimeZone,
+  getMinutesOfDayInTimeZone,
+  parseClockTimeToMinutes,
   resolveOperationalTimezone,
 } from '@/lib/api-guards';
 import { checkApiRateLimit } from '@/lib/api-rate-limit';
@@ -129,11 +131,13 @@ async function executeClockAttendance(
       return serviceError('WFH_DISABLED', 'WFH check-in is disabled by company policy.', 400);
     }
 
-    const [startH, startM] = configuredWorkStart.split(':').map(Number);
-    const workStartTime = new Date(now);
-    workStartTime.setHours(startH, startM, 0, 0);
-    const graceCutoff = new Date(workStartTime.getTime() + configuredGraceMinutes * 60 * 1000);
-    const status = now > graceCutoff ? 'late' : 'present';
+    // Compare against the company's wall clock, not the server's. With
+    // setHours() on a UTC host, an Asia/Kolkata company's 09:30 start was
+    // evaluated as 09:30 UTC (15:00 IST), so genuinely late arrivals were
+    // recorded as "present" and late-arrival reporting stayed empty.
+    const workStartMinutes = parseClockTimeToMinutes(configuredWorkStart) ?? 9 * 60;
+    const nowMinutes = getMinutesOfDayInTimeZone(now, companyTimezone);
+    const status = nowMinutes > workStartMinutes + configuredGraceMinutes ? 'late' : 'present';
 
     try {
       if (attendance) {
@@ -194,10 +198,10 @@ async function executeClockAttendance(
       typeof checkOutConfig.check_out_window_end === 'string' &&
       checkOutConfig.check_out_window_end.length > 0
     ) {
-      const [endH, endM] = checkOutConfig.check_out_window_end.split(':').map(Number);
-      const checkoutCutoff = new Date(now);
-      checkoutCutoff.setHours(endH, endM, 59, 999);
-      if (now.getTime() > checkoutCutoff.getTime()) {
+      // Same wall-clock rule as check-in — the window is a company-local time.
+      const cutoffMinutes = parseClockTimeToMinutes(checkOutConfig.check_out_window_end);
+      const nowMinutes = getMinutesOfDayInTimeZone(now, companyTimezone);
+      if (cutoffMinutes !== null && nowMinutes > cutoffMinutes) {
         return serviceError(
           'VALIDATION_ERROR',
           'Check-out is outside the configured checkout window.',

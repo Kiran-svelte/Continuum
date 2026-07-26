@@ -141,6 +141,17 @@ async function executeApproveLeave(
   const { requestId, action, reason } = parsed.data;
   const sanitizedReason = reason ? sanitizeInput(reason) : undefined;
 
+  // Rejections must carry a reason on every channel — the employee's
+  // notification and the audit record both render it, and "No reason provided"
+  // is not an acceptable answer to "why was my leave refused?".
+  if (action === 'reject' && (!sanitizedReason || sanitizedReason.trim().length < 3)) {
+    return serviceError(
+      'VALIDATION_ERROR',
+      'A rejection reason is required so the employee knows why.',
+      400
+    );
+  }
+
   const leaveRequest = await prisma.leaveRequest.findUnique({
     where: { id: requestId },
     include: {

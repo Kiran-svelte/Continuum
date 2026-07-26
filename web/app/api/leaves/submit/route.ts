@@ -6,6 +6,10 @@ import { serviceResultToLegacyResponse } from '@/lib/services/service-response';
 import { requireModuleForOrg } from '@/lib/core-functions/guard-handler';
 
 export const dynamic = 'force-dynamic';
+// Submission runs the constraint engine, approver routing, notifications and
+// email in one request — measured at ~25s in production, well past the 10s
+// default, which surfaced to users as a hung "Submitting..." button.
+export const maxDuration = 60;
 
 /**
  * POST /api/leaves/submit — thin wrapper over submitLeaveService.

@@ -33,6 +33,11 @@ import { serviceOk, serviceError } from './types';
 import type { ServiceResult, AssistantExecutionContext } from './types';
 import logger from '@/lib/logger';
 
+/** "a pending request" but "an approved request" / "an escalated request". */
+function indefiniteArticle(word: string): string {
+  return /^[aeiou]/i.test(word) ? 'an' : 'a';
+}
+
 const leaveSubmitSchema = z.object({
   leave_type: z.string().min(1).max(20),
   start_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
@@ -261,7 +266,7 @@ async function executeSubmitLeave(
       const oEnd = overlapping.end_date.toISOString().split('T')[0];
       return serviceError(
         'OVERLAP_CONFLICT',
-        `You already have a ${overlapping.status} ${overlapping.leave_type} request from ${oStart} to ${oEnd} that overlaps with these dates`,
+        `You already have ${indefiniteArticle(overlapping.status)} ${overlapping.status} ${overlapping.leave_type} request from ${oStart} to ${oEnd} that overlaps with these dates`,
         409,
         { overlapping_request_id: overlapping.id }
       );
@@ -358,7 +363,7 @@ async function executeSubmitLeave(
         const oStart = overlappingInTransaction.start_date.toISOString().split('T')[0];
         const oEnd = overlappingInTransaction.end_date.toISOString().split('T')[0];
         throw new Error(
-          `You already have a ${overlappingInTransaction.status} ${overlappingInTransaction.leave_type} request from ${oStart} to ${oEnd} that overlaps with these dates`
+          `You already have ${indefiniteArticle(overlappingInTransaction.status)} ${overlappingInTransaction.status} ${overlappingInTransaction.leave_type} request from ${oStart} to ${oEnd} that overlaps with these dates`
         );
       }
 
@@ -560,8 +565,11 @@ async function executeSubmitLeave(
     }
 
     // Fetch approver's profile to include in the response (powers "Sent to [Name]" UI).
+    // An auto-approved request has no one waiting on it — reporting a
+    // "pending approver" there drives the UI to tell the employee their
+    // already-approved leave is sitting with someone for a decision.
     let pendingApprover: { id: string; name: string; role: string; department: string | null } | null = null;
-    if (approverRouting.approverId) {
+    if (approverRouting.approverId && requestStatus !== 'approved') {
       const approverProfile = await prisma.employee.findUnique({
         where: { id: approverRouting.approverId },
         select: {

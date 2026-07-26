@@ -111,6 +111,7 @@ export default function LeaveRequestsView() {
   const [actionMessage, setActionMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [rejectingId, setRejectingId] = useState<string | null>(null);
   const [rejectComment, setRejectComment] = useState('');
+  const [bulkRejectComment, setBulkRejectComment] = useState('');
 
   // Selectable rows (only pending or escalated)
   const selectableRequests = useMemo(
@@ -250,7 +251,7 @@ export default function LeaveRequestsView() {
   }
 
   // Bulk action handler
-  async function handleBulkAction(action: 'approve' | 'reject') {
+  async function handleBulkAction(action: 'approve' | 'reject', comment?: string) {
     const ids = Array.from(selectedIds);
     if (ids.length === 0) return;
 
@@ -261,7 +262,11 @@ export default function LeaveRequestsView() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ requestIds: ids, action }),
+        body: JSON.stringify({
+          requestIds: ids,
+          action,
+          ...(action === 'reject' ? { comments: comment ?? '' } : {}),
+        }),
       });
 
       if (res.ok) {
@@ -277,6 +282,7 @@ export default function LeaveRequestsView() {
         );
         // Clear selection
         setSelectedIds(new Set());
+        setBulkRejectComment('');
 
         showMessage(
           data.failCount > 0 ? 'error' : 'success',
@@ -731,12 +737,12 @@ export default function LeaveRequestsView() {
                                     <Textarea
                                       className="w-full text-xs resize-none p-1.5"
                                       rows={2}
-                                      placeholder="Reason (optional)"
+                                      placeholder="Reason (required)"
                                       value={rejectComment}
                                       onChange={e => setRejectComment(e.target.value)}
                                     />
                                     <div className="flex gap-1">
-                                      <Button variant="danger" size="sm" loading={actionLoading === req.id + 'reject'} onClick={() => handleAction(req.id, 'reject', rejectComment)}>
+                                      <Button variant="danger" size="sm" disabled={rejectComment.trim().length < 3} loading={actionLoading === req.id + 'reject'} onClick={() => handleAction(req.id, 'reject', rejectComment)}>
                                         <X className="w-3 h-3" /> Confirm
                                       </Button>
                                       <Button variant="outline" size="sm" onClick={() => { setRejectingId(null); setRejectComment(''); }}>
@@ -823,12 +829,19 @@ export default function LeaveRequestsView() {
                       <Check className="w-3.5 h-3.5" />
                       Approve Selected
                     </Button>
+                    <Textarea
+                      className="w-56 text-xs resize-none p-1.5"
+                      rows={1}
+                      placeholder="Rejection reason (required)"
+                      value={bulkRejectComment}
+                      onChange={(e) => setBulkRejectComment(e.target.value)}
+                    />
                     <Button
                       variant="danger"
                       size="sm"
                       loading={bulkLoading}
-                      disabled={bulkLoading}
-                      onClick={() => handleBulkAction('reject')}
+                      disabled={bulkLoading || bulkRejectComment.trim().length < 3}
+                      onClick={() => handleBulkAction('reject', bulkRejectComment)}
                     >
                       <X className="w-3.5 h-3.5" />
                       Reject Selected
@@ -1031,7 +1044,7 @@ export default function LeaveRequestsView() {
                   <Textarea
                     className="w-full text-sm resize-none p-2"
                     rows={2}
-                    placeholder="Reason for rejection (optional)"
+                    placeholder="Reason for rejection (required)"
                     value={rejectComment}
                     onChange={e => setRejectComment(e.target.value)}
                   />
@@ -1053,6 +1066,7 @@ export default function LeaveRequestsView() {
                         variant="danger"
                         className="flex-1"
                         loading={actionLoading === selectedRequest.id + 'reject'}
+                        disabled={rejectComment.trim().length < 3}
                         onClick={() => handleAction(selectedRequest.id, 'reject', rejectComment)}
                       >
                         <X className="w-4 h-4" />

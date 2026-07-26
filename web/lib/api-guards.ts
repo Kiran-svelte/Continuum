@@ -165,6 +165,38 @@ export function getDateKeyInTimeZone(date: Date, timeZone: string): string {
   return formatter.format(date);
 }
 
+/**
+ * Wall-clock minutes since midnight at `date`, as observed in `timeZone`.
+ *
+ * Needed wherever a policy time ("work starts 09:30") is compared against an
+ * instant. Doing that with Date#setHours compares against the *server's*
+ * timezone, which on a UTC host silently shifts every company's schedule.
+ */
+export function getMinutesOfDayInTimeZone(date: Date, timeZone: string): number {
+  const resolved = resolveOperationalTimezone(timeZone);
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    timeZone: resolved.timezone,
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).formatToParts(date);
+
+  const hour = Number(parts.find((p) => p.type === 'hour')?.value ?? '0');
+  const minute = Number(parts.find((p) => p.type === 'minute')?.value ?? '0');
+  // en-GB renders midnight as "24" in some ICU versions.
+  return (hour % 24) * 60 + minute;
+}
+
+/** Parses "HH:MM" into minutes since midnight; null when malformed. */
+export function parseClockTimeToMinutes(value: string): number | null {
+  const match = /^(\d{1,2}):(\d{2})$/.exec(value.trim());
+  if (!match) return null;
+  const hours = Number(match[1]);
+  const minutes = Number(match[2]);
+  if (hours > 23 || minutes > 59) return null;
+  return hours * 60 + minutes;
+}
+
 export function dateKeyToUtcRange(dateKey: string): { start: Date; endExclusive: Date } {
   const parsedKey = parseDateKey(dateKey);
   if (!parsedKey) {

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -178,12 +178,20 @@ export default function RequestLeaveView() {
     fetchData();
   }, []);
 
-  // Real-time constraint check (debounced 900ms)
+  // Real-time constraint check (debounced 900ms).
+  //
+  // The in-flight guard lives in a ref, not in state that the callback depends
+  // on: with `constraintChecking` in the dependency list, every flip of that
+  // flag produced a new callback identity, the debounce effect re-ran, and the
+  // check re-fired forever — hammering the constraint engine for as long as the
+  // page stayed open.
+  const constraintInFlight = useRef(false);
   const checkConstraints = useCallback(async () => {
-    if (!leaveType || !startDate || !endDate || constraintChecking) return;
+    if (!leaveType || !startDate || !endDate || constraintInFlight.current) return;
     const error = getDateValidationError(startDate, endDate);
     if (error) { setDateError(error); setConstraintResult(null); return; }
     setDateError('');
+    constraintInFlight.current = true;
     setConstraintChecking(true);
     try {
       const res = await fetch('/api/leaves/check-constraints', {
@@ -201,9 +209,10 @@ export default function RequestLeaveView() {
     } catch {
       toast('AI policy check unavailable — you can still submit.', { icon: '⚠️' });
     } finally {
+      constraintInFlight.current = false;
       setConstraintChecking(false);
     }
-  }, [leaveType, startDate, endDate, halfDay, constraintChecking]);
+  }, [leaveType, startDate, endDate, halfDay]);
 
   useEffect(() => {
     const t = setTimeout(checkConstraints, 900);

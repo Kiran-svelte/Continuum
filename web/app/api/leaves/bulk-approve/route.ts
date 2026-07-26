@@ -61,7 +61,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const resolvedComments = typeof comments === 'string' ? comments : null;
+    const resolvedComments = typeof comments === 'string' ? comments.trim() : '';
+
+    // Same rule as the single-request reject endpoint — a rejection the
+    // employee cannot see a reason for is not an acceptable outcome.
+    if (action === 'reject' && resolvedComments.length < 3) {
+      return NextResponse.json(
+        { error: 'A rejection reason is required so employees know why.' },
+        { status: 400 }
+      );
+    }
 
     // Fetch all leave requests in one query
     const leaveRequests = await prisma.leaveRequest.findMany({
@@ -172,6 +181,10 @@ export async function POST(request: NextRequest) {
                 approved_by: employee.id,
                 approved_at: now,
                 approver_comments: resolvedComments,
+                // Match the single-request path: a decided request must leave
+                // the routed approver's queue.
+                current_approver_id: null,
+                sla_deadline: null,
               },
             });
 

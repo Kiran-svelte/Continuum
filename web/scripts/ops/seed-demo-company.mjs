@@ -248,7 +248,23 @@ async function main() {
     }
   }
 
+  // Platform super admin lives in its own table, not Employee.
+  const superAdminEmail = `superadmin@${EMAIL_DOMAIN}`;
+  await prisma.superAdmin.upsert({
+    where: { email: superAdminEmail },
+    update: { password_hash: passwordHash, is_active: true, name: 'Platform Super Admin' },
+    create: {
+      id: crypto.randomUUID(),
+      email: superAdminEmail,
+      password_hash: passwordHash,
+      name: 'Platform Super Admin',
+      is_active: true,
+      updated_at: new Date(),
+    },
+  });
+
   console.log('\n=== DEMO CREDENTIALS (password is the same for all) ===');
+  console.log('super_admin'.padEnd(11), superAdminEmail.padEnd(34), 'Platform Super Admin — platform console');
   console.log('company   :', COMPANY_NAME, '| join code:', JOIN_CODE);
   console.log('password  :', PASSWORD);
   for (const person of PEOPLE) {
